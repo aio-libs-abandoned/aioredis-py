@@ -1,0 +1,13 @@
+language: python
+
+python:
+- "3.4"
+
+services:
+- redis-server
+
+install:
+- pip install hiredis
+
+script:
+- python runtests.py -v
