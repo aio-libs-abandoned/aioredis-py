@@ -3,6 +3,9 @@ import asyncio
 from .protocol import RedisProtocol
 
 
+__all__ = ['create_connection', 'RedisConnection']
+
+
 @asyncio.coroutine
 def create_connection(address, db=0, *, loop=None):
     """Creates redis connection.
@@ -61,6 +64,7 @@ class RedisConnection:
 
         This method is a coroutine.
         """
+        # XXX: simply proxing command to protocol?
         return self._protocol.execute(cmd, *args)
 
     @asyncio.coroutine

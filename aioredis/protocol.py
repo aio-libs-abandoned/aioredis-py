@@ -14,6 +14,7 @@ class RedisProtocol(protocols.Protocol):
         self._loop = loop
         self._waiters = deque()
         self._parser = hiredis.Reader()
+        self.transport = None
 
     def connection_made(self, transport):
         """Called when a connection is made.
