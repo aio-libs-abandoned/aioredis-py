@@ -1,6 +1,7 @@
 import asyncio
+import hiredis
 
-from .protocol import RedisProtocol
+from .protocol import RedisProtocol, encode_command
 
 
 __all__ = ['create_connection', 'RedisConnection']
@@ -15,21 +16,9 @@ def create_connection(address, db=0, *, loop=None):
     assert isinstance(address, (tuple, str)), "tuple or str expected"
     if loop is None:
         loop = asyncio.get_event_loop()
-    if isinstance(address, tuple):
-        host, port = address
-        _, proto = yield from loop.create_connection(
-            lambda: RedisProtocol(loop=loop), host, port)
-    else:
-        _, proto = yield from loop.create_unix_connection(
-            lambda: RedisProtocol(loop=loop), address)
-    # waiter = asyncio.Future(loop=loop)
 
-    conn = RedisConnection(proto, db, loop=loop)
-
-    # fut = yield from waiter
-    # ok = yield from fut
-    # assert ok == b'OK'
-
+    conn = RedisConnection(loop=loop)
+    yield from conn.connect(address, db=db)
     return conn
 
 
@@ -37,35 +26,80 @@ class RedisConnection:
     """Redis connection.
     """
 
-    def __init__(self, protocol, db=0, waiter=None, loop=None):
+    def __init__(self, reader, writer, *, db=None,
+                 auth_password=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        self._protocol = protocol
-        self._db = db
         self._loop = loop
-        if waiter is not None:
-            fut = self.select(db)
-            fut.add_done_callback(waiter.set_result)
+        self._reader = None
+        self._writer = None
+        self._waiters = asyncio.Queue(loop=self._loop)
+        self._db = None
+        self._parser = hiredis.Reader()
+
+    @asyncio.coroutine
+    def connect(self, address, db=None, auth_password=None):
+        """Initializes connection.
+
+        This method is a coroutine.
+        """
+        if isinstance(address, (tuple, list)):
+            host, port = address
+            reader, writer = yield from asyncio.open_connection(
+                host, port, loop=self._loop)
+        else:
+            reader, writed = yield from asyncio.open_unix_connection(
+                address, loop=self._loop)
+        self._reader = reader
+        self._writer = writer
+        self._receiver = asyncio.async(self._read_data(), loop=self._loop)
+
+        if db is not None:
+            yield from self.select(db)
 
     def __repr__(self):
         return '<RedisConnection>'
 
-    @property
-    def transport(self):
-        """Transport instance.
-        """
-        return self._protocol.transport
+    def execute(self, cmd, *args):
+        fut = asyncio.Future(loop=self._loop)
+        print('tr', self._writer.transport)
+        asyncio.async(self._execute(fut, cmd, *args))
+        return fut
 
     @asyncio.coroutine
-    def execute(self, cmd, *args):
-        """Execute command.
+    def _execute(self, fut, cmd, *args):
+        data = encode_command(cmd, *args)
+        try:
+            self._writer.write(data)
+            yield from self._writer.drain()
+        except Exception as exc:
+            fut.set_exception(exc)
+        else:
+            yield from self._waiters.put(fut)
 
-        Wrapper around protocol's execute method.
+    @asyncio.coroutine
+    def _read_data(self):
+        while not self._reader.at_eof():
+            data = yield from self._reader.readline()
+            self._parser.feed(data)
+            while True:
+                obj = self._parser.gets()
+                if obj is False:
+                    break
+                waiter = yield from self._waiters.get()
+                waiter.set_result(obj)
+        print('exited')
 
-        This method is a coroutine.
-        """
-        # XXX: simply proxing command to protocol?
-        return self._protocol.execute(cmd, *args)
+    def close(self):
+        self._writer.transport.close()
+        # self._writer = None
+        # self._reader = None
+
+    # @property
+    # def transport(self):
+    #     """Transport instance.
+    #     """
+    #     return self._protocol.transport
 
     @asyncio.coroutine
     def select(self, db):
