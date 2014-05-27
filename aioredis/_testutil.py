@@ -30,6 +30,7 @@ class BaseTest(unittest.TestCase):
             '--bind', 'localhost',
             '--port', str(self.redis_port),
             '--unixsocket', '/tmp/aioredis.sock',
+            '--save', '""',
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
@@ -46,11 +47,11 @@ class BaseTest(unittest.TestCase):
     def _find_port(self):
         s = socket.socket()
         while True:
+            port = random.randint(1024, 65535)
             try:
-                s.bind(('127.0.0.1', 0))
+                s.bind(('127.0.0.1', port))
             except OSError:
                 pass
             else:
-                addr = s.getsockname()
                 s.close()
-                return addr[1]
+                return port

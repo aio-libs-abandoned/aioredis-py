@@ -1,12 +1,11 @@
 import asyncio
-import unittest
 
 from aioredis._testutil import BaseTest, test_coroutine
 
 from aioredis import RedisProtocol
 
 
-class ProtocolTests(BaseTest):
+class ProtocolTest(BaseTest):
 
     @test_coroutine
     @asyncio.coroutine
