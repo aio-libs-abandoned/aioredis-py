@@ -137,7 +137,7 @@ class TestsFinder:
                                                verbose=self._verbose)]
         for mod in mods:
             for name in set(dir(mod)):
-                if name.endswith('Tests'):
+                if name.endswith('Test'):
                     self._test_factories.append(getattr(mod, name))
 
     def load_tests(self):

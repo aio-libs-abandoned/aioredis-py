@@ -26,8 +26,7 @@ class RedisConnection:
     """Redis connection.
     """
 
-    def __init__(self, reader, writer, *, db=None,
-                 auth_password=None, loop=None):
+    def __init__(self, *, db=None, auth_password=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._loop = loop
@@ -62,7 +61,6 @@ class RedisConnection:
 
     def execute(self, cmd, *args):
         fut = asyncio.Future(loop=self._loop)
-        print('tr', self._writer.transport)
         asyncio.async(self._execute(fut, cmd, *args))
         return fut
 
@@ -101,6 +99,10 @@ class RedisConnection:
     #     """
     #     return self._protocol.transport
 
+    @property
+    def db(self):
+        return self._db
+
     @asyncio.coroutine
     def select(self, db):
         """Executes SELECT command.
@@ -112,4 +114,9 @@ class RedisConnection:
         if db < 0:
             raise ValueError("DB must be greater equal 0, got {!r}".format(db))
         resp = yield from self.execute('select', str(db))
-        return resp == b'OK'
+        # TODO: set db to self._db
+        if resp == b'OK':
+            self._db = db
+            return True
+        else:
+            return False
