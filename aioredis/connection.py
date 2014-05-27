@@ -1,7 +1,7 @@
 import asyncio
 import hiredis
 
-from .protocol import encode_command
+from .util import encode_command
 
 
 __all__ = ['create_connection', 'RedisConnection']
@@ -13,7 +13,7 @@ def create_connection(address, db=0, *, loop=None):
 
     This function is a coroutine.
     """
-    assert isinstance(address, (tuple, str)), "tuple or str expected"
+    assert isinstance(address, (tuple, list, str)), "tuple or str expected"
     if loop is None:
         loop = asyncio.get_event_loop()
 
@@ -26,15 +26,16 @@ class RedisConnection:
     """Redis connection.
     """
 
-    def __init__(self, *, db=None, auth_password=None, loop=None):
+    def __init__(self, *, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._loop = loop
         self._reader = None
         self._writer = None
+        self._address = None
         self._waiters = asyncio.Queue(loop=self._loop)
-        self._db = None
         self._parser = hiredis.Reader()
+        self._db = None
 
     @asyncio.coroutine
     def connect(self, address, db=None, auth_password=None):
@@ -51,27 +52,26 @@ class RedisConnection:
                 address, loop=self._loop)
         self._reader = reader
         self._writer = writer
+        self._address = address
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
 
         if db is not None:
             yield from self.select(db)
+        if auth_password is not None:
+            pass    # TODO: implement
 
     def __repr__(self):
         return '<RedisConnection>'
 
-    def execute(self, cmd, *args):
-        """Execute redis command.
-        """
-        fut = asyncio.Future(loop=self._loop)
-        asyncio.Task(self._execute(fut, cmd, *args), loop=self._loop)
-        return fut
-
     @asyncio.coroutine
-    def _execute(self, fut, cmd, *args):
-        data = encode_command(cmd, *args)
+    def _execute(self, fut, data):
+        """Low-level method for redis command execution.
+        """
+        assert isinstance(data, (bytes, bytearray, memoryview))
         try:
             self._writer.write(data)
             yield from self._writer.drain()
+        # TODO: handle specific exceptions (like connection lost and reconnect)
         except Exception as exc:
             fut.set_exception(exc)
         else:
@@ -89,10 +89,23 @@ class RedisConnection:
                 waiter = yield from self._waiters.get()
                 waiter.set_result(obj)
 
+    def execute(self, cmd, *args):
+        """Executes redis command and returns Future waiting for the answer.
+
+        Raises TypeError if any of args can not be encoded as bytes.
+        """
+        data = encode_command(cmd, *args)
+        fut = asyncio.Future(loop=self._loop)
+        asyncio.Task(self._execute(fut, data), loop=self._loop)
+        return fut
+
     def close(self):
         self._writer.transport.close()
-        # self._writer = None
-        # self._reader = None
+        if not self._reader_task.done():
+            self._reader_task.cancel()
+            self._reader_task = None
+        self._writer = None
+        self._reader = None
 
     @property
     def transport(self):
