@@ -5,6 +5,7 @@ PEP ?= pep8
 
 # doc:
 
+all: flake test
 
 flake:
 	$(FLAKE) aioredis tests
@@ -17,4 +18,4 @@ cov coverage:
 	$(PYTHON) runtests.py --coverage
 
 
-.PHONY: doc flake
+.PHONY: all
