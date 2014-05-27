@@ -1,7 +1,7 @@
 import asyncio
 import hiredis
 
-from .protocol import RedisProtocol, encode_command
+from .protocol import encode_command
 
 
 __all__ = ['create_connection', 'RedisConnection']
@@ -51,7 +51,7 @@ class RedisConnection:
                 address, loop=self._loop)
         self._reader = reader
         self._writer = writer
-        self._receiver = asyncio.async(self._read_data(), loop=self._loop)
+        self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
 
         if db is not None:
             yield from self.select(db)
@@ -60,8 +60,10 @@ class RedisConnection:
         return '<RedisConnection>'
 
     def execute(self, cmd, *args):
+        """Execute redis command.
+        """
         fut = asyncio.Future(loop=self._loop)
-        asyncio.async(self._execute(fut, cmd, *args))
+        asyncio.Task(self._execute(fut, cmd, *args), loop=self._loop)
         return fut
 
     @asyncio.coroutine
@@ -86,18 +88,17 @@ class RedisConnection:
                     break
                 waiter = yield from self._waiters.get()
                 waiter.set_result(obj)
-        print('exited')
 
     def close(self):
         self._writer.transport.close()
         # self._writer = None
         # self._reader = None
 
-    # @property
-    # def transport(self):
-    #     """Transport instance.
-    #     """
-    #     return self._protocol.transport
+    @property
+    def transport(self):
+        """Transport instance.
+        """
+        return self._writer.transport
 
     @property
     def db(self):

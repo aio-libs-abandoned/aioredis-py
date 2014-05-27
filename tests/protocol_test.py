@@ -1,5 +1,4 @@
 import asyncio
-import unittest
 
 from aioredis._testutil import BaseTest, test_coroutine
 
