@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import BaseTest
-from aioredis import create_connection
+from aioredis import create_connection, ReplyError
 
 
 class ConnectionTest(BaseTest):
@@ -32,7 +32,7 @@ class ConnectionTest(BaseTest):
         for db, exc in [(-1, ValueError),
                         (1.0, TypeError),
                         ('bad value', TypeError),
-                        (10000, AssertionError),
+                        (10000, ReplyError),
                         ]:
             with self.subTest("tryig db: {}, expecting: {}".format(db, exc)):
                 with self.assertRaises(exc):

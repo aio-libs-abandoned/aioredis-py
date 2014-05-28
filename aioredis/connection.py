@@ -2,6 +2,7 @@ import asyncio
 import hiredis
 
 from .util import encode_command
+from .errors import RedisError, ProtocolError, ReplyError
 
 
 __all__ = ['create_connection', 'RedisConnection']
@@ -43,7 +44,8 @@ class RedisConnection:
         self._writer = writer
         self._loop = loop
         self._waiters = asyncio.Queue(loop=self._loop)
-        self._parser = hiredis.Reader()
+        self._parser = hiredis.Reader(protocolError=ProtocolError,
+                                      replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
         self._db = None
 
@@ -58,7 +60,8 @@ class RedisConnection:
         try:
             self._writer.write(data)
             yield from self._writer.drain()
-        # TODO: handle specific exceptions (like connection lost and reconnect)
+        # TODO: handle specific exceptions
+        #       (like connection lost)
         except Exception as exc:
             fut.set_exception(exc)
         else:
@@ -70,11 +73,23 @@ class RedisConnection:
             data = yield from self._reader.readline()
             self._parser.feed(data)
             while True:
-                obj = self._parser.gets()
-                if obj is False:
-                    break
-                waiter = yield from self._waiters.get()
-                waiter.set_result(obj)
+                try:
+                    obj = self._parser.gets()
+                except ProtocolError as exc:
+                    # ProtocolError is fatal
+                    # so connection must be closed
+                    waiter = yield from self._waiters.get()
+                    waiter.set_exception(exc)
+                    self._loop.call_soon(self.close)
+                    return
+                else:
+                    if obj is False:
+                        break
+                    waiter = yield from self._waiters.get()
+                    if isinstance(obj, RedisError):
+                        waiter.set_exception(obj)
+                    else:
+                        waiter.set_result(obj)
 
     def execute(self, cmd, *args):
         """Executes redis command and returns Future waiting for the answer.
@@ -92,6 +107,7 @@ class RedisConnection:
         self._reader_task = None
         self._writer = None
         self._reader = None
+        # TODO: discard all _waiters
 
     # no use cases yet
     # @property
