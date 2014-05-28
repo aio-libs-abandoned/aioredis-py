@@ -14,8 +14,6 @@ def create_connection(address, db=0, auth=None, *, loop=None):
     This function is a coroutine.
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
-    if loop is None:
-        loop = asyncio.get_event_loop()
 
     if isinstance(address, (list, tuple)):
         host, port = address
@@ -90,17 +88,17 @@ class RedisConnection:
 
     def close(self):
         self._writer.transport.close()
-        if not self._reader_task.done():
-            self._reader_task.cancel()
-            self._reader_task = None
+        self._reader_task.cancel()
+        self._reader_task = None
         self._writer = None
         self._reader = None
 
-    @property
-    def transport(self):
-        """Transport instance.
-        """
-        return self._writer.transport
+    # no use cases yet
+    # @property
+    # def transport(self):
+    #     """Transport instance.
+    #     """
+    #     return self._writer.transport
 
     @property
     def db(self):
