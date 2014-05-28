@@ -1,6 +1,6 @@
 import asyncio
 
-from aioredis._testutil import BaseTest
+from ._testutil import BaseTest
 from aioredis import create_connection
 
 
