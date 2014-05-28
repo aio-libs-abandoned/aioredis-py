@@ -8,7 +8,7 @@ __all__ = ['create_connection', 'RedisConnection']
 
 
 @asyncio.coroutine
-def create_connection(address, db=0, *, loop=None):
+def create_connection(address, db=0, auth=None, *, loop=None):
     """Creates redis connection.
 
     This function is a coroutine.
@@ -17,8 +17,19 @@ def create_connection(address, db=0, *, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    conn = RedisConnection(loop=loop)
-    yield from conn.connect(address, db=db)
+    if isinstance(address, (list, tuple)):
+        host, port = address
+        reader, writer = yield from asyncio.open_connection(
+            host, port, loop=loop)
+    else:
+        reader, writer = yield from asyncio.open_unix_connection(
+            address, loop=loop)
+    conn = RedisConnection(reader, writer, loop=loop)
+
+    if auth is not None:
+        pass
+    if db is not None:
+        yield from conn.select(db)
     return conn
 
 
@@ -26,39 +37,16 @@ class RedisConnection:
     """Redis connection.
     """
 
-    def __init__(self, *, loop=None):
+    def __init__(self, reader, writer, *, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        self._loop = loop
-        self._reader = None
-        self._writer = None
-        self._address = None
-        self._waiters = asyncio.Queue(loop=self._loop)
-        self._parser = hiredis.Reader()
-        self._db = None
-
-    @asyncio.coroutine
-    def connect(self, address, db=None, auth_password=None):
-        """Initializes connection.
-
-        This method is a coroutine.
-        """
-        if isinstance(address, (tuple, list)):
-            host, port = address
-            reader, writer = yield from asyncio.open_connection(
-                host, port, loop=self._loop)
-        else:
-            reader, writed = yield from asyncio.open_unix_connection(
-                address, loop=self._loop)
         self._reader = reader
         self._writer = writer
-        self._address = address
+        self._loop = loop
+        self._waiters = asyncio.Queue(loop=self._loop)
+        self._parser = hiredis.Reader()
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
-
-        if db is not None:
-            yield from self.select(db)
-        if auth_password is not None:
-            pass    # TODO: implement
+        self._db = None
 
     def __repr__(self):
         return '<RedisConnection>'
