@@ -29,7 +29,8 @@ def create_connection(address, db=0, auth=None, *, loop=None):
     if auth is not None:
         pass
     if db is not None:
-        yield from conn.select(db)
+        result = yield from conn.select(db)
+        assert result is True, db
     return conn
 
 

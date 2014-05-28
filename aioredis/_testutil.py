@@ -25,11 +25,12 @@ class BaseTest(unittest.TestCase):
     def setUp(self):
         self.loop = loop = asyncio.new_event_loop()
         self.redis_port = self._find_port()
+        self.redis_socket = '/tmp/aioredis.sock'
         self.redis = loop.run_until_complete(asyncio.create_subprocess_exec(
             'redis-server',
             '--bind', 'localhost',
             '--port', str(self.redis_port),
-            '--unixsocket', '/tmp/aioredis.sock',
+            '--unixsocket', self.redis_socket,
             '--save', '""',
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
