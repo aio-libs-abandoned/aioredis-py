@@ -22,19 +22,15 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 0)
         self.assertIs(conn._loop, self.loop)
 
-    def test_select_db(self):
+    def xtest_select_db(self):
         address = ('localhost', self.redis_port)
         conn = self.loop.run_until_complete(create_connection(
-            address, db=None, loop=self.loop))
+            address, loop=self.loop))
 
-        self.assertIsNone(conn.db)
+        self.assertEqual(conn.db, 0)
 
-        for db, exc in [(-1, ValueError),
-                        (1.0, TypeError),
-                        ('bad value', TypeError),
-                        (10000, ReplyError),
-                        ]:
-            with self.subTest("tryig db: {}, expecting: {}".format(db, exc)):
-                with self.assertRaises(exc):
+        for db in [-1, 1.0, 'bad value', 10000]:
+            with self.subTest("tryig db: {}".format(db)):
+                with self.assertRaises(ReplyError):
                     self.loop.run_until_complete(create_connection(
                         address, db=db, loop=self.loop))

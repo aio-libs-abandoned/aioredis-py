@@ -12,6 +12,14 @@ __all__ = ['create_connection', 'RedisConnection']
 def create_connection(address, db=0, auth=None, *, loop=None):
     """Creates redis connection.
 
+    Opens connection to Redis server specified by address argument.
+    Address format is similar to socket address, ie:
+    * when address is a tuple it represents (host, port) pair;
+    * when address is a str it represents unix domain socket path.
+    (no other address formats supported)
+
+    Return value is RedisConnection instance.
+
     This function is a coroutine.
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
@@ -26,10 +34,9 @@ def create_connection(address, db=0, auth=None, *, loop=None):
     conn = RedisConnection(reader, writer, loop=loop)
 
     if auth is not None:
-        pass
-    if db is not None:
-        result = yield from conn.select(db)
-        assert result is True, db
+        yield from conn.execute('AUTH', auth)
+    if db and db > 0:
+        yield from conn.execute('SELECT', db)
     return conn
 
 
@@ -47,13 +54,15 @@ class RedisConnection:
         self._parser = hiredis.Reader(protocolError=ProtocolError,
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
-        self._db = None     # FIXME; 0 by default
+        self._db = 0
 
     def __repr__(self):
         return '<RedisConnection>'  # make more verbose
 
     @asyncio.coroutine
     def _read_data(self):
+        """
+        """
         while not self._reader.at_eof():
             data = yield from self._reader.readline()
             self._parser.feed(data)
@@ -90,6 +99,8 @@ class RedisConnection:
         return (yield from fut)
 
     def close(self):
+        """Close connection.
+        """
         self._writer.transport.close()
         self._reader_task.cancel()
         self._reader_task = None
