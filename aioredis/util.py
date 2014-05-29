@@ -1,4 +1,6 @@
 
+# NOTE: never put here anything else;
+#       just this basic types
 _converters = {
     bytes: lambda val: val,
     bytearray: lambda val: val,

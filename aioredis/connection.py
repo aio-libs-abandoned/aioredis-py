@@ -47,25 +47,10 @@ class RedisConnection:
         self._parser = hiredis.Reader(protocolError=ProtocolError,
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
-        self._db = None
+        self._db = None     # FIXME; 0 by default
 
     def __repr__(self):
-        return '<RedisConnection>'
-
-    @asyncio.coroutine
-    def _execute(self, fut, data):
-        """Low-level method for redis command execution.
-        """
-        assert isinstance(data, (bytes, bytearray, memoryview))
-        try:
-            self._writer.write(data)
-            yield from self._writer.drain()
-        # TODO: handle specific exceptions
-        #       (like connection lost)
-        except Exception as exc:
-            fut.set_exception(exc)
-        else:
-            yield from self._waiters.put(fut)
+        return '<RedisConnection>'  # make more verbose
 
     @asyncio.coroutine
     def _read_data(self):
@@ -91,15 +76,18 @@ class RedisConnection:
                     else:
                         waiter.set_result(obj)
 
+    @asyncio.coroutine
     def execute(self, cmd, *args):
         """Executes redis command and returns Future waiting for the answer.
 
         Raises TypeError if any of args can not be encoded as bytes.
         """
         data = encode_command(cmd, *args)
+        self._writer.write(data)
+        yield from self._writer.drain()
         fut = asyncio.Future(loop=self._loop)
-        asyncio.Task(self._execute(fut, data), loop=self._loop)
-        return fut
+        yield from self._waiters.put(fut)
+        return (yield from fut)
 
     def close(self):
         self._writer.transport.close()
@@ -109,19 +97,13 @@ class RedisConnection:
         self._reader = None
         # TODO: discard all _waiters
 
-    # no use cases yet
-    # @property
-    # def transport(self):
-    #     """Transport instance.
-    #     """
-    #     return self._writer.transport
-
     @property
     def db(self):
         return self._db
 
     @asyncio.coroutine
     def select(self, db):
+        # TODO: move this to high-level part...
         """Executes SELECT command.
 
         This method is a coroutine.
