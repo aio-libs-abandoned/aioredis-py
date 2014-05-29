@@ -9,6 +9,7 @@ services:
 
 install:
 - pip install hiredis
+- pip install -e .
 
 script:
 - python runtests.py -v
