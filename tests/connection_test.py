@@ -14,6 +14,11 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 0)
         self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
+        conn = self.loop.run_until_complete(create_connection(
+            ['localhost', self.redis_port], loop=self.loop))
+        self.assertEqual(conn.db, 0)
+        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
+
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     def test_connect_unixsocket(self):
         conn = self.loop.run_until_complete(create_connection(
@@ -44,6 +49,10 @@ class ConnectionTest(BaseTest):
         with self.assertRaises(TypeError):
             self.loop.run_until_complete(create_connection(
                 address, db='bad value', loop=self.loop))
+        with self.assertRaises(TypeError):
+            conn = self.loop.run_until_complete(create_connection(
+                address, db=None, loop=self.loop))
+            self.loop.run_until_complete(conn.select(None))
         with self.assertRaises(ReplyError):
             self.loop.run_until_complete(create_connection(
                 address, db=100000, loop=self.loop))

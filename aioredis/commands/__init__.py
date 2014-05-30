@@ -1,18 +1,18 @@
 import asyncio
 
 from aioredis.connection import create_connection
-from .keys import KeysCommandsMixin
+from .generic import GenericCommandsMixin
 
 
 __all__ = ['create_redis', 'Redis']
 
 
-class Redis(KeysCommandsMixin):
+class Redis(GenericCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
 
-    This class contains Connection
+    For commands details see: http://redis.io/commands/#connection
     """
 
     def __init__(self, connection):
@@ -45,20 +45,19 @@ class Redis(KeysCommandsMixin):
     def echo(self, message):
         """Echo the given string.
         """
-        yield from self._conn.execute('ECHO', message)
+        return (yield from self._conn.execute('ECHO', message))
 
     @asyncio.coroutine
     def ping(self):
         """Ping the server.
         """
-        yield from self._conn.execute('PING')
+        return (yield from self._conn.execute('PING'))
 
     @asyncio.coroutine
     def quit(self):
         """Close the connection.
         """
-        yield from self._conn.execute('QUIT')
-        self.close()
+        return (yield from self._conn.execute('QUIT'))
 
     @asyncio.coroutine
     def select(self, db):

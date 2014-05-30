@@ -7,7 +7,7 @@ import os
 from functools import wraps
 
 
-def test_coroutine(fun):
+def run_until_complete(fun):
     if not asyncio.iscoroutinefunction(fun):
         fun = asyncio.coroutine(fun)
 
