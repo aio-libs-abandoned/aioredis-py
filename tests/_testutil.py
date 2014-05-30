@@ -2,6 +2,7 @@ import asyncio
 import unittest
 import socket
 import random
+import os
 
 from functools import wraps
 
@@ -24,24 +25,11 @@ class BaseTest(unittest.TestCase):
 
     def setUp(self):
         self.loop = loop = asyncio.new_event_loop()
-        self.redis_port = self._find_port()
-        self.redis_socket = '/tmp/aioredis.sock'
-        self.redis = loop.run_until_complete(asyncio.create_subprocess_exec(
-            'redis-server',
-            '--bind', 'localhost',
-            '--port', str(self.redis_port),
-            '--unixsocket', self.redis_socket,
-            '--save', '""',
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-            loop=loop))
-        self.loop.run_until_complete(asyncio.sleep(0.01, loop=self.loop))
+        self.redis_port = int(os.environ.get('REDIS_PORT') or 6379)
+        socket = os.environ.get('REDIS_SOCKET')
+        self.redis_socket = socket or '/tmp/aioredis.sock'
 
     def tearDown(self):
-        if self.redis is not None:
-            self.redis.terminate()
-            self.loop.run_until_complete(asyncio.sleep(0.01, loop=self.loop))
         self.loop.close()
         del self.loop
 

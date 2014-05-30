@@ -1,4 +1,6 @@
+import unittest
 import asyncio
+import os
 
 from ._testutil import BaseTest
 from aioredis import create_connection, ReplyError, ProtocolError
@@ -12,6 +14,7 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 0)
         self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
+    @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     def test_connect_unixsocket(self):
         conn = self.loop.run_until_complete(create_connection(
             self.redis_socket, db=0, loop=self.loop))
@@ -59,16 +62,10 @@ class ConnectionTest(BaseTest):
 
         self.assertEqual(conn._waiters.qsize(), 0)
 
-    def test_close_connection(self):
+    def test_close_connection__tcp(self):
         loop = self.loop
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
-        conn.close()
-        with self.assertRaises(AttributeError): # FIXME
-            loop.run_until_complete(conn.select(1))
-
-        conn = loop.run_until_complete(create_connection(
-            self.redis_socket, loop=loop))
         conn.close()
         with self.assertRaises(AttributeError): # FIXME
             loop.run_until_complete(conn.select(1))
@@ -79,3 +76,11 @@ class ConnectionTest(BaseTest):
             coro = conn.select(1)
             conn.close()
             loop.run_until_complete(coro)
+
+    @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
+    def test_close_connection__socket(self):
+        conn = self.loop.run_until_complete(create_connection(
+            self.redis_socket, loop=self.loop))
+        conn.close()
+        with self.assertRaises(AttributeError): # FIXME
+            self.loop.run_until_complete(conn.select(1))

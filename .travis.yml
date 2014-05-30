@@ -13,12 +13,15 @@ install:
 
 before_script:
 # patch redis config
-- 'sed "s/$# \(unixsocket .*\)$/\1/" /etc/redis/redis.conf > tmp'
-- diff /etc/redis/redis.conf tmp
-- sudo mv tmp /etc/redis/redis.conf
-- 'export REDIS_SOCKET=$(grep "^unixsocket .*" /etc/redis/redis.conf | cut -f2 -d" ")'
-- 'export REDIS_PORT=$(grep "^port .* /etc/redis/redis.conf | cut -f2 -d" ")'
-- sudo service redis-server restart
+- sudo service redis-server stop
+- sleep 3
+- export REDIS_PORT=6379 REDIS_SOCKET=/tmp/aioredis.sock
+- >
+  redis-server --daemonize yes
+  --pidfile ./redis-server.pid
+  --unixsocket $REDIS_SOCKET
+  --port $REDIS_PORT
+  --save ""
 - sleep 3
 - redis-cli -s $REDIS_SOCKET PING
 
