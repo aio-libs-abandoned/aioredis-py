@@ -36,12 +36,12 @@ class BaseTest(unittest.TestCase):
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
             loop=loop))
-        self.loop.run_until_complete(asyncio.sleep(0.04, loop=self.loop))
+        self.loop.run_until_complete(asyncio.sleep(0.01, loop=self.loop))
 
     def tearDown(self):
         if self.redis is not None:
             self.redis.terminate()
-            # self.loop.run_until_complete(self.redis.wait())
+            self.loop.run_until_complete(asyncio.sleep(0.01, loop=self.loop))
         self.loop.close()
         del self.loop
 
