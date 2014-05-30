@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import BaseTest
-from aioredis import create_connection, ReplyError
+from aioredis import create_connection, ReplyError, ProtocolError
 
 
 class ConnectionTest(BaseTest):
@@ -10,11 +10,13 @@ class ConnectionTest(BaseTest):
         conn = self.loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=self.loop))
         self.assertEqual(conn.db, 0)
+        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
     def test_connect_unixsocket(self):
         conn = self.loop.run_until_complete(create_connection(
             self.redis_socket, db=0, loop=self.loop))
         self.assertEqual(conn.db, 0)
+        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
     def test_global_loop(self):
         asyncio.set_event_loop(self.loop)
@@ -24,21 +26,56 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 0)
         self.assertIs(conn._loop, self.loop)
 
-    def xtest_select_db(self):
+    def test_select_db(self):
         address = ('localhost', self.redis_port)
         conn = self.loop.run_until_complete(create_connection(
             address, loop=self.loop))
         self.assertEqual(conn.db, 0)
 
-        with self.assertRaises(ReplyError):
+        with self.assertRaises(ValueError):
             self.loop.run_until_complete(create_connection(
                 address, db=-1, loop=self.loop))
-        with self.assertRaises(ReplyError):
+        with self.assertRaises(TypeError):
             self.loop.run_until_complete(create_connection(
                 address, db=1.0, loop=self.loop))
+        with self.assertRaises(TypeError):
+            self.loop.run_until_complete(create_connection(
+                address, db='bad value', loop=self.loop))
         with self.assertRaises(ReplyError):
             self.loop.run_until_complete(create_connection(
                 address, db=100000, loop=self.loop))
-        with self.assertRaises(ReplyError):
-            self.loop.run_until_complete(create_connection(
-                address, db='bad value', loop=self.loop))
+
+    def test_protocol_error(self):
+        loop = self.loop
+        conn = loop.run_until_complete(create_connection(
+            ('localhost', self.redis_port), loop=loop))
+
+        reader = conn._reader
+        writer = conn._writer
+
+        with self.assertRaises(ProtocolError):
+            reader.feed_data(b'not good redis protocol response')
+            loop.run_until_complete(conn.select(1))
+
+        self.assertEqual(conn._waiters.qsize(), 0)
+
+    def test_close_connection(self):
+        loop = self.loop
+        conn = loop.run_until_complete(create_connection(
+            ('localhost', self.redis_port), loop=loop))
+        conn.close()
+        with self.assertRaises(AttributeError): # FIXME
+            loop.run_until_complete(conn.select(1))
+
+        conn = loop.run_until_complete(create_connection(
+            self.redis_socket, loop=loop))
+        conn.close()
+        with self.assertRaises(AttributeError): # FIXME
+            loop.run_until_complete(conn.select(1))
+
+        conn = loop.run_until_complete(create_connection(
+            ('localhost', self.redis_port), loop=loop))
+        with self.assertRaises(AttributeError): # FIXME
+            coro = conn.select(1)
+            conn.close()
+            loop.run_until_complete(coro)

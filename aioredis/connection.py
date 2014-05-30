@@ -9,7 +9,7 @@ __all__ = ['create_connection', 'RedisConnection']
 
 
 @asyncio.coroutine
-def create_connection(address, db=0, auth=None, *, loop=None):
+def create_connection(address, db=None, password=None, *, loop=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -33,10 +33,10 @@ def create_connection(address, db=0, auth=None, *, loop=None):
             address, loop=loop)
     conn = RedisConnection(reader, writer, loop=loop)
 
-    if auth is not None:
-        yield from conn.execute('AUTH', auth)
-    if db and db > 0:
-        yield from conn.execute('SELECT', db)
+    if password is not None:
+        yield from conn.auth(password)
+    if db is not None:
+        yield from conn.select(db)
     return conn
 
 
@@ -57,7 +57,7 @@ class RedisConnection:
         self._db = 0
 
     def __repr__(self):
-        return '<RedisConnection>'  # make more verbose
+        return '<RedisConnection [db:{}]>'.format(self._db)
 
     @asyncio.coroutine
     def _read_data(self):
@@ -72,9 +72,7 @@ class RedisConnection:
                 except ProtocolError as exc:
                     # ProtocolError is fatal
                     # so connection must be closed
-                    waiter = yield from self._waiters.get()
-                    waiter.set_exception(exc)
-                    self._loop.call_soon(self.close)
+                    self._loop.call_soon(self._do_close, exc)
                     return
                 else:
                     if obj is False:
@@ -101,32 +99,45 @@ class RedisConnection:
     def close(self):
         """Close connection.
         """
+        self._do_close(None)
+
+    def _do_close(self, exc):
         self._writer.transport.close()
         self._reader_task.cancel()
         self._reader_task = None
         self._writer = None
         self._reader = None
-        # TODO: discard all _waiters
+        while self._waiters.qsize():
+            waiter = self._waiters.get_nowait()
+            if exc is None:
+                waiter.cancel()
+            else:
+                waiter.set_exception(exc)
 
     @property
     def db(self):
+        """Currently selected db index.
+        """
         return self._db
 
     @asyncio.coroutine
     def select(self, db):
-        # TODO: move this to high-level part...
-        """Executes SELECT command.
+        """Change the selected database for the current connection.
 
         This method is a coroutine.
         """
         if not isinstance(db, int):
             raise TypeError("DB must be of int type, not {!r}".format(db))
         if db < 0:
-            raise ValueError("DB must be greater equal 0, got {!r}".format(db))
-        resp = yield from self.execute('select', str(db))
-        # TODO: set db to self._db
-        if resp == b'OK':
-            self._db = db
-            return True
-        else:
-            return False
+            raise ValueError("DB must be greater or equal 0, got {!r}"
+                             .format(db))
+        ok = yield from self.execute('SELECT', db)
+        assert ok == b'OK', ok
+        self._db = db
+        return True
+
+    @asyncio.coroutine
+    def auth(self, password):
+        ok = yield from self.execute('AUTH', password)
+        assert ok == b'OK', ok
+        return True

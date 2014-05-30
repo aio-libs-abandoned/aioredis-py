@@ -17,20 +17,29 @@ class Redis(KeysCommandsMixin):
 
     def __init__(self, connection):
         self._conn = connection
-        self._db = 0
 
     def close(self):
         self._conn.close()
 
     @property
     def db(self):
-        return self._db
+        """Currently selected db index.
+        """
+        return self._conn.db
+
+    @property
+    def connection(self):
+        """RedisConnection instance.
+        """
+        return self._conn
 
     @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server.
+
+        This method wraps call to connection.auth()
         """
-        yield from self._conn.execute('AUTH', password)
+        return self._conn.auth(password)
 
     @asyncio.coroutine
     def echo(self, message):
@@ -54,25 +63,18 @@ class Redis(KeysCommandsMixin):
     @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.
+
+        This method wraps call to connection.select()
         """
-        if not isinstance(db, int):
-            raise TypeError("DB must be of int type, not {!r}".format(db))
-        if db < 0:
-            raise ValueError("DB must be greater or equal 0, got {!r}"
-                             .format(db))
-        ok = yield from self._conn.execute('SELECT', db)
-        return ok == b'OK'
+        return self._conn.select(db)
 
 
 @asyncio.coroutine
-def create_redis(address, db=0, auth=None, *,
+def create_redis(address, db=None, password=None, *,
                  commands_factory=Redis, loop=None):
+    """Creates high-level Redis interface.
+
+    This function is a coroutine.
     """
-    """
-    conn = yield from create_connection(address, loop=loop)
-    redis = commands_factory(conn)
-    if auth is not None:
-        yield from redis.auth(auth)
-    if db > 0:
-        yield from redis.select(db)
-    return redis
+    conn = yield from create_connection(address, db, password, loop=loop)
+    return commands_factory(conn)

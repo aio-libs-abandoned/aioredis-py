@@ -11,5 +11,16 @@ install:
 - pip install hiredis
 - pip install -e .
 
+before_script:
+# patch redis config
+- 'sed "s/$# \(unixsocket .*\)$/\1/" /etc/redis/redis.conf > tmp'
+- diff /etc/redis/redis.conf tmp
+- sudo mv tmp /etc/redis/redis.conf
+- 'export REDIS_SOCKET=$(grep "^unixsocket .*" /etc/redis/redis.conf | cut -f2 -d" ")'
+- 'export REDIS_PORT=$(grep "^port .* /etc/redis/redis.conf | cut -f2 -d" ")'
+- sudo service redis-server restart
+- sleep 3
+- redis-cli -s $REDIS_SOCKET PING
+
 script:
 - python runtests.py -v
