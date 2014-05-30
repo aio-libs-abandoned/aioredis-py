@@ -54,7 +54,6 @@ class ConnectionTest(BaseTest):
             ('localhost', self.redis_port), loop=loop))
 
         reader = conn._reader
-        writer = conn._writer
 
         with self.assertRaises(ProtocolError):
             reader.feed_data(b'not good redis protocol response')
@@ -67,12 +66,12 @@ class ConnectionTest(BaseTest):
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
         conn.close()
-        with self.assertRaises(AttributeError): # FIXME
+        with self.assertRaises(AttributeError):     # FIXME
             loop.run_until_complete(conn.select(1))
 
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
-        with self.assertRaises(AttributeError): # FIXME
+        with self.assertRaises(AttributeError):     # FIXME
             coro = conn.select(1)
             conn.close()
             loop.run_until_complete(coro)
@@ -82,5 +81,5 @@ class ConnectionTest(BaseTest):
         conn = self.loop.run_until_complete(create_connection(
             self.redis_socket, loop=self.loop))
         conn.close()
-        with self.assertRaises(AttributeError): # FIXME
+        with self.assertRaises(AttributeError):     # FIXME
             self.loop.run_until_complete(conn.select(1))

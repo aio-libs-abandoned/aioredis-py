@@ -24,7 +24,7 @@ class BaseTest(unittest.TestCase):
     """
 
     def setUp(self):
-        self.loop = loop = asyncio.new_event_loop()
+        self.loop = asyncio.new_event_loop()
         self.redis_port = int(os.environ.get('REDIS_PORT') or 6379)
         socket = os.environ.get('REDIS_SOCKET')
         self.redis_socket = socket or '/tmp/aioredis.sock'

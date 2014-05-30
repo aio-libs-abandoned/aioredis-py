@@ -9,6 +9,8 @@ services:
 
 install:
 - pip install hiredis
+- pip install pyflakes
+- pip install pep8
 - pip install -e .
 
 before_script:
@@ -26,4 +28,6 @@ before_script:
 - redis-cli -s $REDIS_SOCKET PING
 
 script:
+- pyflakes aioredis tests
+- pep8 aioredis tests
 - python runtests.py -v
