@@ -115,6 +115,13 @@ class RedisConnection:
                 waiter.set_exception(exc)
 
     @property
+    def closed(self):
+        """True if connection is closed.
+        """
+        # TODO: implement
+        return False
+
+    @property
     def db(self):
         """Currently selected db index.
         """

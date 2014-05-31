@@ -1,6 +1,6 @@
 import asyncio
 
-from .commands import Redis
+from .commands import create_redis, Redis
 
 
 @asyncio.coroutine
@@ -13,7 +13,7 @@ def create_pool(address, db=None, password=None, *,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      loop=loop)
-    yield from pool._feel_free()
+    yield from pool._fill_free()
     return pool
 
 
@@ -30,6 +30,7 @@ class RedisPool:
         self._db = db
         self._password = password
         self._minsize = minsize
+        self._factory = commands_factory
         self._loop = loop
         self._pool = asyncio.Queue(maxsize, loop=loop)
         self._used = set()
@@ -58,25 +59,56 @@ class RedisPool:
         """
         return self._pool.qsize()
 
+    @asyncio.coroutine
     def clear(self):
         """Clear pool connections.
 
-        Close and remove all free and used connections.
+        Close and remove all free connections.
         """
-        pass
+        while not self._pool.empty():
+            conn = yield from self._pool.get()
+            conn.close()
 
     @asyncio.coroutine
     def acquire(self):
-        pass
-        # TODO: get free connection (or create one)
-        # mark as used;
-        # return it
+        yield from self._fill_free()
+        if self.minsize > 0 or not self._pool.empty():
+            conn = yield from self._pool.get()
+        else:
+            conn = yield from self._create_new_connection()
+        # assert not conn.closed, conn
+        assert conn not in self._used, (conn, self._used)
+        self._used.add(conn)
+        return conn
 
     def release(self, conn):
-        pass
+        if True:    # not conn.closed:
+            assert conn in self._used, (conn, self._used)
+            self._used.remove(conn)
+            try:
+                self._pool.put_nowait(conn)
+            except asyncio.QueueFull:
+                # TODO: deside what to do with this connection.
+                #       it may be considered 'old' and can be closed
+                #       or first in _pool may be considered to be 'old'
+                conn.close()    # for now.
 
+    @asyncio.coroutine
     def _fill_free(self):
-        pass
+        # assume used connection will be return back open
+        # add only number of closed connections to fill pool
+        while self.size < self.minsize:
+            conn = yield from self._create_new_connection()
+            yield from self._pool.put(conn)
+
+    @asyncio.coroutine
+    def _create_new_connection(self):
+        conn = yield from create_redis(self._address,
+                                       self._db,
+                                       self._password,
+                                       commands_factory=self._factory,
+                                       loop=self._loop)
+        return conn
 
     def __enter__(self):
         raise RuntimeError(
