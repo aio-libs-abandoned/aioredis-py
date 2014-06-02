@@ -82,6 +82,9 @@ class RedisPool:
         return conn
 
     def release(self, conn):
+        # TODO: check if connection still on the same DB index;
+        #       if not: either change to default or drop this connection;
+
         if True:    # not conn.closed:
             assert conn in self._used, (conn, self._used)
             self._used.remove(conn)
@@ -90,7 +93,7 @@ class RedisPool:
             except asyncio.QueueFull:
                 # TODO: deside what to do with this connection.
                 #       it may be considered 'old' and can be closed
-                #       or first in _pool may be considered to be 'old'
+                #       or first in _pool may be considered 'old'
                 conn.close()    # for now.
 
     @asyncio.coroutine

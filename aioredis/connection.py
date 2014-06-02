@@ -89,6 +89,7 @@ class RedisConnection:
 
         Raises TypeError if any of args can not be encoded as bytes.
         """
+        # TODO: maybe catch 'select' command for better db index control
         data = encode_command(cmd, *args)
         self._writer.write(data)
         yield from self._writer.drain()
