@@ -84,7 +84,6 @@ class RedisPool:
     def release(self, conn):
         # TODO: check if connection still on the same DB index;
         #       if not: either change to default or drop this connection;
-
         if True:    # not conn.closed:
             assert conn in self._used, (conn, self._used)
             self._used.remove(conn)
@@ -100,6 +99,8 @@ class RedisPool:
     def _fill_free(self):
         # assume used connection will be return back open
         # add only number of closed connections to fill pool
+
+        # FIXME: when size = 1 (used = 1) and minsize = 1
         while self.size < self.minsize:
             conn = yield from self._create_new_connection()
             yield from self._pool.put(conn)
