@@ -59,7 +59,7 @@ class GenericCommandsMixin:
             return ret
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
-                            ,format(timestamp))
+                            .format(timestamp))
         ret = yield from self._conn.execute(b'EXPIREAT', key, timestamp)
         return bool(ret)
 
@@ -70,7 +70,8 @@ class GenericCommandsMixin:
         return (yield from self._conn.execute(b'KEYS', pattern))
 
     @asyncio.coroutine
-    def migrate(self): pass
+    def migrate(self):
+        pass
         # TODO: implement
 
     @asyncio.coroutine
@@ -88,7 +89,8 @@ class GenericCommandsMixin:
         return bool(ret)
 
     @asyncio.coroutine
-    def object(self): pass
+    def object(self):
+        pass
         # TODO: implement
 
     @asyncio.coroutine
@@ -109,12 +111,12 @@ class GenericCommandsMixin:
         return bool(ret)
 
     @asyncio.coroutine
-    def pexpireat(self):
+    def pexpireat(self, key, timestamp):
         """Set expire timestamp on key, timestamp in milliseconds.
         """
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
-                            ,format(timestamp))
+                            .format(timestamp))
         ret = yield from self._conn.execute(b'PEXPIREAT', key, timestamp)
         return bool(ret)
 
@@ -168,10 +170,14 @@ class GenericCommandsMixin:
         return ret
 
     @asyncio.coroutine
-    def scan(self): pass
+    def scan(self):
+        pass
+        # TODO: implement
 
     @asyncio.coroutine
-    def sort(self): pass
+    def sort(self):
+        pass
+        # TODO: implement
 
     @asyncio.coroutine
     def ttl(self, key):
