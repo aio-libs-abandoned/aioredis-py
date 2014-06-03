@@ -11,25 +11,184 @@ class GenericCommandsMixin:
     def delete(self, key, *keys):
         """Delete a key.
         """
-        return
-        yield
+        ret = yield from self._conn.execute(b'DELETE', key, *keys)
+        return int(ret)
 
     @asyncio.coroutine
-    def dump(self):
-        pass
+    def dump(self, key):
+        """Dump a key.
+        """
+        return (yield from self._conn.execute(b'DUMP', key))
 
     @asyncio.coroutine
-    def exists(self):
-        pass
+    def exists(self, key):
+        """Check if key exists.
+        """
+        ret = yield from self._conn.execute(b'EXISTS', key)
+        return bool(ret)
 
     @asyncio.coroutine
-    def expire(self):
-        pass
+    def expire(self, key, timeout):
+        """Set a timeout on key.
+
+        if timeout is float it will be multiplyed by 1000
+        coerced to int and passed to `pexpire` method.
+
+        Otherwise raises TypeError if timeout argument is not int
+        """
+        if isinstance(timeout, float):
+            ret = yield from self.pexpire(key, int(timeout * 1000))
+            return ret
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int, not {!r}"
+                            .format(timeout))
+        ret = yield from self._conn.execute(b'EXPIRE', key, timeout)
+        return bool(ret)
 
     @asyncio.coroutine
-    def expireat(self):
-        pass
+    def expireat(self, key, timestamp):
+        """Set expire timestamp on key.
+
+        if timeout is float it will be multiplyed by 1000
+        coerced to int and passed to `pexpire` method.
+
+        Otherwise raises TypeError if timestamp argument is not int
+        """
+        if isinstance(timestamp, float):
+            ret = yield from self.pexpireat(key, int(timestamp * 1000))
+            return ret
+        if not isinstance(timestamp, int):
+            raise TypeError("timestamp argument must be int, not {!r}"
+                            ,format(timestamp))
+        ret = yield from self._conn.execute(b'EXPIREAT', key, timestamp)
+        return bool(ret)
 
     @asyncio.coroutine
-    def keys(self):
-        pass
+    def keys(self, pattern):
+        """Returns all keys matching pattern.
+        """
+        return (yield from self._conn.execute(b'KEYS', pattern))
+
+    @asyncio.coroutine
+    def migrate(self): pass
+        # TODO: implement
+
+    @asyncio.coroutine
+    def move(self, key, db):
+        """Move key from currently selected database to specified destination.
+
+        Raises TypeError if db is not int and ValueError if db is <= 0
+        """
+        if not isinstance(db, int):
+            raise TypeError("db argument must be int, not {!r}".format(db))
+        if db < 0:
+            raise ValueError("db argument must be not less then 0, {!r}"
+                             .format(db))
+        ret = yield from self._conn.execute(b'MOVE', key, db)
+        return bool(ret)
+
+    @asyncio.coroutine
+    def object(self): pass
+        # TODO: implement
+
+    @asyncio.coroutine
+    def persist(self, key):
+        """Remove the existing timeout on key.
+        """
+        ret = yield from self._conn.execute(b'PERSIST', key)
+        return bool(ret)
+
+    @asyncio.coroutine
+    def pexpire(self, key, timeout):
+        """Set a milliseconds timeout on key.
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int, not {!r}"
+                            .format(timeout))
+        ret = yield from self._conn.execute(b'PEXPIRE', key, timeout)
+        return bool(ret)
+
+    @asyncio.coroutine
+    def pexpireat(self):
+        """Set expire timestamp on key, timestamp in milliseconds.
+        """
+        if not isinstance(timestamp, int):
+            raise TypeError("timestamp argument must be int, not {!r}"
+                            ,format(timestamp))
+        ret = yield from self._conn.execute(b'PEXPIREAT', key, timestamp)
+        return bool(ret)
+
+    @asyncio.coroutine
+    def pttl(self, key):
+        """Returns time-to-live for a key, in milliseconds.
+
+        Special return values (starting with Redis 2.8):
+        * command returns -2 if the key does not exist.
+        * command returns -1 if the key exists but has no associated expire.
+        """
+        ret = yield from self._conn.execute(b'PTTL', key)
+        # TODO: maybe convert negative values to:
+        #       -2 to None  - no key
+        #       -1 to False - no expire
+        return ret
+
+    @asyncio.coroutine
+    def randomkey(self):
+        """Return a random key from the currently selected database.
+        """
+        return (yield from self._conn.execute(b'RANDOMKEY'))
+
+    @asyncio.coroutine
+    def rename(self, key, newkey):
+        """Renames key to newkey.
+
+        Raises ValueError if key == newkey
+        """
+        if key == newkey:
+            raise ValueError("key and newkey are the same")
+        ret = yield from self._conn.execute(b'RENAME', key, newkey)
+        return ret
+
+    @asyncio.coroutine
+    def renamenx(self, key, newkey):
+        """Renames key to newkey only if newkey does not exist.
+
+        Raises ValueError if key == newkey
+        """
+        if key == newkey:
+            raise ValueError("key and newkey are the same")
+        ret = yield from self._conn.execute(b'RENAMENX', key, newkey)
+        return ret
+
+    @asyncio.coroutine
+    def restore(self, key, ttl, value):
+        """Creates a key associated with a value that is obtained via DUMP.
+        """
+        ret = yield from self._conn.execute(b'RESTORE', key, ttl, value)
+        return ret
+
+    @asyncio.coroutine
+    def scan(self): pass
+
+    @asyncio.coroutine
+    def sort(self): pass
+
+    @asyncio.coroutine
+    def ttl(self, key):
+        """Returns time-to-live for a key, in seconds.
+
+        Special return values (starting with Redis 2.8):
+        * command returns -2 if the key does not exist.
+        * command returns -1 if the key exists but has no associated expire.
+        """
+        ret = yield from self._conn.execute(b'TTL', key)
+        # TODO: maybe convert negative values to:
+        #       -2 to None  - no key
+        #       -1 to False - no expire
+        return ret
+
+    @asyncio.coroutine
+    def type(self, key):
+        """Returns the string representation of the type of value stored at key
+        """
+        return (yield from self._conn.execute(b'TYPE', key))
