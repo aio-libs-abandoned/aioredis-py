@@ -2,7 +2,7 @@ import asyncio
 from unittest import mock
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from aioredis import create_redis
 
 
 class GenericCommandsTest(BaseTest):
