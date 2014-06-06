@@ -147,5 +147,4 @@ class RedisConnection:
     @asyncio.coroutine
     def auth(self, password):
         ok = yield from self.execute('AUTH', password)
-        assert ok == b'OK', ok
-        return True
+        return ok == b'OK'

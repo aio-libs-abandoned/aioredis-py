@@ -64,6 +64,8 @@ class GenericCommandsMixin:
 
         Otherwise raises TypeError if timestamp argument is not int
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if isinstance(timestamp, float):
             ret = yield from self.pexpireat(key, int(timestamp * 1000))
             return ret
@@ -77,6 +79,8 @@ class GenericCommandsMixin:
     def keys(self, pattern):
         """Returns all keys matching pattern.
         """
+        if pattern is None:
+            raise TypeError("pattern argument must not be None")
         return (yield from self._conn.execute(b'KEYS', pattern))
 
     @asyncio.coroutine
@@ -90,6 +94,8 @@ class GenericCommandsMixin:
 
         Raises TypeError if db is not int and ValueError if db is <= 0
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if not isinstance(db, int):
             raise TypeError("db argument must be int, not {!r}".format(db))
         if db < 0:
@@ -107,6 +113,8 @@ class GenericCommandsMixin:
     def persist(self, key):
         """Remove the existing timeout on key.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         ret = yield from self._conn.execute(b'PERSIST', key)
         return bool(ret)
 
@@ -114,6 +122,8 @@ class GenericCommandsMixin:
     def pexpire(self, key, timeout):
         """Set a milliseconds timeout on key.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int, not {!r}"
                             .format(timeout))
@@ -124,6 +134,8 @@ class GenericCommandsMixin:
     def pexpireat(self, key, timestamp):
         """Set expire timestamp on key, timestamp in milliseconds.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
