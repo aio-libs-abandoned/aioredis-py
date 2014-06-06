@@ -11,19 +11,27 @@ class GenericCommandsMixin:
     def delete(self, key, *keys):
         """Delete a key.
         """
-        ret = yield from self._conn.execute(b'DELETE', key, *keys)
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if any(k is None for k in keys):
+            raise TypeError("keys must not be None")
+        ret = yield from self._conn.execute(b'DEL', key, *keys)
         return int(ret)
 
     @asyncio.coroutine
     def dump(self, key):
         """Dump a key.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'DUMP', key))
 
     @asyncio.coroutine
     def exists(self, key):
         """Check if key exists.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         ret = yield from self._conn.execute(b'EXISTS', key)
         return bool(ret)
 
@@ -36,6 +44,8 @@ class GenericCommandsMixin:
 
         Otherwise raises TypeError if timeout argument is not int
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if isinstance(timeout, float):
             ret = yield from self.pexpire(key, int(timeout * 1000))
             return ret
