@@ -13,9 +13,9 @@ class GenericCommandsTest(BaseTest):
             ('localhost', self.redis_port), loop=self.loop))
 
     def tearDown(self):
-        super().tearDown()
         self.redis.close()
         del self.redis
+        super().tearDown()
 
     @asyncio.coroutine
     def add(self, key, value):
