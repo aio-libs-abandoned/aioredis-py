@@ -64,7 +64,7 @@ class RedisConnection:
         """
         """
         while not self._reader.at_eof():
-            data = yield from self._reader.readline()
+            data = yield from self._reader.read(102400)
             self._parser.feed(data)
             while True:
                 try:
