@@ -55,6 +55,7 @@ class RedisConnection:
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
         self._db = 0
+        self._closed = False
 
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
@@ -103,6 +104,7 @@ class RedisConnection:
         self._do_close(None)
 
     def _do_close(self, exc):
+        self._closed = True
         self._writer.transport.close()
         self._reader_task.cancel()
         self._reader_task = None
@@ -120,7 +122,7 @@ class RedisConnection:
         """True if connection is closed.
         """
         # TODO: implement
-        return False
+        return self._closed
 
     @property
     def db(self):

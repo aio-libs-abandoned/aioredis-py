@@ -76,7 +76,7 @@ class RedisPool:
             conn = yield from self._pool.get()
         else:
             conn = yield from self._create_new_connection()
-        # assert not conn.closed, conn
+        assert not conn.closed, conn
         assert conn not in self._used, (conn, self._used)
         self._used.add(conn)
         return conn
@@ -84,9 +84,10 @@ class RedisPool:
     def release(self, conn):
         # TODO: check if connection still on the same DB index;
         #       if not: either change to default or drop this connection;
-        if True:    # not conn.closed:
-            assert conn in self._used, (conn, self._used)
-            self._used.remove(conn)
+        if conn not in self._used:
+            raise RuntimeError("Invalid connection, maybe from other pool")
+        self._used.remove(conn)
+        if not conn.closed:
             try:
                 self._pool.put_nowait(conn)
             except asyncio.QueueFull:
@@ -97,11 +98,7 @@ class RedisPool:
 
     @asyncio.coroutine
     def _fill_free(self):
-        # assume used connection will be return back open
-        # add only number of closed connections to fill pool
-
-        # FIXME: when size = 1 (used = 1) and minsize = 1
-        while self.size < self.minsize:
+        while self.freesize < self.minsize and self.size < self.maxsize:
             conn = yield from self._create_new_connection()
             yield from self._pool.put(conn)
 

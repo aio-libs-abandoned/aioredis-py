@@ -33,6 +33,10 @@ class Redis(GenericCommandsMixin):
         """
         return self._conn
 
+    @property
+    def closed(self):
+        return self._conn.closed
+
     @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server.
