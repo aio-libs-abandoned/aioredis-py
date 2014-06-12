@@ -4,3 +4,4 @@ Changes
 0.1.0 (xxxx-xx-xx)
 
 * RedisConnection implemented
+* RedisPool implemented
