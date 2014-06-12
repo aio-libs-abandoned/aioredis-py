@@ -20,6 +20,7 @@ def read(*parts):
     with open(os.path.join(*parts), 'rt') as f:
         return f.read().strip()
 
+
 def read_version():
     regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
     init_py = os.path.join(os.path.dirname(__file__),
@@ -37,16 +38,19 @@ classifiers = [
     'License :: OSI Approved :: MIT License',
     'Development Status :: 3 - Alpha',
     'Programming Language :: Python',
-    # 'Programming Language :: Python :: 3.3', # TODO: fix unittests for this
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.3',
     'Programming Language :: Python :: 3.4',
     'Operating System :: POSIX',
     'Environment :: Web Environment',
     'Intended Audience :: Developers',
+    'Topic :: Software Development',
+    'Topic :: Software Development :: Libraries',
 ]
 
 setup(name='aioredis',
       version=read_version(),
-      description=(""),
+      description=("asyncio (PEP 3156) Redis support"),
       long_description="\n\n".join((read('README.rst'), read('CHANGES.txt'))),
       classifiers=classifiers,
       platforms=["POSIX"],
