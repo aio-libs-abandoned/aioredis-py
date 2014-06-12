@@ -3,9 +3,10 @@ PYTHON ?= python3
 FLAKE ?= pyflakes3
 PEP ?= pep8
 
-# doc:
+doc:
+	make -C docs html
 
-all: flake test
+all: flake doc test
 
 flake:
 	$(FLAKE) aioredis tests

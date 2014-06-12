@@ -67,4 +67,4 @@ The aioredis is offered under MIT license.
 
 .. _Python: https://www.python.org
 .. _asyncio: https://pypi.python.org/pypi/asyncio
-.. _hiredis: http://pypi.python.org/pypi/hiredis
+.. _hiredis: https://pypi.python.org/pypi/hiredis
