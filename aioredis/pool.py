@@ -4,7 +4,7 @@ from .commands import create_redis, Redis
 
 
 @asyncio.coroutine
-def create_pool(address, db=None, password=None, *,
+def create_pool(address, db=0, password=None, *,
                 minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
     """
@@ -22,7 +22,7 @@ class RedisPool:
 
     """
 
-    def __init__(self, address, db=None, password=None,
+    def __init__(self, address, db=0, password=None,
                  *, minsize, maxsize, commands_factory, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -34,6 +34,7 @@ class RedisPool:
         self._loop = loop
         self._pool = asyncio.Queue(maxsize, loop=loop)
         self._used = set()
+        self._need_wait = None
 
     @property
     def minsize(self):
@@ -69,8 +70,35 @@ class RedisPool:
             conn = yield from self._pool.get()
             conn.close()
 
+    @property
+    def db(self):
+        return self._db
+
+    @asyncio.coroutine
+    def select(self, db):
+        """Changes db index for all free connections."""
+        self._need_wait = fut = asyncio.Future(loop=self._loop)
+        try:
+            yield from self._fill_free()
+            for _ in range(self.freesize):
+                conn = yield from self._pool.get()
+                try:
+                    yield from conn.select(db)
+                    self._db = db
+                finally:
+                    yield from self._pool.put(conn)
+        finally:
+            self._need_wait = None
+            fut.set_result(None)
+
+    def _wait_select(self):
+        if self._need_wait is None:
+            return ()
+        return self._need_wait
+
     @asyncio.coroutine
     def acquire(self):
+        yield from self._wait_select()
         yield from self._fill_free()
         if self.minsize > 0 or not self._pool.empty():
             conn = yield from self._pool.get()
@@ -84,17 +112,17 @@ class RedisPool:
     def release(self, conn):
         # TODO: check if connection still on the same DB index;
         #       if not: either change to default or drop this connection;
-        if conn not in self._used:
-            raise RuntimeError("Invalid connection, maybe from other pool")
+        assert conn in self._used, "Invalid connection, maybe from other pool"
         self._used.remove(conn)
         if not conn.closed:
-            try:
-                self._pool.put_nowait(conn)
-            except asyncio.QueueFull:
-                # TODO: deside what to do with this connection.
-                #       it may be considered 'old' and can be closed
-                #       or first in _pool may be considered 'old'
-                conn.close()    # for now.
+            if conn.db == self.db:
+                try:
+                    self._pool.put_nowait(conn)
+                except asyncio.QueueFull:
+                    # consider this connection as old and close it.
+                    conn.close()
+            else:
+                conn.close()
 
     @asyncio.coroutine
     def _fill_free(self):

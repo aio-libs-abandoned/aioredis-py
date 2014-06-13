@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import create_pool, create_redis, RedisPool
+from aioredis import create_pool, create_redis, RedisPool, ReplyError
 
 
 class PoolTest(BaseTest):
@@ -133,5 +133,89 @@ class PoolTest(BaseTest):
         other_conn = yield from create_redis(
             ('localhost', self.redis_port),
             loop=self.loop)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(AssertionError):
             pool.release(other_conn)
+
+    @run_until_complete
+    def test_select_db(self):
+        pool = yield from create_pool(
+            ('localhost', self.redis_port),
+            loop=self.loop)
+
+        yield from pool.select(1)
+        with (yield from pool) as redis:
+            self.assertEqual(redis.db, 1)
+
+    @run_until_complete
+    def test_change_db(self):
+        pool = yield from create_pool(
+            ('localhost', self.redis_port),
+            minsize=1, db=0,
+            loop=self.loop)
+        self.assertEqual(pool.size, 1)
+        self.assertEqual(pool.freesize, 1)
+
+        with (yield from pool) as redis:
+            yield from redis.select(1)
+        self.assertEqual(pool.size, 0)
+        self.assertEqual(pool.freesize, 0)
+
+        with (yield from pool) as redis:
+            self.assertEqual(pool.size, 1)
+            self.assertEqual(pool.freesize, 0)
+
+            yield from pool.select(1)
+            self.assertEqual(pool.db, 1)
+            self.assertEqual(pool.size, 2)
+            self.assertEqual(pool.freesize, 1)
+        self.assertEqual(pool.size, 1)
+        self.assertEqual(pool.freesize, 1)
+        self.assertEqual(pool.db, 1)
+
+    @run_until_complete
+    def test_change_db_errors(self):
+        pool = yield from create_pool(
+            ('localhost', self.redis_port),
+            minsize=1, db=0,
+            loop=self.loop)
+
+        with self.assertRaises(TypeError):
+            yield from pool.select(None)
+        self.assertEqual(pool.db, 0)
+
+        with (yield from pool):
+            pass
+        self.assertEqual(pool.size, 1)
+        self.assertEqual(pool.freesize, 1)
+
+        with self.assertRaises(TypeError):
+            yield from pool.select(None)
+        with self.assertRaises(ValueError):
+            yield from pool.select(-1)
+        with self.assertRaises(ReplyError):
+            yield from pool.select(100000)
+
+    @run_until_complete
+    def test_select_and_create(self):
+        # trying to model situation when select and acquire
+        # called simultaneously
+        # but acquire freezes on _wait_select and
+        # then continues with propper db
+        @asyncio.coroutine
+        def test():
+            pool = yield from create_pool(
+                ('localhost', self.redis_port),
+                minsize=1, db=0,
+                loop=self.loop)
+            db = 0
+            while True:
+                db = (db + 1) & 1
+                res = yield from asyncio.gather(pool.select(db),
+                                                pool.acquire(),
+                                                loop=self.loop)
+                conn = res[1]
+                self.assertEqual(pool.db, db)
+                pool.release(conn)
+                if conn.db == db:
+                    break
+        yield from asyncio.wait_for(test(), 10, loop=self.loop)

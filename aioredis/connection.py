@@ -1,5 +1,6 @@
 import asyncio
 import hiredis
+from functools import partial
 
 from .util import encode_command
 from .errors import RedisError, ProtocolError, ReplyError
@@ -91,11 +92,14 @@ class RedisConnection:
         Raises TypeError if any of args can not be encoded as bytes.
         """
         # TODO: maybe catch 'select' command for better db index control
-        data = encode_command(cmd.strip(), *args)
+        cmd = cmd.upper().strip()
+        data = encode_command(cmd, *args)
         self._writer.write(data)
         yield from self._writer.drain()
         fut = asyncio.Future(loop=self._loop)
         yield from self._waiters.put(fut)
+        if cmd == 'SELECT':
+            fut.add_done_callback(partial(self._set_db, args=args))
         return (yield from fut)
 
     def close(self):
@@ -141,10 +145,17 @@ class RedisConnection:
         if db < 0:
             raise ValueError("DB must be greater or equal 0, got {!r}"
                              .format(db))
-        ok = yield from self.execute('SELECT', db)
-        assert ok == b'OK', ok
-        self._db = db
+        yield from self.execute('SELECT', db)
         return True
+
+    def _set_db(self, fut, args):
+        try:
+            ok = fut.result()
+        except Exception:
+            pass
+        else:
+            assert ok == b'OK', ok
+            self._db = args[0]
 
     @asyncio.coroutine
     def auth(self, password):

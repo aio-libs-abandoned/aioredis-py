@@ -18,6 +18,9 @@ class Redis(GenericCommandsMixin):
     def __init__(self, connection):
         self._conn = connection
 
+    def __repr__(self):
+        return '<Redis {!r}>'.format(self._conn)
+
     def close(self):
         self._conn.close()
 

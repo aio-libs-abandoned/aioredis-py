@@ -57,6 +57,13 @@ class ConnectionTest(BaseTest):
             yield from create_connection(
                 address, db=100000, loop=self.loop)
 
+        yield from conn.select(1)
+        self.assertEqual(conn.db, 1)
+        yield from conn.select(2)
+        self.assertEqual(conn.db, 2)
+        yield from conn.execute('select', 0)
+        self.assertEqual(conn.db, 0)
+
     @run_until_complete
     def test_protocol_error(self):
         loop = self.loop

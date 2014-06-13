@@ -14,6 +14,16 @@ class ConnectionCommandsTest(BaseTest):
         del self.redis
 
     @run_until_complete
+    def test_repr(self):
+        redis = yield from create_redis(
+            ('localhost', self.redis_port), db=1, loop=self.loop)
+        self.assertEqual(repr(redis), '<Redis <RedisConnection [db:1]>>')
+
+        redis = yield from create_redis(
+            ('localhost', self.redis_port), db=0, loop=self.loop)
+        self.assertEqual(repr(redis), '<Redis <RedisConnection [db:0]>>')
+
+    @run_until_complete
     def test_auth(self):
         expected_message = "ERR Client sent AUTH, but no password is set"
         with self.assertRaisesRegex(ReplyError, expected_message):
