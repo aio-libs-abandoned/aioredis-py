@@ -29,8 +29,8 @@ The easiest way to install aioredis is by using the package on PyPi::
 Contribute
 ----------
 
-- Issue Tracker: https://github.com/popravich/aioredis/issues
-- Source Code: https://github.com/popravich/aioredis
+- Issue Tracker: https://github.com/aio-libs/aioredis/issues
+- Source Code: https://github.com/aio-libs/aioredis
 
 License
 -------
