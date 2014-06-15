@@ -9,7 +9,7 @@ asyncio (PEP 3156) Redis support
 Documentation
 -------------
 
-TBD.
+http://aioredis.readthedocs.org/
 
 Usage examples
 --------------
