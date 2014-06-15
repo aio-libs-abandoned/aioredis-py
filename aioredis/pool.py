@@ -110,8 +110,6 @@ class RedisPool:
         return conn
 
     def release(self, conn):
-        # TODO: check if connection still on the same DB index;
-        #       if not: either change to default or drop this connection;
         assert conn in self._used, "Invalid connection, maybe from other pool"
         self._used.remove(conn)
         if not conn.closed:
