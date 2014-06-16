@@ -8,6 +8,8 @@ from .errors import RedisError, ProtocolError, ReplyError
 
 __all__ = ['create_connection', 'RedisConnection']
 
+MAX_CHUNK_SIZE = 65536
+
 
 @asyncio.coroutine
 def create_connection(address, db=None, password=None, *, loop=None):
@@ -66,7 +68,7 @@ class RedisConnection:
         """
         """
         while not self._reader.at_eof():
-            data = yield from self._reader.read(102400)
+            data = yield from self._reader.read(MAX_CHUNK_SIZE)
             self._parser.feed(data)
             while True:
                 try:

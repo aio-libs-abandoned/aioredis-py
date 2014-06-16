@@ -1,6 +1,6 @@
 
 PYTHON ?= python3
-FLAKE ?= pyflakes3
+FLAKE ?= pyflakes
 PEP ?= pep8
 
 doc:
