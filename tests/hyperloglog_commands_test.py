@@ -74,7 +74,7 @@ class StringCommandsTest(BaseTest):
         values_other = ['a', 'i', 'o', 'r', 'e', 'd', 'i', 's']
 
         data_set = set(values + values_other)
-        perfect_cardinality = len(data_set)
+        cardinality_merged = len(data_set)
 
         # add initial data, cardinality changed so command returns 1
         yield from self.redis.pfadd(key, *values)
@@ -89,7 +89,7 @@ class StringCommandsTest(BaseTest):
 
         yield from self.redis.pfmerge(key_dest, key, key_other)
         cardinality_dest = yield from self.redis.pfcount(key_dest)
-        self.assertEqual(cardinality_dest, perfect_cardinality)
+        self.assertEqual(cardinality_dest, cardinality_merged)
 
 
 
