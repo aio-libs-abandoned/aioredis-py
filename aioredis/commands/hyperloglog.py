@@ -1,11 +1,11 @@
 import asyncio
 
+
 class HyperLogLogCommandsMixin:
     """hyperloglog commands mixin.
 
     For commands details see: http://redis.io/commands#hyperloglog
     """
-
     @asyncio.coroutine
     def pfadd(self, key, *values):
         """Adds the specified elements to the specified HyperLogLog."""
@@ -23,4 +23,6 @@ class HyperLogLogCommandsMixin:
     @asyncio.coroutine
     def pfmerge(self, destkey, *sourcekeys):
         """Merge N different HyperLogLogs into a single one."""
-        return (yield from self._conn.execute(b'PFMERGE', destkey, *sourcekeys))
+        return (
+            yield from self._conn.execute(b'PFMERGE', destkey, *sourcekeys)
+        )
