@@ -1,4 +1,3 @@
-import asyncio
 import unittest
 
 from ._testutil import BaseTest, run_until_complete
@@ -17,11 +16,6 @@ class StringCommandsTest(BaseTest):
         self.redis.close()
         del self.redis
         super().tearDown()
-
-    @asyncio.coroutine
-    def add(self, key, value):
-        ok = yield from self.redis.connection.execute('set', key, value)
-        self.assertEqual(ok, b'OK')
 
     @run_until_complete
     def test_pfcount(self):
