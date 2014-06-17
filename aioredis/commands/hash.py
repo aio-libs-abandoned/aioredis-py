@@ -10,12 +10,12 @@ class HashCommandsMixin:
     @asyncio.coroutine
     def hdel(self, key, *fields):
         """Delete one or more hash fields"""
-        return (yield from self._conn.execute(b'HDEL', key, fields))
+        return (yield from self._conn.execute(b'HDEL', key, *fields))
 
     @asyncio.coroutine
-    def hexists(self, key, *fields):
+    def hexists(self, key, field):
         """Delete one or more hash fields"""
-        return (yield from self._conn.execute(b'HEXISTS', key, *fields))
+        return (yield from self._conn.execute(b'HEXISTS', key, field))
 
     @asyncio.coroutine
     def hget(self, key, field):
@@ -23,21 +23,21 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HGET', key, field))
 
     @asyncio.coroutine
-    def hgetall(self, key, field):
+    def hgetall(self, key):
         """Get all the fields and values in a hash"""
-        return (yield from self._conn.execute(b'HGETALL', key, field))
+        return (yield from self._conn.execute(b'HGETALL', key))
 
     @asyncio.coroutine
-    def hincrby(self, key, field, increment):
+    def hincrby(self, key, field, increment=1):
         """Increment the integer value of a hash field by the given number"""
         return (yield from self._conn.execute(
             b'HINCRBY', key, field, increment))
 
     @asyncio.coroutine
-    def hincrbyfloat(self, key, field, increment):
+    def hincrbyfloat(self, key, field, increment=1.0):
         """Increment the integer value of a hash field by the given number"""
-        return (yield from self._conn.execute(
-            b'HINCRBYFLOAT', key, field, increment))
+        result = yield from self._conn.execute(b'HINCRBYFLOAT', key, field, increment)
+        return float(result)
 
     @asyncio.coroutine
     def hkeys(self, key):
@@ -51,7 +51,8 @@ class HashCommandsMixin:
 
     @asyncio.coroutine
     def hmget(self, key, *fields):
-        """Get the values of all the given hash fields"""
+        """Returns the values associated with the specified fields in
+        the hash stored at key."""
         return (yield from self._conn.execute(b'HMGET', key, *fields))
 
     @asyncio.coroutine
