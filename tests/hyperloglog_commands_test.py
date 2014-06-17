@@ -47,11 +47,6 @@ class HyperLogLogCommandsTest(BaseTest):
         self.assertEqual(cardinality, 6)
 
     @run_until_complete
-    def test_pfcount_wrong_input(self):
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfcount()
-
-    @run_until_complete
     def test_pfadd(self):
         key = 'hll_pfadd'
         values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
@@ -66,8 +61,6 @@ class HyperLogLogCommandsTest(BaseTest):
     def test_pfadd_wrong_input(self):
         with self.assertRaises(TypeError):
             yield from self.redis.pfadd(None, 'value')
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfadd('none-key')
 
     @run_until_complete
     def test_pfmerge(self):
@@ -101,5 +94,3 @@ class HyperLogLogCommandsTest(BaseTest):
     def test_pfmerge_wrong_input(self):
         with self.assertRaises(TypeError):
             yield from self.redis.pfmerge(None, 'value')
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfmerge('none-key')
