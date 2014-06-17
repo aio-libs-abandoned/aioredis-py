@@ -47,6 +47,11 @@ class StringCommandsTest(BaseTest):
         self.assertEqual(cardinality, 6)
 
     @run_until_complete
+    def test_pfcount_wrong_input(self):
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfcount()
+
+    @run_until_complete
     def test_pfadd(self):
         key = 'hll_pfadd'
         values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
@@ -56,6 +61,13 @@ class StringCommandsTest(BaseTest):
         # add event more data, cardinality not changed so command returns 0
         is_changed = yield from self.redis.pfadd(key, 'i', 'o')
         self.assertEqual(is_changed, 0)
+
+    @run_until_complete
+    def test_pfadd_wrong_input(self):
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfadd(None, 'value')
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfadd('none-key')
 
     @run_until_complete
     def test_pfmerge(self):
@@ -84,3 +96,10 @@ class StringCommandsTest(BaseTest):
         yield from self.redis.pfmerge(key_dest, key, key_other)
         cardinality_dest = yield from self.redis.pfcount(key_dest)
         self.assertEqual(cardinality_dest, cardinality_merged)
+
+    @run_until_complete
+    def test_pfmerge_wrong_input(self):
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfmerge(None, 'value')
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfmerge('none-key')
