@@ -5,7 +5,7 @@ from aioredis import create_redis
 
 
 @unittest.skip('hyperloglog works only with redis>=2.8.9')
-class StringCommandsTest(BaseTest):
+class HyperLogLogCommandsTest(BaseTest):
 
     def setUp(self):
         super().setUp()
