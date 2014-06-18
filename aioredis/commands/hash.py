@@ -1,4 +1,6 @@
 import asyncio
+import itertools
+from .encoders import nativestr
 
 
 class HashCommandsMixin:
@@ -8,9 +10,9 @@ class HashCommandsMixin:
     """
 
     @asyncio.coroutine
-    def hdel(self, key, *fields):
+    def hdel(self, key, field, *fields):
         """Delete one or more hash fields"""
-        return (yield from self._conn.execute(b'HDEL', key, *fields))
+        return (yield from self._conn.execute(b'HDEL', key, field, *fields))
 
     @asyncio.coroutine
     def hexists(self, key, field):
@@ -18,14 +20,18 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HEXISTS', key, field))
 
     @asyncio.coroutine
-    def hget(self, key, field):
+    def hget(self, key, field, encoder=nativestr):
         """Get the value of a hash field"""
-        return (yield from self._conn.execute(b'HGET', key, field))
+        result = yield from self._conn.execute(b'HGET', key, field)
+        return encoder(result) if encoder else result
 
     @asyncio.coroutine
-    def hgetall(self, key):
+    def hgetall(self, key, encoder=nativestr):
         """Get all the fields and values in a hash"""
-        return (yield from self._conn.execute(b'HGETALL', key))
+        results = yield from self._conn.execute(b'HGETALL', key)
+        if encoder:
+            results = [encoder(r) for r in results]
+        return results
 
     @asyncio.coroutine
     def hincrby(self, key, field, increment=1):
@@ -34,26 +40,34 @@ class HashCommandsMixin:
             b'HINCRBY', key, field, increment))
 
     @asyncio.coroutine
-    def hincrbyfloat(self, key, field, increment=1.0):
+    def hincrbyfloat(self, key, field, increment=1.0, encoder=float):
         """Increment the integer value of a hash field by the given number"""
-        result = yield from self._conn.execute(b'HINCRBYFLOAT', key, field, increment)
-        return float(result)
+        result = yield from self._conn.execute(
+            b'HINCRBYFLOAT', key, field, increment)
+        return encoder(result) if encoder and result else result
 
     @asyncio.coroutine
-    def hkeys(self, key):
+    def hkeys(self, key, encoder=nativestr):
         """Get all the fields in a hash"""
-        return (yield from self._conn.execute(b'HKEYS', key))
+        results = yield from self._conn.execute(b'HKEYS', key)
+        if encoder:
+            results = [encoder(r) for r in results]
+        return results
 
     @asyncio.coroutine
     def hlen(self, key):
-        """Get all the fields in a hash"""
+        """Returns the number of fields contained in the hash
+        stored at key."""
         return (yield from self._conn.execute(b'HLEN', key))
 
     @asyncio.coroutine
-    def hmget(self, key, *fields):
+    def hmget(self, key, field, *fields, encoder=nativestr):
         """Returns the values associated with the specified fields in
         the hash stored at key."""
-        return (yield from self._conn.execute(b'HMGET', key, *fields))
+        results = yield from self._conn.execute(b'HMGET', key, field, *fields)
+        if encoder:
+            results = [encoder(r) if r else None for r in results]
+        return results
 
     @asyncio.coroutine
     def hmset(self, key, mapping):
@@ -61,8 +75,8 @@ class HashCommandsMixin:
         field and value from the ``mapping`` dict."""
         if not mapping:
             raise ValueError("'hmset' with 'mapping' of length 0")
-        items = [pair for pair in mapping.items()]
-        return (yield from self._conn.execute(b'HMSET', key, items))
+        items = list(itertools.chain(*mapping.items()))
+        return (yield from self._conn.execute(b'HMSET', key, *items))
 
     @asyncio.coroutine
     def hset(self, key, field, value):
@@ -75,9 +89,13 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HSETNX', key, field, value))
 
     @asyncio.coroutine
-    def hvals(self, key):
+    def hvals(self, key, encoder=nativestr):
         """Get all the values in a hash"""
-        return (yield from self._conn.execute(b'HVALS', key))
+        results = yield from self._conn.execute(b'HVALS', key)
+        if encoder:
+            results = [encoder(r) for r in results]
+        return results
+
 
     @asyncio.coroutine
     def hscan(self, key, cursor=0, match=None, count=None):
