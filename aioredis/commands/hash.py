@@ -96,7 +96,6 @@ class HashCommandsMixin:
             results = [encoder(r) for r in results]
         return results
 
-
     @asyncio.coroutine
     def hscan(self, key, cursor=0, match=None, count=None):
         """Incrementally iterate hash fields and associated values"""

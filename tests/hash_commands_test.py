@@ -164,7 +164,6 @@ class HashCommandsTest(BaseTest):
         result = yield from self.redis.hexists('not:' + key, field)
         self.assertEqual(result, 1)
 
-
         # set multiple
         mapping = {'foo': 'baz', 'bar': 'paz'}
         test_value = yield from self.redis.hmset(key, mapping)
@@ -222,7 +221,6 @@ class HashCommandsTest(BaseTest):
             v = 'value:{}'.format(i)
             yield from self.add(key, f, v)
 
-
         cursor, values = yield from self.redis.hscan(key, match='field:foo:*')
         self.assertEqual(len(values), 3*2)
         cursor, values = yield from self.redis.hscan(key, match='field:bar:*')
@@ -242,4 +240,3 @@ class HashCommandsTest(BaseTest):
             if not int(cursor):
                 break
         self.assertEqual(len(test_values), 10*2)
-
