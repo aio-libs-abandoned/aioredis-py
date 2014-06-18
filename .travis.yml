@@ -18,8 +18,7 @@ install:
 
 before_script:
 # start custom redis instance
-# - sudo service redis-server stop
-# - sleep 3
+- export REDIS_VERSION=$(redis-server --version)
 - export REDIS_PORT=6379 REDIS_SOCKET=/tmp/aioredis.sock
 - >
   redis-server --daemonize yes
