@@ -179,10 +179,37 @@ class GenericCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.redis.keys(None)
 
-    @unittest.skip('Not implemented')
     @run_until_complete
     def test_migrate(self):
-        pass
+        res = yield from self.add('my-key', 123)
+
+        conn2 = yield from create_redis(('localhost', 6380), db=2,
+                                        loop=self.loop)
+        yield from conn2.delete('my-key')
+        self.assertTrue((yield from self.redis.exists('my-key')))
+        self.assertFalse((yield from conn2.exists('my-key')))
+
+        ok = yield from self.redis.migrate('localhost', 6380, 'my-key',
+                                           2, 1000)
+        self.assertTrue(ok)
+        self.assertFalse((yield from self.redis.exists('my-key')))
+        self.assertTrue((yield from conn2.exists('my-key')))
+
+        with self.assertRaisesRegex(TypeError, "host .* str"):
+            yield from self.redis.migrate(None, 1234, 'key', 1, 23)
+        with self.assertRaisesRegex(TypeError, "key .* None"):
+            yield from self.redis.migrate('host', '1234',  None, 1, 123)
+        with self.assertRaisesRegex(TypeError, "dest_db .* int"):
+            yield from self.redis.migrate('host', 123, 'key', 1.0, 123)
+        with self.assertRaisesRegex(TypeError, "timeout .* int"):
+            yield from self.redis.migrate('host', '1234', 'key', 2, None)
+        with self.assertRaisesRegex(ValueError, "Got empty host"):
+            yield from self.redis.migrate('', '123', 'key', 1, 123)
+        with self.assertRaisesRegex(ValueError, "dest_db .* greater equal 0"):
+            yield from self.redis.migrate('host', 6379, 'key', -1, 1000)
+        with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
+            yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
+
 
     @run_until_complete
     def test_move(self):
