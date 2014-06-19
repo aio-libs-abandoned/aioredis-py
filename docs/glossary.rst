@@ -3,9 +3,9 @@
 Glossary
 ========
 
-.. Please keep alphabetical order.
 
 .. glossary::
+   :sorted:
 
    asyncio
 

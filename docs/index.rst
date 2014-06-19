@@ -54,6 +54,7 @@ Contents
 .. toctree::
    :maxdepth: 2
 
+   api_reference
    glossary
 
 .. high_level
