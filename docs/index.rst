@@ -55,6 +55,7 @@ Contents
    :maxdepth: 2
 
    api_reference
+   examples
    glossary
 
 .. high_level

@@ -9,8 +9,8 @@ doc:
 all: flake doc test
 
 flake:
-	$(FLAKE) aioredis tests
-	$(PEP) aioredis tests
+	$(FLAKE) aioredis tests examples
+	$(PEP) aioredis tests examples
 
 test:
 	$(PYTHON) runtests.py -v
