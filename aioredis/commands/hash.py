@@ -1,6 +1,5 @@
 import asyncio
 import itertools
-from .encoders import nativestr
 
 
 class HashCommandsMixin:
@@ -20,18 +19,14 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HEXISTS', key, field))
 
     @asyncio.coroutine
-    def hget(self, key, field, encoder=nativestr):
+    def hget(self, key, field):
         """Get the value of a hash field"""
-        result = yield from self._conn.execute(b'HGET', key, field)
-        return encoder(result) if encoder else result
+        return (yield from self._conn.execute(b'HGET', key, field))
 
     @asyncio.coroutine
-    def hgetall(self, key, encoder=nativestr):
+    def hgetall(self, key):
         """Get all the fields and values in a hash"""
-        results = yield from self._conn.execute(b'HGETALL', key)
-        if encoder:
-            results = [encoder(r) for r in results]
-        return results
+        return (yield from self._conn.execute(b'HGETALL', key))
 
     @asyncio.coroutine
     def hincrby(self, key, field, increment=1):
@@ -40,19 +35,15 @@ class HashCommandsMixin:
             b'HINCRBY', key, field, increment))
 
     @asyncio.coroutine
-    def hincrbyfloat(self, key, field, increment=1.0, encoder=float):
+    def hincrbyfloat(self, key, field, increment=1.0):
         """Increment the integer value of a hash field by the given number"""
-        result = yield from self._conn.execute(
-            b'HINCRBYFLOAT', key, field, increment)
-        return encoder(result) if encoder and result else result
+        return (yield from self._conn.execute(
+            b'HINCRBYFLOAT', key, field, increment))
 
     @asyncio.coroutine
-    def hkeys(self, key, encoder=nativestr):
+    def hkeys(self, key):
         """Get all the fields in a hash"""
-        results = yield from self._conn.execute(b'HKEYS', key)
-        if encoder:
-            results = [encoder(r) for r in results]
-        return results
+        return (yield from self._conn.execute(b'HKEYS', key))
 
     @asyncio.coroutine
     def hlen(self, key):
@@ -61,20 +52,17 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HLEN', key))
 
     @asyncio.coroutine
-    def hmget(self, key, field, *fields, encoder=nativestr):
+    def hmget(self, key, field, *fields):
         """Returns the values associated with the specified fields in
         the hash stored at key."""
-        results = yield from self._conn.execute(b'HMGET', key, field, *fields)
-        if encoder:
-            results = [encoder(r) if r else None for r in results]
-        return results
+        return (yield from self._conn.execute(b'HMGET', key, field, *fields))
 
     @asyncio.coroutine
     def hmset(self, key, mapping):
         """Set field to value within hash ``key`` for each corresponding
         field and value from the ``mapping`` dict."""
         if not mapping:
-            raise ValueError("'hmset' with 'mapping' of length 0")
+            raise ValueError("HMSET with *mapping* argument of length 0")
         items = list(itertools.chain(*mapping.items()))
         return (yield from self._conn.execute(b'HMSET', key, *items))
 
@@ -89,12 +77,9 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HSETNX', key, field, value))
 
     @asyncio.coroutine
-    def hvals(self, key, encoder=nativestr):
+    def hvals(self, key):
         """Get all the values in a hash"""
-        results = yield from self._conn.execute(b'HVALS', key)
-        if encoder:
-            results = [encoder(r) for r in results]
-        return results
+        return (yield from self._conn.execute(b'HVALS', key))
 
     @asyncio.coroutine
     def hscan(self, key, cursor=0, match=None, count=None):

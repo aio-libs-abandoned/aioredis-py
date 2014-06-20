@@ -24,7 +24,7 @@ class HashCommandsTest(BaseTest):
 
     @run_until_complete
     def test_hdel(self):
-        key, field, value = 'key:hdel', 'bar', 'zap'
+        key, field, value = b'key:hdel', b'bar', b'zap'
         yield from self.add(key, field, value)
 
         result = yield from self.redis.hdel(key, field)
@@ -34,36 +34,36 @@ class HashCommandsTest(BaseTest):
 
     @run_until_complete
     def test_hexists(self):
-        key, field, value = 'key:hexists', 'bar', 'zap'
+        key, field, value = b'key:hexists', b'bar', b'zap'
         yield from self.add(key, field, value)
 
         result = yield from self.redis.hexists(key, field)
         self.assertEqual(result, 1)
-        result = yield from self.redis.hexists(key, 'not:' + field)
+        result = yield from self.redis.hexists(key, b'not:' + field)
         self.assertEqual(result, 0)
-        result = yield from self.redis.hexists('not:' + key, field)
+        result = yield from self.redis.hexists(b'not:' + key, field)
         self.assertEqual(result, 0)
 
     @run_until_complete
     def test_hget(self):
 
-        key, field, value = 'key:hget', 'bar', 'zap'
+        key, field, value = b'key:hget', b'bar', b'zap'
         yield from self.add(key, field, value)
 
         test_value = yield from self.redis.hget(key, field)
         self.assertEqual(test_value, value)
 
-        test_value = yield from self.redis.hget(key, 'baz')
+        test_value = yield from self.redis.hget(key, b'baz')
         self.assertEqual(test_value, None)
 
-        test_value = yield from self.redis.hget('not:key:hget', 'baz')
+        test_value = yield from self.redis.hget(b'not:key:hget', b'baz')
         self.assertEqual(test_value, None)
 
     @run_until_complete
     def test_hgetall(self):
-        key = 'key:hgetall'
-        field1, field2 = 'foo', 'bar'
-        value1, value2 = 'baz', 'zap'
+        key = b'key:hgetall'
+        field1, field2 = b'foo', b'bar'
+        value1, value2 = b'baz', b'zap'
         yield from self.add(key, field1, value1)
         yield from self.add(key, field2, value2)
 
@@ -72,70 +72,70 @@ class HashCommandsTest(BaseTest):
         ref_set = {field1, field2, value1, value2}
         self.assertEqual(ref_set, set(test_value))
 
-        test_value = yield from self.redis.hgetall('not:' + key)
+        test_value = yield from self.redis.hgetall(b'not:' + key)
         self.assertEqual(test_value, [])
 
     @run_until_complete
     def test_hincrby(self):
-        key, field, value = 'key:hincrby', 'bar', 1
+        key, field, value = b'key:hincrby', b'bar', 1
         yield from self.add(key, field, value)
 
         result = yield from self.redis.hincrby(key, field, 2)
         self.assertEqual(result, 3)
 
-        result = yield from self.redis.hincrby('not:' + key, field, 2)
+        result = yield from self.redis.hincrby(b'not:' + key, field, 2)
         self.assertEqual(result, 2)
-        result = yield from self.redis.hincrby(key, 'not:' + field, 2)
+        result = yield from self.redis.hincrby(key, b'not:' + field, 2)
         self.assertEqual(result, 2)
 
         with self.assertRaises(ReplyError):
-            yield from self.redis.hincrby(key, 'not:' + field, 3.14)
+            yield from self.redis.hincrby(key, b'not:' + field, 3.14)
 
     @run_until_complete
     def test_hincrbyfloat(self):
-        key, field, value = 'key:hincrbyfloat', 'bar', 2.71
+        key, field, value = b'key:hincrbyfloat', b'bar', 2.71
         yield from self.add(key, field, value)
 
         result = yield from self.redis.hincrbyfloat(key, field, 3.14)
-        self.assertEqual(result, 5.85)
-        result = yield from self.redis.hincrbyfloat('not:' + key, field, 3.14)
-        self.assertEqual(result, 3.14)
-        result = yield from self.redis.hincrbyfloat(key, 'not:' + field, 3.14)
-        self.assertEqual(result, 3.14)
+        self.assertEqual(result, b'5.85')
+        result = yield from self.redis.hincrbyfloat(b'not:' + key, field, 3.14)
+        self.assertEqual(result, b'3.14')
+        result = yield from self.redis.hincrbyfloat(key, b'not:' + field, 3.14)
+        self.assertEqual(result, b'3.14')
 
     @run_until_complete
     def test_hkeys(self):
-        key = 'key:hkeys'
-        field1, field2 = 'foo', 'bar'
-        value1, value2 = 'baz', 'zap'
+        key = b'key:hkeys'
+        field1, field2 = b'foo', b'bar'
+        value1, value2 = b'baz', b'zap'
         yield from self.add(key, field1, value1)
         yield from self.add(key, field2, value2)
 
         test_value = yield from self.redis.hkeys(key)
         self.assertEqual(set(test_value), {field1, field2})
 
-        test_value = yield from self.redis.hkeys('not:' + key)
+        test_value = yield from self.redis.hkeys(b'not:' + key)
         self.assertEqual(test_value, [])
 
     @run_until_complete
     def test_hlen(self):
-        key = 'key:hlen'
-        field1, field2 = 'foo', 'bar'
-        value1, value2 = 'baz', 'zap'
+        key = b'key:hlen'
+        field1, field2 = b'foo', b'bar'
+        value1, value2 = b'baz', b'zap'
         yield from self.add(key, field1, value1)
         yield from self.add(key, field2, value2)
 
         test_value = yield from self.redis.hlen(key)
         self.assertEqual(test_value, 2)
 
-        test_value = yield from self.redis.hlen('not:' + key)
+        test_value = yield from self.redis.hlen(b'not:' + key)
         self.assertEqual(test_value, 0)
 
     @run_until_complete
     def test_hmget(self):
-        key = 'key:hmget'
-        field1, field2 = 'foo', 'bar'
-        value1, value2 = 'baz', 'zap'
+        key = b'key:hmget'
+        field1, field2 = b'foo', b'bar'
+        value1, value2 = b'baz', b'zap'
         yield from self.add(key, field1, value1)
         yield from self.add(key, field2, value2)
 
@@ -143,95 +143,93 @@ class HashCommandsTest(BaseTest):
         self.assertEqual(set(test_value), {value1, value2})
 
         test_value = yield from self.redis.hmget(
-            key, 'not:' + field1, 'not:' + field2)
+            key, b'not:' + field1, b'not:' + field2)
         self.assertEqual([None, None], test_value)
 
     @run_until_complete
     def test_hmset(self):
-        key, field, value = 'key:hmset', 'bar', 'zap'
+        key, field, value = b'key:hmset', b'bar', b'zap'
         yield from self.add(key, field, value)
 
         # key and field exists
-        test_value = yield from self.redis.hmset(key, {field: 'baz'})
+        test_value = yield from self.redis.hmset(key, {field: b'baz'})
         self.assertEqual(test_value, b'OK')
 
         result = yield from self.redis.hexists(key, field)
         self.assertEqual(result, 1)
 
         # key and field does not exists
-        test_value = yield from self.redis.hmset('not:' + key, {field: value})
+        test_value = yield from self.redis.hmset(b'not:' + key, {field: value})
         self.assertEqual(test_value, b'OK')
-        result = yield from self.redis.hexists('not:' + key, field)
+        result = yield from self.redis.hexists(b'not:' + key, field)
         self.assertEqual(result, 1)
 
         # set multiple
         mapping = {'foo': 'baz', 'bar': 'paz'}
         test_value = yield from self.redis.hmset(key, mapping)
         self.assertEqual(test_value, b'OK')
-        test_value = yield from self.redis.hmget(key, 'foo', 'bar')
-        self.assertEqual(set(test_value), {'baz', 'paz'})
+        test_value = yield from self.redis.hmget(key, b'foo', b'bar')
+        self.assertEqual(set(test_value), {b'baz', b'paz'})
 
     @run_until_complete
     def test_hset(self):
-        key, field, value = 'key:hset', 'bar', 'zap'
+        key, field, value = b'key:hset', b'bar', b'zap'
         test_value = yield from self.redis.hset(key, field, value)
         self.assertEqual(test_value, 1)
 
         test_value = yield from self.redis.hset(key, field, value)
         self.assertEqual(test_value, 0)
 
-        test_value = yield from self.redis.hset('not:' + key, field, value)
+        test_value = yield from self.redis.hset(b'not:' + key, field, value)
         self.assertEqual(test_value, 1)
 
-        result = yield from self.redis.hexists('not:' + key, field)
+        result = yield from self.redis.hexists(b'not:' + key, field)
         self.assertEqual(result, 1)
 
     @run_until_complete
     def test_hsetnx(self):
-        key, field, value = 'key:hsetnx', 'bar', 'zap'
+        key, field, value = b'key:hsetnx', b'bar', b'zap'
         test_value = yield from self.redis.hsetnx(key, field, value)
         self.assertEqual(test_value, 1)
         result = yield from self.redis.hget(key, field)
         self.assertEqual(result, value)
 
-        test_value = yield from self.redis.hsetnx(key, field, 'baz')
+        test_value = yield from self.redis.hsetnx(key, field, b'baz')
         self.assertEqual(test_value, 0)
         result = yield from self.redis.hget(key, field)
         self.assertEqual(result, value)
 
     @run_until_complete
     def test_hvals(self):
-        key = 'key:hvals'
-        field1, field2 = 'foo', 'bar'
-        value1, value2 = 'baz', 'zap'
+        key = b'key:hvals'
+        field1, field2 = b'foo', b'bar'
+        value1, value2 = b'baz', b'zap'
         yield from self.add(key, field1, value1)
         yield from self.add(key, field2, value2)
 
         test_value = yield from self.redis.hvals(key)
         self.assertEqual(set(test_value), {value1, value2})
 
-        test_value = yield from self.redis.hvals('not:' + key)
+        test_value = yield from self.redis.hvals(b'not:' + key)
         self.assertEqual(test_value, [])
 
     @run_until_complete
     def test_hscan(self):
-        key = 'key:hscan'
+        key = b'key:hscan'
         for i in range(1, 11):
-            f = 'field:{}:{}'.format('bar' if i % 3 else 'foo', i)
-            v = 'value:{}'.format(i)
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            f = 'field:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+            v = 'value:{}'.format(i).encode('utf-8')
             yield from self.add(key, f, v)
 
-        cursor, values = yield from self.redis.hscan(key, match='field:foo:*')
+        cursor, values = yield from self.redis.hscan(key, match=b'field:foo:*')
         self.assertEqual(len(values), 3*2)
-        cursor, values = yield from self.redis.hscan(key, match='field:bar:*')
+        cursor, values = yield from self.redis.hscan(key, match=b'field:bar:*')
         self.assertEqual(len(values), 7*2)
 
         # SCAN family functions do not guarantee that the number of
-        # elements returned per call are in a given range. The commands
-        # are also allowed to return zero elements, and the client should
-        # not consider the iteration complete as long as the returned
-        # cursor is not zero. So here just dummy test, that *count* argument
-        # does not break something
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
         cursor = 0
         test_values = []
         for i in range(11):
