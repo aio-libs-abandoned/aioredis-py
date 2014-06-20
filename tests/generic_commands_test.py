@@ -180,8 +180,9 @@ class GenericCommandsTest(BaseTest):
             yield from self.redis.keys(None)
 
     @run_until_complete
+    @unittest.skip("Need another Redis instance")
     def test_migrate(self):
-        res = yield from self.add('my-key', 123)
+        yield from self.add('my-key', 123)
 
         conn2 = yield from create_redis(('localhost', 6380), db=2,
                                         loop=self.loop)
@@ -209,7 +210,6 @@ class GenericCommandsTest(BaseTest):
             yield from self.redis.migrate('host', 6379, 'key', -1, 1000)
         with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
             yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
-
 
     @run_until_complete
     def test_move(self):
