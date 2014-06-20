@@ -1,4 +1,5 @@
 import asyncio
+from aioredis.errors import WrongArgumentError
 
 
 class StringCommandsMixin:
@@ -16,34 +17,60 @@ class StringCommandsMixin:
         return (yield from self._conn.execute(b'APPEND', key, value))
 
     @asyncio.coroutine
-    def bitcount(self, key, start, end, *extra):
+    def bitcount(self, key, start, end):
         """Count set bits in a string.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'BITCOUNT', start, end))
 
     @asyncio.coroutine
-    def bitop(self, operation, dest, key, *keys):
+    def bitop(self, operation, destkey, key, *keys):
         """Perform bitwise operations between strings.
         """
-        pass
+        operations = {b'AND', b'OR', b'XOR', b'NOT'}
+        operation = operation.upper().encode('utf-8')
+        if operation not in operations:
+            raise WrongArgumentError('operation must '
+                                     'be on of: {}'.format(list(operations)))
+        if operation == b'NOT' and len(keys) != 0:
+            raise WrongArgumentError('NOT operation does not require '
+                                     '*keys arguments')
+        elif not (operation == b'NOT') and len(keys) == 0:
+            raise WrongArgumentError('{} operation should have one or more '
+                                     '*keys specified'.format(operation))
+        return (yield from self._conn.execute(
+            b'BITOP', operation, destkey, key, *keys))
 
     @asyncio.coroutine
-    def bitpos(self):
+    def bitpos(self, key, bit, start=None, end=None):
         """Find first bit set or clear in a string.
         """
-        pass
+        if bit not in (0, 1):
+            raise WrongArgumentError('bit must be 0 or 1')
+        args = []
+        start is not None and args.append(start)
+        if start is not None and end is not None:
+            args.append(end)
+        elif start is None and end is not None:
+            raise WrongArgumentError("start arg not specified")
+        return (yield from self._conn.execute(b'BITPOS', key, bit, *args))
 
     @asyncio.coroutine
     def decr(self, key):
         """Decrement the integer value of a key by one.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'DECR', key))
 
     @asyncio.coroutine
-    def decrby(self, key, decrement):
+    def decrby(self, key, decrement=1):
         """Decrement the integer value of a key by the given number.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'DECRBY', key, decrement))
 
     @asyncio.coroutine
     def get(self, key):
