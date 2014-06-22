@@ -61,6 +61,53 @@ class StringCommandsTest(BaseTest):
             yield from self.redis.set(None, 'value')
 
     @run_until_complete
+    def test_set_expire(self):
+        key, value = b'key:set:expire', b'foo'
+        # test expiration in milliseconds
+        yield from self.redis.set(key, value, pexpire=10)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, value)
+        yield from asyncio.sleep(0.015, loop=self.loop)
+        result_2 = yield from self.redis.get(key)
+        self.assertEqual(result_2, None)
+
+        # same thing but timeout in seconds
+        yield from self.redis.set(key, value, expire=1)
+        result_3 = yield from self.redis.get(key)
+        self.assertEqual(result_3, value)
+        yield from asyncio.sleep(1.001, loop=self.loop)
+        result_4 = yield from self.redis.get(key)
+        self.assertEqual(result_4, None)
+
+    @run_until_complete
+    def test_set_only_if_not_exists(self):
+        key, value = b'key:set:only_if_not_exists', b'foo'
+        yield from self.redis.set(key, value, only_if_not_exists=True)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, value)
+
+        # new values not set cos, values exists
+        yield from self.redis.set(key, "foo2", only_if_not_exists=True)
+        result_2 = yield from self.redis.get(key)
+        # nothing changed result is same "foo"
+        self.assertEqual(result_2, value)
+
+    @run_until_complete
+    def test_set_only_if_exists(self):
+        key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
+        # ensure that such key does not exits, and value not sets
+        yield from self.redis.delete(key)
+        yield from self.redis.set(key, value, only_if_exists=True)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, None)
+
+        # ensure key exits, and value updates
+        yield from self.redis.set(key, value)
+        yield from self.redis.set(key, b'foo', only_if_exists=True)
+        result_2 = yield from self.redis.get(key)
+        self.assertEqual(result_2, b'foo')
+
+    @run_until_complete
     def test_bitcount(self):
         key, value = b'key:bitcount', b'foobar'
         yield from self.add(key, value)
@@ -383,3 +430,33 @@ class StringCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.add(key, 10)
             test_value = yield from self.redis.incrbyfloat(None)
+
+    @run_until_complete
+    def test_mget(self):
+        key1, value1 = b'key:mget:1', b'hello'
+        key2, value2 = b'key:mget:2', b'world'
+        yield from self.add(key1, value1)
+        yield from self.add(key2, value2)
+
+        test_value = yield from self.redis.mget(key1, key2)
+        self.assertEqual(test_value, [value1, value2])
+
+        test_value = yield from self.redis.mget(key1)
+        self.assertEqual(test_value, [value1])
+
+        test_value = yield from self.redis.mget(b'not:' + key1, b'not' + key2)
+        self.assertEqual(test_value, [None, None])
+
+    @run_until_complete
+    def test_mset(self):
+        key1, value1 = b'key:mset:1', b'hello'
+        key2, value2 = b'key:mset:2', b'world'
+
+        yield from self.redis.mset(key1, value1, key2, value2)
+
+        test_value = yield from self.redis.mget(key1, key2)
+        self.assertEqual(test_value, [value1, value2])
+
+        yield from self.redis.mset(b'other:' + key1, b'other:' + value1)
+        test_value = yield from self.redis.get(b'other:' + key1)
+        self.assertEqual(test_value, b'other:' + value1)

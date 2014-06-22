@@ -17,7 +17,7 @@ class StringCommandsMixin:
         return (yield from self._conn.execute(b'APPEND', key, value))
 
     @asyncio.coroutine
-    def bitcount(self, key, start, end):
+    def bitcount(self, key, start, end, *pairs):
         """Count set bits in a string.
         """
         if key is None:
@@ -131,13 +131,15 @@ class StringCommandsMixin:
     def mget(self, key, *keys):
         """Get the values of all the given keys.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'MGET', key, *keys))
 
     @asyncio.coroutine
     def mset(self, key, value, *pairs):
         """Set multiple keys to multiple values.
         """
-        pass
+        return (yield from self._conn.execute(b'MSET', key, value, *pairs))
 
     @asyncio.coroutine
     def msetnx(self, keys, value, *pairs):
@@ -152,19 +154,33 @@ class StringCommandsMixin:
         pass
 
     @asyncio.coroutine
-    def set(self, key, value):
+    def set(self, key, value, expire=None, pexpire=None,
+            only_if_not_exists=False, only_if_exists=False):
         """Set the string value of a key.
         """
+        args = []
+        if expire is not None:
+            args.extend((b'EX', expire))
+        if pexpire is not None:
+            args.extend((b'PX', pexpire))
+        if only_if_not_exists and only_if_exists:
+            raise WrongArgumentError('only_if_not_exists and only_if_exists '
+                                     'cannot be true simultaneously')
+        if only_if_not_exists:
+            args.append(b'NX')
+        if only_if_exists:
+            args.append(b'XX')
+
         if key is None:
-            raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'SET', key, value))
+            raise TypeError('key argument must not be None')
+        return (yield from self._conn.execute(b'SET', key, value, *args))
 
     @asyncio.coroutine
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
         """
         if key is None:
-            raise TypeError("key argument must not be None")
+            raise TypeError('key argument must not be None')
         if value not in (0, 1):
             raise WrongArgumentError('value must be 0 or 1')
         return (yield from self._conn.execute(
