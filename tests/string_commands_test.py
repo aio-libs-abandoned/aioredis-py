@@ -64,6 +64,9 @@ class StringCommandsTest(BaseTest):
     def test_bitcount(self):
         key, value = b'key:bitcount', b'foobar'
         yield from self.add(key, value)
+        test_value = yield from self.redis.bitcount(key, 0, -1)
+        self.assertEqual(test_value, 26)
+
         test_value = yield from self.redis.bitcount(key, 0, 0)
         self.assertEqual(test_value, 4)
         test_value = yield from self.redis.bitcount(key, 1, 1)
@@ -233,3 +236,150 @@ class StringCommandsTest(BaseTest):
         with self.assertRaises(ReplyError):
             yield from self.add(key, 10)
             test_value = yield from self.redis.decrby(key, 2.0)
+
+    @run_until_complete
+    def test_getbit(self):
+        key, value = b'key:getbit', 10
+        yield from self.add(key, value)
+
+        result = yield from self.redis.setbit(key, 7, 1)
+        self.assertEqual(result, 1)
+
+        test_value = yield from self.redis.getbit(key, 0)
+        self.assertEqual(test_value, 0)
+
+        test_value = yield from self.redis.getbit(key, 7)
+        self.assertEqual(test_value, 1)
+
+        test_value = yield from self.redis.getbit(b'not:' + key, 7)
+        self.assertEqual(test_value, 0)
+
+        test_value = yield from self.redis.getbit(key, 100)
+        self.assertEqual(test_value, 0)
+
+    @run_until_complete
+    def test_setbit(self):
+        key = b'key:setbit'
+
+        result = yield from self.redis.setbit(key, 7, 1)
+        self.assertEqual(result, 0)
+
+        test_value = yield from self.redis.getbit(key, 7)
+        self.assertEqual(test_value, 1)
+
+        with self.assertRaises(WrongArgumentError):
+            test_value = yield from self.redis.setbit(key, 7, 5)
+
+    @run_until_complete
+    def test_getrange(self):
+        key, value = b'key:getrange', b'This is a string'
+        yield from self.add(key, value)
+
+        test_value = yield from self.redis.getrange(key, 0, 3)
+        self.assertEqual(test_value, b'This')
+
+        test_value = yield from self.redis.getrange(key, -3, -1)
+        self.assertEqual(test_value, b'ing')
+
+        test_value = yield from self.redis.getrange(key, 0, -1)
+        self.assertEqual(test_value, b'This is a string')
+
+        test_value = yield from self.redis.getrange(key, 10, 100)
+        self.assertEqual(test_value, b'string')
+
+        test_value = yield from self.redis.getrange(key, 50, 100)
+        self.assertEqual(test_value, b'')
+
+    @run_until_complete
+    def test_getset(self):
+        key, value = b'key:getset', b'hello'
+        yield from self.add(key, value)
+
+        test_value = yield from self.redis.getset(key, b'asyncio')
+        self.assertEqual(test_value, b'hello')
+
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, b'asyncio')
+
+        test_value = yield from self.redis.getset(b'not:' + key, b'asyncio')
+        self.assertEqual(test_value, None)
+
+        test_value = yield from self.redis.get(b'not:' + key)
+        self.assertEqual(test_value, b'asyncio')
+
+    @run_until_complete
+    def test_incr(self):
+        key, value = b'key:incr', 10
+        yield from self.add(key, value)
+        test_value = yield from self.redis.incr(key)
+        self.assertEqual(test_value, 11)
+
+        yield from self.add(key, -10)
+        test_value = yield from self.redis.incr(key)
+        self.assertEqual(test_value, -9)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, 234293482390480948029348230948)
+            test_value = yield from self.redis.incr(key)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, 3.14)
+            test_value = yield from self.redis.incr(key)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, "pi")
+            test_value = yield from self.redis.incr(key)
+
+        with self.assertRaises(TypeError):
+            yield from self.add(key, 10)
+            test_value = yield from self.redis.incr(None)
+
+    @run_until_complete
+    def test_incrby(self):
+        key, value = b'key:incrby', 10
+        yield from self.add(key, value)
+        test_value = yield from self.redis.incrby(key, 3)
+        self.assertEqual(test_value, 13)
+
+        yield from self.add(key, -10)
+        test_value = yield from self.redis.incrby(key, -3)
+        self.assertEqual(test_value, -13)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, 234293482390480948029348230948)
+            test_value = yield from self.redis.incrby(key, 10)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, 3.14)
+            test_value = yield from self.redis.incrby(key, 2)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, "pi")
+            test_value = yield from self.redis.incrby(key, 5)
+
+        with self.assertRaises(TypeError):
+            yield from self.add(key, 10)
+            test_value = yield from self.redis.incrby(None)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, 10)
+            test_value = yield from self.redis.incrby(key, 2.0)
+
+    @run_until_complete
+    def test_incrbyfloat(self):
+        key, value = b'key:incrbyfloat', 2.71
+        yield from self.add(key, value)
+        test_value = yield from self.redis.incrbyfloat(key, 3.14)
+        self.assertEqual(test_value, b'5.85')
+
+        yield from self.add(key, -2.71)
+        test_value = yield from self.redis.incrbyfloat(key, -3.14)
+        self.assertEqual(test_value, b'-5.85')
+
+        with self.assertRaises(ReplyError):
+            yield from self.add(key, "pi")
+            test_value = yield from self.redis.incrbyfloat(key, 5)
+
+        with self.assertRaises(TypeError):
+            yield from self.add(key, 10)
+            test_value = yield from self.redis.incrbyfloat(None)

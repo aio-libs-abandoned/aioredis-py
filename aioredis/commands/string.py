@@ -84,37 +84,48 @@ class StringCommandsMixin:
     def getbit(self, key, offset):
         """Returns the bit value at offset in the string value stored at key.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'GETBIT', key, offset))
 
     @asyncio.coroutine
     def getrange(self, key, start, end):
-        """Get a substring of the string stored at a key.
+        """Returns the substring of the string value stored at key,
+        determined by the offsets start and end (both are inclusive).
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'GETRANGE', key, start, end))
 
     @asyncio.coroutine
     def getset(self, key, value):
         """Set the string value of a key and return its old value.
         """
-        pass
+        return (yield from self._conn.execute(b'GETSET', key, value))
 
     @asyncio.coroutine
     def incr(self, key):
         """Increment the integer value of a key by one.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'INCR', key))
 
     @asyncio.coroutine
     def incrby(self, key, value):
         """Increment the integer value of a key by the given amount.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'INCRBY', key, value))
 
     @asyncio.coroutine
     def incrbyfloat(self, key, value):
         """Increment the float value of a key by the given amount.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'INCRBYFLOAT', key, value))
 
     @asyncio.coroutine
     def mget(self, key, *keys):
@@ -152,7 +163,12 @@ class StringCommandsMixin:
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if value not in (0, 1):
+            raise WrongArgumentError('value must be 0 or 1')
+        return (yield from self._conn.execute(
+            b'SETBIT', key, offset, value))
 
     @asyncio.coroutine
     def setex(self, key, seconds, value):
