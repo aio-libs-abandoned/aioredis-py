@@ -152,21 +152,21 @@ class HashCommandsTest(BaseTest):
         yield from self.add(key, field, value)
 
         # key and field exists
-        test_value = yield from self.redis.hmset(key, {field: b'baz'})
+        test_value = yield from self.redis.hmset(key, field, b'baz')
         self.assertEqual(test_value, b'OK')
 
         result = yield from self.redis.hexists(key, field)
         self.assertEqual(result, 1)
 
         # key and field does not exists
-        test_value = yield from self.redis.hmset(b'not:' + key, {field: value})
+        test_value = yield from self.redis.hmset(b'not:' + key, field, value)
         self.assertEqual(test_value, b'OK')
         result = yield from self.redis.hexists(b'not:' + key, field)
         self.assertEqual(result, 1)
 
         # set multiple
-        mapping = {'foo': 'baz', 'bar': 'paz'}
-        test_value = yield from self.redis.hmset(key, mapping)
+        pairs = [b'foo', b'baz', b'bar', b'paz']
+        test_value = yield from self.redis.hmset(key, *pairs)
         self.assertEqual(test_value, b'OK')
         test_value = yield from self.redis.hmget(key, b'foo', b'bar')
         self.assertEqual(set(test_value), {b'baz', b'paz'})

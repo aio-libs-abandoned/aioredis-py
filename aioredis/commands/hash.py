@@ -58,13 +58,13 @@ class HashCommandsMixin:
         return (yield from self._conn.execute(b'HMGET', key, field, *fields))
 
     @asyncio.coroutine
-    def hmset(self, key, mapping):
-        """Set field to value within hash ``key`` for each corresponding
-        field and value from the ``mapping`` dict."""
-        if not mapping:
-            raise ValueError("HMSET with *mapping* argument of length 0")
-        items = list(itertools.chain(*mapping.items()))
-        return (yield from self._conn.execute(b'HMSET', key, *items))
+    def hmset(self, key, field, value, *pairs):
+        """Sets the specified fields to their respective values in
+        the hash stored at key."""
+        if len(pairs) % 2:
+            raise ValueError("HMSET length of pairs must be even number")
+        return (yield from self._conn.execute(
+            b'HMSET', key, field, value, *pairs))
 
     @asyncio.coroutine
     def hset(self, key, field, value):
