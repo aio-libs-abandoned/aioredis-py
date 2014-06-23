@@ -460,3 +460,33 @@ class StringCommandsTest(BaseTest):
         yield from self.redis.mset(b'other:' + key1, b'other:' + value1)
         test_value = yield from self.redis.get(b'other:' + key1)
         self.assertEqual(test_value, b'other:' + value1)
+
+    @run_until_complete
+    def test_strlen(self):
+        key, value = b'key:strlen', b'asyncio'
+        yield from self.add(key, value)
+        test_value = yield from self.redis.strlen(key)
+        self.assertEqual(test_value, len(value))
+
+        test_value = yield from self.redis.strlen(b'not:' + key)
+        self.assertEqual(test_value, 0)
+
+    @run_until_complete
+    def test_setrange(self):
+        key, value = b'key:setrange', b'Hello World'
+        yield from self.add(key, value)
+        test_value = yield from self.redis.setrange(key, 6, b'Redis')
+        self.assertEqual(test_value, 11)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, b'Hello Redis')
+
+
+
+
+
+        test_value = yield from self.redis.setrange(b'not:' + key,  6, b'Redis')
+        self.assertEqual(test_value, 11)
+        test_value = yield from self.redis.get(b'not:' + key)
+        self.assertEqual(test_value, b'\x00\x00\x00\x00\x00\x00Redis')
+
+

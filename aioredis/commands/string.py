@@ -159,17 +159,13 @@ class StringCommandsMixin:
         """Set the string value of a key.
         """
         args = []
-        if expire is not None:
-            args.extend((b'EX', expire))
-        if pexpire is not None:
-            args.extend((b'PX', pexpire))
+        expire is not None and args.extend((b'EX', expire))
+        pexpire is not None and args.extend((b'PX', pexpire))
         if only_if_not_exists and only_if_exists:
             raise WrongArgumentError('only_if_not_exists and only_if_exists '
                                      'cannot be true simultaneously')
-        if only_if_not_exists:
-            args.append(b'NX')
-        if only_if_exists:
-            args.append(b'XX')
+        only_if_not_exists and args.append(b'NX')
+        only_if_exists and args.append(b'XX')
 
         if key is None:
             raise TypeError('key argument must not be None')
@@ -202,10 +198,12 @@ class StringCommandsMixin:
     def setrange(self, key, offset, value):
         """Overwrite part of a string at key starting at the specified offset.
         """
-        pass
+        return (yield from self._conn.execute(b'SETRANGE', key, offset, value))
+
 
     @asyncio.coroutine
     def strlen(self, key):
         """Get the length of the value stored in a key.
         """
-        pass
+        return (yield from self._conn.execute(b'STRLEN', key))
+
