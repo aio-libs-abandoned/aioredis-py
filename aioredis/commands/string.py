@@ -17,12 +17,12 @@ class StringCommandsMixin:
         return (yield from self._conn.execute(b'APPEND', key, value))
 
     @asyncio.coroutine
-    def bitcount(self, key, start, end, *pairs):
+    def bitcount(self, key, *pairs):
         """Count set bits in a string.
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'BITCOUNT', start, end))
+        return (yield from self._conn.execute(b'BITCOUNT', key, *pairs))
 
     @asyncio.coroutine
     def bitop(self, operation, destkey, key, *keys):
@@ -142,16 +142,17 @@ class StringCommandsMixin:
         return (yield from self._conn.execute(b'MSET', key, value, *pairs))
 
     @asyncio.coroutine
-    def msetnx(self, keys, value, *pairs):
+    def msetnx(self, key, value, *pairs):
         """Set multiple keys to multiple values, only if none of the keys exist
         """
-        pass
+        return (yield from self._conn.execute(b'MSETNX', key, value, *pairs))
 
     @asyncio.coroutine
     def psetex(self, key, milliseconds, value):
         """Set the value and expiration in milliseconds of a key.
         """
-        pass
+        return (yield from self._conn.execute(
+            b'PSETEX', key, milliseconds, value))
 
     @asyncio.coroutine
     def set(self, key, value, expire=None, pexpire=None,
@@ -186,13 +187,13 @@ class StringCommandsMixin:
     def setex(self, key, seconds, value):
         """Set the value and expiration of a key.
         """
-        pass
+        return (yield from self._conn.execute(b'SETEX', key, seconds, value))
 
     @asyncio.coroutine
     def setnx(self, key, value):
         """Set the value of a key, only if the key does not exist.
         """
-        pass
+        return (yield from self._conn.execute(b'SETNX', key, value))
 
     @asyncio.coroutine
     def setrange(self, key, offset, value):
@@ -200,10 +201,8 @@ class StringCommandsMixin:
         """
         return (yield from self._conn.execute(b'SETRANGE', key, offset, value))
 
-
     @asyncio.coroutine
     def strlen(self, key):
         """Get the length of the value stored in a key.
         """
         return (yield from self._conn.execute(b'STRLEN', key))
-
