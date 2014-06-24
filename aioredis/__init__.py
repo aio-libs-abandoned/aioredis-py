@@ -4,7 +4,7 @@ from .pool import RedisPool, create_pool
 from .errors import RedisError, ProtocolError, ReplyError
 
 
-__version__ = '0.0.2'
+__version__ = '0.1.0'
 
 # make pyflakes happy
 (create_connection, RedisConnection,
