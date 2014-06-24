@@ -3,5 +3,8 @@ Changes
 
 0.1.0 (xxxx-xx-xx)
 
+* Initial release
 * RedisConnection implemented
 * RedisPool implemented
+* Docs for RedisConnection & RedisPool
+* WIP on high-level API

@@ -7,6 +7,14 @@ from .commands import create_redis, Redis
 def create_pool(address, db=0, password=None, *,
                 minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
+
+    By default it creates pool of commands_factory instances, but it is
+    also possible to create pool of plain connections by passing
+    ``lambda conn: conn`` as commands_factory.
+
+    All artuments are the same as for create_connection.
+
+    Returns RedisPool instance.
     """
 
     pool = RedisPool(address, db, password,
@@ -18,8 +26,7 @@ def create_pool(address, db=0, password=None, *,
 
 
 class RedisPool:
-    """Redis pool.
-
+    """Redis connections pool.
     """
 
     def __init__(self, address, db=0, password=None,
@@ -72,11 +79,14 @@ class RedisPool:
 
     @property
     def db(self):
+        """Currently selected db index.
+        """
         return self._db
 
     @asyncio.coroutine
     def select(self, db):
-        """Changes db index for all free connections."""
+        """Changes db index for all free connections.
+        """
         self._need_wait = fut = asyncio.Future(loop=self._loop)
         try:
             yield from self._fill_free()
@@ -98,6 +108,10 @@ class RedisPool:
 
     @asyncio.coroutine
     def acquire(self):
+        """Acquires a connection from free pool.
+
+        Creates new connection if needed.
+        """
         yield from self._wait_select()
         yield from self._fill_free()
         if self.minsize > 0 or not self._pool.empty():
@@ -110,6 +124,12 @@ class RedisPool:
         return conn
 
     def release(self, conn):
+        """Returns used connection back into pool.
+
+        When returned connection has db index that differs from one in pool
+        the connection will be dropped.
+        When queue of free connections is full the connection will be dropped.
+        """
         assert conn in self._used, "Invalid connection, maybe from other pool"
         self._used.remove(conn)
         if not conn.closed:
@@ -145,6 +165,7 @@ class RedisPool:
         pass    # pragma: nocover
 
     def __iter__(self):
+        # this method is needed to allow `yield`ing from pool
         conn = yield from self.acquire()
         return _ConnectionContextManager(self, conn)
 

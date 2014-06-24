@@ -88,19 +88,22 @@ class RedisConnection:
                         waiter.set_result(obj)
 
     @asyncio.coroutine
-    def execute(self, cmd, *args):
+    def execute(self, command, *args):
         """Executes redis command and returns Future waiting for the answer.
 
-        Raises TypeError if any of args can not be encoded as bytes.
+        Raises:
+        * TypeError if any of args can not be encoded as bytes.
+        * ReplyError on redis '-ERR' resonses.
+        * ProtocolError when response can not be decoded meaning connection
+          is broken.
         """
-        # TODO: maybe catch 'select' command for better db index control
-        cmd = cmd.upper().strip()
-        data = encode_command(cmd, *args)
+        command = command.upper().strip()
+        data = encode_command(command, *args)
         self._writer.write(data)
         yield from self._writer.drain()
         fut = asyncio.Future(loop=self._loop)
         yield from self._waiters.put(fut)
-        if cmd == 'SELECT':
+        if command == 'SELECT':
             fut.add_done_callback(partial(self._set_db, args=args))
         return (yield from fut)
 

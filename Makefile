@@ -2,6 +2,7 @@
 PYTHON ?= python3
 FLAKE ?= pyflakes
 PEP ?= pep8
+REDIS_VERSION ?= "$(shell redis-server --version)"
 
 doc:
 	make -C docs html
@@ -13,10 +14,10 @@ flake:
 	$(PEP) aioredis tests examples
 
 test:
-	$(PYTHON) runtests.py -v
+	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
 
 cov coverage:
-	$(PYTHON) runtests.py --coverage
+	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
 
 
 .PHONY: all

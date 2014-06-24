@@ -19,4 +19,9 @@ Glossary
 
       See https://pypi.python.org/pypi/hiredis
 
+   error replies
+
+      Redis server replies that start with - (minus) char.
+      Usually starts with ``-ERR``.
+
 .. _hiredis: https://github.com/redis/hiredis
