@@ -129,9 +129,31 @@ class GenericCommandsMixin:
         return bool(ret)
 
     @asyncio.coroutine
-    def object(self):
-        pass
-        # TODO: implement
+    def object_refcount(self, key):
+        """Returns the number of references of the value associated
+        with the specified key (OBJECT REFCOUNT).
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'OBJECT', b'REFCOUNT', key))
+
+    @asyncio.coroutine
+    def object_encoding(self, key):
+        """Returns the kind of internal representation used in order
+        to store the value associated with a key (OBJECT ENCODING).
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'OBJECT', b'ENCODING', key))
+
+    @asyncio.coroutine
+    def object_idletime(self, key):
+        """Returns the number of seconds since the object is not requested
+        by read or write operations (OBJECT IDLETIME).
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'OBJECT', b'IDLETIME', key))
 
     @asyncio.coroutine
     def persist(self, key):
@@ -216,14 +238,33 @@ class GenericCommandsMixin:
         return ret
 
     @asyncio.coroutine
-    def scan(self):
-        pass
+    def scan(self, cursor):
+        raise NotImplementedError()
         # TODO: implement
 
     @asyncio.coroutine
-    def sort(self):
-        pass
-        # TODO: implement
+    def sort(self, key, *get_patterns,
+             by=None, offset=None, count=None,
+             asc=None, alpha=False, store=None):
+        """Sort the elements in a list, set or sorted set.
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        args = []
+        if by is not None:
+            args += [b'BY', by]
+        if offset is not None and count is not None:
+            args += [b'LIMIT', offset, count]
+        if get_patterns:
+            args += sum(([b'GET', pattern] for pattern in get_patterns), [])
+        if asc is not None:
+            args += [asc is True and b'ASC' or b'DESC']
+        if alpha:
+            args += [b'ALPHA']
+        if store is not None:
+            args += [b'STORE', store]
+        result = yield from self._conn.execute(b'SORT', key, *args)
+        return result
 
     @asyncio.coroutine
     def ttl(self, key):
