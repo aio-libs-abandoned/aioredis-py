@@ -3,13 +3,14 @@ from aioredis.connection import create_connection
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
 from .hyperloglog import HyperLogLogCommandsMixin
+from .hash import HashCommandsMixin
 
 
 __all__ = ['create_redis', 'Redis']
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,
-            HyperLogLogCommandsMixin):
+            HyperLogLogCommandsMixin, HashCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
