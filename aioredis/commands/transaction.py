@@ -60,9 +60,11 @@ class TransactionsCommandsMixin:
         """
         if not len(coros):
             raise TypeError("At least one coroutine object is required")
+        # TODO: check that all coros are coroutine objects
 
         yield from self.multi()
         try:
+            # TODO: check if coro is not canceled or done
             for coro in coros:
                 yield from coro
         finally:
