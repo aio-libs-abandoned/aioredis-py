@@ -16,16 +16,68 @@ class StringCommandsMixin:
         return (yield from self._conn.execute(b'APPEND', key, value))
 
     @asyncio.coroutine
-    def bitcount(self, key, start, end, *extra):
+    def bitcount(self, key, start=None, end=None):
         """Count set bits in a string.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if start is None and end is not None:
+            raise TypeError("both start and stop must be specified")
+        elif start is not None and end is None:
+            raise TypeError("both start and stop must be specified")
+        elif start is not None and end is not None:
+            args = (start, end)
+        else:
+            args = ()
+        res = yield from self._conn.execute(b'BITCOUNT', key, *args)
+        return res
 
     @asyncio.coroutine
-    def bitop(self, operation, dest, key, *keys):
-        """Perform bitwise operations between strings.
+    def bitop_and(self, dest, key, *keys):
+        """Perform bitwise AND operations between strings.
         """
-        pass
+        if dest is None:
+            raise TypeError("dest argument must not be None")
+        if key is None:
+            raise TypeError("key argument must not be None")
+        result = yield from self._conn.execute(b'BITOP', b'AND',
+                                               dest, key, *keys)
+        return result
+
+    @asyncio.coroutine
+    def bitop_or(self, dest, key, *keys):
+        """Perform bitwise OR operations between strings.
+        """
+        if dest is None:
+            raise TypeError("dest argument must not be None")
+        if key is None:
+            raise TypeError("key argument must not be None")
+        result = yield from self._conn.execute(b'BITOP', b'OR',
+                                               dest, key, *keys)
+        return result
+
+    @asyncio.coroutine
+    def bitop_xor(self, dest, key, *keys):
+        """Perform bitwise XOR operations between strings.
+        """
+        if dest is None:
+            raise TypeError("dest argument must not be None")
+        if key is None:
+            raise TypeError("key argument must not be None")
+        result = yield from self._conn.execute(b'BITOP', b'XOR',
+                                               dest, key, *keys)
+        return result
+
+    @asyncio.coroutine
+    def bitop_not(self, dest, key):
+        """Perform bitwise NOT operations between strings.
+        """
+        if dest is None:
+            raise TypeError("dest argument must not be None")
+        if key is None:
+            raise TypeError("key argument must not be None")
+        result = yield from self._conn.execute(b'BITOP', b'NOT', dest, key)
+        return result
 
     @asyncio.coroutine
     def bitpos(self):

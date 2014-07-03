@@ -9,6 +9,8 @@ aioredis
 asyncio (:pep:`3156`) Redis support.
 
 .. TODO add more description
+The library is intended to provide simple and clear interface to Redis
+based on :term:`asyncio`.
 
 
 Features

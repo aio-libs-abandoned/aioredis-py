@@ -37,6 +37,29 @@ class StringCommandsTest(BaseTest):
             yield from self.redis.append('none-key', None)
 
     @run_until_complete
+    def test_bitcount(self):
+        yield from self.add('my-key', b'\x00\x10\x01')
+
+        ret = yield from self.redis.bitcount('my-key')
+        self.assertEqual(ret, 2)
+        ret = yield from self.redis.bitcount('my-key', 0, 0)
+        self.assertEqual(ret, 0)
+        ret = yield from self.redis.bitcount('my-key', 1, 1)
+        self.assertEqual(ret, 1)
+        ret = yield from self.redis.bitcount('my-key', 2, 2)
+        self.assertEqual(ret, 1)
+        ret = yield from self.redis.bitcount('my-key', 0, 1)
+        self.assertEqual(ret, 1)
+        ret = yield from self.redis.bitcount('my-key', 0, 2)
+        self.assertEqual(ret, 2)
+        ret = yield from self.redis.bitcount('my-key', 1, 2)
+        self.assertEqual(ret, 2)
+        ret = yield from self.redis.bitcount('my-key', 2, 3)
+        self.assertEqual(ret, 1)
+        ret = yield from self.redis.bitcount('my-key', 0, -1)
+        self.assertEqual(ret, 2)
+
+    @run_until_complete
     def test_get(self):
         yield from self.add('my-key', 'value')
         ret = yield from self.redis.get('my-key')
