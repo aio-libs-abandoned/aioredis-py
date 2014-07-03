@@ -4,13 +4,15 @@ from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
 from .hyperloglog import HyperLogLogCommandsMixin
 from .set import SetCommandsMixin
+from .transaction import TransactionsCommandsMixin
 
 
 __all__ = ['create_redis', 'Redis']
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,
-            HyperLogLogCommandsMixin, SetCommandsMixin):
+            HyperLogLogCommandsMixin, SetCommandsMixin,
+            TransactionsCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
