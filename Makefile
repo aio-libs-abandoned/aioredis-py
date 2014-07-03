@@ -4,10 +4,11 @@ FLAKE ?= pyflakes
 PEP ?= pep8
 REDIS_VERSION ?= "$(shell redis-server --version)"
 
+.PHONY: all flake doc test cov
+all: flake doc cov
+
 doc:
 	make -C docs html
-
-all: flake doc test
 
 flake:
 	$(FLAKE) aioredis tests examples
@@ -18,6 +19,3 @@ test:
 
 cov coverage:
 	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
-
-
-.PHONY: all
