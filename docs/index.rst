@@ -8,7 +8,6 @@ aioredis
 
 asyncio (:pep:`3156`) Redis support.
 
-.. TODO add more description
 The library is intended to provide simple and clear interface to Redis
 based on :term:`asyncio`.
 
@@ -55,14 +54,11 @@ Contents
 ========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    api_reference
    examples
    glossary
-
-.. high_level
-   low_level
 
 Indices and tables
 ==================

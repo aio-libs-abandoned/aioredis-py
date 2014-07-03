@@ -278,11 +278,18 @@ to Redis commands.
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-.. class:: Redis
+
+.. class:: Redis(connection)
 
    High-level Redis commands interface.
 
-   For details see `aioredis.commands`_ module.
+   For details see :ref:`mixins<aioredis-commands>` module.
+
+
+.. toctree::
+
+   mixins
+
 
 .. _aioredis.commands:
     https://github.com/aio-libs/aioredis/tree/master/aioredis/commands
