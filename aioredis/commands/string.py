@@ -83,19 +83,25 @@ class StringCommandsMixin:
     def bitpos(self):
         """Find first bit set or clear in a string.
         """
-        pass
+        raise NotImplementedError
 
     @asyncio.coroutine
     def decr(self, key):
         """Decrement the integer value of a key by one.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'DECR', key))
 
     @asyncio.coroutine
     def decrby(self, key, decrement):
         """Decrement the integer value of a key by the given number.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(decrement, int):
+            raise TypeError("decrement must be of type int")
+        return (yield from self._conn.execute(b'DECRBY', key, decrement))
 
     @asyncio.coroutine
     def get(self, key):
@@ -109,60 +115,80 @@ class StringCommandsMixin:
     def getbit(self, key, offset):
         """Returns the bit value at offset in the string value stored at key.
         """
-        pass
+        raise NotImplementedError
 
     @asyncio.coroutine
     def getrange(self, key, start, end):
         """Get a substring of the string stored at a key.
         """
-        pass
+        raise NotImplementedError
 
     @asyncio.coroutine
     def getset(self, key, value):
         """Set the string value of a key and return its old value.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def incr(self, key):
         """Increment the integer value of a key by one.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'INCR', key))
 
     @asyncio.coroutine
-    def incrby(self, key, value):
+    def incrby(self, key, increment):
         """Increment the integer value of a key by the given amount.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(increment, int):
+            raise TypeError("increment must be of type int")
+        return (yield from self._conn.execute(b'INCRBY', key, increment))
 
     @asyncio.coroutine
-    def incrbyfloat(self, key, value):
+    def incrbyfloat(self, key, increment):
         """Increment the float value of a key by the given amount.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(increment, float):
+            raise TypeError("increment must be of type int")
+        result = yield from self._conn.execute(
+            b'INCRBYFLOAT', key, increment)
+        return float(result)
 
     @asyncio.coroutine
     def mget(self, key, *keys):
         """Get the values of all the given keys.
         """
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if any(k is None for k in keys):
+            raise TypeError("keys must not be None")
+        return (yield from self._conn.execute(b'MGET', key, *keys))
 
     @asyncio.coroutine
     def mset(self, key, value, *pairs):
         """Set multiple keys to multiple values.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def msetnx(self, keys, value, *pairs):
         """Set multiple keys to multiple values, only if none of the keys exist
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def psetex(self, key, milliseconds, value):
         """Set the value and expiration in milliseconds of a key.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
@@ -177,28 +203,33 @@ class StringCommandsMixin:
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def setex(self, key, seconds, value):
         """Set the value and expiration of a key.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def setnx(self, key, value):
         """Set the value of a key, only if the key does not exist.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def setrange(self, key, offset, value):
         """Overwrite part of a string at key starting at the specified offset.
         """
+        raise NotImplementedError
         pass
 
     @asyncio.coroutine
     def strlen(self, key):
         """Get the length of the value stored in a key.
         """
+        raise NotImplementedError
         pass

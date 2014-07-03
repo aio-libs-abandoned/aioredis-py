@@ -1,4 +1,5 @@
 import asyncio
+import unittest
 
 from ._testutil import BaseTest, run_until_complete
 from aioredis import create_redis, ReplyError
@@ -60,6 +61,71 @@ class StringCommandsTest(BaseTest):
         self.assertEqual(ret, 2)
 
     @run_until_complete
+    @unittest.expectedFailure
+    def test_bitop_and(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_bitop_or(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_bitop_xor(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_bitop_not(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_bitpos(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    def test_decr(self):
+        yield from self.redis.delete('key')
+
+        res = yield from self.redis.decr('key')
+        self.assertEqual(res, -1)
+        res = yield from self.redis.decr('key')
+        self.assertEqual(res, -2)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 'val')
+            yield from self.redis.decr('key')
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 1.0)
+            yield from self.redis.decr('key')
+        with self.assertRaises(TypeError):
+            yield from self.redis.decr(None)
+
+    @run_until_complete
+    def test_decrby(self):
+        yield from self.redis.delete('key')
+
+        res = yield from self.redis.decrby('key', 1)
+        self.assertEqual(res, -1)
+        res = yield from self.redis.decrby('key', 10)
+        self.assertEqual(res, -11)
+        res = yield from self.redis.decrby('key', -1)
+        self.assertEqual(res, -10)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 'val')
+            yield from self.redis.decrby('key', 1)
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 1.0)
+            yield from self.redis.decrby('key', 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.decrby(None, 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.decrby('key', None)
+
+    @run_until_complete
     def test_get(self):
         yield from self.add('my-key', 'value')
         ret = yield from self.redis.get('my-key')
@@ -74,6 +140,101 @@ class StringCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.get(None)
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_getbit(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_getrange(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    @unittest.expectedFailure
+    def test_getset(self):
+        raise NotImplementedError
+
+    @run_until_complete
+    def test_incr(self):
+        yield from self.redis.delete('key')
+
+        res = yield from self.redis.incr('key')
+        self.assertEqual(res, 1)
+        res = yield from self.redis.incr('key')
+        self.assertEqual(res, 2)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 'val')
+            yield from self.redis.incr('key')
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 1.0)
+            yield from self.redis.incr('key')
+        with self.assertRaises(TypeError):
+            yield from self.redis.incr(None)
+
+    @run_until_complete
+    def test_incrby(self):
+        yield from self.redis.delete('key')
+
+        res = yield from self.redis.incrby('key', 1)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.incrby('key', 10)
+        self.assertEqual(res, 11)
+        res = yield from self.redis.incrby('key', -1)
+        self.assertEqual(res, 10)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 'val')
+            yield from self.redis.incrby('key', 1)
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 1.0)
+            yield from self.redis.incrby('key', 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrby(None, 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrby('key', None)
+
+    @run_until_complete
+    def test_incrbyfloat(self):
+        yield from self.redis.delete('key')
+
+        res = yield from self.redis.incrbyfloat('key', 1.0)
+        self.assertEqual(res, 1.0)
+        res = yield from self.redis.incrbyfloat('key', 10.5)
+        self.assertEqual(res, 11.5)
+        res = yield from self.redis.incrbyfloat('key', -1.0)
+        self.assertEqual(res, 10.5)
+        yield from self.add('key', 2)
+        res = yield from self.redis.incrbyfloat('key', 0.5)
+        self.assertEqual(res, 2.5)
+
+        with self.assertRaises(ReplyError):
+            yield from self.add('key', 'val')
+            yield from self.redis.incrbyfloat('key', 1.0)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrbyfloat(None, 1.0)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrbyfloat('key', None)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrbyfloat('key', 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.incrbyfloat('key', '1.0')
+
+    @run_until_complete
+    def test_mget(self):
+        yield from self.redis.connection.execute('flushall')
+        yield from self.add('foo', 'bar')
+        yield from self.add('baz', 'bzz')
+
+        res = yield from self.redis.mget('key')
+        self.assertEqual(res, [None])
+        res = yield from self.redis.mget('key', 'key')
+        self.assertEqual(res, [None, None])
+
+        res = yield from self.redis.mget('foo', 'baz')
+        self.assertEqual(res, [b'bar', b'bzz'])
 
     @run_until_complete
     def test_set(self):
