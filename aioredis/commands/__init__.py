@@ -1,4 +1,5 @@
 import asyncio
+
 from aioredis.connection import create_connection
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
@@ -7,6 +8,7 @@ from .hyperloglog import HyperLogLogCommandsMixin
 from .set import SetCommandsMixin
 from .sorted_set import SortedSetCommandsMixin
 from .transaction import TransactionsCommandsMixin
+from .list import ListCommandsMixin
 
 
 __all__ = ['create_redis', 'Redis']
@@ -15,7 +17,7 @@ __all__ = ['create_redis', 'Redis']
 class Redis(GenericCommandsMixin, StringCommandsMixin,
             HyperLogLogCommandsMixin, SetCommandsMixin,
             HashCommandsMixin, TransactionsCommandsMixin,
-            SortedSetCommandsMixin):
+            SortedSetCommandsMixin, ListCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
