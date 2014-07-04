@@ -1,26 +1,10 @@
-import asyncio
 import unittest
 
-from ._testutil import BaseTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from ._testutil import RedisTest, run_until_complete
+from aioredis import ReplyError
 
 
-class StringCommandsTest(BaseTest):
-
-    def setUp(self):
-        super().setUp()
-        self.redis = self.loop.run_until_complete(create_redis(
-            ('localhost', self.redis_port), loop=self.loop))
-
-    def tearDown(self):
-        self.redis.close()
-        del self.redis
-        super().tearDown()
-
-    @asyncio.coroutine
-    def add(self, key, value):
-        ok = yield from self.redis.connection.execute('set', key, value)
-        self.assertEqual(ok, b'OK')
+class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_append(self):

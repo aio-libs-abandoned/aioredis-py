@@ -1,20 +1,10 @@
 import asyncio
 
-from ._testutil import BaseTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from ._testutil import RedisTest, run_until_complete
+from aioredis import ReplyError
 
 
-class HashCommandsTest(BaseTest):
-
-    def setUp(self):
-        super().setUp()
-        self.redis = self.loop.run_until_complete(create_redis(
-            ('localhost', self.redis_port), loop=self.loop))
-
-    def tearDown(self):
-        self.redis.close()
-        del self.redis
-        super().tearDown()
+class HashCommandsTest(RedisTest):
 
     @asyncio.coroutine
     def add(self, key, field, value):

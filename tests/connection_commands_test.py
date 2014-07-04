@@ -1,17 +1,8 @@
-from ._testutil import BaseTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete
 from aioredis import create_redis, ReplyError
 
 
-class ConnectionCommandsTest(BaseTest):
-
-    def setUp(self):
-        super().setUp()
-        self.redis = self.loop.run_until_complete(create_redis(
-            ('localhost', self.redis_port), loop=self.loop))
-
-    def tearDown(self):
-        self.redis.close()
-        del self.redis
+class ConnectionCommandsTest(RedisTest):
 
     @run_until_complete
     def test_repr(self):

@@ -5,6 +5,7 @@ import random
 import os
 
 from functools import wraps
+from aioredis import create_redis
 
 
 def run_until_complete(fun):
@@ -44,3 +45,21 @@ class BaseTest(unittest.TestCase):
             else:
                 s.close()
                 return port
+
+
+class RedisTest(BaseTest):
+
+    def setUp(self):
+        super().setUp()
+        self.redis = self.loop.run_until_complete(create_redis(
+            ('localhost', self.redis_port), loop=self.loop))
+
+    def tearDown(self):
+        self.redis.close()
+        del self.redis
+        super().tearDown()
+
+    @asyncio.coroutine
+    def add(self, key, value):
+        ok = yield from self.redis.connection.execute('set', key, value)
+        self.assertEqual(ok, b'OK')

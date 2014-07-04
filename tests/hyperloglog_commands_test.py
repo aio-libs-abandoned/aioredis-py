@@ -2,8 +2,7 @@ import os
 import re
 import unittest
 
-from ._testutil import BaseTest, run_until_complete
-from aioredis import create_redis
+from ._testutil import RedisTest, run_until_complete
 
 
 REDIS_VERSION = os.environ.get('REDIS_VERSION')
@@ -19,17 +18,7 @@ else:
 
 @unittest.skipIf(REDIS_VERSION < (2, 8, 9),
                  'HyperLogLog works only with redis>=2.8.9')
-class HyperLogLogCommandsTest(BaseTest):
-
-    def setUp(self):
-        super().setUp()
-        self.redis = self.loop.run_until_complete(create_redis(
-            ('localhost', self.redis_port), loop=self.loop))
-
-    def tearDown(self):
-        self.redis.close()
-        del self.redis
-        super().tearDown()
+class HyperLogLogCommandsTest(RedisTest):
 
     @run_until_complete
     def test_pfcount(self):
