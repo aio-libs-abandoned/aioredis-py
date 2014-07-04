@@ -58,7 +58,10 @@ class RedisConnection:
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
         self._db = 0
+        self._closing = False
         self._closed = False
+        self._in_transaction = False
+        self._transaction_error = None
 
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
@@ -75,7 +78,10 @@ class RedisConnection:
                 except ProtocolError as exc:
                     # ProtocolError is fatal
                     # so connection must be closed
+                    self._closing = True
                     self._loop.call_soon(self._do_close, exc)
+                    if self._in_transaction:
+                        self._transaction_error = exc
                     return
                 else:
                     if obj is False:
@@ -83,8 +89,12 @@ class RedisConnection:
                     waiter = yield from self._waiters.get()
                     if isinstance(obj, RedisError):
                         waiter.set_exception(obj)
+                        if self._in_transaction:
+                            self._transaction_error = obj
                     else:
                         waiter.set_result(obj)
+        self._closing = True
+        self._loop.call_soon(self._do_close, None)
 
     @asyncio.coroutine
     def execute(self, command, *args):
@@ -96,14 +106,20 @@ class RedisConnection:
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
+        assert self._reader and not self._reader.at_eof(), (
+            "Connection closed or corrupted")
         command = command.upper().strip()
         data = encode_command(command, *args)
         self._writer.write(data)
         yield from self._writer.drain()
         fut = asyncio.Future(loop=self._loop)
         yield from self._waiters.put(fut)
-        if command == 'SELECT':
+        if command in ('SELECT', b'SELECT'):
             fut.add_done_callback(partial(self._set_db, args=args))
+        elif command in ('MULTI', b'MULTI'):
+            fut.add_done_callback(self._start_transaction)
+        elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
+            fut.add_done_callback(self._end_transaction)
         return (yield from fut)
 
     def close(self):
@@ -112,6 +128,7 @@ class RedisConnection:
 
     def _do_close(self, exc):
         self._closed = True
+        self._closing = False
         self._writer.transport.close()
         self._reader_task.cancel()
         self._reader_task = None
@@ -127,8 +144,11 @@ class RedisConnection:
     @property
     def closed(self):
         """True if connection is closed."""
-        # TODO: implement
-        return self._closed
+        closed = self._closing or self._closed
+        if not closed and self._reader and self._reader.at_eof():
+            self._closing = True
+            self._loop.call_soon(self._do_close, None)
+        return closed
 
     @property
     def db(self):
@@ -157,6 +177,30 @@ class RedisConnection:
         else:
             assert ok == b'OK', ok
             self._db = args[0]
+
+    def _start_transaction(self, fut):
+        try:
+            fut.result()
+        except Exception:
+            pass
+        else:
+            assert not self._in_transaction
+            self._in_transaction = True
+            self._transaction_error = None
+
+    def _end_transaction(self, fut):
+        try:
+            fut.result()
+        except Exception:
+            pass
+        else:
+            assert self._in_transaction
+            self._in_transaction = False
+            self._transaction_error = None
+
+    @property
+    def in_transaction(self):
+        return self._in_transaction
 
     @asyncio.coroutine
     def auth(self, password):

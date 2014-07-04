@@ -47,7 +47,7 @@ class ConnectionCommandsTest(BaseTest):
         resp = yield from self.redis.quit()
         self.assertEqual(resp, b'OK')
 
-        with self.assertRaises(ConnectionResetError):
+        with self.assertRaises(AssertionError):
             yield from self.redis.ping()
 
     @run_until_complete

@@ -63,6 +63,8 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 2)
         yield from conn.execute('select', 0)
         self.assertEqual(conn.db, 0)
+        yield from conn.execute(b'select', 1)
+        self.assertEqual(conn.db, 1)
 
     @run_until_complete
     def test_protocol_error(self):
@@ -83,12 +85,12 @@ class ConnectionTest(BaseTest):
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
         conn.close()
-        with self.assertRaises(AttributeError):     # FIXME
+        with self.assertRaises(AssertionError):
             loop.run_until_complete(conn.select(1))
 
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
-        with self.assertRaises(AttributeError):     # FIXME
+        with self.assertRaises(AssertionError):
             coro = conn.select(1)
             conn.close()
             loop.run_until_complete(coro)
@@ -99,7 +101,7 @@ class ConnectionTest(BaseTest):
         conn = yield from create_connection(
             self.redis_socket, loop=self.loop)
         conn.close()
-        with self.assertRaises(AttributeError):     # FIXME
+        with self.assertRaises(AssertionError):
             yield from conn.select(1)
 
     @run_until_complete

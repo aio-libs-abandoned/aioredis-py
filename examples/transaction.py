@@ -1,0 +1,20 @@
+import asyncio
+import aioredis
+
+
+def main():
+    loop = asyncio.get_event_loop()
+
+    @asyncio.coroutine
+    def go():
+        redis = yield from aioredis.create_redis(
+            ('localhost', 6379))
+        res = yield from redis.multi_exec(
+            redis.connection.execute('INCR', 'foo'),
+            redis.connection.execute('INCR', 'bar'))
+        print(res)
+
+    loop.run_until_complete(go())
+
+if __name__ == '__main__':
+    main()
