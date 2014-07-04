@@ -1,6 +1,18 @@
 Changes
 -------
 
+0.2.0 (xxxx-xx-xx)
+
+* High-level commands implemented:
+  * generic commands
+  * hash commands
+  * set commands
+  * strings commands
+  * transactions commands
+* Transactions support
+* Docs & tests updated
+
+
 0.1.0 (2014-06-24)
 
 * Initial release

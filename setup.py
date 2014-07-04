@@ -36,7 +36,7 @@ def read_version():
 
 classifiers = [
     'License :: OSI Approved :: MIT License',
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.3',
