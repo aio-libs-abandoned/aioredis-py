@@ -1,5 +1,7 @@
 import asyncio
 
+from ..errors import RedisError
+
 
 class TransactionsCommandsMixin:
     """Transaction commands mixin.
@@ -19,6 +21,9 @@ class TransactionsCommandsMixin:
         """Execute all commands issued after MULTI."""
         assert self._conn.in_transaction
         res = yield from self._conn.execute(b'EXEC')
+        for obj in res:
+            if isinstance(obj, RedisError):
+                raise obj
         return res
 
     @asyncio.coroutine

@@ -127,6 +127,8 @@ class RedisConnection:
         self._do_close(None)
 
     def _do_close(self, exc):
+        if self._closed:
+            return
         self._closed = True
         self._closing = False
         self._writer.transport.close()
@@ -146,7 +148,7 @@ class RedisConnection:
         """True if connection is closed."""
         closed = self._closing or self._closed
         if not closed and self._reader and self._reader.at_eof():
-            self._closing = True
+            self._closing = closed = True
             self._loop.call_soon(self._do_close, None)
         return closed
 

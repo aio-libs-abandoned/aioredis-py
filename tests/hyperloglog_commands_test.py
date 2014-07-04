@@ -49,6 +49,13 @@ class HyperLogLogCommandsTest(RedisTest):
         cardinality = yield from self.redis.pfcount(key, other_key)
         self.assertEqual(cardinality, 6)
 
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfcount(None)
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfcount(key, None)
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfcount(key, key, None)
+
     @run_until_complete
     def test_pfadd(self):
         key = 'hll_pfadd'
@@ -92,6 +99,13 @@ class HyperLogLogCommandsTest(RedisTest):
         yield from self.redis.pfmerge(key_dest, key, key_other)
         cardinality_dest = yield from self.redis.pfcount(key_dest)
         self.assertEqual(cardinality_dest, cardinality_merged)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfmerge(None, key)
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfmerge(key_dest, None)
+        with self.assertRaises(TypeError):
+            yield from self.redis.pfmerge(key_dest, key, None)
 
     @run_until_complete
     def test_pfmerge_wrong_input(self):

@@ -185,6 +185,7 @@ class GenericCommandsMixin:
         """Returns time-to-live for a key, in milliseconds.
 
         Special return values (starting with Redis 2.8):
+
         * command returns -2 if the key does not exist.
         * command returns -1 if the key exists but has no associated expire.
         """
@@ -205,6 +206,8 @@ class GenericCommandsMixin:
 
         Raises ValueError if key == newkey
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
         ret = yield from self._conn.execute(b'RENAME', key, newkey)
@@ -228,9 +231,15 @@ class GenericCommandsMixin:
         return ret
 
     @asyncio.coroutine
-    def scan(self, cursor):
-        raise NotImplementedError()
-        # TODO: implement
+    def scan(self, cursor=0, match=None, count=None):
+        """Incrementally iterate the keys space."""
+        args = []
+        if match is not None:
+            args += [b'MATCH', match]
+        if count is not None:
+            args += [b'COUNT', count]
+        cursor, items = yield from self._conn.execute(b'SCAN', cursor, *args)
+        return int(cursor), items
 
     @asyncio.coroutine
     def sort(self, key, *get_patterns,
@@ -273,4 +282,6 @@ class GenericCommandsMixin:
     def type(self, key):
         """Returns the string representation of the value's type stored at key.
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'TYPE', key))
