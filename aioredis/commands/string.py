@@ -119,18 +119,31 @@ class StringCommandsMixin:
     def getbit(self, key, offset):
         """Returns the bit value at offset in the string value stored at key.
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if offset < 0:
+            raise ValueError("offset must be greater equal 0")
+        return (yield from self._conn.execute(b'GETBIT', key, offset))
 
     @asyncio.coroutine
     def getrange(self, key, start, end):
         """Get a substring of the string stored at a key."""
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(end, int):
+            raise TypeError("end argument must be int")
+        return (yield from self._conn.execute(b'GETRANGE', key, start, end))
 
     @asyncio.coroutine
     def getset(self, key, value):
         """Set the string value of a key and return its old value."""
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'GETSET', key, value))
 
     @asyncio.coroutine
     def incr(self, key):
@@ -171,25 +184,37 @@ class StringCommandsMixin:
     @asyncio.coroutine
     def mset(self, key, value, *pairs):
         """Set multiple keys to multiple values."""
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if len(pairs) % 2 != 0:
+            raise TypeError("length of pairs must be even number")
+        res = yield from self._conn.execute(b'MSET', key, value, *pairs)
+        return res == b'OK'
 
     @asyncio.coroutine
     def msetnx(self, key, value, *pairs):
         """Set multiple keys to multiple values,
         only if none of the keys exist.
         """
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if len(pairs) % 2 != 0:
+            raise TypeError("length of pairs must be even number")
+        return (yield from self._conn.execute(b'MSETNX', key, value, *pairs))
 
     @asyncio.coroutine
     def psetex(self, key, milliseconds, value):
         """Set the value and expiration in milliseconds of a key."""
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(milliseconds, int):
+            raise TypeError("milliseconds argument must be int")
+        res = yield from self._conn.execute(
+            b'PSETEX', key, milliseconds, value)
+        return res == b'OK'
 
     @asyncio.coroutine
-    def set(self, key, value):
+    def set(self, key, value):  # TODO: implement EX, PX, NX|XX
         """Set the string value of a key."""
         if key is None:
             raise TypeError("key argument must not be None")
@@ -199,30 +224,55 @@ class StringCommandsMixin:
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
         """
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if offset < 0:
+            raise ValueError("offset must be greater equal 0")
+        if value not in (0, 1):
+            raise ValueError("value argument must be either 1 or 0")
+        return (yield from self._conn.execute(b'SETBIT', key, offset, value))
 
     @asyncio.coroutine
     def setex(self, key, seconds, value):
-        """Set the value and expiration of a key."""
-        raise NotImplementedError
-        pass
+        """Set the value and expiration of a key.
+
+        If seconds is float it will be multiplied by 1000
+        coerced to int and passed to `psetex` method.
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if isinstance(seconds, float):
+            return (yield from self.psetex(key, int(seconds * 1000), value))
+        if not isinstance(seconds, int):
+            raise TypeError("milliseconds argument must be int")
+        res = yield from self._conn.execute(b'SETEX', key, seconds, value)
+        return res == b'OK'
 
     @asyncio.coroutine
     def setnx(self, key, value):
         """Set the value of a key, only if the key does not exist."""
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        res = yield from self._conn.execute(b'SETNX', key, value)
+        return bool(res)
 
     @asyncio.coroutine
     def setrange(self, key, offset, value):
         """Overwrite part of a string at key starting at the specified offset.
         """
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if offset < 0:
+            raise ValueError("offset must be greater equal 0")
+        return (yield from self._conn.execute(b'SETRANGE', key, offset, value))
 
     @asyncio.coroutine
     def strlen(self, key):
         """Get the length of the value stored in a key."""
-        raise NotImplementedError
-        pass
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'STRLEN', key))
