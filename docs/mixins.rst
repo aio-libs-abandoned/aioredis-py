@@ -25,6 +25,12 @@ Generic commands
     .. automodule:: aioredis.commands.string
        :members:
 
+Hash commands
+-------------
+
+.. autoclass:: HashCommandsMixin
+   :members:
+
 Set commands
 ------------
 

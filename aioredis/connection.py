@@ -65,8 +65,7 @@ class RedisConnection:
 
     @asyncio.coroutine
     def _read_data(self):
-        """
-        """
+        """Responses reader task."""
         while not self._reader.at_eof():
             data = yield from self._reader.read(MAX_CHUNK_SIZE)
             self._parser.feed(data)
@@ -108,8 +107,7 @@ class RedisConnection:
         return (yield from fut)
 
     def close(self):
-        """Close connection.
-        """
+        """Close connection."""
         self._do_close(None)
 
     def _do_close(self, exc):
@@ -128,15 +126,13 @@ class RedisConnection:
 
     @property
     def closed(self):
-        """True if connection is closed.
-        """
+        """True if connection is closed."""
         # TODO: implement
         return self._closed
 
     @property
     def db(self):
-        """Currently selected db index.
-        """
+        """Currently selected db index."""
         return self._db
 
     @asyncio.coroutine
@@ -164,5 +160,6 @@ class RedisConnection:
 
     @asyncio.coroutine
     def auth(self, password):
+        """Authenticate to server."""
         ok = yield from self.execute('AUTH', password)
         return ok == b'OK'

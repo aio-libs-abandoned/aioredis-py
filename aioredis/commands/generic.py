@@ -9,8 +9,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def delete(self, key, *keys):
-        """Delete a key.
-        """
+        """Delete a key."""
         if key is None:
             raise TypeError("key argument must not be None")
         if any(k is None for k in keys):
@@ -20,16 +19,14 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def dump(self, key):
-        """Dump a key.
-        """
+        """Dump a key."""
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'DUMP', key))
 
     @asyncio.coroutine
     def exists(self, key):
-        """Check if key exists.
-        """
+        """Check if key exists."""
         if key is None:
             raise TypeError("key argument must not be None")
         ret = yield from self._conn.execute(b'EXISTS', key)
@@ -77,8 +74,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def keys(self, pattern):
-        """Returns all keys matching pattern.
-        """
+        """Returns all keys matching pattern."""
         if pattern is None:
             raise TypeError("pattern argument must not be None")
         return (yield from self._conn.execute(b'KEYS', pattern))
@@ -86,8 +82,7 @@ class GenericCommandsMixin:
     @asyncio.coroutine
     def migrate(self, host, port, key, dest_db, timeout,
                 copy=False, replace=False):
-        """Atomically transfer a key from a Redis instance to another one.
-        """
+        """Atomically transfer a key from a Redis instance to another one."""
         if not isinstance(host, str):
             raise TypeError("host argument must be str")
         if not isinstance(timeout, int):
@@ -157,8 +152,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def persist(self, key):
-        """Remove the existing timeout on key.
-        """
+        """Remove the existing timeout on key."""
         if key is None:
             raise TypeError("key argument must not be None")
         ret = yield from self._conn.execute(b'PERSIST', key)
@@ -166,8 +160,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def pexpire(self, key, timeout):
-        """Set a milliseconds timeout on key.
-        """
+        """Set a milliseconds timeout on key."""
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(timeout, int):
@@ -178,8 +171,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def pexpireat(self, key, timestamp):
-        """Set expire timestamp on key, timestamp in milliseconds.
-        """
+        """Set expire timestamp on key, timestamp in milliseconds."""
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(timestamp, int):
@@ -204,8 +196,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def randomkey(self):
-        """Return a random key from the currently selected database.
-        """
+        """Return a random key from the currently selected database."""
         return (yield from self._conn.execute(b'RANDOMKEY'))
 
     @asyncio.coroutine
@@ -232,8 +223,7 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def restore(self, key, ttl, value):
-        """Creates a key associated with a value that is obtained via DUMP.
-        """
+        """Creates a key associated with a value that is obtained via DUMP."""
         ret = yield from self._conn.execute(b'RESTORE', key, ttl, value)
         return ret
 
@@ -246,8 +236,7 @@ class GenericCommandsMixin:
     def sort(self, key, *get_patterns,
              by=None, offset=None, count=None,
              asc=None, alpha=False, store=None):
-        """Sort the elements in a list, set or sorted set.
-        """
+        """Sort the elements in a list, set or sorted set."""
         if key is None:
             raise TypeError("key argument must not be None")
         args = []
@@ -282,6 +271,6 @@ class GenericCommandsMixin:
 
     @asyncio.coroutine
     def type(self, key):
-        """Returns the string representation of the type of value stored at key
+        """Returns the string representation of the value's type stored at key.
         """
         return (yield from self._conn.execute(b'TYPE', key))

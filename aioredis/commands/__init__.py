@@ -11,7 +11,8 @@ __all__ = ['create_redis', 'Redis']
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,
-            HyperLogLogCommandsMixin, SetCommandsMixin, HashCommandsMixin):
+            HyperLogLogCommandsMixin, SetCommandsMixin,
+            HashCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
@@ -30,14 +31,12 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     @property
     def db(self):
-        """Currently selected db index.
-        """
+        """Currently selected db index."""
         return self._conn.db
 
     @property
     def connection(self):
-        """RedisConnection instance.
-        """
+        """RedisConnection instance."""
         return self._conn
 
     @property
@@ -54,20 +53,17 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     @asyncio.coroutine
     def echo(self, message):
-        """Echo the given string.
-        """
+        """Echo the given string."""
         return (yield from self._conn.execute('ECHO', message))
 
     @asyncio.coroutine
     def ping(self):
-        """Ping the server.
-        """
+        """Ping the server."""
         return (yield from self._conn.execute('PING'))
 
     @asyncio.coroutine
     def quit(self):
-        """Close the connection.
-        """
+        """Close the connection."""
         return (yield from self._conn.execute('QUIT'))
 
     @asyncio.coroutine
