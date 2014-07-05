@@ -57,6 +57,7 @@ Contents
    :maxdepth: 3
 
    api_reference
+   mixins
    examples
    glossary
 

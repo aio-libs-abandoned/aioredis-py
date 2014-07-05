@@ -280,16 +280,11 @@ to Redis commands.
 
 
 .. class:: Redis(connection)
+   :noindex:
 
    High-level Redis commands interface.
 
-   For details see :ref:`mixins<aioredis-commands>` module.
+   For details see :ref:`mixins<aioredis-commands>` reference.
 
-
-.. toctree::
-
-   mixins
-
-
-.. _aioredis.commands:
+..
     https://github.com/aio-libs/aioredis/tree/master/aioredis/commands

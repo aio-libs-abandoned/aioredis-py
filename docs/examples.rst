@@ -23,5 +23,10 @@ Connections pool example
 Commands example
 ----------------
 
-
 .. literalinclude:: ../examples/commands.py
+
+
+Transaction example
+-------------------
+
+.. literalinclude:: ../examples/transaction.py

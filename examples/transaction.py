@@ -10,8 +10,8 @@ def main():
         redis = yield from aioredis.create_redis(
             ('localhost', 6379))
         res = yield from redis.multi_exec(
-            redis.connection.execute('INCR', 'foo'),
-            redis.connection.execute('INCR', 'bar'))
+            redis.incr('foo'),
+            redis.incr('bar'))
         print(res)
 
     loop.run_until_complete(go())
