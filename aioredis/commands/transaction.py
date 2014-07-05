@@ -55,6 +55,7 @@ class TransactionsCommandsMixin:
         """Executes redis commands in MULTI/EXEC block.
 
         Usage as follows:
+
         >>> yield from redis.multi_exec(
         ...     redis.incr('foo'),
         ...     redis.incr('bar'),
