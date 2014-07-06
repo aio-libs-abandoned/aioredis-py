@@ -31,7 +31,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.blpop(key1)
         self.assertEqual(test_value, [key1, value2])
 
-
         # create one more redis connection for blocking operation
         self.other_redis = create_redis(
             'localhost', self.redis_port, loop=self.loop)
@@ -78,7 +77,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.brpop(key1)
         self.assertEqual(test_value, [key1, value1])
 
-
         # create one more redis connection for blocking operation
         self.other_redis = create_redis(
             'localhost', self.redis_port, loop=self.loop)
@@ -112,23 +110,23 @@ class ListCommandsTest(BaseTest):
 
     @run_until_complete
     def test_brpoplpush(self):
-        key1, value1 = b'key:brpoplpush:1', b'brpoplpush:value:1'
-        key2, value2 = b'key:brpoplpush:2', b'brpoplpush:value:2'
+        key = b'key:brpoplpush:1'
+        value1, value2 = b'brpoplpush:value:1', b'brpoplpush:value:2'
 
         destkey = b'destkey:brpoplpush:1'
 
         # setup list
-        yield from self.redis.rpush(key1, value1, value2)
+        yield from self.redis.rpush(key, value1, value2)
 
         # move value in into head of new list
-        result = yield from self.redis.brpoplpush(key1, destkey)
+        result = yield from self.redis.brpoplpush(key, destkey)
         self.assertEqual(result, value2)
         # move last value
-        result = yield from self.redis.brpoplpush(key1, destkey)
+        result = yield from self.redis.brpoplpush(key, destkey)
         self.assertEqual(result, value1)
 
         # make sure that all values stored in new destkey list
-        test_value = yield from self.redis.lrange(destkey, 0,-1)
+        test_value = yield from self.redis.lrange(destkey, 0, -1)
         self.assertEqual(test_value, [value1, value2])
 
         # lets test blocking features of this command
@@ -137,16 +135,17 @@ class ListCommandsTest(BaseTest):
             'localhost', self.redis_port, loop=self.loop)
 
         # call *brpoplpush*, and wait until value in list would be available
-        waiter = asyncio.Task(self.redis.brpoplpush(key1, destkey), loop=self.loop)
+        waiter = asyncio.Task(self.redis.brpoplpush(key, destkey),
+                              loop=self.loop)
         # let's put something to list
-        yield from self.redis.lpush(key1, value1)
+        yield from self.redis.lpush(key, value1)
         # value was added to list so lets wait brpoplpush to return
         test_value = yield from waiter
         self.assertEqual(test_value, value1)
 
         # return None in 1 sec
         waiter = asyncio.Task(
-            self.redis.brpoplpush(key1, destkey, timeout=1), loop=self.loop)
+            self.redis.brpoplpush(key, destkey, timeout=1), loop=self.loop)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
 
@@ -154,9 +153,8 @@ class ListCommandsTest(BaseTest):
             yield from self.redis.brpoplpush(None, destkey)
 
         with self.assertRaises(TypeError):
-            yield from  self.redis.brpoplpush(key1, None)
+            yield from self.redis.brpoplpush(key, None)
         self.other_redis.close()
-
 
     @run_until_complete
     def test_lindex(self):
@@ -225,20 +223,20 @@ class ListCommandsTest(BaseTest):
 
     @run_until_complete
     def test_lpop(self):
-        key1, value1 = b'key:lpop:1', b'lpop:value:1'
-        key2, value2 = b'key:lpop:2', b'lpop:value:2'
+        key = b'key:lpop:1'
+        value1, value2 = b'lpop:value:1', b'lpop:value:2'
 
         # setup list
-        result = yield from self.redis.rpush(key1, value1, value2)
+        result = yield from self.redis.rpush(key, value1, value2)
         self.assertEqual(result, 2)
         # make sure that left value poped
-        test_value = yield from self.redis.lpop(key1)
+        test_value = yield from self.redis.lpop(key)
         self.assertEqual(test_value, value1)
         # pop remaining value, so list should become empty
-        test_value = yield from self.redis.lpop(key1)
+        test_value = yield from self.redis.lpop(key)
         self.assertEqual(test_value, value2)
         # pop from empty list
-        test_value = yield from self.redis.lpop(key1)
+        test_value = yield from self.redis.lpop(key)
         self.assertEqual(test_value, None)
 
         with self.assertRaises(TypeError):
@@ -259,7 +257,6 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.lpush(None, value1)
-
 
     @run_until_complete
     def test_lpushx(self):
@@ -284,7 +281,6 @@ class ListCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.redis.lpushx(None, value1)
 
-
     @run_until_complete
     def test_lrange(self):
         key, value = b'key:lrange:1', 'value:{}'
@@ -306,3 +302,162 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.lrange(None, 0, -1)
+
+    @run_until_complete
+    def test_lrem(self):
+        key, value = b'key:lrem:1', 'value:{}'
+        values = [value.format(i % 2).encode('utf-8') for i in range(0, 10)]
+        yield from self.redis.rpush(key, *values)
+        # remove elements from tail to head
+        test_value = yield from self.redis.lrem(key, -4, b'value:0')
+        self.assertEqual(test_value, 4)
+        # remove element from head to tail
+        test_value = yield from self.redis.lrem(key, 4, b'value:1')
+        self.assertEqual(test_value, 4)
+
+        # remove values that not in list
+        test_value = yield from self.redis.lrem(key, 4, b'value:other')
+        self.assertEqual(test_value, 0)
+
+        # make sure that only two values left in the list
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [b'value:0', b'value:1'])
+
+        # remove all instance of value:0
+        test_value = yield from self.redis.lrem(key, 0, b'value:0')
+        self.assertEqual(test_value, 1)
+
+        # make sure that only one values left in the list
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [b'value:1'])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.lrem(None, 0, b'value:0')
+
+    @run_until_complete
+    def test_lset(self):
+        key, value = b'key:lset', 'value:{}'
+        values = [value.format(i).encode('utf-8') for i in range(0, 3)]
+        yield from self.redis.rpush(key, *values)
+
+        yield from self.redis.lset(key, 0, b'foo')
+        yield from self.redis.lset(key, -1, b'baz')
+        yield from self.redis.lset(key, -2, b'zap')
+
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [b'foo', b'zap', b'baz'])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.lset(None, 0, b'value:0')
+
+        with self.assertRaises(ReplyError):
+            yield from self.redis.lset(key, 100, b'value:0')
+
+    @run_until_complete
+    def test_ltrim(self):
+        key, value = b'key:ltrim', 'value:{}'
+        values = [value.format(i).encode('utf-8') for i in range(0, 10)]
+        yield from self.redis.rpush(key, *values)
+
+        # trim with negative indexes
+        yield from self.redis.ltrim(key, 0, -5)
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, values[:-4])
+        # trim with positive indexes
+        yield from self.redis.ltrim(key, 0, 2)
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, values[:3])
+
+        # try to trim out of range indexes
+        yield from self.redis.ltrim(key, 100, 110)
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.ltrim(None, 0, -1)
+
+    @run_until_complete
+    def test_rpop(self):
+        key = b'key:rpop:1'
+        value1, value2 = b'rpop:value:1', b'rpop:value:2'
+
+        # setup list
+        result = yield from self.redis.rpush(key, value1, value2)
+        self.assertEqual(result, 2)
+        # make sure that left value poped
+        test_value = yield from self.redis.rpop(key)
+        self.assertEqual(test_value, value2)
+        # pop remaining value, so list should become empty
+        test_value = yield from self.redis.rpop(key)
+        self.assertEqual(test_value, value1)
+        # pop from empty list
+        test_value = yield from self.redis.rpop(key)
+        self.assertEqual(test_value, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.rpop(None)
+
+    @run_until_complete
+    def test_rpoplpush(self):
+        key = b'key:rpoplpush:1'
+        value1, value2 = b'rpoplpush:value:1', b'rpoplpush:value:2'
+        destkey = b'destkey:rpoplpush:1'
+
+        # setup list
+        yield from self.redis.rpush(key, value1, value2)
+
+        # move value in into head of new list
+        result = yield from self.redis.rpoplpush(key, destkey)
+        self.assertEqual(result, value2)
+        # move last value
+        result = yield from self.redis.rpoplpush(key, destkey)
+        self.assertEqual(result, value1)
+
+        # make sure that all values stored in new destkey list
+        test_value = yield from self.redis.lrange(destkey, 0, -1)
+        self.assertEqual(test_value, [value1, value2])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.rpoplpush(None, destkey)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.rpoplpush(key, None)
+
+    @run_until_complete
+    def test_rpush(self):
+        key = b'key:rpush'
+        value1, value2 = b'value:1', b'value:2'
+
+        # add multiple values to the list, with key that does not exists
+        result = yield from self.redis.rpush(key, value1, value2)
+        self.assertEqual(result, 2)
+
+        # make sure that values actually inserted in right placed and order
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [value1, value2])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.rpush(None, value1)
+
+    @run_until_complete
+    def test_rpushx(self):
+        key = b'key:rpushx'
+        value1, value2 = b'value:1', b'value:2'
+
+        # add multiple values to the list, with key that does not exists
+        # so value should not be pushed
+        result = yield from self.redis.rpushx(key, value2)
+        self.assertEqual(result, 0)
+        # init key with list by using regular rpush
+        result = yield from self.redis.rpush(key, value1)
+        self.assertEqual(result, 1)
+
+        result = yield from self.redis.rpushx(key, value2)
+        self.assertEqual(result, 2)
+
+        # make sure that values actually inserted in right placed and order
+        test_value = yield from self.redis.lrange(key, 0, -1)
+        self.assertEqual(test_value, [value1, value2])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.rpushx(None, value1)

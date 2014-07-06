@@ -91,14 +91,60 @@ class ListCommandsMixin:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'LRANGE', key, start, stop))
 
+    @asyncio.coroutine
+    def lrem(self, key, count, value):
+        """Removes the first count occurrences of elements equal to value
+        from the list stored at key."""
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'LREM', key, count, value))
 
+    @asyncio.coroutine
+    def lset(self, key, index, value):
+        """Sets the list element at index to value."""
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'LSET', key, index, value))
 
+    @asyncio.coroutine
+    def ltrim(self, key, start, stop):
+        """Trim an existing list so that it will contain only the specified
+        range of elements specified. """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'LTRIM', key, start, stop))
+
+    @asyncio.coroutine
+    def rpop(self, key):
+        """Removes and returns the last element of the list stored at key."""
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'RPOP', key))
+
+    @asyncio.coroutine
+    def rpoplpush(self, sourcekey, destkey):
+        """Atomically returns and removes the last element (tail) of the
+        list stored at source, and pushes the element at the first element
+        (head) of the list stored at destination."""
+        if sourcekey is None:
+            raise TypeError("sourcekey argument must not be None")
+        if destkey is None:
+            raise TypeError("destkey argument must not be None")
+        return (yield from self._conn.execute(
+            b'RPOPLPUSH', sourcekey, destkey))
 
     @asyncio.coroutine
     def rpush(self, key, value, *values):
+        """Insert all the specified values at the tail of the list
+        stored at key."""
+        if key is None:
+            raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'RPUSH', key, value, *values))
 
     @asyncio.coroutine
-    def lset(self, key, index, value,):
-        return (yield from self._conn.execute(b'LSET', key, index, value))
-
+    def rpushx(self, key, value):
+        """Inserts value at the tail of the list stored at key, only if
+        key already exists and holds a list."""
+        if key is None:
+            raise TypeError("key argument must not be None")
+        return (yield from self._conn.execute(b'RPUSHX', key, value))
