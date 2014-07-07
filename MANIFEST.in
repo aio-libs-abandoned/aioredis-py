@@ -1,0 +1,6 @@
+include LICENSE
+include CHANGES.txt
+include README.rst
+graft aioredis
+global-exclude *.pyc *.swp
+
