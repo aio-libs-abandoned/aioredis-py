@@ -61,9 +61,20 @@ class SortedSetCommandsMixin:
         raise NotImplementedError
 
     @asyncio.coroutine
-    def zrange(self, key, start, stop, *, withscores=False):
+    def zrange(self, key, start=0, stop=-1, *, withscores=False):
         """Return a range of members in a sorted set, by index."""
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(stop, int):
+            raise TypeError("stop argument must be int")
+        if withscores:
+            args = [b'WITHSCORES']
+        else:
+            args = []
+        return (yield from self._conn.execute(
+            b'ZRANGE', key, start, stop, *args))
 
     @asyncio.coroutine
     def zrangebylex(self, key, min, max, *, limit=None):
@@ -100,7 +111,14 @@ class SortedSetCommandsMixin:
     @asyncio.coroutine
     def zremrangebyrank(self, key, start, stop):
         """Remove all members in a sorted set within the given indexes."""
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(stop, int):
+            raise TypeError("stop argument must be int")
+        return (yield from self._conn.execute(
+            b'ZREMRANGEBYRANK', key, start, stop))
 
     @asyncio.coroutine
     def zremrangebyscore(self, key, min, max):
@@ -112,7 +130,18 @@ class SortedSetCommandsMixin:
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(stop, int):
+            raise TypeError("stop argument must be int")
+        if withscores:
+            args = [b'WITHSCORES']
+        else:
+            args = []
+        return (yield from self._conn.execute(
+            b'ZREVRANGE', key, start, stop, *args))
 
     @asyncio.coroutine
     def zrevrangebyscore(self, key, max, min, *, withscores=False, limit=None):
@@ -146,4 +175,13 @@ class SortedSetCommandsMixin:
     @asyncio.coroutine
     def zscan(self, key, cursor, match=None, count=None):
         """Incrementally iterate sorted sets elements and associated scores."""
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        args = []
+        if match is not None:
+            args += [b'MATCH', match]
+        if count is not None:
+            args += [b'COUNT', count]
+        cursor, items = yield from self._conn.execute(
+            b'ZSCAN', key, cursor, *args)
+        return int(cursor), items
