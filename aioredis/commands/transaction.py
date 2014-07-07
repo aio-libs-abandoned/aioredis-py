@@ -42,6 +42,8 @@ class TransactionsCommandsMixin:
     @asyncio.coroutine
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
+
+        :raises TypeError: if any of arguments is None
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -63,6 +65,8 @@ class TransactionsCommandsMixin:
         [1, 1]
 
         Returns list of results.
+
+        :raises TypeError: if any of arguments is not coroutine object.
         """
         if not len(coros):
             raise TypeError("At least one coroutine object is required")

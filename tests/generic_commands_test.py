@@ -83,28 +83,28 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.expire('my-key', 'timeout')
 
-    @run_until_complete
-    def test_wait_expire(self):
-        return
-        yield from self.add('my-key', 123)
-        res = yield from self.redis.expire('my-key', 1)
-        self.assertIs(res, True)
+    # @run_until_complete
+    # def test_wait_expire(self):
+    #     return
+    #     yield from self.add('my-key', 123)
+    #     res = yield from self.redis.expire('my-key', 1)
+    #     self.assertIs(res, True)
 
-        yield from asyncio.sleep(1, loop=self.loop)
+    #     yield from asyncio.sleep(1, loop=self.loop)
 
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, False)
+    #     res = yield from self.redis.exists('my-key')
+    #     self.assertIs(res, False)
 
-    @run_until_complete
-    def test_wait_expireat(self):
-        return
-        yield from self.add('my-key', 123)
-        ts = int(time.time() + 1)
-        res = yield from self.redis.expireat('my-key', ts)
+    # @run_until_complete
+    # def test_wait_expireat(self):
+    #     return
+    #     yield from self.add('my-key', 123)
+    #     ts = int(time.time() + 1)
+    #     res = yield from self.redis.expireat('my-key', ts)
 
-        yield from asyncio.sleep(ts - time.time(), loop=self.loop)
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, False)
+    #     yield from asyncio.sleep(ts - time.time(), loop=self.loop)
+    #     res = yield from self.redis.exists('my-key')
+    #     self.assertIs(res, False)
 
     @run_until_complete
     def test_expireat(self):
@@ -165,7 +165,6 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.keys(None)
 
     @run_until_complete
-    @unittest.skip("Need another Redis instance")
     def test_migrate(self):
         yield from self.add('my-key', 123)
 
@@ -260,3 +259,36 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.pexpire(None, 0)
         with self.assertRaises(TypeError):
             yield from self.redis.pexpire('my-key', 1.0)
+
+    @run_until_complete
+    def test_pexpireat(self):
+        yield from self.add('my-key', 123)
+        now = math.ceil(time.time() * 1000)
+        res = yield from self.redis.pexpireat('my-key', now + 500)
+        self.assertTrue(res)
+
+        res = yield from self.redis.ttl('my-key')
+        self.assertAlmostEqual(res, 1)
+        res = yield from self.redis.pttl('my-key')
+        self.assertAlmostEqual(res, 500, -2)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.pexpireat(None, 1234)
+        with self.assertRaises(TypeError):
+            yield from self.redis.pexpireat('key', 'timestamp')
+        with self.assertRaises(TypeError):
+            yield from self.redis.pexpireat('key', 1000.0)
+
+    @run_until_complete
+    def test_randomkey(self):
+        yield from self.flushall()
+        yield from self.add('key:1', 123)
+        yield from self.add('key:2', 123)
+        yield from self.add('key:3', 123)
+
+        res = yield from self.redis.randomkey()
+        self.assertIn(res, [b'key:1', b'key:2', b'key:3'])
+
+        yield from self.redis.connection.execute('flushdb')
+        res = yield from self.redis.randomkey()
+        self.assertIsNone(res)

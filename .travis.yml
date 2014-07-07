@@ -20,14 +20,22 @@ before_script:
 # start custom redis instance
 - export REDIS_VERSION="$(redis-server --version)"
 - export REDIS_PORT=6379 REDIS_SOCKET=/tmp/aioredis.sock
+# main redis instance listening port & socket
 - >
   redis-server --daemonize yes
   --pidfile ./redis-server.pid
   --unixsocket $REDIS_SOCKET
   --port $REDIS_PORT
   --save ""
+# second redis instance, yet for migrate command tests
+- >
+  redis-server --daemonize yes
+  --pidfile ./redis-server-2.pid
+  --port 6380
+  --save ""
 - sleep 3
 - redis-cli -s $REDIS_SOCKET PING
+- redis-cli -p 6380 PING
 
 script:
 - pyflakes aioredis tests

@@ -63,3 +63,8 @@ class RedisTest(BaseTest):
     def add(self, key, value):
         ok = yield from self.redis.connection.execute('set', key, value)
         self.assertEqual(ok, b'OK')
+
+    @asyncio.coroutine
+    def flushall(self):
+        ok = yield from self.redis.connection.execute('flushall')
+        self.assertEqual(ok, b'OK')

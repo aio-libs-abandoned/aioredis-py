@@ -9,7 +9,10 @@ class HyperLogLogCommandsMixin:
 
     @asyncio.coroutine
     def pfadd(self, key, value, *values):
-        """Adds the specified elements to the specified HyperLogLog."""
+        """Adds the specified elements to the specified HyperLogLog.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'PFADD', key, value, *values))
@@ -17,7 +20,10 @@ class HyperLogLogCommandsMixin:
     @asyncio.coroutine
     def pfcount(self, key, *keys):
         """Return the approximated cardinality of
-        the set(s) observed by the HyperLogLog at key(s)."""
+        the set(s) observed by the HyperLogLog at key(s).
+
+        :raises TypeError: if any of arguments is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if any(k is None for k in keys):
@@ -26,7 +32,10 @@ class HyperLogLogCommandsMixin:
 
     @asyncio.coroutine
     def pfmerge(self, destkey, sourcekey, *sourcekeys):
-        """Merge N different HyperLogLogs into a single one."""
+        """Merge N different HyperLogLogs into a single one.
+
+        :raises TypeError: if any of arguments is None
+        """
         if destkey is None:
             raise TypeError("destkey argument must not be None")
         if sourcekey is None:

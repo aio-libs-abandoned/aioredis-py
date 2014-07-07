@@ -9,14 +9,21 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def append(self, key, value):
-        """Append a value to key."""
+        """Append a value to key.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'APPEND', key, value))
 
     @asyncio.coroutine
     def bitcount(self, key, start=None, end=None):
-        """Count set bits in a string."""
+        """Count set bits in a string.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if only start or end specified.
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if start is None and end is not None:
@@ -32,18 +39,25 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def bitop_and(self, dest, key, *keys):
-        """Perform bitwise AND operations between strings."""
+        """Perform bitwise AND operations between strings.
+
+        :raises TypeError: if any of arguments is None
+        """
         if dest is None:
             raise TypeError("dest argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
+        # TODO: check *keys
         result = yield from self._conn.execute(b'BITOP', b'AND',
                                                dest, key, *keys)
         return result
 
     @asyncio.coroutine
     def bitop_or(self, dest, key, *keys):
-        """Perform bitwise OR operations between strings."""
+        """Perform bitwise OR operations between strings.
+
+        :raises TypeError: if any of arguments is None
+        """
         if dest is None:
             raise TypeError("dest argument must not be None")
         if key is None:
@@ -54,7 +68,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def bitop_xor(self, dest, key, *keys):
-        """Perform bitwise XOR operations between strings."""
+        """Perform bitwise XOR operations between strings.
+
+        :raises TypeError: if any of arguments is None
+        """
         if dest is None:
             raise TypeError("dest argument must not be None")
         if key is None:
@@ -65,7 +82,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def bitop_not(self, dest, key):
-        """Perform bitwise NOT operations between strings."""
+        """Perform bitwise NOT operations between strings.
+
+        :raises TypeError: if dest or key is None
+        """
         if dest is None:
             raise TypeError("dest argument must not be None")
         if key is None:
@@ -75,7 +95,11 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def bitpos(self, key, bit, start=None, end=None):
-        """Find first bit set or clear in a string."""
+        """Find first bit set or clear in a string.
+
+        :raises TypeError: if key is None
+        :raises ValueError: if bit is not 0 or 1
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if bit not in (1, 0):
@@ -94,14 +118,21 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def decr(self, key):
-        """Decrement the integer value of a key by one."""
+        """Decrement the integer value of a key by one.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'DECR', key))
 
     @asyncio.coroutine
     def decrby(self, key, decrement):
-        """Decrement the integer value of a key by the given number."""
+        """Decrement the integer value of a key by the given number.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if decrement is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(decrement, int):
@@ -110,7 +141,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def get(self, key):
-        """Get the value of a key."""
+        """Get the value of a key.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'GET', key))
@@ -118,6 +152,10 @@ class StringCommandsMixin:
     @asyncio.coroutine
     def getbit(self, key, offset):
         """Returns the bit value at offset in the string value stored at key.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if offset is not int
+        :raises ValueError: if offset is less then 0
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -129,7 +167,11 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def getrange(self, key, start, end):
-        """Get a substring of the string stored at a key."""
+        """Get a substring of the string stored at a key.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if start or end is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(start, int):
@@ -140,21 +182,31 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def getset(self, key, value):
-        """Set the string value of a key and return its old value."""
+        """Set the string value of a key and return its old value.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'GETSET', key, value))
 
     @asyncio.coroutine
     def incr(self, key):
-        """Increment the integer value of a key by one."""
+        """Increment the integer value of a key by one.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'INCR', key))
 
     @asyncio.coroutine
     def incrby(self, key, increment):
-        """Increment the integer value of a key by the given amount."""
+        """Increment the integer value of a key by the given amount.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if increment is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(increment, int):
@@ -163,7 +215,11 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def incrbyfloat(self, key, increment):
-        """Increment the float value of a key by the given amount."""
+        """Increment the float value of a key by the given amount.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if increment is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(increment, float):
@@ -174,7 +230,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def mget(self, key, *keys):
-        """Get the values of all the given keys."""
+        """Get the values of all the given keys.
+
+        :raises TypeError: if any of arguments is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if any(k is None for k in keys):
@@ -183,7 +242,11 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def mset(self, key, value, *pairs):
-        """Set multiple keys to multiple values."""
+        """Set multiple keys to multiple values.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if len of pairs is not event number
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if len(pairs) % 2 != 0:
@@ -195,6 +258,9 @@ class StringCommandsMixin:
     def msetnx(self, key, value, *pairs):
         """Set multiple keys to multiple values,
         only if none of the keys exist.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if len of pairs is not event number
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -204,7 +270,11 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def psetex(self, key, milliseconds, value):
-        """Set the value and expiration in milliseconds of a key."""
+        """Set the value and expiration in milliseconds of a key.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if milliseconds is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(milliseconds, int):
@@ -215,7 +285,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def set(self, key, value):  # TODO: implement EX, PX, NX|XX
-        """Set the string value of a key."""
+        """Set the string value of a key.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'SET', key, value))
@@ -223,6 +296,10 @@ class StringCommandsMixin:
     @asyncio.coroutine
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if offset is not int
+        :raises ValueError: if offset is less then 0 or value is not 0 or 1
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -240,6 +317,9 @@ class StringCommandsMixin:
 
         If seconds is float it will be multiplied by 1000
         coerced to int and passed to `psetex` method.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if seconds is neither int nor float
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -252,7 +332,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def setnx(self, key, value):
-        """Set the value of a key, only if the key does not exist."""
+        """Set the value of a key, only if the key does not exist.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         res = yield from self._conn.execute(b'SETNX', key, value)
@@ -261,6 +344,10 @@ class StringCommandsMixin:
     @asyncio.coroutine
     def setrange(self, key, offset, value):
         """Overwrite part of a string at key starting at the specified offset.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if offset is not int
+        :raises ValueError: if offset less then 0
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -272,7 +359,10 @@ class StringCommandsMixin:
 
     @asyncio.coroutine
     def strlen(self, key):
-        """Get the length of the value stored in a key."""
+        """Get the length of the value stored in a key.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'STRLEN', key))
