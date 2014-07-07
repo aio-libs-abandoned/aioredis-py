@@ -76,9 +76,9 @@ Connection usage is as simple as:
       :type command: str, bytes, bytearray
 
       :raise TypeError: When any of arguments can not be encoded as bytes.
-      :raise ReplyError: For redis error replies.
-      :raise ProtocolError: When response can not be decoded and/or connection
-                            is broken.
+      :raise aioredis.ReplyError: For redis error replies.
+      :raise aioredis.ProtocolError: When response can not be decoded
+                                     and/or connection is broken.
 
       :return: Returns bytes or int reply
 
@@ -229,17 +229,17 @@ The library provides connections pool. The basic usage is as follows:
 Exceptions
 ----------
 
-.. class:: RedisError
+.. exception:: RedisError
 
    Base exception class for aioredis exceptions.
 
-.. class:: ProtocolError
+.. exception:: ProtocolError
 
    Raised when protocol error occurs.
    When this type of exception is raised connection must be considered
    broken and must be closed.
 
-.. class:: ReplyError
+.. exception:: ReplyError
 
    Raised for Redis :term:`error replies`.
 
