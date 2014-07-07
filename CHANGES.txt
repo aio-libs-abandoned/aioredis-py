@@ -2,18 +2,26 @@ Changes
 -------
 
 0.2.0 (xxxx-xx-xx)
+^^^^^^^^^^^^^^^^^^
 
 * High-level commands implemented:
+
   * generic commands
   * hash commands
   * set commands
   * strings commands
   * transactions commands
-* Transactions support
+
+
+0.1.1 (2014-07-07)
+^^^^^^^^^^^^^^^^^^
+
+* Transactions support (in connection, high-level commands have some issues)
 * Docs & tests updated
 
 
 0.1.0 (2014-06-24)
+^^^^^^^^^^^^^^^^^^
 
 * Initial release
 * RedisConnection implemented

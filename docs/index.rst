@@ -59,6 +59,7 @@ Contents
    api_reference
    mixins
    examples
+   releases
    glossary
 
 Indices and tables
