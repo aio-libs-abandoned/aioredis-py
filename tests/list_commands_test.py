@@ -60,6 +60,13 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.blpop(None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.blpop(key1, timeout=b'one')
+
+        with self.assertRaises(ValueError):
+            yield from self.redis.blpop(key1, timeout=-10)
+
         self.other_redis.close()
 
     @run_until_complete
@@ -106,6 +113,12 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.brpop(None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.brpop(key1, timeout=b'one')
+
+        with self.assertRaises(ValueError):
+            yield from self.redis.brpop(key1, timeout=-10)
         self.other_redis.close()
 
     @run_until_complete
@@ -154,6 +167,12 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.brpoplpush(key, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.brpoplpush(key, destkey, timeout=b'one')
+
+        with self.assertRaises(ValueError):
+            yield from self.redis.brpoplpush(key, destkey, timeout=-10)
         self.other_redis.close()
 
     @run_until_complete
@@ -177,6 +196,9 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.lindex(None, -1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.lindex(key, b'one')
 
     @run_until_complete
     def test_linsert(self):
@@ -205,6 +227,9 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.linsert(None, value1, value3)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.linsert(key, value1, value3, before=b'not')
 
     @run_until_complete
     def test_llen(self):
@@ -303,6 +328,12 @@ class ListCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.redis.lrange(None, 0, -1)
 
+        with self.assertRaises(TypeError):
+            yield from self.redis.lrange(key, b'zero', -1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.lrange(key, 0, b'one')
+
     @run_until_complete
     def test_lrem(self):
         key, value = b'key:lrem:1', 'value:{}'
@@ -334,6 +365,9 @@ class ListCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.redis.lrem(None, 0, b'value:0')
 
+        with self.assertRaises(TypeError):
+            yield from self.redis.lrem(key, b'ten', b'value:0')
+
     @run_until_complete
     def test_lset(self):
         key, value = b'key:lset', 'value:{}'
@@ -352,6 +386,9 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(ReplyError):
             yield from self.redis.lset(key, 100, b'value:0')
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.lset(key, b'one', b'value:0')
 
     @run_until_complete
     def test_ltrim(self):
@@ -375,6 +412,12 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.ltrim(None, 0, -1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.ltrim(key, b'zero', -1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.ltrim(key, 0, b'one')
 
     @run_until_complete
     def test_rpop(self):

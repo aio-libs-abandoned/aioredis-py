@@ -13,6 +13,10 @@ class ListCommandsMixin:
         one is available"""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
         args = keys + (timeout,)
         return (yield from self._conn.execute(b'BLPOP', key, *args))
 
@@ -22,6 +26,10 @@ class ListCommandsMixin:
         is available"""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
         args = keys + (timeout,)
         return (yield from self._conn.execute(b'BRPOP', key, *args))
 
@@ -34,6 +42,11 @@ class ListCommandsMixin:
         if destkey is None:
             raise TypeError("destkey argument must not be None")
 
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+
         return (yield from self._conn.execute(
             b'BRPOPLPUSH', sourcekey, destkey, timeout))
 
@@ -42,6 +55,8 @@ class ListCommandsMixin:
         """Get an element from a list by its index"""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(index, int):
+            raise TypeError("index argument must be int")
         return (yield from self._conn.execute(b'LINDEX', key, index))
 
     @asyncio.coroutine
@@ -50,6 +65,8 @@ class ListCommandsMixin:
         after the reference value pivot."""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(before, bool):
+            raise TypeError("before argument must be bool")
         where = b'AFTER' if not before else b'BEFORE'
         return (yield from self._conn.execute(
             b'LINSERT', key, where, pivot, value))
@@ -89,6 +106,10 @@ class ListCommandsMixin:
         """Returns the specified elements of the list stored at key."""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(stop, int):
+            raise TypeError("stop argument must be int")
         return (yield from self._conn.execute(b'LRANGE', key, start, stop))
 
     @asyncio.coroutine
@@ -97,6 +118,8 @@ class ListCommandsMixin:
         from the list stored at key."""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(count, int):
+            raise TypeError("count argument must be int")
         return (yield from self._conn.execute(b'LREM', key, count, value))
 
     @asyncio.coroutine
@@ -104,6 +127,8 @@ class ListCommandsMixin:
         """Sets the list element at index to value."""
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(index, int):
+            raise TypeError("index argument must be int")
         return (yield from self._conn.execute(b'LSET', key, index, value))
 
     @asyncio.coroutine
@@ -112,6 +137,10 @@ class ListCommandsMixin:
         range of elements specified. """
         if key is None:
             raise TypeError("key argument must not be None")
+        if not isinstance(start, int):
+            raise TypeError("start argument must be int")
+        if not isinstance(stop, int):
+            raise TypeError("stop argument must be int")
         return (yield from self._conn.execute(b'LTRIM', key, start, stop))
 
     @asyncio.coroutine
