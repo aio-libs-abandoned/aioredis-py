@@ -215,9 +215,6 @@ class ListCommandsTest(BaseTest):
         with self.assertRaises(TypeError):
             yield from self.redis.linsert(None, value1, value3)
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.linsert(key, value1, value3, before=b'not')
-
     @run_until_complete
     def test_llen(self):
         key = b'key:llen:1'

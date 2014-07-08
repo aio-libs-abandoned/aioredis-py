@@ -30,6 +30,12 @@ Hash commands
 .. autoclass:: HashCommandsMixin
    :members:
 
+List commands
+-------------
+
+.. autoclass:: ListCommandsMixin
+   :members:
+
 Set commands
 ------------
 
