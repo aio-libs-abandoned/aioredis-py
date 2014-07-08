@@ -10,7 +10,7 @@ class ListCommandsMixin:
     @asyncio.coroutine
     def blpop(self, key, *keys, timeout=0):
         """Remove and get the first element in a list, or block until
-        one is available"""
+        one is available."""
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(timeout, int):
@@ -23,7 +23,7 @@ class ListCommandsMixin:
     @asyncio.coroutine
     def brpop(self, key, *keys, timeout=0):
         """Remove and get the last element in a list, or block until one
-        is available"""
+        is available."""
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(timeout, int):
@@ -36,7 +36,7 @@ class ListCommandsMixin:
     @asyncio.coroutine
     def brpoplpush(self, sourcekey, destkey, timeout=0):
         """Remove and get the last element in a list, or block until one
-        is available"""
+        is available."""
         if sourcekey is None:
             raise TypeError("sourcekey argument must not be None")
         if destkey is None:
@@ -52,7 +52,7 @@ class ListCommandsMixin:
 
     @asyncio.coroutine
     def lindex(self, key, index):
-        """Get an element from a list by its index"""
+        """Get an element from a list by its index."""
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(index, int):
@@ -65,8 +65,6 @@ class ListCommandsMixin:
         after the reference value pivot."""
         if key is None:
             raise TypeError("key argument must not be None")
-        if not isinstance(before, bool):
-            raise TypeError("before argument must be bool")
         where = b'AFTER' if not before else b'BEFORE'
         return (yield from self._conn.execute(
             b'LINSERT', key, where, pivot, value))
@@ -96,7 +94,7 @@ class ListCommandsMixin:
     @asyncio.coroutine
     def lpushx(self, key, value):
         """Inserts value at the head of the list stored at key, only if key
-        already exists and holds a list"""
+        already exists and holds a list."""
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'LPUSHX', key, value))

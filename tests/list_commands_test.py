@@ -31,10 +31,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.blpop(key1)
         self.assertEqual(test_value, [key1, value2])
 
-        # create one more redis connection for blocking operation
-        self.other_redis = create_redis(
-            'localhost', self.redis_port, loop=self.loop)
-
         # call *blpop*, and wait until value in list would be available
         waiter = asyncio.Task(self.redis.blpop(key1), loop=self.loop)
         # let's put something to list
@@ -42,6 +38,10 @@ class ListCommandsTest(BaseTest):
         # value was added to list so lets wait blpop to return
         test_value = yield from waiter
         self.assertEqual(test_value, [key1, value1])
+
+        # FIXME: doesn't work as expected!
+        #        here should be two async tasks and a call to sleep
+        #        and two redis connections should be used.
 
         # lets wait for data in two separate lists
         waiter = asyncio.Task(self.redis.blpop(key1, key2), loop=self.loop)
@@ -67,8 +67,6 @@ class ListCommandsTest(BaseTest):
         with self.assertRaises(ValueError):
             yield from self.redis.blpop(key1, timeout=-10)
 
-        self.other_redis.close()
-
     @run_until_complete
     def test_brpop(self):
         key1, value1 = b'key:brpop:1', b'brpop:value:1'
@@ -83,10 +81,6 @@ class ListCommandsTest(BaseTest):
         # pop remaining value, so list should become empty
         test_value = yield from self.redis.brpop(key1)
         self.assertEqual(test_value, [key1, value1])
-
-        # create one more redis connection for blocking operation
-        self.other_redis = create_redis(
-            'localhost', self.redis_port, loop=self.loop)
 
         # call *brpop*, and wait until value in list would be available
         waiter = asyncio.Task(self.redis.brpop(key1), loop=self.loop)
@@ -119,7 +113,6 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(ValueError):
             yield from self.redis.brpop(key1, timeout=-10)
-        self.other_redis.close()
 
     @run_until_complete
     def test_brpoplpush(self):
@@ -141,11 +134,6 @@ class ListCommandsTest(BaseTest):
         # make sure that all values stored in new destkey list
         test_value = yield from self.redis.lrange(destkey, 0, -1)
         self.assertEqual(test_value, [value1, value2])
-
-        # lets test blocking features of this command
-        # create one more redis connection for blocking operation
-        self.other_redis = create_redis(
-            'localhost', self.redis_port, loop=self.loop)
 
         # call *brpoplpush*, and wait until value in list would be available
         waiter = asyncio.Task(self.redis.brpoplpush(key, destkey),
@@ -173,7 +161,6 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(ValueError):
             yield from self.redis.brpoplpush(key, destkey, timeout=-10)
-        self.other_redis.close()
 
     @run_until_complete
     def test_lindex(self):
