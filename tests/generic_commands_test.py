@@ -1,11 +1,12 @@
 import asyncio
 import time
 import math
+import os
 import unittest
 from unittest import mock
 
 from ._testutil import RedisTest, run_until_complete
-from aioredis import create_redis
+from aioredis import create_redis, ReplyError
 
 
 class GenericCommandsTest(RedisTest):
@@ -165,6 +166,8 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.keys(None)
 
     @run_until_complete
+    @unittest.skipUnless(os.environ.get('TRAVIS'),
+                         "Configured to run on travis")
     def test_migrate(self):
         yield from self.add('my-key', 123)
 
@@ -197,9 +200,7 @@ class GenericCommandsTest(RedisTest):
 
     @run_until_complete
     def test_move(self):
-        res = yield from self.redis.connection.execute('FLUSHALL')
-        self.assertEqual(res, b'OK')
-
+        yield from self.flushall()
         yield from self.add('my-key', 123)
 
         self.assertEqual(self.redis.db, 0)
@@ -215,10 +216,52 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.move('my-key', 'not db')
 
-    @unittest.skip('Not implemented')
     @run_until_complete
-    def test_object(self):
-        pass
+    def test_object_refcount(self):
+        yield from self.flushall()
+        yield from self.add('foo', 'bar')
+
+        res = yield from self.redis.object_refcount('foo')
+        self.assertEqual(res, 1)
+        res = yield from self.redis.object_refcount('non-existent-key')
+        self.assertIsNone(res)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.object_refcount(None)
+
+    @run_until_complete
+    def test_object_encoding(self):
+        yield from self.flushall()
+        yield from self.add('foo', 'bar')
+
+        res = yield from self.redis.object_encoding('foo')
+        self.assertEqual(res, b'raw')
+        res = yield from self.redis.incr('key')
+        self.assertEqual(res, 1)
+        res = yield from self.redis.object_encoding('key')
+        self.assertEqual(res, b'int')
+        res = yield from self.redis.object_encoding('non-existent-key')
+        self.assertIsNone(res)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.object_encoding(None)
+
+    @run_until_complete
+    def test_object_idletime(self):
+        yield from self.flushall()
+        yield from self.add('foo', 'bar')
+
+        res = yield from self.redis.object_idletime('foo')
+        self.assertEqual(res, 0)
+        yield from asyncio.sleep(1, loop=self.loop)
+        res = yield from self.redis.object_idletime('foo')
+        self.assertGreaterEqual(res, 1)
+
+        res = yield from self.redis.object_idletime('non-existent-key')
+        self.assertIsNone(res)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.object_idletime(None)
 
     @run_until_complete
     def test_persist(self):
@@ -280,6 +323,21 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.pexpireat('key', 1000.0)
 
     @run_until_complete
+    def test_pttl(self):
+        yield from self.add('key', 'val')
+        res = yield from self.redis.pttl('key')
+        self.assertEqual(res, -1)
+        res = yield from self.redis.pttl('non-existent-key')
+        self.assertEqual(res, -2)
+
+        yield from self.redis.pexpire('key', 500)
+        res = yield from self.redis.pttl('key')
+        self.assertAlmostEqual(res, 500, -2)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.pttl(None)
+
+    @run_until_complete
     def test_randomkey(self):
         yield from self.flushall()
         yield from self.add('key:1', 123)
@@ -292,3 +350,95 @@ class GenericCommandsTest(RedisTest):
         yield from self.redis.connection.execute('flushdb')
         res = yield from self.redis.randomkey()
         self.assertIsNone(res)
+
+    @run_until_complete
+    def test_rename(self):
+        yield from self.add('foo', 'bar')
+        yield from self.redis.delete('bar')
+
+        res = yield from self.redis.rename('foo', 'bar')
+        self.assertTrue(res)
+
+        with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
+            yield from self.redis.rename('foo', 'bar')
+        with self.assertRaises(TypeError):
+            yield from self.redis.rename(None, 'bar')
+        with self.assertRaises(TypeError):
+            yield from self.redis.rename('foo', None)
+        with self.assertRaises(ValueError):
+            yield from self.redis.rename('foo', 'foo')
+
+        with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
+            yield from self.redis.rename('bar', b'bar')
+
+    @run_until_complete
+    def test_renamenx(self):
+        yield from self.redis.delete('foo', 'bar')
+        yield from self.add('foo', 123)
+
+        res = yield from self.redis.renamenx('foo', 'bar')
+        self.assertTrue(res)
+        yield from self.add('foo', 123)
+        res = yield from self.redis.renamenx('foo', 'bar')
+        self.assertFalse(res)
+
+        with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
+            yield from self.redis.renamenx('baz', 'foo')
+        with self.assertRaises(TypeError):
+            yield from self.redis.renamenx(None, 'foo')
+        with self.assertRaises(TypeError):
+            yield from self.redis.renamenx('foo', None)
+        with self.assertRaises(ValueError):
+            yield from self.redis.renamenx('foo', 'foo')
+
+        with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
+            yield from self.redis.renamenx('foo', b'foo')
+
+    @run_until_complete
+    def test_restore(self):
+        pass
+
+    @run_until_complete
+    def test_scan(self):
+        pass
+
+    @run_until_complete
+    def test_sort(self):
+        pass
+
+    @run_until_complete
+    def test_ttl(self):
+        yield from self.add('key', 'val')
+        res = yield from self.redis.ttl('key')
+        self.assertEqual(res, -1)
+        res = yield from self.redis.ttl('non-existent-key')
+        self.assertEqual(res, -2)
+
+        yield from self.redis.expire('key', 10)
+        res = yield from self.redis.ttl('key')
+        self.assertGreaterEqual(res, 9)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.ttl(None)
+
+    @run_until_complete
+    def test_type(self):
+        yield from self.add('key', 'val')
+        res = yield from self.redis.type('key')
+        self.assertEqual(res, b'string')
+
+        yield from self.redis.delete('key')
+        yield from self.redis.incr('key')
+        res = yield from self.redis.type('key')
+        self.assertEqual(res, b'string')
+
+        yield from self.redis.delete('key')
+        yield from self.redis.sadd('key', 'val')
+        res = yield from self.redis.type('key')
+        self.assertEqual(res, b'set')
+
+        res = yield from self.redis.type('non-existent-key')
+        self.assertEqual(res, b'none')
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.type(None)

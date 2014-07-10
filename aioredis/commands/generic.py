@@ -239,27 +239,33 @@ class GenericCommandsMixin:
     def rename(self, key, newkey):
         """Renames key to newkey.
 
-        :raises TypeError: if key is None
+        :raises TypeError: if key or newkey is None
         :raises ValueError: if key == newkey
         """
         if key is None:
             raise TypeError("key argument must not be None")
+        if newkey is None:
+            raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
         ret = yield from self._conn.execute(b'RENAME', key, newkey)
-        return ret
+        return ret == b'OK'
 
     @asyncio.coroutine
     def renamenx(self, key, newkey):
         """Renames key to newkey only if newkey does not exist.
 
-        :raises TypeError: if key is None
+        :raises TypeError: if key or newkey is None
         :raises ValueError: if key == newkey
         """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if newkey is None:
+            raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
         ret = yield from self._conn.execute(b'RENAMENX', key, newkey)
-        return ret
+        return bool(ret)
 
     @asyncio.coroutine
     def restore(self, key, ttl, value):
@@ -335,4 +341,5 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
+        # NOTE: for non-existent keys TYPE returns b'none'
         return (yield from self._conn.execute(b'TYPE', key))
