@@ -124,9 +124,7 @@ class ListCommandsTest(BaseTest):
             self.redis.brpop(key1, key2, timeout=1), loop=self.loop)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
-
         other_redis.close()
-
 
     @run_until_complete
     def test_brpoplpush(self):
@@ -189,7 +187,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from waiter
         self.assertEqual(test_value, None)
         other_redis.close()
-
 
     @run_until_complete
     def test_lindex(self):
