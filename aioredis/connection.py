@@ -12,7 +12,7 @@ MAX_CHUNK_SIZE = 65536
 
 
 @asyncio.coroutine
-def create_connection(address, db=None, password=None, *, loop=None):
+def create_connection(address, *, db=None, password=None, loop=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.

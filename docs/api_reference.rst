@@ -32,7 +32,7 @@ Connection usage is as simple as:
    asyncio.get_event_loop().run_until_complete(connection_example())
 
 
-.. function:: create_connection(address, db=0, password=None, \*, loop=None)
+.. function:: create_connection(address, \*, db=0, password=None, loop=None)
 
    Creates Redis connection.
 
@@ -253,7 +253,7 @@ Commands Interface
 The library provides high-level API implementing simple interface
 to Redis commands.
 
-.. function:: create_redis(address, db=0, password=None, \*,\
+.. function:: create_redis(address, \*, db=0, password=None,\
                            commands_factory=Redis, loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis

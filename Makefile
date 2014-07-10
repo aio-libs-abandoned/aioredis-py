@@ -19,12 +19,3 @@ test:
 
 cov coverage:
 	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
-
-.PHONY: full_cov
-
-full_cov:
-	redis-server --unixsocket /tmp/aioredis.sock --port 6380 \
-		--save "" --daemonize yes --pidfile /tmp/aioredis.pid
-	REDIS_VERSION=$(REDIS_VERSION) REDIS_SOCKET=/tmp/aioredis.sock \
-		$(PYTHON) runtests.py --coverage
-	kill -s SIGTERM $(shell cat /tmp/aioredis.pid)

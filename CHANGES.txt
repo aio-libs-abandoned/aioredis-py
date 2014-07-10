@@ -6,25 +6,28 @@ Changes
 
 * High-level commands implemented:
 
-  * generic commands
-  * hash commands
-  * set commands
-  * strings commands
-  * transactions commands
+  * generic commands;
+  * hash commands;
+  * set commands;
+  * strings commands;
+  * transactions commands.
+
+* create_connection, create_pool, create_redis functions updated:
+  db and password arguments made keyword-only (see #26);
 
 
 0.1.1 (2014-07-07)
 ^^^^^^^^^^^^^^^^^^
 
-* Transactions support (in connection, high-level commands have some issues)
-* Docs & tests updated
+* Transactions support (in connection, high-level commands have some issues);
+* Docs & tests updated.
 
 
 0.1.0 (2014-06-24)
 ^^^^^^^^^^^^^^^^^^
 
-* Initial release
-* RedisConnection implemented
-* RedisPool implemented
-* Docs for RedisConnection & RedisPool
-* WIP on high-level API
+* Initial release;
+* RedisConnection implemented;
+* RedisPool implemented;
+* Docs for RedisConnection & RedisPool;
+* WIP on high-level API.

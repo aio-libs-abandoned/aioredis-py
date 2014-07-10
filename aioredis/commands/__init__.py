@@ -81,11 +81,13 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
 
 @asyncio.coroutine
-def create_redis(address, db=None, password=None, *,
+def create_redis(address, *, db=None, password=None,
                  commands_factory=Redis, loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    conn = yield from create_connection(address, db, password, loop=loop)
+    conn = yield from create_connection(address, db=db,
+                                        password=password,
+                                        loop=loop)
     return commands_factory(conn)

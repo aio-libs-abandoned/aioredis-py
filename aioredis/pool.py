@@ -4,7 +4,7 @@ from .commands import create_redis, Redis
 
 
 @asyncio.coroutine
-def create_pool(address, db=0, password=None, *,
+def create_pool(address, *, db=0, password=None,
                 minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
 
@@ -151,8 +151,8 @@ class RedisPool:
     @asyncio.coroutine
     def _create_new_connection(self):
         conn = yield from create_redis(self._address,
-                                       self._db,
-                                       self._password,
+                                       db=self._db,
+                                       password=self._password,
                                        commands_factory=self._factory,
                                        loop=self._loop)
         return conn
