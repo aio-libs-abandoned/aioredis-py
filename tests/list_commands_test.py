@@ -11,15 +11,9 @@ class ListCommandsTest(BaseTest):
         self.redis = self.loop.run_until_complete(
             create_redis(('localhost', self.redis_port), loop=self.loop))
 
-        # other redis for blocking connections testing
-        self.redis2 = self.loop.run_until_complete(
-            create_redis(('localhost', self.redis_port), loop=self.loop))
-
     def tearDown(self):
         self.redis.close()
         del self.redis
-        self.redis2.close()
-        del self.redis2
         super().tearDown()
 
     @run_until_complete
@@ -51,9 +45,13 @@ class ListCommandsTest(BaseTest):
         key1, key2 = b'key:blpop:1', b'key:blpop:2'
         value = b'blpop:value:2'
 
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
         # create blocking task in separate connection
         consumer_task = asyncio.Task(
-            self.redis2.blpop(key1, key2), loop=self.loop)
+            other_redis.blpop(key1, key2), loop=self.loop)
+
         producer_task = asyncio.Task(
             self.push_data_with_sleep(key2, value), loop=self.loop)
         results = yield from asyncio.gather(
@@ -68,6 +66,7 @@ class ListCommandsTest(BaseTest):
             self.redis.blpop(key1, key2, timeout=1), loop=self.loop)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
+        other_redis.close()
 
     @asyncio.coroutine
     def push_data_with_sleep(self, key, *values):
@@ -104,9 +103,11 @@ class ListCommandsTest(BaseTest):
         key1, key2 = b'key:brpop:1', b'key:brpop:2'
         value = b'brpop:value:2'
 
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
         # create blocking task in separate connection
         consumer_task = asyncio.Task(
-            self.redis2.brpop(key1, key2), loop=self.loop)
+            other_redis.brpop(key1, key2), loop=self.loop)
 
         producer_task = asyncio.Task(
             self.push_data_with_sleep(key2, value), loop=self.loop)
@@ -123,6 +124,9 @@ class ListCommandsTest(BaseTest):
             self.redis.brpop(key1, key2, timeout=1), loop=self.loop)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
+
+        other_redis.close()
+
 
     @run_until_complete
     def test_brpoplpush(self):
@@ -162,10 +166,11 @@ class ListCommandsTest(BaseTest):
         source = b'key:brpoplpush:12'
         value = b'brpoplpush:value:2'
         destkey = b'destkey:brpoplpush:2'
-
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
         # create blocking task
         consumer_task = asyncio.Task(
-            self.redis2.brpoplpush(source, destkey), loop=self.loop)
+            other_redis.brpoplpush(source, destkey), loop=self.loop)
         producer_task = asyncio.Task(
             self.push_data_with_sleep(source, value), loop=self.loop)
         results = yield from asyncio.gather(
@@ -183,6 +188,8 @@ class ListCommandsTest(BaseTest):
             self.redis.brpoplpush(source, destkey, timeout=1), loop=self.loop)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
+        other_redis.close()
+
 
     @run_until_complete
     def test_lindex(self):
