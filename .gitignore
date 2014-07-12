@@ -42,6 +42,9 @@ coverage.xml
 .project
 .pydevproject
 
+#PyCharm
+.idea/
+
 # Rope
 .ropeproject
 
