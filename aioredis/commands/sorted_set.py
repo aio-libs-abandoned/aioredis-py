@@ -1,6 +1,6 @@
-import ast
 import asyncio
 import math
+from ..util import convert_to_int_or_float
 
 
 class SortedSetCommandsMixin:
@@ -76,7 +76,7 @@ class SortedSetCommandsMixin:
             raise TypeError("increment argument must be int or float")
         result = (yield from self._conn.execute(b'ZINCRBY', key,
                                                 increment, member))
-        return ast.literal_eval(result.decode('utf-8'))
+        return convert_to_int_or_float(result)
 
     @asyncio.coroutine
     def zinterstore(self, destkey, numkeys, key, *keys):  # TODO: weighs, etc
