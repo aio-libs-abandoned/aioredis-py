@@ -1,3 +1,4 @@
+import itertools
 from ._testutil import RedisTest, run_until_complete
 
 
@@ -15,19 +16,19 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zadd(key, 2.5, b'two')
         self.assertEqual(res, 1)
 
-        res = yield from self.redis.zadd(key, 3, b'tree', 4, b'four')
+        res = yield from self.redis.zadd(key, 3, b'three', 4, b'four')
         self.assertEqual(res, 2)
         res = yield from self.redis.zrange(key, 0, -1, withscores=False)
-        self.assertEqual(res, [b'one', b'uno', b'two', b'tree', b'four'])
+        self.assertEqual(res, [b'one', b'uno', b'two', b'three', b'four'])
 
         with self.assertRaises(TypeError):
             yield from self.redis.zadd(None, 1, b'one')
         with self.assertRaises(TypeError):
             yield from self.redis.zadd(key, b'two', b'one')
         with self.assertRaises(TypeError):
-            yield from self.redis.zadd(key, 3, b'tree', 4)
+            yield from self.redis.zadd(key, 3, b'three', 4)
         with self.assertRaises(TypeError):
-            yield from self.redis.zadd(key, 3, b'tree', 'four', 4)
+            yield from self.redis.zadd(key, 3, b'three', 'four', 4)
 
     @run_until_complete
     def test_zcard(self):
@@ -100,3 +101,91 @@ class SortedSetsCommandsTest(RedisTest):
             yield from self.redis.zincrby(None, 5, 'one')
         with self.assertRaises(TypeError):
             yield from self.redis.zincrby(key, 'one', 5)
+
+    @run_until_complete
+    def test_zlexcount(self):
+        key = b'key:zlexcount'
+        pairs = [0, b'a', 0, b'b', 0, b'c', 0, b'd', 0, b'e']
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zlexcount(key)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zlexcount(key, min=b'-', max=b'e')
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zlexcount(key, min=b'a', max=b'e',
+                                              include_min=False,
+                                              include_max=False)
+        self.assertEqual(res, 3)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zlexcount(None, b'a', b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zlexcount(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zlexcount(key, b'a', 20)
+
+    @run_until_complete
+    def test_zrange(self):
+        key = b'key:zrange'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members, scores)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        res = yield from self.redis.zrange(key, 0, -1, withscores=False)
+        self.assertEqual(res, members)
+        res = yield from self.redis.zrange(key, 0, -1, withscores=True)
+        self.assertEqual(res, rev_pairs)
+        res = yield from self.redis.zrange(key, -2, -1, withscores=False)
+        self.assertEqual(res, members[-2:])
+        res = yield from self.redis.zrange(key, 1, 2, withscores=False)
+        self.assertEqual(res, members[1:3])
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrange(None, 1, b'one')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrange(key, b'first', -1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrange(key, 0, 'last')
+
+    @run_until_complete
+    def test_zrangebylex(self):
+        key = b'key:zrangebylex'
+        scores = [0]*5
+        members = [b'a', b'b', b'c', b'd', b'e']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zrangebylex(key)
+        self.assertEqual(res, members)
+        res = yield from self.redis.zrangebylex(key, min=b'-', max=b'd')
+        self.assertEqual(res, members[:-1])
+        res = yield from self.redis.zrangebylex(key, min=b'a', max=b'e',
+                                                include_min=False,
+                                                include_max=False)
+        self.assertEqual(res, members[1:-1])
+        res = yield from self.redis.zrangebylex(key, min=b'x', max=b'z')
+        self.assertEqual(res, [])
+        res = yield from self.redis.zrangebylex(key, min=b'e', max=b'a')
+        self.assertEqual(res, [])
+        res = yield from self.redis.zrangebylex(key, offset=1, count=2)
+        self.assertEqual(res, members[1:3])
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(None, b'a', b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, b'a', 20)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, b'a', b'e', offset=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, b'a', b'e', count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, b'a', b'e',
+                                              offset='one', count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebylex(key, b'a', b'e',
+                                              offset=1, count='one')

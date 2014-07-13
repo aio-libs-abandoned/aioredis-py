@@ -13,8 +13,9 @@ class SortedSetCommandsMixin:
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.
 
-        :raises TypeError: 1) if key is None 2) score not int or float
-        3) length of pairs is not even number
+        :raises TypeError: if key is None
+        :raises TypeError: score not int or float
+        :raises TypeError: length of pairs is not even number
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -45,7 +46,8 @@ class SortedSetCommandsMixin:
         """Count the members in a sorted set with scores
         within the given values.
 
-        :raises TypeError: 1) if key is None 2) min or max is not float or int
+        :raises TypeError: if key is None
+        :raises TypeError: min or max is not float or int
         :raises ValueError: if min grater then max
         """
         if key is None:
@@ -68,7 +70,8 @@ class SortedSetCommandsMixin:
     def zincrby(self, key, increment, member):
         """Increment the score of a member in a sorted set.
 
-        :raises TypeError: 1) if key is None 2) increment is not float or int
+        :raises TypeError: if key is None
+        :raises TypeError: increment is not float or int
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -84,15 +87,35 @@ class SortedSetCommandsMixin:
         raise NotImplementedError
 
     @asyncio.coroutine
-    def zlexcount(self, key, min, max):
+    def zlexcount(self, key, min=b'-', max=b'+', include_min=True,
+                  include_max=True):
         """Count the number of members in a sorted set between a given
         lexicographical range.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if min is not bytes
+        :raises TypeError: if max is not bytes
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(min, bytes):
+            raise TypeError("min argument must be bytes")
+        if not isinstance(max, bytes):
+            raise TypeError("max argument must be bytes")
+        if not min == b'-':
+            min = (b'[' if include_min else b'(') + min
+        if not max == b'+':
+            max = (b'[' if include_max else b'(') + max
+        return (yield from self._conn.execute(b'ZLEXCOUNT', key, min, max))
 
     @asyncio.coroutine
     def zrange(self, key, start=0, stop=-1, withscores=False):
-        """Return a range of members in a sorted set, by index."""
+        """Return a range of members in a sorted set, by index.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if start is not int
+        :raises TypeError: if stop is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(start, int):
@@ -103,14 +126,51 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        return (yield from self._conn.execute(
+        result = (yield from self._conn.execute(
             b'ZRANGE', key, start, stop, *args))
+        if withscores:
+            f = lambda i, v:  convert_to_int_or_float(v) if i % 2 else v
+            result = [f(i, r) for i, r in enumerate(result)]
+        return result
 
     @asyncio.coroutine
-    def zrangebylex(self, key, min, max, *, limit=None):
+    def zrangebylex(self, key, min=b'-', max=b'+', include_min=True,
+                    include_max=True, offset=None, count=None):
         """Return a range of members in a sorted set, by lexicographical range.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if min is not bytes
+        :raises TypeError: if max is not bytes
+        :raises TypeError: if both offset and count are not specified
+        :raises TypeError: if offset is not bytes
+        :raises TypeError: if count is not bytes
+
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(min, bytes):
+            raise TypeError("min argument must be bytes")
+        if not isinstance(max, bytes):
+            raise TypeError("max argument must be bytes")
+        if not min == b'-':
+            min = (b'[' if include_min else b'(') + min
+        if not max == b'+':
+            max = (b'[' if include_max else b'(') + max
+
+        if (offset is not None and count is None) or \
+                (count is not None and offset is None):
+            raise TypeError("``offset`` and ``count`` must both be specified")
+        if offset is not None and not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if offset is not None and count is not None:
+            args.extend([b'LIMIT', offset, count])
+
+        return (yield from self._conn.execute(
+            b'ZRANGEBYLEX', key, min, max, *args))
 
     @asyncio.coroutine
     def zrangebyscore(self, key, min, max, *, withscores=False, limit=None):
