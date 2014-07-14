@@ -31,33 +31,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.blpop(key1)
         self.assertEqual(test_value, [key1, value2])
 
-        # call *blpop*, and wait until value in list would be available
-        waiter = asyncio.Task(self.redis.blpop(key1), loop=self.loop)
-        # let's put something to list
-        yield from self.redis.lpush(key1, value1)
-        # value was added to list so lets wait blpop to return
-        test_value = yield from waiter
-        self.assertEqual(test_value, [key1, value1])
-
-        # FIXME: doesn't work as expected!
-        #        here should be two async tasks and a call to sleep
-        #        and two redis connections should be used.
-
-        # lets wait for data in two separate lists
-        waiter = asyncio.Task(self.redis.blpop(key1, key2), loop=self.loop)
-        # supply data to second list
-        yield from self.redis.lpush(key2, value2)
-        # wait blpop to return
-        test_value = yield from waiter
-        self.assertEqual(test_value, [key2, value2])
-
-        # wait for data with timeout, list is emtpy, so blpop should
-        # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.blpop(key1, key2, timeout=1), loop=self.loop)
-        test_value = yield from waiter
-        self.assertEqual(test_value, None)
-
         with self.assertRaises(TypeError):
             yield from self.redis.blpop(None)
 
@@ -65,7 +38,41 @@ class ListCommandsTest(BaseTest):
             yield from self.redis.blpop(key1, timeout=b'one')
 
         with self.assertRaises(ValueError):
-            yield from self.redis.blpop(key1, timeout=-10)
+            yield from self.redis.blpop(key2, timeout=-10)
+
+    @run_until_complete
+    def test_blpop_blocking_features(self):
+        key1, key2 = b'key:blpop:1', b'key:blpop:2'
+        value = b'blpop:value:2'
+
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        # create blocking task in separate connection
+        consumer_task = asyncio.Task(
+            other_redis.blpop(key1, key2), loop=self.loop)
+
+        producer_task = asyncio.Task(
+            self.push_data_with_sleep(key2, value), loop=self.loop)
+        results = yield from asyncio.gather(
+            consumer_task, producer_task, loop=self.loop)
+
+        self.assertEqual(results[0], [key2, value])
+        self.assertEqual(results[1], 1)
+
+        # wait for data with timeout, list is emtpy, so blpop should
+        # return None in 1 sec
+        waiter = asyncio.Task(
+            self.redis.blpop(key1, key2, timeout=1), loop=self.loop)
+        test_value = yield from waiter
+        self.assertEqual(test_value, None)
+        other_redis.close()
+
+    @asyncio.coroutine
+    def push_data_with_sleep(self, key, *values):
+        yield from asyncio.sleep(0.2, loop=self.loop)
+        result = yield from self.redis.lpush(key, *values)
+        return result
 
     @run_until_complete
     def test_brpop(self):
@@ -82,29 +89,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.brpop(key1)
         self.assertEqual(test_value, [key1, value1])
 
-        # call *brpop*, and wait until value in list would be available
-        waiter = asyncio.Task(self.redis.brpop(key1), loop=self.loop)
-        # let's put something to list
-        yield from self.redis.lpush(key1, value1)
-        # value was added to list so lets wait brpop to return
-        test_value = yield from waiter
-        self.assertEqual(test_value, [key1, value1])
-
-        # lets wait for data in two separate lists
-        waiter = asyncio.Task(self.redis.brpop(key1, key2), loop=self.loop)
-        # supply data to second list
-        yield from self.redis.lpush(key2, value2)
-        # wait brpop to return
-        test_value = yield from waiter
-        self.assertEqual(test_value, [key2, value2])
-
-        # wait for data with timeout, list is emtpy, so brpop should
-        # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.brpop(key1, key2, timeout=1), loop=self.loop)
-        test_value = yield from waiter
-        self.assertEqual(test_value, None)
-
         with self.assertRaises(TypeError):
             yield from self.redis.brpop(None)
 
@@ -112,7 +96,35 @@ class ListCommandsTest(BaseTest):
             yield from self.redis.brpop(key1, timeout=b'one')
 
         with self.assertRaises(ValueError):
-            yield from self.redis.brpop(key1, timeout=-10)
+            yield from self.redis.brpop(key2, timeout=-10)
+
+    @run_until_complete
+    def test_brpop_blocking_features(self):
+        key1, key2 = b'key:brpop:1', b'key:brpop:2'
+        value = b'brpop:value:2'
+
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        # create blocking task in separate connection
+        consumer_task = asyncio.Task(
+            other_redis.brpop(key1, key2), loop=self.loop)
+
+        producer_task = asyncio.Task(
+            self.push_data_with_sleep(key2, value), loop=self.loop)
+
+        results = yield from asyncio.gather(
+            consumer_task, producer_task, loop=self.loop)
+
+        self.assertEqual(results[0], [key2, value])
+        self.assertEqual(results[1], 1)
+
+        # wait for data with timeout, list is emtpy, so brpop should
+        # return None in 1 sec
+        waiter = asyncio.Task(
+            self.redis.brpop(key1, key2, timeout=1), loop=self.loop)
+        test_value = yield from waiter
+        self.assertEqual(test_value, None)
+        other_redis.close()
 
     @run_until_complete
     def test_brpoplpush(self):
@@ -135,21 +147,6 @@ class ListCommandsTest(BaseTest):
         test_value = yield from self.redis.lrange(destkey, 0, -1)
         self.assertEqual(test_value, [value1, value2])
 
-        # call *brpoplpush*, and wait until value in list would be available
-        waiter = asyncio.Task(self.redis.brpoplpush(key, destkey),
-                              loop=self.loop)
-        # let's put something to list
-        yield from self.redis.lpush(key, value1)
-        # value was added to list so lets wait brpoplpush to return
-        test_value = yield from waiter
-        self.assertEqual(test_value, value1)
-
-        # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.brpoplpush(key, destkey, timeout=1), loop=self.loop)
-        test_value = yield from waiter
-        self.assertEqual(test_value, None)
-
         with self.assertRaises(TypeError):
             yield from self.redis.brpoplpush(None, destkey)
 
@@ -161,6 +158,35 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(ValueError):
             yield from self.redis.brpoplpush(key, destkey, timeout=-10)
+
+    @run_until_complete
+    def test_brpoplpush_blocking_features(self):
+        source = b'key:brpoplpush:12'
+        value = b'brpoplpush:value:2'
+        destkey = b'destkey:brpoplpush:2'
+        other_redis = yield from create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        # create blocking task
+        consumer_task = asyncio.Task(
+            other_redis.brpoplpush(source, destkey), loop=self.loop)
+        producer_task = asyncio.Task(
+            self.push_data_with_sleep(source, value), loop=self.loop)
+        results = yield from asyncio.gather(
+            consumer_task, producer_task, loop=self.loop)
+        self.assertEqual(results[0], value)
+        self.assertEqual(results[1], 1)
+
+        # make sure that all values stored in new destkey list
+        test_value = yield from self.redis.lrange(destkey, 0, -1)
+        self.assertEqual(test_value, [value])
+
+        # wait for data with timeout, list is emtpy, so brpoplpush should
+        # return None in 1 sec
+        waiter = asyncio.Task(
+            self.redis.brpoplpush(source, destkey, timeout=1), loop=self.loop)
+        test_value = yield from waiter
+        self.assertEqual(test_value, None)
+        other_redis.close()
 
     @run_until_complete
     def test_lindex(self):
