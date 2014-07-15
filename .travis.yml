@@ -44,7 +44,7 @@ script:
 
 # checking examples
 - >
-  for example in $(find $PWD/examples/ -name *.py); do;
-  echo "Running ${example};"
-  python3 ${example} || exit 1
+  for example in $(find $PWD/examples/ -name *.py); do
+  echo "Running ${example}";
+  python3 ${example} || exit 1;
   done;
