@@ -9,6 +9,7 @@ def main():
     def go():
         redis = yield from aioredis.create_redis(
             ('localhost', 6379))
+        yield from redis.delete('foo', 'bar')
         res = yield from redis.multi_exec(
             redis.incr('foo'),
             redis.incr('bar'))
