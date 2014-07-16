@@ -34,14 +34,3 @@ def encode_command(*args):
             raise TypeError("Argument {!r} expected to be of bytes,"
                             " str, int or float type".format(arg))
     return buf
-
-
-def convert_to_int_or_float(raw_value):
-    """Convert redis response ``bytes`` to ``int`` or ``float``"""
-    assert isinstance(raw_value, bytes), 'raw_value must be bytes'
-    value_str = raw_value.decode('utf-8')
-    try:
-        value = int(value_str)
-    except ValueError:
-        value = float(value_str)
-    return value

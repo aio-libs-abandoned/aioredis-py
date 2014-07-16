@@ -1,6 +1,5 @@
 import asyncio
 import math
-from ..util import convert_to_int_or_float
 
 
 class SortedSetCommandsMixin:
@@ -79,7 +78,7 @@ class SortedSetCommandsMixin:
             raise TypeError("increment argument must be int or float")
         result = (yield from self._conn.execute(b'ZINCRBY', key,
                                                 increment, member))
-        return convert_to_int_or_float(result)
+        return self._convert_to_int_or_float(result)
 
     @asyncio.coroutine
     def zinterstore(self, destkey, numkeys, key, *keys):  # TODO: weighs, etc
@@ -129,7 +128,7 @@ class SortedSetCommandsMixin:
         result = (yield from self._conn.execute(
             b'ZRANGE', key, start, stop, *args))
         if withscores:
-            f = lambda i, v:  convert_to_int_or_float(v) if i % 2 else v
+            f = lambda i, v:  self._convert_to_int_or_float(v) if i % 2 else v
             result = [f(i, r) for i, r in enumerate(result)]
         return result
 
@@ -275,3 +274,12 @@ class SortedSetCommandsMixin:
         cursor, items = yield from self._conn.execute(
             b'ZSCAN', key, cursor, *args)
         return int(cursor), items
+
+    def _convert_to_int_or_float(self, raw_value):
+        assert isinstance(raw_value, bytes), 'raw_value must be bytes'
+        value_str = raw_value.decode('utf-8')
+        try:
+            value = int(value_str)
+        except ValueError:
+            value = float(value_str)
+        return value
