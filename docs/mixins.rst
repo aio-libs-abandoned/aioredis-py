@@ -53,3 +53,9 @@ Transaction commands
 
 .. autoclass:: TransactionsCommandsMixin
    :members:
+
+Scripting commands
+------------------
+
+.. autoclass:: ScriptingCommandsMixin
+   :members:

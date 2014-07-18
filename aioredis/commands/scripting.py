@@ -8,82 +8,67 @@ class ScriptingCommandsMixin:
     """
 
     @asyncio.coroutine
-    def eval(self, script, keys=None, args=None):
-        """EVAL and EVALSHA are used to evaluate scripts using the Lua
-        interpreter built into Redis.
+    def eval(self, script, keys=[], args=[]):
+        """Execute a Lua script server side.
 
-        :raises TypeError: if keys argument is not None or list
-        :raises TypeError: if args argument is not None or list
-        :raises TypeError: if any of keys is None
-
+        :raises TypeError: if script is None
+        :raises TypeError: if keys or args contain None
         """
-        if keys is not None and not isinstance(keys, list):
-            raise TypeError("keys argument must be list of redis keys")
-        if args is not None and not isinstance(args, list):
-            raise TypeError("args argument must be list")
-        if keys is not None and any(k is None for k in keys):
-            raise TypeError("any of keys must not be None")
-        keys = [] if keys is None else keys
-        args = [] if args is None else args
-        numkeys = len(keys)
-        _args = keys + args
+        if script is None:
+            raise TypeError("script argument must not be None")
+        if any(k is None for k in keys):
+            raise TypeError("keys must not contain None")
+        if any(a is None for a in args):
+            raise TypeError("args must not contain None")
         return (yield from self._conn.execute(
-            b'EVAL', script, numkeys, *_args))
+            b'EVAL', script, len(keys), *(keys + args)))
 
     @asyncio.coroutine
-    def evalsha(self, sha_hash, keys=None, args=None):
-        """Evaluates a script cached on the server side by its SHA1 digest.
-        Scripts are cached on the server side using the scrip_load command.
+    def evalsha(self, digest, keys=[], args=[]):
+        """Execute a Lua script server side by its SHA1 digest.
 
-        :raises ValueError: if sha_hash has wrong length.
-        :raises TypeError: if keys argument is not None or list
-        :raises TypeError: if args argument is not None or list
-        :raises TypeError: if any of keys is None
+        :raises TypeError: if digest is None
+        :raises TypeError: if keys or args contain None
+        :raises ValueError: if sha_hash has wrong length
         """
-        if len(sha_hash) != 40:
-            raise ValueError('Not valid sha hash, length of sha_hash argument '
-                             'should be 40')
-        if keys is not None and not isinstance(keys, list):
-            raise TypeError("keys argument must be list of redis keys")
-        if args is not None and not isinstance(args, list):
-            raise TypeError("args argument must be list")
-        if keys is not None and any(k is None for k in keys):
-            raise TypeError("any of keys must not be None")
-        keys = [] if keys is None else keys
-        args = [] if args is None else args
-        numkeys = len(keys)
-        _args = keys + args
+        if digest is None:
+            raise TypeError("digest must not be None")
+        if len(digest) != 40:   # ???
+            raise ValueError(
+                'Not valid sha hash, length of sha_hash argument should be 40')
+        if None in set(keys):
+            raise TypeError("keys list must not contain None")
+        if None in set(args):
+            raise TypeError("args list must not contain None")
         return (yield from self._conn.execute(
-            b'EVALSHA', sha_hash, numkeys, *_args))
+            b'EVALSHA', digest, len(keys), *(keys + args)))
 
     @asyncio.coroutine
-    def script_exists(self, sha_hash, *sha_hashes):
-        """Returns information about the existence of the
-        scripts in the script cache.
+    def script_exists(self, digest, *digests):
+        """Check existence of scripts in the script cache.
 
-        :raises ValueError: if sha_hash or any of sha_hashes has wrong length.
+        :raises TypeError: if None passed in arguments
+        :raises ValueError: if digest or any of digests has wrong length
         """
-        if len(sha_hash) != 40:
-            raise ValueError('Not valid sha hash, length of sha_hash argument '
-                             'should be 40')
-        if any((len(sha) != 40 for sha in sha_hashes)):
-            raise ValueError('Each of sha_hashes should have length of 40')
-        return (yield from self._conn.execute(b'SCRIPT', b'EXISTS',
-                                              sha_hash, *sha_hashes))
+        if len(digest) != 40:
+            raise ValueError(
+                "Not valid digest, length of digest argument should be 40")
+        if any((len(sha) != 40 for sha in digests)):
+            raise ValueError('Each of digests should have length of 40')
+        return (yield from self._conn.execute(
+            b'SCRIPT', b'EXISTS', digest, *digests))
 
     @asyncio.coroutine
     def script_kill(self):
-        """Kills the currently executing Lua script, assuming no write
-        operation was yet performed by the script.
-        """
+        """Kill the script currently in execution."""
         return (yield from self._conn.execute(b'SCRIPT', b'KILL'))
 
     @asyncio.coroutine
     def script_flush(self):
-        """Flush the Lua scripts cache."""
+        """Remove all the scripts from the script cache."""
         return (yield from self._conn.execute(b"SCRIPT",  b"FLUSH"))
 
     @asyncio.coroutine
     def script_load(self, script):
-        """Load a script into the scripts cache, without executing it."""
+        """Load the specified Lua script into the script cache."""
         return (yield from self._conn.execute(b"SCRIPT",  b"LOAD", script))

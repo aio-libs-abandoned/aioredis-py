@@ -44,8 +44,7 @@ def create_connection(address, *, db=None, password=None, loop=None):
 
 
 class RedisConnection:
-    """Redis connection.
-    """
+    """Redis connection."""
 
     def __init__(self, reader, writer, *, loop=None):
         if loop is None:
@@ -202,6 +201,7 @@ class RedisConnection:
 
     @property
     def in_transaction(self):
+        """Set to True when MULTI command was issued."""
         return self._in_transaction
 
     @asyncio.coroutine
