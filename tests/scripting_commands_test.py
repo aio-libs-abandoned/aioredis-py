@@ -99,17 +99,16 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_script_kill(self):
-        script = """
-        local i = 0
-        while true do
-            i = i + 1
-        end"""
+        script = "while (1) do redis.call('TIME') end"
 
         other_redis = yield from create_redis(
             ('localhost', self.redis_port), loop=self.loop)
 
-        blocked_task = asyncio.Task(other_redis.eval(script), loop=self.loop)
-        yield from asyncio.sleep(0.1, loop=self.loop)
+        yield from self.add('key1', 'value')
+
+        coro = other_redis.eval(script, keys=['non-existent-key'], args=[10])
+        blocked_task = asyncio.Task(coro, loop=self.loop)
+        yield from asyncio.sleep(0, loop=self.loop)
         resp = yield from self.redis.script_kill()
         self.assertEqual(resp, b'OK')
 
