@@ -167,6 +167,11 @@ class RedisConnection:
         """Currently selected db index."""
         return self._db
 
+    @property
+    def encoding(self):
+        """Current set codec or None."""
+        return self._encoding
+
     @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.

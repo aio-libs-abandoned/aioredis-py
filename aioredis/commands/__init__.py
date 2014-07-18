@@ -41,8 +41,13 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._conn.db
 
     @property
+    def encoding(self):
+        """Current set codec or None."""
+        return self._conn.encoding
+
+    @property
     def connection(self):
-        """RedisConnection instance."""
+        """:class:`aioredis.RedisConnection` instance."""
         return self._conn
 
     @property
@@ -53,7 +58,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def auth(self, password):
         """Authenticate to server.
 
-        This method wraps call to connection.auth()
+        This method wraps call to :meth:`aioredis.RedisConnection.auth()`
         """
         return self._conn.auth(password)
 
