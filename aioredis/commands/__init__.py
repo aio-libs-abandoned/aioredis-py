@@ -52,6 +52,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     @property
     def closed(self):
+        """True if connection is closed."""
         return self._conn.closed
 
     @asyncio.coroutine

@@ -46,26 +46,22 @@ class RedisPool:
 
     @property
     def minsize(self):
-        """Minimum pool size.
-        """
+        """Minimum pool size."""
         return self._minsize
 
     @property
     def maxsize(self):
-        """Maximum pool size.
-        """
+        """Maximum pool size."""
         return self._pool.maxsize
 
     @property
     def size(self):
-        """Current pool size.
-        """
+        """Current pool size."""
         return self.freesize + len(self._used)
 
     @property
     def freesize(self):
-        """Current number of free connections.
-        """
+        """Current number of free connections."""
         return self._pool.qsize()
 
     @asyncio.coroutine
@@ -80,8 +76,7 @@ class RedisPool:
 
     @property
     def db(self):
-        """Currently selected db index.
-        """
+        """Currently selected db index."""
         return self._db
 
     @property
@@ -92,6 +87,8 @@ class RedisPool:
     @asyncio.coroutine
     def select(self, db):
         """Changes db index for all free connections.
+
+        All previously acquired connections will be closed when released.
         """
         self._need_wait = fut = asyncio.Future(loop=self._loop)
         try:
@@ -133,7 +130,7 @@ class RedisPool:
         """Returns used connection back into pool.
 
         When returned connection has db index that differs from one in pool
-        the connection will be dropped.
+        the connection will be closed and dropped.
         When queue of free connections is full the connection will be dropped.
         """
         assert conn in self._used, "Invalid connection, maybe from other pool"

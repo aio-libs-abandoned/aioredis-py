@@ -18,7 +18,7 @@ def create_connection(address, *, db=None, password=None,
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
-    Address format is similar to socket address, ie:
+    Address argument is similar to socket address argument, ie:
     * when address is a tuple it represents (host, port) pair;
     * when address is a str it represents unix domain socket path.
     (no other address formats supported)
@@ -73,7 +73,7 @@ class RedisConnection:
 
     @asyncio.coroutine
     def _read_data(self):
-        """Responses reader task."""
+        """Response reader task."""
         while not self._reader.at_eof():
             data = yield from self._reader.read(MAX_CHUNK_SIZE)
             self._parser.feed(data)

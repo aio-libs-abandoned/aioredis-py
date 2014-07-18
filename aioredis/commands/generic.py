@@ -127,7 +127,8 @@ class GenericCommandsMixin:
     def move(self, key, db):
         """Move key from currently selected database to specified destination.
 
-        :raises TypeError: if db is not int and ValueError if db is <= 0
+        :raises TypeError: if key is None or db is not int
+        :raises ValueError: if db is less then 0
         """
         if key is None:
             raise TypeError("key argument must not be None")

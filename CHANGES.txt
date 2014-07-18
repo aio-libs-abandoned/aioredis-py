@@ -13,7 +13,8 @@ Changes
   * transactions commands.
 
 * create_connection, create_pool, create_redis functions updated:
-  db and password arguments made keyword-only (see #26);
+  db and password arguments made keyword-only
+  (see http://github.com/aio-libs/aioredis/issues/26);
 
 
 0.1.1 (2014-07-07)
