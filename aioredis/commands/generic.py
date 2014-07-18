@@ -15,8 +15,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         ret = yield from self._conn.execute(b'DEL', key, *keys)
         return int(ret)
 

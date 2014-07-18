@@ -35,8 +35,8 @@ class SetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(b'SDIFF', key, *keys))
 
     @asyncio.coroutine
@@ -49,8 +49,8 @@ class SetCommandsMixin:
             raise TypeError("destkey argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(
             b'SDIFFSTORE', destkey, key, *keys))
 
@@ -62,8 +62,8 @@ class SetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(b'SINTER', key, *keys))
 
     @asyncio.coroutine
@@ -76,8 +76,8 @@ class SetCommandsMixin:
             raise TypeError("destkey argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(
             b'SINTERSTORE', destkey, key, *keys))
 
@@ -154,8 +154,8 @@ class SetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(b'SUNION', key, *keys))
 
     @asyncio.coroutine
@@ -168,8 +168,8 @@ class SetCommandsMixin:
             raise TypeError("destkey argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(
             b'SUNIONSTORE', destkey, key, *keys))
 

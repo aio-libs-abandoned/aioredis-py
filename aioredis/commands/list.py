@@ -17,6 +17,8 @@ class ListCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
         if timeout < 0:
@@ -34,6 +36,8 @@ class ListCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
         if timeout < 0:

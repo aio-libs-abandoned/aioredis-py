@@ -26,8 +26,8 @@ class HyperLogLogCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(b'PFCOUNT', key, *keys))
 
     @asyncio.coroutine
@@ -40,7 +40,7 @@ class HyperLogLogCommandsMixin:
             raise TypeError("destkey argument must not be None")
         if sourcekey is None:
             raise TypeError("sourcekey argument must not be None")
-        if any(k is None for k in sourcekeys):
-            raise TypeError("sourcekeys must not be None")
+        if None in set(sourcekeys):
+            raise TypeError("sourcekeys must not contain None")
         return (yield from self._conn.execute(
                 b'PFMERGE', destkey, sourcekey, *sourcekeys))

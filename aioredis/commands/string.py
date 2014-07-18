@@ -236,8 +236,8 @@ class StringCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         return (yield from self._conn.execute(b'MGET', key, *keys))
 
     @asyncio.coroutine

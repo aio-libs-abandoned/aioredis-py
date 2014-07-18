@@ -16,9 +16,9 @@ class ScriptingCommandsMixin:
         """
         if script is None:
             raise TypeError("script argument must not be None")
-        if any(k is None for k in keys):
+        if None in set(keys):
             raise TypeError("keys must not contain None")
-        if any(a is None for a in args):
+        if None in set(args):
             raise TypeError("args must not contain None")
         return (yield from self._conn.execute(
             b'EVAL', script, len(keys), *(keys + args)))
