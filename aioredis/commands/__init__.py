@@ -41,8 +41,13 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._conn.db
 
     @property
+    def encoding(self):
+        """Current set codec or None."""
+        return self._conn.encoding
+
+    @property
     def connection(self):
-        """RedisConnection instance."""
+        """:class:`aioredis.RedisConnection` instance."""
         return self._conn
 
     @property
@@ -53,7 +58,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def auth(self, password):
         """Authenticate to server.
 
-        This method wraps call to connection.auth()
+        This method wraps call to :meth:`aioredis.RedisConnection.auth()`
         """
         return self._conn.auth(password)
 
@@ -76,19 +81,21 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def select(self, db):
         """Change the selected database for the current connection.
 
-        This method wraps call to connection.select()
+        This method wraps call to :meth:`aioredis.RedisConnection.select()`
         """
         return self._conn.select(db)
 
 
 @asyncio.coroutine
 def create_redis(address, *, db=None, password=None,
-                 commands_factory=Redis, loop=None):
+                 encoding=None, commands_factory=Redis,
+                 loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
     conn = yield from create_connection(address, db=db,
                                         password=password,
+                                        encoding=encoding,
                                         loop=loop)
     return commands_factory(conn)

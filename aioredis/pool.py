@@ -4,7 +4,7 @@ from .commands import create_redis, Redis
 
 
 @asyncio.coroutine
-def create_pool(address, *, db=0, password=None,
+def create_pool(address, *, db=0, password=None, encoding=None,
                 minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
 
@@ -17,7 +17,7 @@ def create_pool(address, *, db=0, password=None,
     Returns RedisPool instance.
     """
 
-    pool = RedisPool(address, db, password,
+    pool = RedisPool(address, db, password, encoding,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      loop=loop)
@@ -29,13 +29,14 @@ class RedisPool:
     """Redis connections pool.
     """
 
-    def __init__(self, address, db=0, password=None,
+    def __init__(self, address, db=0, password=None, encoding=None,
                  *, minsize, maxsize, commands_factory, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._address = address
         self._db = db
         self._password = password
+        self._encoding = encoding
         self._minsize = minsize
         self._factory = commands_factory
         self._loop = loop
@@ -82,6 +83,11 @@ class RedisPool:
         """Currently selected db index.
         """
         return self._db
+
+    @property
+    def encoding(self):
+        """Current set codec or None."""
+        return self._encoding
 
     @asyncio.coroutine
     def select(self, db):
@@ -153,6 +159,7 @@ class RedisPool:
         conn = yield from create_redis(self._address,
                                        db=self._db,
                                        password=self._password,
+                                       encoding=self._encoding,
                                        commands_factory=self._factory,
                                        loop=self._loop)
         return conn

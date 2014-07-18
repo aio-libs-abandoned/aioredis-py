@@ -32,7 +32,8 @@ Connection usage is as simple as:
    asyncio.get_event_loop().run_until_complete(connection_example())
 
 
-.. function:: create_connection(address, \*, db=0, password=None, loop=None)
+.. function:: create_connection(address, \*, db=0, password=None,\
+                                encoding=None, loop=None)
 
    Creates Redis connection.
 
@@ -47,6 +48,9 @@ Connection usage is as simple as:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+
+   :param encoding: Codec to use for response decoding.
+   :type encoding: str or None
 
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
@@ -63,24 +67,33 @@ Connection usage is as simple as:
 
       Current database index (*read-only*).
 
+   .. attribute:: encoding
+
+      Current codec for response decoding (*read-only*).
+
    .. attribute:: closed
 
       Set to True if connection is closed (*read-only*).
 
 
-   .. method:: execute(command, \*args):
+   .. method:: execute(command, \*args, encoding=_NOTSET):
 
       A :ref:`coroutine<coroutine>` function to execute Redis command.
 
       :param command: Command to execute
       :type command: str, bytes, bytearray
 
+      :param encoding: Keyword-only argument for overriding response decoding.
+                       By default will use connection-wide encoding.
+                       May be set to None to skip response decoding.
+      :type encoding: str or None
+
       :raise TypeError: When any of arguments can not be encoded as bytes.
       :raise aioredis.ReplyError: For redis error replies.
       :raise aioredis.ProtocolError: When response can not be decoded
                                      and/or connection is broken.
 
-      :return: Returns bytes or int reply
+      :return: Returns bytes or int reply (or str if encoding was set)
 
 
    .. method:: close()
@@ -131,7 +144,7 @@ The library provides connections pool. The basic usage is as follows:
 
 .. _aioredis-create_pool:
 
-.. function:: create_pool(address, db=0, password=None, \*,\
+.. function:: create_pool(address, \*, db=0, password=None, encoding=None, \
                           minsize=10, maxsize=10, commands_factory=Redis,\
                           loop=None)
 
@@ -150,6 +163,9 @@ The library provides connections pool. The basic usage is as follows:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+
+   :param encoding: Codec to use for response decoding.
+   :type encoding: str or None
 
    :param int minsize: Minimum number of free connection to create in pool.
                        ``10`` by default.
@@ -190,6 +206,10 @@ The library provides connections pool. The basic usage is as follows:
    .. attribute:: db
 
       Currently selected db index (*read-only*).
+
+   .. attribute:: encoding
+
+      Current codec for response decoding (*read-only*).
 
    .. method:: clear()
 
@@ -254,7 +274,8 @@ The library provides high-level API implementing simple interface
 to Redis commands.
 
 .. function:: create_redis(address, \*, db=0, password=None,\
-                           commands_factory=Redis, loop=None)
+                           encoding=None, commands_factory=Redis,\
+                           loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
    interface instance.
@@ -268,6 +289,9 @@ to Redis commands.
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+
+   :param encoding: Codec to use for response decoding.
+   :type encoding: str or None
 
    :param commands_factory: A factory accepting single parameter --
     :class:`RedisConnection` instance and returning an object providing
