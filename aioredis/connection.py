@@ -9,10 +9,12 @@ from .errors import RedisError, ProtocolError, ReplyError
 __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
+_NOTSET = object()
 
 
 @asyncio.coroutine
-def create_connection(address, *, db=None, password=None, loop=None):
+def create_connection(address, *, db=None, password=None,
+                      encoding=None, loop=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -20,6 +22,9 @@ def create_connection(address, *, db=None, password=None, loop=None):
     * when address is a tuple it represents (host, port) pair;
     * when address is a str it represents unix domain socket path.
     (no other address formats supported)
+
+    Encoding argument can be used to decode byte-replies to strings.
+    By default no decoding is done.
 
     Return value is RedisConnection instance.
 
@@ -34,7 +39,7 @@ def create_connection(address, *, db=None, password=None, loop=None):
     else:
         reader, writer = yield from asyncio.open_unix_connection(
             address, loop=loop)
-    conn = RedisConnection(reader, writer, loop=loop)
+    conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
 
     if password is not None:
         yield from conn.auth(password)
@@ -46,7 +51,7 @@ def create_connection(address, *, db=None, password=None, loop=None):
 class RedisConnection:
     """Redis connection."""
 
-    def __init__(self, reader, writer, *, loop=None):
+    def __init__(self, reader, writer, *, encoding=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._reader = reader
@@ -61,6 +66,7 @@ class RedisConnection:
         self._closed = False
         self._in_transaction = False
         self._transaction_error = None
+        self._encoding = encoding
 
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
@@ -96,7 +102,7 @@ class RedisConnection:
         self._loop.call_soon(self._do_close, None)
 
     @asyncio.coroutine
-    def execute(self, command, *args):
+    def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
 
         Raises:
@@ -119,7 +125,12 @@ class RedisConnection:
             fut.add_done_callback(self._start_transaction)
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             fut.add_done_callback(self._end_transaction)
-        return (yield from fut)
+        result = yield from fut
+        if encoding is _NOTSET:
+            encoding = self._encoding
+        if encoding is not None and isinstance(result, bytes):
+            return result.decode(encoding)
+        return result
 
     def close(self):
         """Close connection."""

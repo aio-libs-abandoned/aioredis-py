@@ -123,5 +123,40 @@ class ConnectionTest(BaseTest):
         res = yield from conn2.select(1)
         self.assertTrue(res)
 
+        conn3 = yield from create_connection(
+            ('localhost', self.redis_port), password='pass', loop=self.loop)
+
+        res = yield from conn3.select(1)
+        self.assertTrue(res)
+
         res = yield from conn2.execute('CONFIG', 'SET', 'requirepass', '')
         self.assertEqual(res, b'OK')
+
+    @run_until_complete
+    def test_decoding(self):
+        conn = yield from create_connection(
+            ('localhost', self.redis_port), encoding='utf-8', loop=self.loop)
+
+        res = yield from conn.execute('set', 'key1', 'value')
+        self.assertEqual(res, 'OK')
+        res = yield from conn.execute('get', 'key1')
+        self.assertEqual(res, 'value')
+
+        res = yield from conn.execute('set', 'key1', b'bin-value')
+        self.assertEqual(res, 'OK')
+        res = yield from conn.execute('get', 'key1')
+        self.assertEqual(res, 'bin-value')
+
+        res = yield from conn.execute('get', 'key1', encoding='ascii')
+        self.assertEqual(res, 'bin-value')
+        res = yield from conn.execute('get', 'key1', encoding=None)
+        self.assertEqual(res, b'bin-value')
+
+        with self.assertRaises(UnicodeDecodeError):
+            yield from conn.execute('set', 'key1', 'значение')
+            yield from conn.execute('get', 'key1', encoding='ascii')
+
+        conn2 = yield from create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        res = yield from conn2.execute('get', 'key1', encoding='utf-8')
+        self.assertEqual(res, 'значение')

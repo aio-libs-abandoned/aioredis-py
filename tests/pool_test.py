@@ -219,3 +219,15 @@ class PoolTest(BaseTest):
                 if conn.db == db:
                     break
         yield from asyncio.wait_for(test(), 10, loop=self.loop)
+
+    @run_until_complete
+    def test_response_decoding(self):
+        pool = yield from create_pool(
+            ('localhost', self.redis_port),
+            encoding='utf-8', loop=self.loop)
+
+        with (yield from pool) as redis:
+            yield from redis.set('key', 'value')
+        with (yield from pool) as redis:
+            res = yield from redis.get('key')
+            self.assertEqual(res, 'value')

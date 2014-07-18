@@ -76,19 +76,21 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def select(self, db):
         """Change the selected database for the current connection.
 
-        This method wraps call to connection.select()
+        This method wraps call to :meth:`aioredis.RedisConnection.select()`
         """
         return self._conn.select(db)
 
 
 @asyncio.coroutine
 def create_redis(address, *, db=None, password=None,
-                 commands_factory=Redis, loop=None):
+                 encoding=None, commands_factory=Redis,
+                 loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
     conn = yield from create_connection(address, db=db,
                                         password=password,
+                                        encoding=encoding,
                                         loop=loop)
     return commands_factory(conn)
