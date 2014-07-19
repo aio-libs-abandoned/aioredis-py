@@ -33,10 +33,10 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.blpop(None)
-
+        with self.assertRaises(TypeError):
+            yield from self.redis.blpop(key1, None)
         with self.assertRaises(TypeError):
             yield from self.redis.blpop(key1, timeout=b'one')
-
         with self.assertRaises(ValueError):
             yield from self.redis.blpop(key2, timeout=-10)
 
@@ -91,10 +91,10 @@ class ListCommandsTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.brpop(None)
-
+        with self.assertRaises(TypeError):
+            yield from self.redis.brpop(key1, None)
         with self.assertRaises(TypeError):
             yield from self.redis.brpop(key1, timeout=b'one')
-
         with self.assertRaises(ValueError):
             yield from self.redis.brpop(key2, timeout=-10)
 

@@ -32,9 +32,10 @@ class SetCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.eval(script, keys=['valid', None])
-
         with self.assertRaises(TypeError):
-            yield from self.redis.eval(script, args='not:list')
+            yield from self.redis.eval(script, args=['valid', None])
+        with self.assertRaises(TypeError):
+            yield from self.redis.eval(None)
 
     @run_until_complete
     def test_evalsha(self):
@@ -53,11 +54,11 @@ class SetCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.evalsha(b'wrong sha hash')
         with self.assertRaises(TypeError):
-            yield from self.redis.evalsha(sha_hash, keys='not:list')
-        with self.assertRaises(TypeError):
             yield from self.redis.evalsha(sha_hash, keys=['valid', None])
         with self.assertRaises(TypeError):
-            yield from self.redis.evalsha(sha_hash, args='not:list')
+            yield from self.redis.evalsha(sha_hash, args=['valid', None])
+        with self.assertRaises(TypeError):
+            yield from self.redis.evalsha(None)
 
     @run_until_complete
     def test_script_exists(self):
