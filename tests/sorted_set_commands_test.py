@@ -189,3 +189,82 @@ class SortedSetsCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.zrangebylex(key, b'a', b'e',
                                               offset=1, count='one')
+
+    @run_until_complete
+    def test_zrank(self):
+        key = b'key:zrank'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        for i, m in enumerate(members):
+            res = yield from self.redis.zrank(key, m)
+            self.assertEqual(res, i)
+
+        res = yield from self.redis.zrank(key, b'not:exists')
+        self.assertEqual(res, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrank(None, b'one')
+
+    @run_until_complete
+    def test_zrangebyscore(self):
+        key = b'key:zrangebyscore'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members, scores)))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=False)
+        self.assertEqual(res, members)
+        res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=False,
+                                                  include_min=False,
+                                                  include_max=False)
+        self.assertEqual(res, members[2:-1])
+        res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=True)
+        self.assertEqual(res, rev_pairs)
+
+        res = yield from self.redis.zrangebyscore(key, 1, 10, offset=2,
+                                                  count=2)
+        self.assertEqual(res, members[2:4])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(None, 1, 7)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, b'a', 20)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, 1, 7, offset=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, 1, 7, count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, 1, 7, offset='one',
+                                                count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrangebyscore(key, 1, 7, offset=1,
+                                                count='one')
+
+    @run_until_complete
+    def test_zrevrank(self):
+        key = b'key:zrevrank'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        for i, m in enumerate(members):
+            res = yield from self.redis.zrevrank(key, m)
+            self.assertEqual(res, len(members) - i - 1)
+
+        res = yield from self.redis.zrevrank(key, b'not:exists')
+        self.assertEqual(res, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrank(None, b'one')
