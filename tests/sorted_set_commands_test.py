@@ -250,6 +250,31 @@ class SortedSetsCommandsTest(RedisTest):
                                                 count='one')
 
     @run_until_complete
+    def test_zrem(self):
+        key = b'key:zrem'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        res = yield from self.redis.zrem(key, b'uno', b'one')
+        self.assertEqual(res, 2)
+
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, members[2:])
+
+        res = yield from self.redis.zrem(key, b'not:exists')
+        self.assertEqual(res, 0)
+
+        res = yield from self.redis.zrem(b'not:' + key, b'not:exists')
+        self.assertEqual(res, 0)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrem(None, b'one')
+
+    @run_until_complete
     def test_zrevrank(self):
         key = b'key:zrevrank'
         scores = [1, 1, 2.5, 3, 7]

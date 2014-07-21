@@ -228,7 +228,10 @@ class SortedSetCommandsMixin:
 
     @asyncio.coroutine
     def zrem(self, key, member, *members):
-        """Remove one or more members from a sorted set."""
+        """Remove one or more members from a sorted set.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         return (yield from self._conn.execute(b'ZREM', key, member, *members))
