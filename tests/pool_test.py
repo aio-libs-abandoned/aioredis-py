@@ -231,3 +231,18 @@ class PoolTest(BaseTest):
         with (yield from pool) as redis:
             res = yield from redis.get('key')
             self.assertEqual(res, 'value')
+
+    @run_until_complete
+    def test_crappy_multiexec(self):
+        pool = yield from create_pool(
+            ('localhost', self.redis_port),
+            encoding='utf-8', loop=self.loop,
+            minsize=1, maxsize=1)
+
+        with (yield from pool) as redis:
+            yield from redis.set('abc', 'def')
+            yield from redis.multi()
+            yield from redis.set('abc', 'fgh')
+        with (yield from pool) as redis:
+            value = yield from redis.get('abc')
+        self.assertEquals(value, 'def')
