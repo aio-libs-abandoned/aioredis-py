@@ -1,7 +1,5 @@
 import asyncio
 import unittest
-import socket
-import random
 import os
 
 from functools import wraps
@@ -33,18 +31,6 @@ class BaseTest(unittest.TestCase):
     def tearDown(self):
         self.loop.close()
         del self.loop
-
-    def _find_port(self):
-        s = socket.socket()
-        while True:
-            port = random.randint(1024, 65535)
-            try:
-                s.bind(('127.0.0.1', port))
-            except OSError:
-                pass
-            else:
-                s.close()
-                return port
 
 
 class RedisTest(BaseTest):

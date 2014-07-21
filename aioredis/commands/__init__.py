@@ -51,6 +51,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._conn
 
     @property
+    def in_transaction(self):
+        """Set to True when MULTI command was issued."""
+        return self._conn.in_transaction
+
+    @property
     def closed(self):
         """True if connection is closed."""
         return self._conn.closed

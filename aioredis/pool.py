@@ -136,7 +136,10 @@ class RedisPool:
         assert conn in self._used, "Invalid connection, maybe from other pool"
         self._used.remove(conn)
         if not conn.closed:
-            if conn.db == self.db:
+            if conn.in_transaction:
+                # TODO: log warning
+                conn.close()
+            elif conn.db == self.db:
                 try:
                     self._pool.put_nowait(conn)
                 except asyncio.QueueFull:

@@ -243,6 +243,7 @@ class PoolTest(BaseTest):
             yield from redis.set('abc', 'def')
             yield from redis.multi()
             yield from redis.set('abc', 'fgh')
+        self.assertTrue(redis.closed)
         with (yield from pool) as redis:
             value = yield from redis.get('abc')
         self.assertEquals(value, 'def')
