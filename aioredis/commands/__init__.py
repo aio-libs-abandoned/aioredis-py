@@ -10,6 +10,7 @@ from .sorted_set import SortedSetCommandsMixin
 from .transaction import TransactionsCommandsMixin
 from .list import ListCommandsMixin
 from .scripting import ScriptingCommandsMixin
+from .server import ServerCommandsMixin
 
 __all__ = ['create_redis', 'Redis']
 
@@ -18,7 +19,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             HyperLogLogCommandsMixin, SetCommandsMixin,
             HashCommandsMixin, TransactionsCommandsMixin,
             SortedSetCommandsMixin, ListCommandsMixin,
-            ScriptingCommandsMixin):
+            ScriptingCommandsMixin, ServerCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
