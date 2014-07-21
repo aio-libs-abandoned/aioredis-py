@@ -4,10 +4,12 @@ from ._testutil import RedisTest, run_until_complete
 from aioredis import create_redis, ReplyError
 
 
-class SetCommandsTest(RedisTest):
+class ScriptCommandsTest(RedisTest):
 
     @run_until_complete
     def test_eval(self):
+        yield from self.redis.delete('key:eval', 'value:eval')
+
         script = "return 42"
         res = yield from self.redis.eval(script)
         self.assertEqual(res, 42)
@@ -51,7 +53,7 @@ class SetCommandsTest(RedisTest):
         res = yield from self.redis.evalsha(sha_hash, [key], [arg1, arg2])
         self.assertEqual(res, [key, arg1, arg2])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ReplyError):
             yield from self.redis.evalsha(b'wrong sha hash')
         with self.assertRaises(TypeError):
             yield from self.redis.evalsha(sha_hash, keys=['valid', None])
@@ -74,10 +76,10 @@ class SetCommandsTest(RedisTest):
         res = yield from self.redis.script_exists(no_sha)
         self.assertEqual(res, [0])
 
-        with self.assertRaises(ValueError):
-            yield from self.redis.script_exists(b'wrong sha hash')
-        with self.assertRaises(ValueError):
-            yield from self.redis.script_exists(no_sha, b'wrong sha hash')
+        with self.assertRaises(TypeError):
+            yield from self.redis.script_exists(None)
+        with self.assertRaises(TypeError):
+            yield from self.redis.script_exists('123', None)
 
     @run_until_complete
     def test_script_flush(self):
@@ -86,6 +88,7 @@ class SetCommandsTest(RedisTest):
         res = yield from self.redis.script_exists(sha_hash1)
         self.assertEqual(res, [1])
         res = yield from self.redis.script_flush()
+        self.assertTrue(res)
         res = yield from self.redis.script_exists(sha_hash1)
         self.assertEqual(res, [0])
 
@@ -111,7 +114,7 @@ class SetCommandsTest(RedisTest):
         blocked_task = asyncio.Task(coro, loop=self.loop)
         yield from asyncio.sleep(0, loop=self.loop)
         resp = yield from self.redis.script_kill()
-        self.assertEqual(resp, b'OK')
+        self.assertTrue(resp)
 
         with self.assertRaises(ReplyError):
             yield from blocked_task

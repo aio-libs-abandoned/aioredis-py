@@ -29,13 +29,9 @@ class ScriptingCommandsMixin:
 
         :raises TypeError: if digest is None
         :raises TypeError: if keys or args contain None
-        :raises ValueError: if sha_hash has wrong length
         """
         if digest is None:
             raise TypeError("digest must not be None")
-        if len(digest) != 40:   # ???
-            raise ValueError(
-                'Not valid sha hash, length of sha_hash argument should be 40')
         if None in set(keys):
             raise TypeError("keys list must not contain None")
         if None in set(args):
@@ -48,25 +44,25 @@ class ScriptingCommandsMixin:
         """Check existence of scripts in the script cache.
 
         :raises TypeError: if None passed in arguments
-        :raises ValueError: if digest or any of digests has wrong length
         """
-        if len(digest) != 40:
-            raise ValueError(
-                "Not valid digest, length of digest argument should be 40")
-        if any((len(sha) != 40 for sha in digests)):
-            raise ValueError('Each of digests should have length of 40')
+        if digest is None:
+            raise TypeError("digest argument must not be None")
+        if None in set(digests):
+            raise TypeError("digests must not contain None")
         return (yield from self._conn.execute(
             b'SCRIPT', b'EXISTS', digest, *digests))
 
     @asyncio.coroutine
     def script_kill(self):
         """Kill the script currently in execution."""
-        return (yield from self._conn.execute(b'SCRIPT', b'KILL'))
+        res = yield from self._conn.execute(b'SCRIPT', b'KILL')
+        return res == b'OK'
 
     @asyncio.coroutine
     def script_flush(self):
         """Remove all the scripts from the script cache."""
-        return (yield from self._conn.execute(b"SCRIPT",  b"FLUSH"))
+        res = yield from self._conn.execute(b"SCRIPT",  b"FLUSH")
+        return res == b'OK'
 
     @asyncio.coroutine
     def script_load(self, script):
