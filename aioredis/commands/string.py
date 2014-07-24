@@ -47,7 +47,8 @@ class StringCommandsMixin:
             raise TypeError("dest argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
-        # TODO: check *keys
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         result = yield from self._conn.execute(b'BITOP', b'AND',
                                                dest, key, *keys)
         return result
@@ -62,6 +63,8 @@ class StringCommandsMixin:
             raise TypeError("dest argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         result = yield from self._conn.execute(b'BITOP', b'OR',
                                                dest, key, *keys)
         return result
@@ -76,6 +79,8 @@ class StringCommandsMixin:
             raise TypeError("dest argument must not be None")
         if key is None:
             raise TypeError("key argument must not be None")
+        if None in set(keys):
+            raise TypeError("keys must not contain None")
         result = yield from self._conn.execute(b'BITOP', b'XOR',
                                                dest, key, *keys)
         return result
