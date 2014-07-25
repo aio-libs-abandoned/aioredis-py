@@ -359,16 +359,23 @@ class StringCommandsTest(RedisTest):
     @run_until_complete
     def test_mget(self):
         yield from self.redis.connection.execute('flushall')
-        yield from self.add('foo', 'bar')
-        yield from self.add('baz', 'bzz')
+        key1, value1 = b'foo', b'bar'
+        key2, value2 = b'baz', b'bzz'
+        yield from self.add(key1, value1)
+        yield from self.add(key2, value2)
 
         res = yield from self.redis.mget('key')
         self.assertEqual(res, [None])
         res = yield from self.redis.mget('key', 'key')
         self.assertEqual(res, [None, None])
 
-        res = yield from self.redis.mget('foo', 'baz')
-        self.assertEqual(res, [b'bar', b'bzz'])
+        res = yield from self.redis.mget(key1, key2)
+        self.assertEqual(res, [value1, value2])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.mget(None, key2)
+        with self.assertRaises(TypeError):
+            yield from self.redis.mget(key1, None)
 
     @run_until_complete
     def test_set(self):
