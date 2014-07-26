@@ -581,7 +581,7 @@ class StringCommandsTest(RedisTest):
             yield from self.redis.setrange(None, 6, b'Redis')
         with self.assertRaises(TypeError):
             yield from self.redis.setrange(key, 0.7, b'Redis')
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             yield from self.redis.setrange(key, -1, b'Redis')
 
     @run_until_complete
