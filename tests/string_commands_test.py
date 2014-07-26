@@ -1,3 +1,4 @@
+import asyncio
 from ._testutil import RedisTest, run_until_complete
 from aioredis import ReplyError
 
@@ -378,9 +379,220 @@ class StringCommandsTest(RedisTest):
             yield from self.redis.mget(key1, None)
 
     @run_until_complete
+    def test_mset(self):
+        key1, value1 = b'key:mset:1', b'hello'
+        key2, value2 = b'key:mset:2', b'world'
+
+        yield from self.redis.mset(key1, value1, key2, value2)
+
+        test_value = yield from self.redis.mget(key1, key2)
+        self.assertEqual(test_value, [value1, value2])
+
+        yield from self.redis.mset(b'other:' + key1, b'other:' + value1)
+        test_value = yield from self.redis.get(b'other:' + key1)
+        self.assertEqual(test_value, b'other:' + value1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.mset(None, value1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.mset(key1, value1, key1)
+
+    @run_until_complete
+    def test_msetnx(self):
+        key1, value1 = b'key:msetnx:1', b'Hello'
+        key2, value2 = b'key:msetnx:2', b'there'
+        key3, value3 = b'key:msetnx:3', b'world'
+
+        res = yield from self.redis.msetnx(key1, value1, key2, value2)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.mget(key1, key2)
+        self.assertEqual(res, [value1, value2])
+        res = yield from self.redis.msetnx(key2, value2, key3, value3)
+        self.assertEqual(res, 0)
+        res = yield from self.redis.mget(key1, key2, key3)
+        self.assertEqual(res, [value1, value2, None])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.msetnx(None, value1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.msetnx(key1, value1, key2)
+
+    @run_until_complete
+    def test_psetex(self):
+        key, value = b'key:psetex:1', b'Hello'
+        # test expiration in milliseconds
+        yield from self.redis.psetex(key, 10, value)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, value)
+
+        yield from asyncio.sleep(0.011, loop=self.loop)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.psetex(None, 10, value)
+        with self.assertRaises(TypeError):
+            yield from self.redis.psetex(key, 7.5, value)
+
+    @run_until_complete
     def test_set(self):
         ok = yield from self.redis.set('my-key', 'value')
         self.assertEqual(ok, b'OK')
 
         with self.assertRaises(TypeError):
             yield from self.redis.set(None, 'value')
+
+    @run_until_complete
+    def test_set_expire(self):
+        key, value = b'key:set:expire', b'foo'
+        # test expiration in milliseconds
+        yield from self.redis.set(key, value, pexpire=10)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, value)
+        yield from asyncio.sleep(0.011, loop=self.loop)
+        result_2 = yield from self.redis.get(key)
+        self.assertEqual(result_2, None)
+
+        # same thing but timeout in seconds
+        yield from self.redis.set(key, value, expire=1)
+        result_3 = yield from self.redis.get(key)
+        self.assertEqual(result_3, value)
+        yield from asyncio.sleep(1.001, loop=self.loop)
+        result_4 = yield from self.redis.get(key)
+        self.assertEqual(result_4, None)
+
+    @run_until_complete
+    def test_set_only_if_not_exists(self):
+        key, value = b'key:set:only_if_not_exists', b'foo'
+        yield from self.redis.set(key, value, only_if_not_exists=True)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, value)
+
+        # new values not set cos, values exists
+        yield from self.redis.set(key, "foo2", only_if_not_exists=True)
+        result_2 = yield from self.redis.get(key)
+        # nothing changed result is same "foo"
+        self.assertEqual(result_2, value)
+
+    @run_until_complete
+    def test_set_only_if_exists(self):
+        key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
+        # ensure that such key does not exits, and value not sets
+        yield from self.redis.delete(key)
+        yield from self.redis.set(key, value, only_if_exists=True)
+        result_1 = yield from self.redis.get(key)
+        self.assertEqual(result_1, None)
+
+        # ensure key exits, and value updates
+        yield from self.redis.set(key, value)
+        yield from self.redis.set(key, b'foo', only_if_exists=True)
+        result_2 = yield from self.redis.get(key)
+        self.assertEqual(result_2, b'foo')
+
+    @run_until_complete
+    def test_set_wrong_input(self):
+        key, value = b'key:set:', b'foo'
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.set(None, value)
+        with self.assertRaises(TypeError):
+            yield from self.redis.set(key, value, expire=7.8)
+        with self.assertRaises(TypeError):
+            yield from self.redis.set(key, value, pexpire=7.8)
+        with self.assertRaises(TypeError):
+            yield from self.redis.set(key, value, only_if_not_exists=True,
+                                      only_if_exists=True)
+
+    @run_until_complete
+    def test_setbit(self):
+        key = b'key:setbit'
+        result = yield from self.redis.setbit(key, 7, 1)
+        self.assertEqual(result, 0)
+        test_value = yield from self.redis.getbit(key, 7)
+        self.assertEqual(test_value, 1)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.setbit(None, 7, 1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.setbit(key, 7.5, 1)
+        with self.assertRaises(ValueError):
+            yield from self.redis.setbit(key, -1, 1)
+        with self.assertRaises(ValueError):
+            yield from self.redis.setbit(key, 1, 7)
+
+    @run_until_complete
+    def test_setex(self):
+        key, value = b'key:setex:1', b'Hello'
+        yield from self.redis.setex(key, 1, value)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, value)
+        yield from asyncio.sleep(1, loop=self.loop)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, None)
+
+        yield from self.redis.setex(key, 0.1, value)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, value)
+        yield from asyncio.sleep(0.11, loop=self.loop)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, None)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.setex(None, 1, value)
+        with self.assertRaises(TypeError):
+            yield from self.redis.setex(key, b'one', value)
+
+    @run_until_complete
+    def test_setnx(self):
+        key, value = b'key:setnx:1', b'Hello'
+        # set fresh new value
+        test_value = yield from self.redis.setnx(key, value)
+        # 1 means value has been set
+        self.assertEqual(test_value, 1)
+        # fetch installed value just to be sure
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, value)
+        # try to set new value on same key
+        test_value = yield from self.redis.setnx(key, b'other:' + value)
+        # 0 means value has not been set
+        self.assertEqual(test_value, 0)
+        # make sure that value was not changed
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, value)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.setnx(None, value)
+
+    @run_until_complete
+    def test_setrange(self):
+        key, value = b'key:setrange', b'Hello World'
+        yield from self.add(key, value)
+        test_value = yield from self.redis.setrange(key, 6, b'Redis')
+        self.assertEqual(test_value, 11)
+        test_value = yield from self.redis.get(key)
+        self.assertEqual(test_value, b'Hello Redis')
+
+        test_value = yield from self.redis.setrange(b'not:' + key, 6, b'Redis')
+        self.assertEqual(test_value, 11)
+        test_value = yield from self.redis.get(b'not:' + key)
+        self.assertEqual(test_value, b'\x00\x00\x00\x00\x00\x00Redis')
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.setrange(None, 6, b'Redis')
+        with self.assertRaises(TypeError):
+            yield from self.redis.setrange(key, 0.7, b'Redis')
+        with self.assertRaises(TypeError):
+            yield from self.redis.setrange(key, -1, b'Redis')
+
+    @run_until_complete
+    def test_strlen(self):
+        key, value = b'key:strlen', b'asyncio'
+        yield from self.add(key, value)
+        test_value = yield from self.redis.strlen(key)
+        self.assertEqual(test_value, len(value))
+
+        test_value = yield from self.redis.strlen(b'not:' + key)
+        self.assertEqual(test_value, 0)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.strlen(None)
