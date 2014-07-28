@@ -261,7 +261,12 @@ class SortedSetCommandsMixin:
 
     @asyncio.coroutine
     def zremrangebyrank(self, key, start, stop):
-        """Remove all members in a sorted set within the given indexes."""
+        """Remove all members in a sorted set within the given indexes.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if start is not int
+        :raises TypeError: if stop is not int
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         if not isinstance(start, int):
@@ -272,9 +277,28 @@ class SortedSetCommandsMixin:
             b'ZREMRANGEBYRANK', key, start, stop))
 
     @asyncio.coroutine
-    def zremrangebyscore(self, key, min, max):
-        """Remove all members in a sorted set within the given scores."""
-        raise NotImplementedError
+    def zremrangebyscore(self, key, min=float(b'-inf'), max=float(b'inf'),
+                         include_min=True, include_max=True):
+        """Remove all members in a sorted set within the given scores.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if min is not int or float
+        :raises TypeError: if max is not int or float
+        """
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(min, (int, float)):
+            raise TypeError("min argument must be int or float")
+        if not isinstance(max, (int, float)):
+            raise TypeError("max argument must be int or float")
+
+        if not include_min and not math.isinf(min):
+            min = ("(" + str(min)).encode('utf-8')
+        if not include_max and not math.isinf(max):
+            max = ("(" + str(max)).encode('utf-8')
+
+        return (yield from self._conn.execute(
+            b'ZREMRANGEBYSCORE', key, min, max))
 
     @asyncio.coroutine
     def zrevrange(self, key, start, stop, *, withscores=False):
