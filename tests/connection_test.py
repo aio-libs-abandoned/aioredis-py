@@ -136,7 +136,7 @@ class ConnectionTest(BaseTest):
     def test_decoding(self):
         conn = yield from create_connection(
             ('localhost', self.redis_port), encoding='utf-8', loop=self.loop)
-
+        self.assertEqual(conn.encoding, 'utf-8',)
         res = yield from conn.execute('set', 'key1', 'value')
         self.assertEqual(res, 'OK')
         res = yield from conn.execute('get', 'key1')

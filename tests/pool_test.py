@@ -226,6 +226,7 @@ class PoolTest(BaseTest):
             ('localhost', self.redis_port),
             encoding='utf-8', loop=self.loop)
 
+        self.assertEqual(pool.encoding, 'utf-8')
         with (yield from pool) as redis:
             yield from redis.set('key', 'value')
         with (yield from pool) as redis:
