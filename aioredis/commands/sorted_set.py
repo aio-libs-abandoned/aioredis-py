@@ -237,11 +237,27 @@ class SortedSetCommandsMixin:
         return (yield from self._conn.execute(b'ZREM', key, member, *members))
 
     @asyncio.coroutine
-    def zremrangebylex(self, key, min, max):
+    def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
+                       include_max=True,):
         """Remove all members in a sorted set between the given
         lexicographical range.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if min is not bytes
+        :raises TypeError: if max is not bytes
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(min, bytes):
+            raise TypeError("min argument must be bytes")
+        if not isinstance(max, bytes):
+            raise TypeError("max argument must be bytes")
+        if not min == b'-':
+            min = (b'[' if include_min else b'(') + min
+        if not max == b'+':
+            max = (b'[' if include_max else b'(') + max
+        return (yield from self._conn.execute(b'ZREMRANGEBYLEX',
+                                              key, min, max))
 
     @asyncio.coroutine
     def zremrangebyrank(self, key, start, stop):
