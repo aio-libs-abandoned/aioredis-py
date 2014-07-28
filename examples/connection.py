@@ -7,13 +7,19 @@ def main():
 
     @asyncio.coroutine
     def go():
-        conn = yield from aioredis.create_connection(('localhost', 6379))
+        conn = yield from aioredis.create_connection(
+            ('localhost', 6379), encoding='utf-8')
 
         ok = yield from conn.execute('set', 'my-key', 'some value')
-        assert ok == b'OK', ok
+        assert ok == 'OK', ok
 
-        value = yield from conn.execute('get', 'my-key')
-        print('raw value:', value)
+        str_value = yield from conn.execute('get', 'my-key')
+        raw_value = yield from conn.execute('get', 'my-key', encoding=None)
+        assert str_value == 'some value'
+        assert raw_value == b'some value'
+
+        print('str value:', str_value)
+        print('raw value:', raw_value)
 
         # optionally close connection
         conn.close()

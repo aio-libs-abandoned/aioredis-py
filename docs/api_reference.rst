@@ -76,7 +76,7 @@ Connection usage is as simple as:
       Set to True if connection is closed (*read-only*).
 
 
-   .. method:: execute(command, \*args, encoding=_NOTSET):
+   .. method:: execute(command, \*args, encoding=_NOTSET)
 
       A :ref:`coroutine<coroutine>` function to execute Redis command.
 

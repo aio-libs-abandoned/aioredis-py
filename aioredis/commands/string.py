@@ -295,7 +295,7 @@ class StringCommandsMixin:
 
         :raises TypeError: if key is None
         :raises TypeError: if only_if_not_exists and  only_if_exists both
-        specified in same time
+                           specified in same time.
         :raises TypeError: if expire is not int
         :raises TypeError: if pexpire is not int
         """
