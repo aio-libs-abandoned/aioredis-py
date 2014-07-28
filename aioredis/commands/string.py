@@ -289,14 +289,33 @@ class StringCommandsMixin:
         return res == b'OK'
 
     @asyncio.coroutine
-    def set(self, key, value):  # TODO: implement EX, PX, NX|XX
+    def set(self, key, value, expire=0, pexpire=0,
+            only_if_not_exists=False, only_if_exists=False):
         """Set the string value of a key.
 
         :raises TypeError: if key is None
+        :raises TypeError: if only_if_not_exists and  only_if_exists both
+        specified in same time
+        :raises TypeError: if expire is not int
+        :raises TypeError: if pexpire is not int
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'SET', key, value))
+        if expire and not isinstance(expire, int):
+            raise TypeError("expire argument must be int")
+        if pexpire and not isinstance(pexpire, int):
+            raise TypeError("pexpire argument must be int")
+
+        args = []
+        expire and args.extend((b'EX', expire))
+        pexpire and args.extend((b'PX', pexpire))
+
+        if only_if_not_exists and only_if_exists:
+            raise TypeError('only_if_not_exists and only_if_exists '
+                            'cannot be true simultaneously')
+        only_if_not_exists and args.append(b'NX')
+        only_if_exists and args.append(b'XX')
+        return (yield from self._conn.execute(b'SET', key, value, *args))
 
     @asyncio.coroutine
     def setbit(self, key, offset, value):
