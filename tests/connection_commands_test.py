@@ -49,3 +49,10 @@ class ConnectionCommandsTest(RedisTest):
         self.assertEqual(resp, True)
         self.assertEqual(self.redis.db, 1)
         self.assertEqual(self.redis.connection.db, 1)
+
+    @run_until_complete
+    def test_encoding(self):
+        redis = yield from create_redis(('localhost', self.redis_port),
+                                        db=1, encoding='utf-8',
+                                        loop=self.loop)
+        self.assertEqual(redis.encoding, 'utf-8')

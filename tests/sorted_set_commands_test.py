@@ -275,6 +275,105 @@ class SortedSetsCommandsTest(RedisTest):
             yield from self.redis.zrem(None, b'one')
 
     @run_until_complete
+    def test_zremrangebylex(self):
+        key = b'key:zremrangebylex'
+        members = [b'aaaa', b'b', b'c', b'd', b'e', b'foo', b'zap', b'zip',
+                   b'ALPHA', b'alpha']
+        scores = [0]*len(members)
+
+        pairs = list(itertools.chain(*zip(scores, members)))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 10)
+
+        res = yield from self.redis.zremrangebylex(key, b'alpha', b'omega',
+                                                   include_max=True,
+                                                   include_min=True)
+        self.assertEqual(res, 6)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, [b'ALPHA', b'aaaa', b'zap', b'zip'])
+
+        res = yield from self.redis.zremrangebylex(key, b'zap', b'zip',
+                                                   include_max=False,
+                                                   include_min=False)
+        self.assertEqual(res, 0)
+
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, [b'ALPHA', b'aaaa', b'zap', b'zip'])
+
+        res = yield from self.redis.zremrangebylex(key)
+        self.assertEqual(res, 4)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, [])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebylex(None, b'a', b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebylex(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebylex(key, b'a', 20)
+
+    @run_until_complete
+    def test_zremrangebyrank(self):
+        key = b'key:zremrangebyrank'
+        scores = [0, 1, 2, 3, 4, 5]
+        members = [b'zero', b'one', b'two', b'three', b'four', b'five']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 6)
+
+        res = yield from self.redis.zremrangebyrank(key, 0, 1)
+        self.assertEqual(res, 2)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, members[2:])
+
+        res = yield from self.redis.zremrangebyrank(key, -2, -1)
+        self.assertEqual(res, 2)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, members[2:-2])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyrank(None, 1, 2)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyrank(key, b'first', -1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyrank(key, 0, 'last')
+
+    @run_until_complete
+    def test_zremrangebyscore(self):
+        key = b'key:zremrangebyscore'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        res = yield from self.redis.zremrangebyscore(key, 3, 7.5,
+                                                     include_min=False,
+                                                     include_max=True)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, members[:-1])
+
+        res = yield from self.redis.zremrangebyscore(key, 1, 3,
+                                                     include_min=False,
+                                                     include_max=False)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, [b'one', b'uno', b'three'])
+
+        res = yield from self.redis.zremrangebyscore(key)
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange(key, 0, -1)
+        self.assertEqual(res, [])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyscore(None, 1, 2)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyscore(key, b'first', -1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zremrangebyscore(key, 0, 'last')
+
+    @run_until_complete
     def test_zrevrank(self):
         key = b'key:zrevrank'
         scores = [1, 1, 2.5, 3, 7]
