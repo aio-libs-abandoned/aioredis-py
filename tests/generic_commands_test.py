@@ -400,7 +400,34 @@ class GenericCommandsTest(RedisTest):
 
     @run_until_complete
     def test_scan(self):
-        pass
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+            yield from self.add(key, i)
+
+        cursor, values = yield from self.redis.scan()
+        # values should be *>=* just in case some other tests left
+        # test keys
+        self.assertTrue(len(values) >= 10)
+
+        cursor, values = yield from self.redis.scan(match=b'key:scan:foo:*')
+        self.assertEqual(len(values), 3)
+
+        cursor, values = yield from self.redis.scan(match=b'key:scan:bar:*')
+        self.assertEqual(len(values), 7)
+
+        # SCAN family functions do not guarantee that the number of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+        cursor = b'0'
+        test_values = []
+        while cursor:
+            cursor, values = yield from self.redis.scan(cursor=cursor,
+                                                        match=b'key:scan:*',
+                                                        count=2)
+
+            test_values.extend(values)
+        self.assertEqual(len(test_values), 10)
 
     @run_until_complete
     def test_sort(self):

@@ -389,7 +389,7 @@ class SetCommandsTest(RedisTest):
             key, match=b'member:bar:*')
         self.assertEqual(len(values), 7)
 
-        # SCAN family functions do not guarantee that the number of
+        # SCAN family functions do not guarantee that the number (count) of
         # elements returned per call are in a given range. So here
         # just dummy test, that *count* argument does not break something
         cursor = b'0'
