@@ -410,11 +410,17 @@ class GenericCommandsTest(RedisTest):
         # test keys
         self.assertTrue(len(values) >= 10)
 
-        cursor, values = yield from self.redis.scan(match=b'key:scan:foo:*')
-        self.assertEqual(len(values), 3)
+        cursor, test_values = b'0', []
+        while cursor:
+            cursor, values = yield from self.redis.scan(match=b'key:scan:foo*')
+            test_values.extend(values)
+        self.assertEqual(len(test_values), 3)
 
-        cursor, values = yield from self.redis.scan(match=b'key:scan:bar:*')
-        self.assertEqual(len(values), 7)
+        cursor, test_values = b'0', []
+        while cursor:
+            cursor, values = yield from self.redis.scan(match=b'key:scan:bar*')
+            test_values.extend(values)
+        self.assertEqual(len(test_values), 7)
 
         # SCAN family functions do not guarantee that the number of
         # elements returned per call are in a given range. So here
