@@ -412,13 +412,15 @@ class GenericCommandsTest(RedisTest):
 
         cursor, test_values = b'0', []
         while cursor:
-            cursor, values = yield from self.redis.scan(match=b'key:scan:foo*')
+            cursor, values = yield from self.redis.scan(
+                cursor=cursor, match=b'key:scan:foo*')
             test_values.extend(values)
         self.assertEqual(len(test_values), 3)
 
         cursor, test_values = b'0', []
         while cursor:
-            cursor, values = yield from self.redis.scan(match=b'key:scan:bar*')
+            cursor, values = yield from self.redis.scan(
+                cursor=cursor, match=b'key:scan:bar:*')
             test_values.extend(values)
         self.assertEqual(len(test_values), 7)
 
