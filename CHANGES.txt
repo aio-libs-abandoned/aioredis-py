@@ -12,9 +12,19 @@ Changes
   * strings commands;
   * transactions commands.
 
+
+0.1.2 (xxxx-xx-xx)
+^^^^^^^^^^^^^^^^^^
+
 * create_connection, create_pool, create_redis functions updated:
   db and password arguments made keyword-only
   (see http://github.com/aio-libs/aioredis/issues/26);
+
+* Fixed transaction handling
+  (see http://github.com/aio-libs/aioredis/issues/32);
+
+* Response decoding
+  (see http://github.com/aio-libs/aioredis/issues/16);
 
 
 0.1.1 (2014-07-07)
