@@ -13,7 +13,7 @@ Changes
   * transactions commands.
 
 
-0.1.2 (xxxx-xx-xx)
+0.1.2 (2014-07-31)
 ^^^^^^^^^^^^^^^^^^
 
 * create_connection, create_pool, create_redis functions updated:
