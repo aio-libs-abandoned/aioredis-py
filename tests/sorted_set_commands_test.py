@@ -374,6 +374,32 @@ class SortedSetsCommandsTest(RedisTest):
             yield from self.redis.zremrangebyscore(key, 0, 'last')
 
     @run_until_complete
+    def test_zrevrange(self):
+        key = b'key:zrevrange'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        res = yield from self.redis.zrevrange(key, 0, -1, withscores=False)
+        self.assertEqual(res, members[::-1])
+        res = yield from self.redis.zrevrange(key, 0, -1, withscores=True)
+        self.assertEqual(res, pairs[::-1])
+        res = yield from self.redis.zrevrange(key, -2, -1, withscores=False)
+        self.assertEqual(res,  members[1::-1])
+        res = yield from self.redis.zrevrange(key, 1, 2, withscores=False)
+
+        self.assertEqual(res, members[3:1:-1])
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrange(None, 1, b'one')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrange(key, b'first', -1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrange(key, 0, 'last')
+
+    @run_until_complete
     def test_zrevrank(self):
         key = b'key:zrevrank'
         scores = [1, 1, 2.5, 3, 7]
@@ -392,3 +418,19 @@ class SortedSetsCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.zrevrank(None, b'one')
+
+    @run_until_complete
+    def test_zscore(self):
+        key = b'key:zscore'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+
+        for s, m in zip(scores, members):
+            res = yield from self.redis.zscore(key, m)
+            self.assertEqual(res, s)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zscore(None, b'one')

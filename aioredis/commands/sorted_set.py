@@ -301,9 +301,13 @@ class SortedSetCommandsMixin:
             b'ZREMRANGEBYSCORE', key, min, max))
 
     @asyncio.coroutine
-    def zrevrange(self, key, start, stop, *, withscores=False):
+    def zrevrange(self, key, start, stop, withscores=False):
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if start is not int
+        :raises TypeError: if stop is not int
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -315,8 +319,12 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        return (yield from self._conn.execute(
-            b'ZREVRANGE', key, start, stop, *args))
+        result = yield from self._conn.execute(
+            b'ZREVRANGE', key, start, stop, *args)
+        if withscores:
+            f = lambda i, v:  self._convert_to_int_or_float(v) if i % 2 else v
+            result = [f(i, r) for i, r in enumerate(result)]
+        return result
 
     @asyncio.coroutine
     def zrevrangebyscore(self, key, max, min, *, withscores=False, limit=None):
@@ -338,11 +346,14 @@ class SortedSetCommandsMixin:
 
     @asyncio.coroutine
     def zscore(self, key, member):
-        """Get the score associated with the given emmber in a sorted set.
+        """Get the score associated with the given member in a sorted set.
+
+        :raises TypeError: if key is None
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'ZSCORE', key, member))
+        result = yield from self._conn.execute(b'ZSCORE', key, member)
+        return self._convert_to_int_or_float(result)
 
     @asyncio.coroutine
     def zunionstore(self, destkey, numkeys, key, *keys):  # TODO: weights, etc
