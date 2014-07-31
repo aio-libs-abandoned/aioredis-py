@@ -4,7 +4,7 @@ FLAKE ?= pyflakes
 PEP ?= pep8
 REDIS_VERSION ?= "$(shell redis-server --version)"
 
-.PHONY: all flake doc test cov
+.PHONY: all flake doc test cov dist
 all: flake doc cov
 
 doc:
@@ -19,3 +19,7 @@ test:
 
 cov coverage:
 	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
+
+dist:
+	-rm -r build dist aioredis.egg-info
+	$(PYTHON) setup.py sdist bdist_wheel
