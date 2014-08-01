@@ -1,6 +1,7 @@
 import asyncio
 import hiredis
 from functools import partial
+from collections import deque
 
 from .util import encode_command
 from .errors import RedisError, ProtocolError, ReplyError
@@ -57,7 +58,7 @@ class RedisConnection:
         self._reader = reader
         self._writer = writer
         self._loop = loop
-        self._waiters = asyncio.Queue(loop=self._loop)
+        self._waiters = deque()
         self._parser = hiredis.Reader(protocolError=ProtocolError,
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
@@ -91,17 +92,25 @@ class RedisConnection:
                 else:
                     if obj is False:
                         break
-                    waiter = yield from self._waiters.get()
+                    try:
+                        waiter, encoding = self._waiters.popleft()
+                    except IndexError:
+                        raise   # this should not happen
                     if isinstance(obj, RedisError):
                         waiter.set_exception(obj)
                         if self._in_transaction:
                             self._transaction_error = obj
                     else:
+                        if encoding is not None and isinstance(obj, bytes):
+                            try:
+                                obj = obj.decode(encoding)
+                            except Exception as exc:
+                                waiter.set_exception(exc)
+                                continue
                         waiter.set_result(obj)
         self._closing = True
         self._loop.call_soon(self._do_close, None)
 
-    @asyncio.coroutine
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
 
@@ -113,24 +122,20 @@ class RedisConnection:
         """
         assert self._reader and not self._reader.at_eof(), (
             "Connection closed or corrupted")
+        if encoding is _NOTSET:
+            encoding = self._encoding
         command = command.upper().strip()
         data = encode_command(command, *args)
-        self._writer.write(data)
-        yield from self._writer.drain()
         fut = asyncio.Future(loop=self._loop)
-        yield from self._waiters.put(fut)
+        self._waiters.append((fut, encoding))
+        self._writer.write(data)
         if command in ('SELECT', b'SELECT'):
             fut.add_done_callback(partial(self._set_db, args=args))
         elif command in ('MULTI', b'MULTI'):
             fut.add_done_callback(self._start_transaction)
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             fut.add_done_callback(self._end_transaction)
-        result = yield from fut
-        if encoding is _NOTSET:
-            encoding = self._encoding
-        if encoding is not None and isinstance(result, bytes):
-            return result.decode(encoding)
-        return result
+        return fut
 
     def close(self):
         """Close connection."""
@@ -146,8 +151,8 @@ class RedisConnection:
         self._reader_task = None
         self._writer = None
         self._reader = None
-        while self._waiters.qsize():
-            waiter = self._waiters.get_nowait()
+        while self._waiters:
+            waiter, *spam = self._waiters.popleft()
             if exc is None:
                 waiter.cancel()
             else:
@@ -192,7 +197,7 @@ class RedisConnection:
         except Exception:
             pass
         else:
-            assert ok == b'OK', ok
+            assert ok in {b'OK', 'OK'}, ok
             self._db = args[0]
 
     def _start_transaction(self, fut):

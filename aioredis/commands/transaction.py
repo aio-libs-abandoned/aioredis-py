@@ -70,8 +70,8 @@ class TransactionsCommandsMixin:
         """
         if not len(coros):
             raise TypeError("At least one coroutine object is required")
-        if not all(asyncio.iscoroutine(coro) for coro in coros):
-            raise TypeError("All coroutines must be coroutine objects")
+        # if not all(asyncio.iscoroutine(coro) for coro in coros):
+        #     raise TypeError("All coroutines must be coroutine objects")
 
         yield from self.multi()
         try:

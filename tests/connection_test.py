@@ -78,7 +78,7 @@ class ConnectionTest(BaseTest):
             reader.feed_data(b'not good redis protocol response')
             yield from conn.select(1)
 
-        self.assertEqual(conn._waiters.qsize(), 0)
+        self.assertEqual(len(conn._waiters), 0)
 
     def test_close_connection__tcp(self):
         loop = self.loop
