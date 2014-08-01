@@ -127,7 +127,7 @@ class RedisConnection:
         command = command.upper().strip()
         data = encode_command(command, *args)
         fut = asyncio.Future(loop=self._loop)
-        self._waiters.append((fut, encoding))
+        self._waiters.append((fut, encoding))   # TODO: put callbacks here
         self._writer.write(data)
         if command in ('SELECT', b'SELECT'):
             fut.add_done_callback(partial(self._set_db, args=args))

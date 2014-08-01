@@ -52,8 +52,8 @@ class TransactionsCommandsMixin:
         res = yield from self._conn.execute(b'WATCH', key, *keys)
         return res == b'OK'
 
-    @asyncio.coroutine
-    def multi_exec(self, *coros):
+    @property
+    def multi_exec(self):
         """Executes redis commands in MULTI/EXEC block.
 
         Usage as follows:
@@ -68,19 +68,33 @@ class TransactionsCommandsMixin:
 
         :raises TypeError: if any of arguments is not coroutine object.
         """
-        if not len(coros):
-            raise TypeError("At least one coroutine object is required")
-        # if not all(asyncio.iscoroutine(coro) for coro in coros):
-        #     raise TypeError("All coroutines must be coroutine objects")
+        return _MultiExec(self)
 
-        yield from self.multi()
+
+class _MultiExec:
+
+    def __init__(self, redis):
+        self.redis = redis
+        self._fut = redis.connection.execute(b'MULTI')
+
+    @asyncio.coroutine
+    def __call__(self, *futures):
+        if not len(futures):
+            raise TypeError("At least one coroutine object is required")
+        if not all(self._type_check(fut) for fut in futures):
+            raise TypeError("All arguments must be coroutine"
+                            " objects or Futures")
         try:
+            yield from self._fut
             # TODO: check if coro is not canceled or done
-            for coro in coros:
-                yield from coro
+            for fut in futures:
+                yield from fut
         finally:
-            if not self._conn.closed:
-                if self._conn._transaction_error:
-                    yield from self.discard()
+            if not self.redis.connection.closed:
+                if self.redis.connection._transaction_error:
+                    yield from self.redis.discard()
                 else:
-                    return (yield from self.exec())
+                    return (yield from self.redis.exec())
+
+    def _type_check(self, obj):
+        return asyncio.iscoroutine(obj) or isinstance(obj, asyncio.Future)
