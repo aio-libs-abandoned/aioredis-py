@@ -92,10 +92,7 @@ class RedisConnection:
                 else:
                     if obj is False:
                         break
-                    try:
-                        waiter, encoding, cb = self._waiters.popleft()
-                    except IndexError:
-                        raise   # this should not happen
+                    waiter, encoding, cb = self._waiters.popleft()
                     if isinstance(obj, RedisError):
                         waiter.set_exception(obj)
                         if self._in_transaction:

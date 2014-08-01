@@ -9,12 +9,11 @@ class TransactionsCommandsMixin:
     For commands details see: http://redis.io/commands/#transactions
     """
 
-    @asyncio.coroutine
     def discard(self):
         """Discard all commands issued after MULTI."""
         assert self._conn.in_transaction
-        res = yield from self._conn.execute(b'DISCARD')
-        return res == b'OK'
+        fut = self._conn.execute(b'DISCARD')
+        return self._wait_ok(fut)
 
     @asyncio.coroutine
     def exec(self):
@@ -26,20 +25,17 @@ class TransactionsCommandsMixin:
                 raise obj
         return res
 
-    @asyncio.coroutine
     def multi(self):
         """Mark the start of a transaction block."""
         assert not self._conn.in_transaction
-        res = yield from self._conn.execute(b'MULTI')
-        return res == b'OK'
+        fut = self._conn.execute(b'MULTI')
+        return self._wait_ok(fut)
 
-    @asyncio.coroutine
     def unwatch(self):
         """Forget about all watched keys."""
-        res = yield from self._conn.execute(b'UNWATCH')
-        return res == b'OK'
+        fut = self._conn.execute(b'UNWATCH')
+        return self._wait_ok(fut)
 
-    @asyncio.coroutine
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
 
@@ -49,8 +45,8 @@ class TransactionsCommandsMixin:
             raise TypeError("key argument must not be None")
         if any(k is None for k in keys):
             raise TypeError("keys must not be None")
-        res = yield from self._conn.execute(b'WATCH', key, *keys)
-        return res == b'OK'
+        fut = self._conn.execute(b'WATCH', key, *keys)
+        return self._wait_ok(fut)
 
     @property
     def multi_exec(self):
@@ -86,7 +82,6 @@ class _MultiExec:
                             " objects or Futures")
         try:
             yield from self._fut
-            # TODO: check if coro is not canceled or done
             for fut in futures:
                 yield from fut
         finally:

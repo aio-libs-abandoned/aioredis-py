@@ -61,7 +61,6 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """True if connection is closed."""
         return self._conn.closed
 
-    @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server.
 
@@ -69,28 +68,36 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._conn.auth(password)
 
-    @asyncio.coroutine
     def echo(self, message):
         """Echo the given string."""
-        return (yield from self._conn.execute('ECHO', message))
+        return self._conn.execute('ECHO', message)
 
-    @asyncio.coroutine
     def ping(self):
         """Ping the server."""
-        return (yield from self._conn.execute('PING'))
+        return self._conn.execute('PING')
 
-    @asyncio.coroutine
     def quit(self):
         """Close the connection."""
-        return (yield from self._conn.execute('QUIT'))
+        return self._conn.execute('QUIT')
 
-    @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.
 
         This method wraps call to :meth:`aioredis.RedisConnection.select()`
         """
         return self._conn.select(db)
+
+    # Several private shortcuts used by mixins
+
+    @asyncio.coroutine
+    def _wait_ok(self, fut):
+        res = yield from fut
+        return res == b'OK'
+
+    @asyncio.coroutine
+    def _wait_convert(self, fut, type_):
+        res = yield from fut
+        return type_(res)
 
 
 @asyncio.coroutine

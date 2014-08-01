@@ -7,7 +7,6 @@ class GenericCommandsMixin:
     For commands details see: http://redis.io/commands/#generic
     """
 
-    @asyncio.coroutine
     def delete(self, key, *keys):
         """Delete a key.
 
@@ -17,10 +16,9 @@ class GenericCommandsMixin:
             raise TypeError("key argument must not be None")
         if None in set(keys):
             raise TypeError("keys must not contain None")
-        ret = yield from self._conn.execute(b'DEL', key, *keys)
-        return int(ret)
+        fut = self._conn.execute(b'DEL', key, *keys)
+        return self._wait_convert(fut, int)
 
-    @asyncio.coroutine
     def dump(self, key):
         """Dump a key.
 
@@ -28,9 +26,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'DUMP', key))
+        return self._conn.execute(b'DUMP', key)
 
-    @asyncio.coroutine
     def exists(self, key):
         """Check if key exists.
 
@@ -38,10 +35,9 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        ret = yield from self._conn.execute(b'EXISTS', key)
-        return bool(ret)
+        fut = self._conn.execute(b'EXISTS', key)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def expire(self, key, timeout):
         """Set a timeout on key.
 
@@ -55,15 +51,13 @@ class GenericCommandsMixin:
         if key is None:
             raise TypeError("key argument must not be None")
         if isinstance(timeout, float):
-            ret = yield from self.pexpire(key, int(timeout * 1000))
-            return ret
+            return self.pexpire(key, int(timeout * 1000))
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int, not {!r}"
                             .format(timeout))
-        ret = yield from self._conn.execute(b'EXPIRE', key, timeout)
-        return bool(ret)
+        fut = self._conn.execute(b'EXPIRE', key, timeout)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def expireat(self, key, timestamp):
         """Set expire timestamp on key.
 
@@ -77,15 +71,13 @@ class GenericCommandsMixin:
         if key is None:
             raise TypeError("key argument must not be None")
         if isinstance(timestamp, float):
-            ret = yield from self.pexpireat(key, int(timestamp * 1000))
-            return ret
+            return self.pexpireat(key, int(timestamp * 1000))
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
-        ret = yield from self._conn.execute(b'EXPIREAT', key, timestamp)
-        return bool(ret)
+        fut = self._conn.execute(b'EXPIREAT', key, timestamp)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def keys(self, pattern):
         """Returns all keys matching pattern.
 
@@ -93,9 +85,8 @@ class GenericCommandsMixin:
         """
         if pattern is None:
             raise TypeError("pattern argument must not be None")
-        return (yield from self._conn.execute(b'KEYS', pattern))
+        return self._conn.execute(b'KEYS', pattern)
 
-    @asyncio.coroutine
     def migrate(self, host, port, key, dest_db, timeout,
                 copy=False, replace=False):
         """Atomically transfer a key from a Redis instance to another one."""
@@ -119,11 +110,10 @@ class GenericCommandsMixin:
             flags.append(b'COPY')
         if replace:
             flags.append(b'REPLACE')
-        res = yield from self._conn.execute(b'MIGRATE', host, port,
-                                            key, dest_db, timeout, *flags)
-        return res == b'OK'
+        fut = self._conn.execute(b'MIGRATE', host, port,
+                                 key, dest_db, timeout, *flags)
+        return self._wait_ok(fut)
 
-    @asyncio.coroutine
     def move(self, key, db):
         """Move key from currently selected database to specified destination.
 
@@ -137,10 +127,9 @@ class GenericCommandsMixin:
         if db < 0:
             raise ValueError("db argument must be not less then 0, {!r}"
                              .format(db))
-        ret = yield from self._conn.execute(b'MOVE', key, db)
-        return bool(ret)
+        fut = self._conn.execute(b'MOVE', key, db)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def object_refcount(self, key):
         """Returns the number of references of the value associated
         with the specified key (OBJECT REFCOUNT).
@@ -149,9 +138,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'OBJECT', b'REFCOUNT', key))
+        return self._conn.execute(b'OBJECT', b'REFCOUNT', key)
 
-    @asyncio.coroutine
     def object_encoding(self, key):
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
@@ -160,9 +148,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'OBJECT', b'ENCODING', key))
+        return self._conn.execute(b'OBJECT', b'ENCODING', key)
 
-    @asyncio.coroutine
     def object_idletime(self, key):
         """Returns the number of seconds since the object is not requested
         by read or write operations (OBJECT IDLETIME).
@@ -171,9 +158,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'OBJECT', b'IDLETIME', key))
+        return self._conn.execute(b'OBJECT', b'IDLETIME', key)
 
-    @asyncio.coroutine
     def persist(self, key):
         """Remove the existing timeout on key.
 
@@ -181,10 +167,9 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        ret = yield from self._conn.execute(b'PERSIST', key)
-        return bool(ret)
+        fut = self._conn.execute(b'PERSIST', key)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def pexpire(self, key, timeout):
         """Set a milliseconds timeout on key.
 
@@ -195,10 +180,9 @@ class GenericCommandsMixin:
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int, not {!r}"
                             .format(timeout))
-        ret = yield from self._conn.execute(b'PEXPIRE', key, timeout)
-        return bool(ret)
+        fut = self._conn.execute(b'PEXPIRE', key, timeout)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def pexpireat(self, key, timestamp):
         """Set expire timestamp on key, timestamp in milliseconds.
 
@@ -209,10 +193,9 @@ class GenericCommandsMixin:
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
-        ret = yield from self._conn.execute(b'PEXPIREAT', key, timestamp)
-        return bool(ret)
+        fut = self._conn.execute(b'PEXPIREAT', key, timestamp)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def pttl(self, key):
         """Returns time-to-live for a key, in milliseconds.
 
@@ -225,18 +208,15 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        ret = yield from self._conn.execute(b'PTTL', key)
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
-        return ret
+        return self._conn.execute(b'PTTL', key)
 
-    @asyncio.coroutine
     def randomkey(self):
         """Return a random key from the currently selected database."""
-        return (yield from self._conn.execute(b'RANDOMKEY'))
+        return self._conn.execute(b'RANDOMKEY')
 
-    @asyncio.coroutine
     def rename(self, key, newkey):
         """Renames key to newkey.
 
@@ -249,10 +229,9 @@ class GenericCommandsMixin:
             raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
-        ret = yield from self._conn.execute(b'RENAME', key, newkey)
-        return ret == b'OK'
+        fut = self._conn.execute(b'RENAME', key, newkey)
+        return self._wait_ok(fut)
 
-    @asyncio.coroutine
     def renamenx(self, key, newkey):
         """Renames key to newkey only if newkey does not exist.
 
@@ -265,10 +244,9 @@ class GenericCommandsMixin:
             raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
-        ret = yield from self._conn.execute(b'RENAMENX', key, newkey)
-        return bool(ret)
+        fut = self._conn.execute(b'RENAMENX', key, newkey)
+        return self._wait_convert(fut, bool)
 
-    @asyncio.coroutine
     def restore(self, key, ttl, value):
         """Creates a key associated with a value that is obtained via DUMP.
 
@@ -276,10 +254,8 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        ret = yield from self._conn.execute(b'RESTORE', key, ttl, value)
-        return ret
+        return self._conn.execute(b'RESTORE', key, ttl, value)
 
-    @asyncio.coroutine
     def scan(self, cursor=0, match=None, count=None):
         """Incrementally iterate the keys space."""
         args = []
@@ -287,10 +263,9 @@ class GenericCommandsMixin:
             args += [b'MATCH', match]
         if count is not None:
             args += [b'COUNT', count]
-        cursor, items = yield from self._conn.execute(b'SCAN', cursor, *args)
-        return int(cursor), items
+        fut = self._conn.execute(b'SCAN', cursor, *args)
+        return self._wait_convert(fut, lambda o: (int(o[0]), o[1]))
 
-    @asyncio.coroutine
     def sort(self, key, *get_patterns,
              by=None, offset=None, count=None,
              asc=None, alpha=False, store=None):
@@ -313,10 +288,8 @@ class GenericCommandsMixin:
             args += [b'ALPHA']
         if store is not None:
             args += [b'STORE', store]
-        result = yield from self._conn.execute(b'SORT', key, *args)
-        return result
+        return self._conn.execute(b'SORT', key, *args)
 
-    @asyncio.coroutine
     def ttl(self, key):
         """Returns time-to-live for a key, in seconds.
 
@@ -328,13 +301,11 @@ class GenericCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        ret = yield from self._conn.execute(b'TTL', key)
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
-        return ret
+        return self._conn.execute(b'TTL', key)
 
-    @asyncio.coroutine
     def type(self, key):
         """Returns the string representation of the value's type stored at key.
 
@@ -343,4 +314,4 @@ class GenericCommandsMixin:
         if key is None:
             raise TypeError("key argument must not be None")
         # NOTE: for non-existent keys TYPE returns b'none'
-        return (yield from self._conn.execute(b'TYPE', key))
+        return self._conn.execute(b'TYPE', key)
