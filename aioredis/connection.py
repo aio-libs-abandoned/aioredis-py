@@ -93,7 +93,7 @@ class RedisConnection:
                     if obj is False:
                         break
                     try:
-                        waiter, encoding = self._waiters.popleft()
+                        waiter, encoding, cb = self._waiters.popleft()
                     except IndexError:
                         raise   # this should not happen
                     if isinstance(obj, RedisError):
@@ -108,6 +108,8 @@ class RedisConnection:
                                 waiter.set_exception(exc)
                                 continue
                         waiter.set_result(obj)
+                        if cb is not None:
+                            cb(obj)
         self._closing = True
         self._loop.call_soon(self._do_close, None)
 
@@ -122,19 +124,20 @@ class RedisConnection:
         """
         assert self._reader and not self._reader.at_eof(), (
             "Connection closed or corrupted")
+        command = command.upper().strip()
+        if command in ('SELECT', b'SELECT'):
+            cb = partial(self._set_db, args=args)
+        elif command in ('MULTI', b'MULTI'):
+            cb = self._start_transaction
+        elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
+            cb = self._end_transaction
+        else:
+            cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        command = command.upper().strip()
-        data = encode_command(command, *args)
         fut = asyncio.Future(loop=self._loop)
-        self._waiters.append((fut, encoding))   # TODO: put callbacks here
-        self._writer.write(data)
-        if command in ('SELECT', b'SELECT'):
-            fut.add_done_callback(partial(self._set_db, args=args))
-        elif command in ('MULTI', b'MULTI'):
-            fut.add_done_callback(self._start_transaction)
-        elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
-            fut.add_done_callback(self._end_transaction)
+        self._waiters.append((fut, encoding, cb))
+        self._writer.write(encode_command(command, *args))
         return fut
 
     def close(self):
@@ -191,34 +194,19 @@ class RedisConnection:
         yield from self.execute('SELECT', db)
         return True
 
-    def _set_db(self, fut, args):
-        try:
-            ok = fut.result()
-        except Exception:
-            pass
-        else:
-            assert ok in {b'OK', 'OK'}, ok
-            self._db = args[0]
+    def _set_db(self, ok, args):
+        assert ok in {b'OK', 'OK'}, ok
+        self._db = args[0]
 
-    def _start_transaction(self, fut):
-        try:
-            fut.result()
-        except Exception:
-            pass
-        else:
-            assert not self._in_transaction
-            self._in_transaction = True
-            self._transaction_error = None
+    def _start_transaction(self, ok):
+        assert not self._in_transaction
+        self._in_transaction = True
+        self._transaction_error = None
 
-    def _end_transaction(self, fut):
-        try:
-            fut.result()
-        except Exception:
-            pass
-        else:
-            assert self._in_transaction
-            self._in_transaction = False
-            self._transaction_error = None
+    def _end_transaction(self, ok):
+        assert self._in_transaction
+        self._in_transaction = False
+        self._transaction_error = None
 
     @property
     def in_transaction(self):
