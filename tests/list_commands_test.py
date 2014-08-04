@@ -1,11 +1,9 @@
 import asyncio
-import unittest
 
 from ._testutil import RedisTest, run_until_complete
 from aioredis import create_redis, ReplyError
 
 
-@unittest.skip("Test refactoring is needed")
 class ListCommandsTest(RedisTest):
 
     @run_until_complete
@@ -41,21 +39,19 @@ class ListCommandsTest(RedisTest):
             ('localhost', self.redis_port), loop=self.loop)
 
         # create blocking task in separate connection
-        consumer_task = asyncio.Task(
-            other_redis.blpop(key1, key2), loop=self.loop)
+        consumer = other_redis.blpop(key1, key2)
 
         producer_task = asyncio.Task(
             self.push_data_with_sleep(key2, value), loop=self.loop)
         results = yield from asyncio.gather(
-            consumer_task, producer_task, loop=self.loop)
+            consumer, producer_task, loop=self.loop)
 
         self.assertEqual(results[0], [key2, value])
         self.assertEqual(results[1], 1)
 
         # wait for data with timeout, list is emtpy, so blpop should
         # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.blpop(key1, key2, timeout=1), loop=self.loop)
+        waiter = self.redis.blpop(key1, key2, timeout=1)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
         other_redis.close()
@@ -98,8 +94,7 @@ class ListCommandsTest(RedisTest):
         other_redis = yield from create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         # create blocking task in separate connection
-        consumer_task = asyncio.Task(
-            other_redis.brpop(key1, key2), loop=self.loop)
+        consumer_task = other_redis.brpop(key1, key2)
 
         producer_task = asyncio.Task(
             self.push_data_with_sleep(key2, value), loop=self.loop)
@@ -112,8 +107,7 @@ class ListCommandsTest(RedisTest):
 
         # wait for data with timeout, list is emtpy, so brpop should
         # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.brpop(key1, key2, timeout=1), loop=self.loop)
+        waiter = self.redis.brpop(key1, key2, timeout=1)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
         other_redis.close()
@@ -159,8 +153,7 @@ class ListCommandsTest(RedisTest):
         other_redis = yield from create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         # create blocking task
-        consumer_task = asyncio.Task(
-            other_redis.brpoplpush(source, destkey), loop=self.loop)
+        consumer_task = other_redis.brpoplpush(source, destkey)
         producer_task = asyncio.Task(
             self.push_data_with_sleep(source, value), loop=self.loop)
         results = yield from asyncio.gather(
@@ -174,8 +167,7 @@ class ListCommandsTest(RedisTest):
 
         # wait for data with timeout, list is emtpy, so brpoplpush should
         # return None in 1 sec
-        waiter = asyncio.Task(
-            self.redis.brpoplpush(source, destkey, timeout=1), loop=self.loop)
+        waiter = self.redis.brpoplpush(source, destkey, timeout=1)
         test_value = yield from waiter
         self.assertEqual(test_value, None)
         other_redis.close()
