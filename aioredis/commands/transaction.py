@@ -1,6 +1,7 @@
 import asyncio
 
 from ..errors import RedisError
+from ..util import wait_ok, wait_convert
 
 
 class TransactionsCommandsMixin:
@@ -13,28 +14,24 @@ class TransactionsCommandsMixin:
         """Discard all commands issued after MULTI."""
         assert self._conn.in_transaction
         fut = self._conn.execute(b'DISCARD')
-        return self._wait_ok(fut)
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def exec(self):
         """Execute all commands issued after MULTI."""
         assert self._conn.in_transaction
-        res = yield from self._conn.execute(b'EXEC')
-        for obj in res:
-            if isinstance(obj, RedisError):
-                raise obj
-        return res
+        fut = self._conn.execute(b'EXEC')
+        return wait_convert(fut, check_errors)
 
     def multi(self):
         """Mark the start of a transaction block."""
         assert not self._conn.in_transaction
         fut = self._conn.execute(b'MULTI')
-        return self._wait_ok(fut)
+        return wait_ok(fut)
 
     def unwatch(self):
         """Forget about all watched keys."""
         fut = self._conn.execute(b'UNWATCH')
-        return self._wait_ok(fut)
+        return wait_ok(fut)
 
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
@@ -46,7 +43,7 @@ class TransactionsCommandsMixin:
         if any(k is None for k in keys):
             raise TypeError("keys must not be None")
         fut = self._conn.execute(b'WATCH', key, *keys)
-        return self._wait_ok(fut)
+        return wait_ok(fut)
 
     @property
     def multi_exec(self):
@@ -93,3 +90,10 @@ class _MultiExec:
 
     def _type_check(self, obj):
         return asyncio.iscoroutine(obj) or isinstance(obj, asyncio.Future)
+
+
+def check_errors(res):
+    for obj in res:
+        if isinstance(obj, RedisError):
+            raise obj
+    return res

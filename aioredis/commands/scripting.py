@@ -1,4 +1,4 @@
-import asyncio
+from aioredis.util import wait_ok
 
 
 class ScriptingCommandsMixin:
@@ -7,7 +7,6 @@ class ScriptingCommandsMixin:
     For commands details see: http://redis.io/commands#scripting
     """
 
-    @asyncio.coroutine
     def eval(self, script, keys=[], args=[]):
         """Execute a Lua script server side.
 
@@ -20,10 +19,8 @@ class ScriptingCommandsMixin:
             raise TypeError("keys must not contain None")
         if None in set(args):
             raise TypeError("args must not contain None")
-        return (yield from self._conn.execute(
-            b'EVAL', script, len(keys), *(keys + args)))
+        return self._conn.execute(b'EVAL', script, len(keys), *(keys + args))
 
-    @asyncio.coroutine
     def evalsha(self, digest, keys=[], args=[]):
         """Execute a Lua script server side by its SHA1 digest.
 
@@ -36,10 +33,9 @@ class ScriptingCommandsMixin:
             raise TypeError("keys list must not contain None")
         if None in set(args):
             raise TypeError("args list must not contain None")
-        return (yield from self._conn.execute(
-            b'EVALSHA', digest, len(keys), *(keys + args)))
+        return self._conn.execute(
+            b'EVALSHA', digest, len(keys), *(keys + args))
 
-    @asyncio.coroutine
     def script_exists(self, digest, *digests):
         """Check existence of scripts in the script cache.
 
@@ -49,22 +45,18 @@ class ScriptingCommandsMixin:
             raise TypeError("digest argument must not be None")
         if None in set(digests):
             raise TypeError("digests must not contain None")
-        return (yield from self._conn.execute(
-            b'SCRIPT', b'EXISTS', digest, *digests))
+        return self._conn.execute(b'SCRIPT', b'EXISTS', digest, *digests)
 
-    @asyncio.coroutine
     def script_kill(self):
         """Kill the script currently in execution."""
-        res = yield from self._conn.execute(b'SCRIPT', b'KILL')
-        return res == b'OK'
+        fut = self._conn.execute(b'SCRIPT', b'KILL')
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def script_flush(self):
         """Remove all the scripts from the script cache."""
-        res = yield from self._conn.execute(b"SCRIPT",  b"FLUSH")
-        return res == b'OK'
+        fut = self._conn.execute(b"SCRIPT",  b"FLUSH")
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def script_load(self, script):
         """Load the specified Lua script into the script cache."""
-        return (yield from self._conn.execute(b"SCRIPT",  b"LOAD", script))
+        return self._conn.execute(b"SCRIPT",  b"LOAD", script)

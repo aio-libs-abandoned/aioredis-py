@@ -91,9 +91,9 @@ class ConnectionTest(BaseTest):
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
         with self.assertRaises(AssertionError):
-            coro = conn.select(1)
             conn.close()
-            loop.run_until_complete(coro)
+            fut = conn.select(1)
+            loop.run_until_complete(fut)
 
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     @run_until_complete

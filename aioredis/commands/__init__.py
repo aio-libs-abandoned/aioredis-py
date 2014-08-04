@@ -1,6 +1,7 @@
 import asyncio
 
 from aioredis.connection import create_connection
+from aioredis.util import _NOTSET
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
 from .hash import HashCommandsMixin
@@ -68,13 +69,13 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._conn.auth(password)
 
-    def echo(self, message):
+    def echo(self, message, *, encoding=_NOTSET):
         """Echo the given string."""
-        return self._conn.execute('ECHO', message)
+        return self._conn.execute('ECHO', message, encoding=encoding)
 
-    def ping(self):
+    def ping(self, *, encoding=_NOTSET):
         """Ping the server."""
-        return self._conn.execute('PING')
+        return self._conn.execute('PING', encoding=encoding)
 
     def quit(self):
         """Close the connection."""
@@ -86,18 +87,6 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         This method wraps call to :meth:`aioredis.RedisConnection.select()`
         """
         return self._conn.select(db)
-
-    # Several private shortcuts used by mixins
-
-    @asyncio.coroutine
-    def _wait_ok(self, fut):
-        res = yield from fut
-        return res == b'OK'
-
-    @asyncio.coroutine
-    def _wait_convert(self, fut, type_):
-        res = yield from fut
-        return type_(res)
 
 
 @asyncio.coroutine

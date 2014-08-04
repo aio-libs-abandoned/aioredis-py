@@ -110,14 +110,13 @@ class ScriptCommandsTest(RedisTest):
 
         yield from self.add('key1', 'value')
 
-        coro = other_redis.eval(script, keys=['non-existent-key'], args=[10])
-        blocked_task = asyncio.Task(coro, loop=self.loop)
+        fut = other_redis.eval(script, keys=['non-existent-key'], args=[10])
         yield from asyncio.sleep(0, loop=self.loop)
         resp = yield from self.redis.script_kill()
         self.assertTrue(resp)
 
         with self.assertRaises(ReplyError):
-            yield from blocked_task
+            yield from fut
 
         with self.assertRaises(ReplyError):
             yield from self.redis.script_kill()

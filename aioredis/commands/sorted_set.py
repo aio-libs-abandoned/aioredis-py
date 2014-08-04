@@ -1,5 +1,6 @@
-import asyncio
 import math
+
+from aioredis.util import wait_convert
 
 
 class SortedSetCommandsMixin:
@@ -8,7 +9,6 @@ class SortedSetCommandsMixin:
     For commands details see: http://redis.io/commands/#sorted_set
     """
 
-    @asyncio.coroutine
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.
 
@@ -26,10 +26,8 @@ class SortedSetCommandsMixin:
         scores = (item for i, item in enumerate(pairs) if i % 2 == 0)
         if any(not isinstance(s, (int, float)) for s in scores):
             raise TypeError("all scores must be int or float")
-        return (yield from self._conn.execute(b'ZADD', key, score, member,
-                                              *pairs))
+        return self._conn.execute(b'ZADD', key, score, member, *pairs)
 
-    @asyncio.coroutine
     def zcard(self, key):
         """Get the number of members in a sorted set.
 
@@ -37,10 +35,9 @@ class SortedSetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'ZCARD', key))
+        return self._conn.execute(b'ZCARD', key)
 
-    @asyncio.coroutine
-    def zcount(self, key, min=float(b'-inf'), max=float(b'inf'),
+    def zcount(self, key, min=float('-inf'), max=float('inf'),
                include_min=True, include_max=True):
         """Count the members in a sorted set with scores
         within the given values.
@@ -63,9 +60,8 @@ class SortedSetCommandsMixin:
         if not include_max and not math.isinf(max):
             max = ("(" + str(max)).encode('utf-8')
 
-        return (yield from self._conn.execute(b'ZCOUNT', key, min, max))
+        return self._conn.execute(b'ZCOUNT', key, min, max)
 
-    @asyncio.coroutine
     def zincrby(self, key, increment, member):
         """Increment the score of a member in a sorted set.
 
@@ -76,16 +72,13 @@ class SortedSetCommandsMixin:
             raise TypeError("key argument must not be None")
         if not isinstance(increment, (int, float)):
             raise TypeError("increment argument must be int or float")
-        result = (yield from self._conn.execute(b'ZINCRBY', key,
-                                                increment, member))
-        return self._convert_to_int_or_float(result)
+        fut = self._conn.execute(b'ZINCRBY', key, increment, member)
+        return wait_convert(fut, int_or_float)
 
-    @asyncio.coroutine
     def zinterstore(self, destkey, numkeys, key, *keys):  # TODO: weighs, etc
         """Intersect multiple sorted sets and store result in a new key."""
         raise NotImplementedError
 
-    @asyncio.coroutine
     def zlexcount(self, key, min=b'-', max=b'+', include_min=True,
                   include_max=True):
         """Count the number of members in a sorted set between a given
@@ -105,9 +98,8 @@ class SortedSetCommandsMixin:
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
             max = (b'[' if include_max else b'(') + max
-        return (yield from self._conn.execute(b'ZLEXCOUNT', key, min, max))
+        return self._conn.execute(b'ZLEXCOUNT', key, min, max)
 
-    @asyncio.coroutine
     def zrange(self, key, start=0, stop=-1, withscores=False):
         """Return a range of members in a sorted set, by index.
 
@@ -125,14 +117,11 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        result = (yield from self._conn.execute(
-            b'ZRANGE', key, start, stop, *args))
+        fut = self._conn.execute(b'ZRANGE', key, start, stop, *args)
         if withscores:
-            f = lambda i, v:  self._convert_to_int_or_float(v) if i % 2 else v
-            result = [f(i, r) for i, r in enumerate(result)]
-        return result
+            return wait_convert(fut, pairs_int_or_float)
+        return fut
 
-    @asyncio.coroutine
     def zrangebylex(self, key, min=b'-', max=b'+', include_min=True,
                     include_max=True, offset=None, count=None):
         """Return a range of members in a sorted set, by lexicographical range.
@@ -143,7 +132,6 @@ class SortedSetCommandsMixin:
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not bytes
         :raises TypeError: if count is not bytes
-
         """
         if key is None:
             raise TypeError("key argument must not be None")
@@ -168,11 +156,9 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
 
-        return (yield from self._conn.execute(
-            b'ZRANGEBYLEX', key, min, max, *args))
+        return self._conn.execute(b'ZRANGEBYLEX', key, min, max, *args)
 
-    @asyncio.coroutine
-    def zrangebyscore(self, key, min=float(b'-inf'), max=float(b'inf'),
+    def zrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                       include_min=True, include_max=True,
                       withscores=False, offset=None, count=None):
         """Return a range of memebers in a sorted set, by score.
@@ -208,15 +194,12 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        result = (yield from self._conn.execute(
-            b'ZRANGEBYSCORE', key, min, max, *args))
+        fut = self._conn.execute(b'ZRANGEBYSCORE', key, min, max, *args)
 
         if withscores:
-            f = lambda i, v:  self._convert_to_int_or_float(v) if i % 2 else v
-            result = [f(i, r) for i, r in enumerate(result)]
-        return result
+            return wait_convert(fut, pairs_int_or_float)
+        return fut
 
-    @asyncio.coroutine
     def zrank(self, key, member):
         """Determine the index of a member in a sorted set.
 
@@ -224,9 +207,8 @@ class SortedSetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'ZRANK', key, member))
+        return self._conn.execute(b'ZRANK', key, member)
 
-    @asyncio.coroutine
     def zrem(self, key, member, *members):
         """Remove one or more members from a sorted set.
 
@@ -234,9 +216,8 @@ class SortedSetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'ZREM', key, member, *members))
+        return self._conn.execute(b'ZREM', key, member, *members)
 
-    @asyncio.coroutine
     def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
                        include_max=True,):
         """Remove all members in a sorted set between the given
@@ -256,10 +237,8 @@ class SortedSetCommandsMixin:
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
             max = (b'[' if include_max else b'(') + max
-        return (yield from self._conn.execute(b'ZREMRANGEBYLEX',
-                                              key, min, max))
+        return self._conn.execute(b'ZREMRANGEBYLEX', key, min, max)
 
-    @asyncio.coroutine
     def zremrangebyrank(self, key, start, stop):
         """Remove all members in a sorted set within the given indexes.
 
@@ -273,11 +252,9 @@ class SortedSetCommandsMixin:
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
             raise TypeError("stop argument must be int")
-        return (yield from self._conn.execute(
-            b'ZREMRANGEBYRANK', key, start, stop))
+        return self._conn.execute(b'ZREMRANGEBYRANK', key, start, stop)
 
-    @asyncio.coroutine
-    def zremrangebyscore(self, key, min=float(b'-inf'), max=float(b'inf'),
+    def zremrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                          include_min=True, include_max=True):
         """Remove all members in a sorted set within the given scores.
 
@@ -297,10 +274,8 @@ class SortedSetCommandsMixin:
         if not include_max and not math.isinf(max):
             max = ("(" + str(max)).encode('utf-8')
 
-        return (yield from self._conn.execute(
-            b'ZREMRANGEBYSCORE', key, min, max))
+        return self._conn.execute(b'ZREMRANGEBYSCORE', key, min, max)
 
-    @asyncio.coroutine
     def zrevrange(self, key, start, stop, withscores=False):
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
@@ -319,21 +294,17 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        result = yield from self._conn.execute(
-            b'ZREVRANGE', key, start, stop, *args)
+        fut = self._conn.execute(b'ZREVRANGE', key, start, stop, *args)
         if withscores:
-            f = lambda i, v:  self._convert_to_int_or_float(v) if i % 2 else v
-            result = [f(i, r) for i, r in enumerate(result)]
-        return result
+            return wait_convert(fut, pairs_int_or_float)
+        return fut
 
-    @asyncio.coroutine
     def zrevrangebyscore(self, key, max, min, *, withscores=False, limit=None):
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
         """
         raise NotImplementedError
 
-    @asyncio.coroutine
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
         scores ordered from high to low.
@@ -342,9 +313,8 @@ class SortedSetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        return (yield from self._conn.execute(b'ZREVRANK', key, member))
+        return self._conn.execute(b'ZREVRANK', key, member)
 
-    @asyncio.coroutine
     def zscore(self, key, member):
         """Get the score associated with the given member in a sorted set.
 
@@ -352,15 +322,13 @@ class SortedSetCommandsMixin:
         """
         if key is None:
             raise TypeError("key argument must not be None")
-        result = yield from self._conn.execute(b'ZSCORE', key, member)
-        return self._convert_to_int_or_float(result)
+        fut = self._conn.execute(b'ZSCORE', key, member)
+        return wait_convert(fut, int_or_float)
 
-    @asyncio.coroutine
     def zunionstore(self, destkey, numkeys, key, *keys):  # TODO: weights, etc
         """Add multiple sorted sets and store result in a new key."""
         raise NotImplementedError
 
-    @asyncio.coroutine
     def zscan(self, key, cursor, match=None, count=None):
         """Incrementally iterate sorted sets elements and associated scores."""
         if key is None:
@@ -370,15 +338,19 @@ class SortedSetCommandsMixin:
             args += [b'MATCH', match]
         if count is not None:
             args += [b'COUNT', count]
-        cursor, items = yield from self._conn.execute(
-            b'ZSCAN', key, cursor, *args)
-        return int(cursor), items
+        fut = self._conn.execute(b'ZSCAN', key, cursor, *args)
+        return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
 
-    def _convert_to_int_or_float(self, raw_value):
-        assert isinstance(raw_value, bytes), 'raw_value must be bytes'
-        value_str = raw_value.decode('utf-8')
-        try:
-            value = int(value_str)
-        except ValueError:
-            value = float(value_str)
-        return value
+
+def int_or_float(value):
+    assert isinstance(value, (str, bytes)), 'raw_value must be bytes'
+    try:
+        return int(value)
+    except ValueError:
+        return float(value)
+
+
+def pairs_int_or_float(value):
+    it = iter(value)
+    return list(sum(([val, int_or_float(score)] for val, score in zip(it, it)),
+                    []))

@@ -3,14 +3,13 @@ import hiredis
 from functools import partial
 from collections import deque
 
-from .util import encode_command
+from .util import encode_command, wait_ok, _NOTSET
 from .errors import RedisError, ProtocolError, ReplyError
 
 
 __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
-_NOTSET = object()
 
 
 @asyncio.coroutine
@@ -177,7 +176,6 @@ class RedisConnection:
         """Current set codec or None."""
         return self._encoding
 
-    @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.
 
@@ -188,8 +186,8 @@ class RedisConnection:
         if db < 0:
             raise ValueError("DB must be greater or equal 0, got {!r}"
                              .format(db))
-        yield from self.execute('SELECT', db)
-        return True
+        fut = self.execute('SELECT', db)
+        return wait_ok(fut)
 
     def _set_db(self, ok, args):
         assert ok in {b'OK', 'OK'}, ok
@@ -210,8 +208,7 @@ class RedisConnection:
         """Set to True when MULTI command was issued."""
         return self._in_transaction
 
-    @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server."""
-        ok = yield from self.execute('AUTH', password)
-        return ok == b'OK'
+        fut = self.execute('AUTH', password)
+        return wait_ok(fut)
