@@ -1,15 +1,15 @@
 import asyncio
 import hiredis
 from functools import partial
+from collections import deque
 
-from .util import encode_command
+from .util import encode_command, wait_ok, _NOTSET
 from .errors import RedisError, ProtocolError, ReplyError
 
 
 __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
-_NOTSET = object()
 
 
 @asyncio.coroutine
@@ -57,7 +57,7 @@ class RedisConnection:
         self._reader = reader
         self._writer = writer
         self._loop = loop
-        self._waiters = asyncio.Queue(loop=self._loop)
+        self._waiters = deque()
         self._parser = hiredis.Reader(protocolError=ProtocolError,
                                       replyError=ReplyError)
         self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
@@ -91,17 +91,24 @@ class RedisConnection:
                 else:
                     if obj is False:
                         break
-                    waiter = yield from self._waiters.get()
+                    waiter, encoding, cb = self._waiters.popleft()
                     if isinstance(obj, RedisError):
                         waiter.set_exception(obj)
                         if self._in_transaction:
                             self._transaction_error = obj
                     else:
+                        if encoding is not None and isinstance(obj, bytes):
+                            try:
+                                obj = obj.decode(encoding)
+                            except Exception as exc:
+                                waiter.set_exception(exc)
+                                continue
                         waiter.set_result(obj)
+                        if cb is not None:
+                            cb(obj)
         self._closing = True
         self._loop.call_soon(self._do_close, None)
 
-    @asyncio.coroutine
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
 
@@ -114,23 +121,20 @@ class RedisConnection:
         assert self._reader and not self._reader.at_eof(), (
             "Connection closed or corrupted")
         command = command.upper().strip()
-        data = encode_command(command, *args)
-        self._writer.write(data)
-        yield from self._writer.drain()
-        fut = asyncio.Future(loop=self._loop)
-        yield from self._waiters.put(fut)
         if command in ('SELECT', b'SELECT'):
-            fut.add_done_callback(partial(self._set_db, args=args))
+            cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
-            fut.add_done_callback(self._start_transaction)
+            cb = self._start_transaction
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
-            fut.add_done_callback(self._end_transaction)
-        result = yield from fut
+            cb = self._end_transaction
+        else:
+            cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        if encoding is not None and isinstance(result, bytes):
-            return result.decode(encoding)
-        return result
+        fut = asyncio.Future(loop=self._loop)
+        self._waiters.append((fut, encoding, cb))
+        self._writer.write(encode_command(command, *args))
+        return fut
 
     def close(self):
         """Close connection."""
@@ -146,8 +150,8 @@ class RedisConnection:
         self._reader_task = None
         self._writer = None
         self._reader = None
-        while self._waiters.qsize():
-            waiter = self._waiters.get_nowait()
+        while self._waiters:
+            waiter, *spam = self._waiters.popleft()
             if exc is None:
                 waiter.cancel()
             else:
@@ -172,7 +176,6 @@ class RedisConnection:
         """Current set codec or None."""
         return self._encoding
 
-    @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.
 
@@ -183,45 +186,29 @@ class RedisConnection:
         if db < 0:
             raise ValueError("DB must be greater or equal 0, got {!r}"
                              .format(db))
-        yield from self.execute('SELECT', db)
-        return True
+        fut = self.execute('SELECT', db)
+        return wait_ok(fut)
 
-    def _set_db(self, fut, args):
-        try:
-            ok = fut.result()
-        except Exception:
-            pass
-        else:
-            assert ok == b'OK', ok
-            self._db = args[0]
+    def _set_db(self, ok, args):
+        assert ok in {b'OK', 'OK'}, ok
+        self._db = args[0]
 
-    def _start_transaction(self, fut):
-        try:
-            fut.result()
-        except Exception:
-            pass
-        else:
-            assert not self._in_transaction
-            self._in_transaction = True
-            self._transaction_error = None
+    def _start_transaction(self, ok):
+        assert not self._in_transaction
+        self._in_transaction = True
+        self._transaction_error = None
 
-    def _end_transaction(self, fut):
-        try:
-            fut.result()
-        except Exception:
-            pass
-        else:
-            assert self._in_transaction
-            self._in_transaction = False
-            self._transaction_error = None
+    def _end_transaction(self, ok):
+        assert self._in_transaction
+        self._in_transaction = False
+        self._transaction_error = None
 
     @property
     def in_transaction(self):
         """Set to True when MULTI command was issued."""
         return self._in_transaction
 
-    @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server."""
-        ok = yield from self.execute('AUTH', password)
-        return ok == b'OK'
+        fut = self.execute('AUTH', password)
+        return wait_ok(fut)

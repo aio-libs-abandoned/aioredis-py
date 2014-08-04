@@ -78,7 +78,7 @@ class ConnectionTest(BaseTest):
             reader.feed_data(b'not good redis protocol response')
             yield from conn.select(1)
 
-        self.assertEqual(conn._waiters.qsize(), 0)
+        self.assertEqual(len(conn._waiters), 0)
 
     def test_close_connection__tcp(self):
         loop = self.loop
@@ -91,9 +91,9 @@ class ConnectionTest(BaseTest):
         conn = loop.run_until_complete(create_connection(
             ('localhost', self.redis_port), loop=loop))
         with self.assertRaises(AssertionError):
-            coro = conn.select(1)
             conn.close()
-            loop.run_until_complete(coro)
+            fut = conn.select(1)
+            loop.run_until_complete(fut)
 
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     @run_until_complete

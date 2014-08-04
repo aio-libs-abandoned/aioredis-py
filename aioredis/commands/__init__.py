@@ -1,6 +1,7 @@
 import asyncio
 
 from aioredis.connection import create_connection
+from aioredis.util import _NOTSET
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
 from .hash import HashCommandsMixin
@@ -61,7 +62,6 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """True if connection is closed."""
         return self._conn.closed
 
-    @asyncio.coroutine
     def auth(self, password):
         """Authenticate to server.
 
@@ -69,22 +69,18 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._conn.auth(password)
 
-    @asyncio.coroutine
-    def echo(self, message):
+    def echo(self, message, *, encoding=_NOTSET):
         """Echo the given string."""
-        return (yield from self._conn.execute('ECHO', message))
+        return self._conn.execute('ECHO', message, encoding=encoding)
 
-    @asyncio.coroutine
-    def ping(self):
+    def ping(self, *, encoding=_NOTSET):
         """Ping the server."""
-        return (yield from self._conn.execute('PING'))
+        return self._conn.execute('PING', encoding=encoding)
 
-    @asyncio.coroutine
     def quit(self):
         """Close the connection."""
-        return (yield from self._conn.execute('QUIT'))
+        return self._conn.execute('QUIT')
 
-    @asyncio.coroutine
     def select(self, db):
         """Change the selected database for the current connection.
 

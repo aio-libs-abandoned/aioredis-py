@@ -1,3 +1,6 @@
+import asyncio
+
+_NOTSET = object()
 
 # NOTE: never put here anything else;
 #       just this basic types
@@ -34,3 +37,15 @@ def encode_command(*args):
             raise TypeError("Argument {!r} expected to be of bytes,"
                             " str, int or float type".format(arg))
     return buf
+
+
+@asyncio.coroutine
+def wait_ok(fut):
+    res = yield from fut
+    return res == b'OK'
+
+
+@asyncio.coroutine
+def wait_convert(fut, type_):
+    result = yield from fut
+    return type_(result)

@@ -1,6 +1,7 @@
 import asyncio
 
 from ..errors import RedisError
+from ..util import wait_ok, wait_convert
 
 
 class TransactionsCommandsMixin:
@@ -9,37 +10,29 @@ class TransactionsCommandsMixin:
     For commands details see: http://redis.io/commands/#transactions
     """
 
-    @asyncio.coroutine
     def discard(self):
         """Discard all commands issued after MULTI."""
         assert self._conn.in_transaction
-        res = yield from self._conn.execute(b'DISCARD')
-        return res == b'OK'
+        fut = self._conn.execute(b'DISCARD')
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def exec(self):
         """Execute all commands issued after MULTI."""
         assert self._conn.in_transaction
-        res = yield from self._conn.execute(b'EXEC')
-        for obj in res:
-            if isinstance(obj, RedisError):
-                raise obj
-        return res
+        fut = self._conn.execute(b'EXEC')
+        return wait_convert(fut, check_errors)
 
-    @asyncio.coroutine
     def multi(self):
         """Mark the start of a transaction block."""
         assert not self._conn.in_transaction
-        res = yield from self._conn.execute(b'MULTI')
-        return res == b'OK'
+        fut = self._conn.execute(b'MULTI')
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def unwatch(self):
         """Forget about all watched keys."""
-        res = yield from self._conn.execute(b'UNWATCH')
-        return res == b'OK'
+        fut = self._conn.execute(b'UNWATCH')
+        return wait_ok(fut)
 
-    @asyncio.coroutine
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
 
@@ -49,11 +42,11 @@ class TransactionsCommandsMixin:
             raise TypeError("key argument must not be None")
         if any(k is None for k in keys):
             raise TypeError("keys must not be None")
-        res = yield from self._conn.execute(b'WATCH', key, *keys)
-        return res == b'OK'
+        fut = self._conn.execute(b'WATCH', key, *keys)
+        return wait_ok(fut)
 
-    @asyncio.coroutine
-    def multi_exec(self, *coros):
+    @property
+    def multi_exec(self):
         """Executes redis commands in MULTI/EXEC block.
 
         Usage as follows:
@@ -68,19 +61,39 @@ class TransactionsCommandsMixin:
 
         :raises TypeError: if any of arguments is not coroutine object.
         """
-        if not len(coros):
-            raise TypeError("At least one coroutine object is required")
-        if not all(asyncio.iscoroutine(coro) for coro in coros):
-            raise TypeError("All coroutines must be coroutine objects")
+        return _MultiExec(self)
 
-        yield from self.multi()
+
+class _MultiExec:
+
+    def __init__(self, redis):
+        self.redis = redis
+        self._fut = redis.connection.execute(b'MULTI')
+
+    @asyncio.coroutine
+    def __call__(self, *futures):
+        if not len(futures):
+            raise TypeError("At least one coroutine object is required")
+        if not all(self._type_check(fut) for fut in futures):
+            raise TypeError("All arguments must be coroutine"
+                            " objects or Futures")
         try:
-            # TODO: check if coro is not canceled or done
-            for coro in coros:
-                yield from coro
+            yield from self._fut
+            for fut in futures:
+                yield from fut
         finally:
-            if not self._conn.closed:
-                if self._conn._transaction_error:
-                    yield from self.discard()
+            if not self.redis.connection.closed:
+                if self.redis.connection._transaction_error:
+                    yield from self.redis.discard()
                 else:
-                    return (yield from self.exec())
+                    return (yield from self.redis.exec())
+
+    def _type_check(self, obj):
+        return asyncio.iscoroutine(obj) or isinstance(obj, asyncio.Future)
+
+
+def check_errors(res):
+    for obj in res:
+        if isinstance(obj, RedisError):
+            raise obj
+    return res
