@@ -476,3 +476,35 @@ class SortedSetsCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1,
                                                    count='one')
+
+    @run_until_complete
+    def test_zscan(self):
+        key = b'key:zscan'
+        scores, members = [], []
+
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            members.append('zmem:{}:{}'.format(foo_or_bar, i).encode('utf-8'))
+            scores.append(i)
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members, scores)))
+        yield from self.redis.zadd(key, *pairs)
+
+        cursor, values = yield from self.redis.zscan(key, match=b'zmem:foo:*')
+        self.assertEqual(len(values), 3*2)
+
+        cursor, values = yield from self.redis.zscan(key, match=b'zmem:bar:*')
+        self.assertEqual(len(values), 7*2)
+
+        # SCAN family functions do not guarantee that the number (count) of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+        cursor = b'0'
+        test_values = []
+        while cursor:
+            cursor, values = yield from self.redis.zscan(key, cursor, count=2)
+            test_values.extend(values)
+        self.assertEqual(test_values, rev_pairs)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zscan(None)

@@ -366,7 +366,7 @@ class SortedSetCommandsMixin:
         """Add multiple sorted sets and store result in a new key."""
         raise NotImplementedError
 
-    def zscan(self, key, cursor, match=None, count=None):
+    def zscan(self, key, cursor=0, match=None, count=None):
         """Incrementally iterate sorted sets elements and associated scores.
 
         :raises TypeError: if key is None
@@ -379,7 +379,8 @@ class SortedSetCommandsMixin:
         if count is not None:
             args += [b'COUNT', count]
         fut = self._conn.execute(b'ZSCAN', key, cursor, *args)
-        return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
+        _converter = lambda obj: (int(obj[0]), pairs_int_or_float(obj[1]))
+        return wait_convert(fut, _converter)
 
 
 def int_or_float(value):
