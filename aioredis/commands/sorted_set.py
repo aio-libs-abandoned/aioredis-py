@@ -299,11 +299,48 @@ class SortedSetCommandsMixin:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
-    def zrevrangebyscore(self, key, max, min, *, withscores=False, limit=None):
+    def zrevrangebyscore(self, key, max=float('inf'),  min=float('-inf'),
+                         include_min=True, include_max=True,
+                         withscores=False, offset=None, count=None):
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
+
+        :raises TypeError: if key is None
+        :raises TypeError: if min or max is not float or int
+        :raises TypeError: if both offset and count are not specified
+        :raises TypeError: if offset is not int
+        :raises TypeError: if count is not int
         """
-        raise NotImplementedError
+        if key is None:
+            raise TypeError("key argument must not be None")
+        if not isinstance(min, (int, float)):
+            raise TypeError("min argument must be int or float")
+        if not isinstance(max, (int, float)):
+            raise TypeError("max argument must be int or float")
+
+        if (offset is not None and count is None) or \
+                (count is not None and offset is None):
+            raise TypeError("offset and count must both be specified")
+        if offset is not None and not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        if not include_min and not math.isinf(min):
+            min = ("(" + str(min)).encode('utf-8')
+        if not include_max and not math.isinf(max):
+            max = ("(" + str(max)).encode('utf-8')
+
+        args = []
+        if withscores:
+            args = [b'WITHSCORES']
+        if offset is not None and count is not None:
+            args.extend([b'LIMIT', offset, count])
+        fut = self._conn.execute(b'ZREVRANGEBYSCORE', key, min, max, *args)
+
+        if withscores:
+            return wait_convert(fut, pairs_int_or_float)
+        return fut
 
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
@@ -330,7 +367,10 @@ class SortedSetCommandsMixin:
         raise NotImplementedError
 
     def zscan(self, key, cursor, match=None, count=None):
-        """Incrementally iterate sorted sets elements and associated scores."""
+        """Incrementally iterate sorted sets elements and associated scores.
+
+        :raises TypeError: if key is None
+        """
         if key is None:
             raise TypeError("key argument must not be None")
         args = []

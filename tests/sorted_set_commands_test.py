@@ -434,3 +434,45 @@ class SortedSetsCommandsTest(RedisTest):
             self.assertEqual(res, s)
         with self.assertRaises(TypeError):
             yield from self.redis.zscore(None, b'one')
+
+    @run_until_complete
+    def test_zrevrangebyscore(self):
+        key = b'key:zrevrangebyscore'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members[::-1], scores[::-1])))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=False)
+        self.assertEqual(res, members[::-1])
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=False,
+                                                     include_min=False,
+                                                     include_max=False)
+        self.assertEqual(res, members[-2:1:-1])
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=True)
+        self.assertEqual(res, rev_pairs)
+
+        res = yield from self.redis.zrevrangebyscore(key, 1, 10, offset=2,
+                                                     count=2)
+        self.assertEqual(res, members[-3:-5:-1])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(None, 1, 7)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, b'a', 20)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset='one',
+                                                   count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1,
+                                                   count='one')
