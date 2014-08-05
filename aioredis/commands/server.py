@@ -9,11 +9,13 @@ class ServerCommandsMixin:
 
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""
-        raise NotImplementedError
+        fut = self._conn.execute(b'BGREWRITEAOF')
+        return wait_ok(fut)
 
     def bgsave(self):
         """Asynchronously save the dataset to disk."""
-        raise NotImplementedError
+        fut = self._conn.execute(b'BGSAVE')
+        return wait_ok(fut)
 
     def client_kill(self):
         """Kill the connection of a client."""
@@ -21,15 +23,26 @@ class ServerCommandsMixin:
 
     def client_list(self):
         """Get the list of client connections."""
-        raise NotImplementedError
+        fut = self._conn.execute(b'CLIENT', b'LIST', encoding='utf-8')
+        # TODO: convert to named tuples
+        return fut
 
     def client_getname(self, encoding=_NOTSET):
         """Get the current connection name."""
         return self._conn.execute(b'CLIENT', b'GETNAME', encoding=encoding)
 
     def client_pause(self, timeout):
-        """Stop processing commands from clients for some time."""
-        raise NotImplementedError
+        """Stop processing commands from clients for *timeout* milliseconds.
+
+        :raises TypeError: if timeout is not int
+        :raises ValueError: if timeout is less then 0
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+        fut = self._conn.execute(b'CLIENT', b'PAUSE', timeout)
+        return wait_ok(fut)
 
     def client_setname(self, name):
         """Set the current connection name."""
