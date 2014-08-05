@@ -434,3 +434,77 @@ class SortedSetsCommandsTest(RedisTest):
             self.assertEqual(res, s)
         with self.assertRaises(TypeError):
             yield from self.redis.zscore(None, b'one')
+
+    @run_until_complete
+    def test_zrevrangebyscore(self):
+        key = b'key:zrevrangebyscore'
+        scores = [1, 1, 2.5, 3, 7]
+        members = [b'one', b'uno', b'two', b'three', b'seven']
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members[::-1], scores[::-1])))
+        res = yield from self.redis.zadd(key, *pairs)
+        self.assertEqual(res, 5)
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=False)
+        self.assertEqual(res, members[::-1])
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=False,
+                                                     include_min=False,
+                                                     include_max=False)
+        self.assertEqual(res, members[-2:1:-1])
+        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+                                                     withscores=True)
+        self.assertEqual(res, rev_pairs)
+
+        res = yield from self.redis.zrevrangebyscore(key, 1, 10, offset=2,
+                                                     count=2)
+        self.assertEqual(res, members[-3:-5:-1])
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(None, 1, 7)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 10, b'e')
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, b'a', 20)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset='one',
+                                                   count=1)
+        with self.assertRaises(TypeError):
+            yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1,
+                                                   count='one')
+
+    @run_until_complete
+    def test_zscan(self):
+        key = b'key:zscan'
+        scores, members = [], []
+
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            members.append('zmem:{}:{}'.format(foo_or_bar, i).encode('utf-8'))
+            scores.append(i)
+        pairs = list(itertools.chain(*zip(scores, members)))
+        rev_pairs = list(itertools.chain(*zip(members, scores)))
+        yield from self.redis.zadd(key, *pairs)
+
+        cursor, values = yield from self.redis.zscan(key, match=b'zmem:foo:*')
+        self.assertEqual(len(values), 3*2)
+
+        cursor, values = yield from self.redis.zscan(key, match=b'zmem:bar:*')
+        self.assertEqual(len(values), 7*2)
+
+        # SCAN family functions do not guarantee that the number (count) of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+        cursor = b'0'
+        test_values = []
+        while cursor:
+            cursor, values = yield from self.redis.zscan(key, cursor, count=2)
+            test_values.extend(values)
+        self.assertEqual(test_values, rev_pairs)
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.zscan(None)
