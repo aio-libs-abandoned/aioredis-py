@@ -68,12 +68,12 @@ class _MultiExec:
 
     def __init__(self, redis):
         self.redis = redis
-        self._fut = redis.connection.execute(b'MULTI')
+        self._fut = redis.multi()
 
     @asyncio.coroutine
     def __call__(self, *futures):
         if not len(futures):
-            raise TypeError("At least one coroutine object is required")
+            raise TypeError("At least one future/coroutine object is required")
         if not all(self._type_check(fut) for fut in futures):
             raise TypeError("All arguments must be coroutine"
                             " objects or Futures")

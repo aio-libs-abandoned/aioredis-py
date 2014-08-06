@@ -166,10 +166,10 @@ class PoolTest(BaseTest):
 
             yield from pool.select(1)
             self.assertEqual(pool.db, 1)
-            self.assertEqual(pool.size, 2)
-            self.assertEqual(pool.freesize, 1)
-        self.assertEqual(pool.size, 1)
-        self.assertEqual(pool.freesize, 1)
+            self.assertEqual(pool.size, 1)
+            self.assertEqual(pool.freesize, 0)
+        self.assertEqual(pool.size, 0)
+        self.assertEqual(pool.freesize, 0)
         self.assertEqual(pool.db, 1)
 
     @run_until_complete
@@ -190,10 +190,13 @@ class PoolTest(BaseTest):
 
         with self.assertRaises(TypeError):
             yield from pool.select(None)
+        self.assertEqual(pool.db, 0)
         with self.assertRaises(ValueError):
             yield from pool.select(-1)
+        self.assertEqual(pool.db, 0)
         with self.assertRaises(ReplyError):
             yield from pool.select(100000)
+        self.assertEqual(pool.db, 0)
 
     @run_until_complete
     def test_select_and_create(self):

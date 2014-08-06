@@ -92,14 +92,14 @@ class RedisPool:
         """
         self._need_wait = fut = asyncio.Future(loop=self._loop)
         try:
-            yield from self._fill_free()
             for _ in range(self.freesize):
                 conn = yield from self._pool.get()
                 try:
                     yield from conn.select(db)
-                    self._db = db
                 finally:
                     yield from self._pool.put(conn)
+            else:
+                self._db = db
         finally:
             self._need_wait = None
             fut.set_result(None)
