@@ -59,3 +59,9 @@ Scripting commands
 
 .. autoclass:: ScriptingCommandsMixin
    :members:
+
+Server commands
+---------------
+
+.. autoclass:: ServerCommandsMixin
+   :members:
