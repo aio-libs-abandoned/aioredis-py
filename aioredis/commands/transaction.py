@@ -1,3 +1,4 @@
+import warnings
 import asyncio
 
 from ..errors import RedisError
@@ -8,6 +9,19 @@ class TransactionsCommandsMixin:
     """Transaction commands mixin.
 
     For commands details see: http://redis.io/commands/#transactions
+
+    Transactions HOWTO:
+
+    >>> yield from redis.multi()
+    >>> try:
+    ...     yield from redis.incr('foo')
+    ...     yield from redis.incr('bar')
+    >>> except RedisErrror:
+    ...     if not redis.closed:
+    ...         yield from redis.discard()
+    >>> else:
+    ...     if not redis.closed:
+    ...         result = yield from redis.exec()
     """
 
     def discard(self):
@@ -61,6 +75,7 @@ class TransactionsCommandsMixin:
 
         :raises TypeError: if any of arguments is not coroutine object.
         """
+        warnings.warn("MutliExec API is not stable, use it on your own risk!")
         return _MultiExec(self)
 
 
