@@ -73,7 +73,15 @@ class TransactionsCommandsMixin:
 
         Returns list of results.
 
-        :raises TypeError: if any of arguments is not coroutine object.
+        .. warning::
+           ``multi_exec`` method is a descriptor and MULTI redis command is
+           issued on __get__. This may lead to unexpected errors if
+           expression within parentheses raised exception.
+
+           This API method may be dropped in later releases.
+
+        :raises TypeError: if any of arguments is not coroutine object
+                           or Future.
         """
         warnings.warn("MutliExec API is not stable, use it on your own risk!")
         return _MultiExec(self)
