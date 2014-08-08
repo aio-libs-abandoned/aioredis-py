@@ -185,7 +185,7 @@ class GenericCommandsTest(RedisTest):
 
         with self.assertRaisesRegex(TypeError, "host .* str"):
             yield from self.redis.migrate(None, 1234, 'key', 1, 23)
-        with self.assertRaisesRegex(TypeError, "key .* None"):
+        with self.assertRaisesRegex(TypeError, "args .* None"):
             yield from self.redis.migrate('host', '1234',  None, 1, 123)
         with self.assertRaisesRegex(TypeError, "dest_db .* int"):
             yield from self.redis.migrate('host', 123, 'key', 1.0, 123)

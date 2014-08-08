@@ -160,3 +160,12 @@ class ConnectionTest(BaseTest):
             ('localhost', self.redis_port), loop=self.loop)
         res = yield from conn2.execute('get', 'key1', encoding='utf-8')
         self.assertEqual(res, 'значение')
+
+    @run_until_complete
+    def test_execute_exceptions(self):
+        conn = yield from create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        with self.assertRaises(TypeError):
+            yield from conn.execute(None)
+        with self.assertRaises(TypeError):
+            yield from conn.execute("ECHO", None)
