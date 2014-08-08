@@ -88,7 +88,8 @@ Connection usage is as simple as:
                        May be set to None to skip response decoding.
       :type encoding: str or None
 
-      :raise TypeError: When any of arguments can not be encoded as bytes.
+      :raise TypeError: When any of arguments is None or
+                        can not be encoded as bytes.
       :raise aioredis.ReplyError: For redis error replies.
       :raise aioredis.ProtocolError: When response can not be decoded
                                      and/or connection is broken.

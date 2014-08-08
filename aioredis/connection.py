@@ -120,6 +120,10 @@ class RedisConnection:
         """
         assert self._reader and not self._reader.at_eof(), (
             "Connection closed or corrupted")
+        if command is None:
+            raise TypeError("command must not be None")
+        if None in set(args):
+            raise TypeError("args must not contain None")
         command = command.upper().strip()
         if command in ('SELECT', b'SELECT'):
             cb = partial(self._set_db, args=args)

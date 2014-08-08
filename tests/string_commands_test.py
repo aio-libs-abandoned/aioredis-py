@@ -17,7 +17,7 @@ class StringCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.append(None, 'value')
-        with self.assertRaises(ReplyError):
+        with self.assertRaises(TypeError):
             yield from self.redis.append('none-key', None)
 
     @run_until_complete

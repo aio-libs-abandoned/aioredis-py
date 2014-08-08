@@ -8,33 +8,16 @@ class GenericCommandsMixin:
     """
 
     def delete(self, key, *keys):
-        """Delete a key.
-
-        :raises TypeError: if key or any of extra keys is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if None in set(keys):
-            raise TypeError("keys must not contain None")
+        """Delete a key."""
         fut = self._conn.execute(b'DEL', key, *keys)
         return wait_convert(fut, int)
 
     def dump(self, key):
-        """Dump a key.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Dump a key."""
         return self._conn.execute(b'DUMP', key)
 
     def exists(self, key):
-        """Check if key exists.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Check if key exists."""
         fut = self._conn.execute(b'EXISTS', key)
         return wait_convert(fut, bool)
 
@@ -44,12 +27,8 @@ class GenericCommandsMixin:
         if timeout is float it will be multiplyed by 1000
         coerced to int and passed to `pexpire` method.
 
-        Otherwise raises TypeError if timeout argument is not int
-
-        :raises TypeError: if key is None or timeout is neither int nor float
+        Otherwise raises TypeError if timeout argument is not int.
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if isinstance(timeout, float):
             return self.pexpire(key, int(timeout * 1000))
         if not isinstance(timeout, int):
@@ -64,12 +43,8 @@ class GenericCommandsMixin:
         if timeout is float it will be multiplyed by 1000
         coerced to int and passed to `pexpire` method.
 
-        Otherwise raises TypeError if timestamp argument is not int
-
-        :raises TypeError: if key is None
+        Otherwise raises TypeError if timestamp argument is not int.
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if isinstance(timestamp, float):
             return self.pexpireat(key, int(timestamp * 1000))
         if not isinstance(timestamp, int):
@@ -79,12 +54,7 @@ class GenericCommandsMixin:
         return wait_convert(fut, bool)
 
     def keys(self, pattern):
-        """Returns all keys matching pattern.
-
-        :raises TypeError: if pattern is None
-        """
-        if pattern is None:
-            raise TypeError("pattern argument must not be None")
+        """Returns all keys matching pattern."""
         return self._conn.execute(b'KEYS', pattern)
 
     def migrate(self, host, port, key, dest_db, timeout,
@@ -94,8 +64,6 @@ class GenericCommandsMixin:
             raise TypeError("host argument must be str")
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(dest_db, int):
             raise TypeError("dest_db argument must be int")
         if not host:
@@ -117,11 +85,9 @@ class GenericCommandsMixin:
     def move(self, key, db):
         """Move key from currently selected database to specified destination.
 
-        :raises TypeError: if key is None or db is not int
+        :raises TypeError: if db is not int
         :raises ValueError: if db is less then 0
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(db, int):
             raise TypeError("db argument must be int, not {!r}".format(db))
         if db < 0:
@@ -133,50 +99,31 @@ class GenericCommandsMixin:
     def object_refcount(self, key):
         """Returns the number of references of the value associated
         with the specified key (OBJECT REFCOUNT).
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         return self._conn.execute(b'OBJECT', b'REFCOUNT', key)
 
     def object_encoding(self, key):
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         return self._conn.execute(b'OBJECT', b'ENCODING', key)
 
     def object_idletime(self, key):
         """Returns the number of seconds since the object is not requested
         by read or write operations (OBJECT IDLETIME).
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         return self._conn.execute(b'OBJECT', b'IDLETIME', key)
 
     def persist(self, key):
-        """Remove the existing timeout on key.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Remove the existing timeout on key."""
         fut = self._conn.execute(b'PERSIST', key)
         return wait_convert(fut, bool)
 
     def pexpire(self, key, timeout):
         """Set a milliseconds timeout on key.
 
-        :raises TypeError: if key is None or timeout is not int
+        :raises TypeError: if timeout is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int, not {!r}"
                             .format(timeout))
@@ -186,10 +133,8 @@ class GenericCommandsMixin:
     def pexpireat(self, key, timestamp):
         """Set expire timestamp on key, timestamp in milliseconds.
 
-        :raises TypeError: if key is None or timeout is not int
+        :raises TypeError: if timeout is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
@@ -203,11 +148,7 @@ class GenericCommandsMixin:
 
         * command returns -2 if the key does not exist.
         * command returns -1 if the key exists but has no associated expire.
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
@@ -220,13 +161,8 @@ class GenericCommandsMixin:
     def rename(self, key, newkey):
         """Renames key to newkey.
 
-        :raises TypeError: if key or newkey is None
         :raises ValueError: if key == newkey
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if newkey is None:
-            raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
         fut = self._conn.execute(b'RENAME', key, newkey)
@@ -235,25 +171,15 @@ class GenericCommandsMixin:
     def renamenx(self, key, newkey):
         """Renames key to newkey only if newkey does not exist.
 
-        :raises TypeError: if key or newkey is None
         :raises ValueError: if key == newkey
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if newkey is None:
-            raise TypeError("newkey argument must not be None")
         if key == newkey:
             raise ValueError("key and newkey are the same")
         fut = self._conn.execute(b'RENAMENX', key, newkey)
         return wait_convert(fut, bool)
 
     def restore(self, key, ttl, value):
-        """Creates a key associated with a value that is obtained via DUMP.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Creates a key associated with a value that is obtained via DUMP."""
         return self._conn.execute(b'RESTORE', key, ttl, value)
 
     def scan(self, cursor=0, match=None, count=None):
@@ -269,12 +195,7 @@ class GenericCommandsMixin:
     def sort(self, key, *get_patterns,
              by=None, offset=None, count=None,
              asc=None, alpha=False, store=None):
-        """Sort the elements in a list, set or sorted set.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Sort the elements in a list, set or sorted set."""
         args = []
         if by is not None:
             args += [b'BY', by]
@@ -296,11 +217,7 @@ class GenericCommandsMixin:
         Special return values (starting with Redis 2.8):
         * command returns -2 if the key does not exist.
         * command returns -1 if the key exists but has no associated expire.
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
@@ -308,10 +225,6 @@ class GenericCommandsMixin:
 
     def type(self, key):
         """Returns the string representation of the value's type stored at key.
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         # NOTE: for non-existent keys TYPE returns b'none'
         return self._conn.execute(b'TYPE', key)

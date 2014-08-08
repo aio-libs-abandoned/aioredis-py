@@ -27,9 +27,7 @@ def encode_command(*args):
 
     add(b'*' + _bytes_len(args))
     for arg in args:
-        if arg is None:
-            add(b'$-1')
-        elif type(arg) in _converters:
+        if type(arg) in _converters:
             barg = _converters[type(arg)](arg)
             add(b'$' + _bytes_len(barg))
             add(barg)
@@ -42,10 +40,14 @@ def encode_command(*args):
 @asyncio.coroutine
 def wait_ok(fut):
     res = yield from fut
+    if res == b'QUEUED':
+        return res
     return res == b'OK'
 
 
 @asyncio.coroutine
 def wait_convert(fut, type_):
     result = yield from fut
+    if result == b'QUEUED':
+        return result
     return type_(result)

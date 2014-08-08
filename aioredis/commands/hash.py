@@ -8,131 +8,61 @@ class HashCommandsMixin:
     """
 
     def hdel(self, key, field, *fields):
-        """Delete one or more hash fields.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Delete one or more hash fields."""
         return self._conn.execute(b'HDEL', key, field, *fields)
 
     def hexists(self, key, field):
-        """Determine if hash field exists.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Determine if hash field exists."""
         fut = self._conn.execute(b'HEXISTS', key, field)
         return wait_convert(fut, bool)
 
     def hget(self, key, field):
-        """Get the value of a hash field.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get the value of a hash field."""
         return self._conn.execute(b'HGET', key, field)
 
     def hgetall(self, key):
-        """Get all the fields and values in a hash.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get all the fields and values in a hash."""
         return self._conn.execute(b'HGETALL', key)
 
     def hincrby(self, key, field, increment=1):
-        """Increment the integer value of a hash field by the given number.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Increment the integer value of a hash field by the given number."""
         return self._conn.execute(b'HINCRBY', key, field, increment)
 
     def hincrbyfloat(self, key, field, increment=1.0):
-        """Increment the float value of a hash field by the given number.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Increment the float value of a hash field by the given number."""
         fut = self._conn.execute(b'HINCRBYFLOAT', key, field, increment)
         return wait_convert(fut, float)
 
     def hkeys(self, key):
-        """Get all the fields in a hash.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get all the fields in a hash."""
         return self._conn.execute(b'HKEYS', key)
 
     def hlen(self, key):
-        """Get the number of fields in a hash.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get the number of fields in a hash."""
         return self._conn.execute(b'HLEN', key)
 
     def hmget(self, key, field, *fields):
-        """Get the values of all the given fields.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get the values of all the given fields."""
         return self._conn.execute(b'HMGET', key, field, *fields)
 
     def hmset(self, key, field, value, *pairs):
-        """Set multiple hash fields to multiple values.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Set multiple hash fields to multiple values."""
         return self._conn.execute(b'HMSET', key, field, value, *pairs)
 
     def hset(self, key, field, value):
-        """Set the string value of a hash field.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Set the string value of a hash field."""
         return self._conn.execute(b'HSET', key, field, value)
 
     def hsetnx(self, key, field, value):
-        """Set the value of a hash field, only if the field does not exist.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Set the value of a hash field, only if the field does not exist."""
         return self._conn.execute(b'HSETNX', key, field, value)
 
     def hvals(self, key):
-        """Get all the values in a hash.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get all the values in a hash."""
         return self._conn.execute(b'HVALS', key)
 
     def hscan(self, key, cursor=0, match=None, count=None):
-        """Incrementally iterate hash fields and associated values.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Incrementally iterate hash fields and associated values."""
         args = [key, cursor]
         match is not None and args.extend([b'MATCH', match])
         count is not None and args.extend([b'COUNT', count])

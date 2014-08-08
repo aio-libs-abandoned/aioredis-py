@@ -27,7 +27,7 @@ class TransactionCommandsTest(RedisTest):
     def test_multi_exec__conn_closed(self):
         with self.assertRaises(ReplyError):
             yield from self.redis.multi_exec(
-                self.redis.set('key', None))
+                self.redis.incr('key'))
 
     @run_until_complete
     def test_multi_exec__discard(self):

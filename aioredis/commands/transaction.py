@@ -52,10 +52,6 @@ class TransactionsCommandsMixin:
 
         :raises TypeError: if any of arguments is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if any(k is None for k in keys):
-            raise TypeError("keys must not be None")
         fut = self._conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
 

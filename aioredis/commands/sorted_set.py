@@ -12,12 +12,9 @@ class SortedSetCommandsMixin:
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.
 
-        :raises TypeError: if key is None
         :raises TypeError: score not int or float
         :raises TypeError: length of pairs is not even number
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(score, (int, float)):
             raise TypeError("score argument must be int or float")
         if len(pairs) % 2 != 0:
@@ -29,12 +26,7 @@ class SortedSetCommandsMixin:
         return self._conn.execute(b'ZADD', key, score, member, *pairs)
 
     def zcard(self, key):
-        """Get the number of members in a sorted set.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get the number of members in a sorted set."""
         return self._conn.execute(b'ZCARD', key)
 
     def zcount(self, key, min=float('-inf'), max=float('inf'),
@@ -42,12 +34,9 @@ class SortedSetCommandsMixin:
         """Count the members in a sorted set with scores
         within the given values.
 
-        :raises TypeError: if key is None
         :raises TypeError: min or max is not float or int
         :raises ValueError: if min grater then max
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
@@ -65,11 +54,8 @@ class SortedSetCommandsMixin:
     def zincrby(self, key, increment, member):
         """Increment the score of a member in a sorted set.
 
-        :raises TypeError: if key is None
         :raises TypeError: increment is not float or int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(increment, (int, float)):
             raise TypeError("increment argument must be int or float")
         fut = self._conn.execute(b'ZINCRBY', key, increment, member)
@@ -84,15 +70,12 @@ class SortedSetCommandsMixin:
         """Count the number of members in a sorted set between a given
         lexicographical range.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min is not bytes
         :raises TypeError: if max is not bytes
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if not isinstance(min, bytes):
+        if not isinstance(min, bytes):  # FIXME
             raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):
+        if not isinstance(max, bytes):  # FIXME     Why only bytes?
             raise TypeError("max argument must be bytes")
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
@@ -103,12 +86,9 @@ class SortedSetCommandsMixin:
     def zrange(self, key, start=0, stop=-1, withscores=False):
         """Return a range of members in a sorted set, by index.
 
-        :raises TypeError: if key is None
         :raises TypeError: if start is not int
         :raises TypeError: if stop is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(start, int):
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
@@ -126,18 +106,15 @@ class SortedSetCommandsMixin:
                     include_max=True, offset=None, count=None):
         """Return a range of members in a sorted set, by lexicographical range.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min is not bytes
         :raises TypeError: if max is not bytes
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not bytes
         :raises TypeError: if count is not bytes
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if not isinstance(min, bytes):
+        if not isinstance(min, bytes):  # FIXME
             raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):
+        if not isinstance(max, bytes):  # FIXME
             raise TypeError("max argument must be bytes")
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
@@ -163,14 +140,11 @@ class SortedSetCommandsMixin:
                       withscores=False, offset=None, count=None):
         """Return a range of memebers in a sorted set, by score.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min or max is not float or int
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not int
         :raises TypeError: if count is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
@@ -201,21 +175,11 @@ class SortedSetCommandsMixin:
         return fut
 
     def zrank(self, key, member):
-        """Determine the index of a member in a sorted set.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Determine the index of a member in a sorted set."""
         return self._conn.execute(b'ZRANK', key, member)
 
     def zrem(self, key, member, *members):
-        """Remove one or more members from a sorted set.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Remove one or more members from a sorted set."""
         return self._conn.execute(b'ZREM', key, member, *members)
 
     def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
@@ -223,15 +187,12 @@ class SortedSetCommandsMixin:
         """Remove all members in a sorted set between the given
         lexicographical range.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min is not bytes
         :raises TypeError: if max is not bytes
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
-        if not isinstance(min, bytes):
+        if not isinstance(min, bytes):  # FIXME
             raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):
+        if not isinstance(max, bytes):  # FIXME
             raise TypeError("max argument must be bytes")
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
@@ -242,12 +203,9 @@ class SortedSetCommandsMixin:
     def zremrangebyrank(self, key, start, stop):
         """Remove all members in a sorted set within the given indexes.
 
-        :raises TypeError: if key is None
         :raises TypeError: if start is not int
         :raises TypeError: if stop is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(start, int):
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
@@ -258,12 +216,9 @@ class SortedSetCommandsMixin:
                          include_min=True, include_max=True):
         """Remove all members in a sorted set within the given scores.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min is not int or float
         :raises TypeError: if max is not int or float
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
@@ -280,12 +235,9 @@ class SortedSetCommandsMixin:
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
 
-        :raises TypeError: if key is None
         :raises TypeError: if start is not int
         :raises TypeError: if stop is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(start, int):
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
@@ -305,14 +257,11 @@ class SortedSetCommandsMixin:
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
 
-        :raises TypeError: if key is None
         :raises TypeError: if min or max is not float or int
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not int
         :raises TypeError: if count is not int
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
@@ -345,20 +294,11 @@ class SortedSetCommandsMixin:
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
         scores ordered from high to low.
-
-        :raises TypeError: if key is None
         """
-        if key is None:
-            raise TypeError("key argument must not be None")
         return self._conn.execute(b'ZREVRANK', key, member)
 
     def zscore(self, key, member):
-        """Get the score associated with the given member in a sorted set.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Get the score associated with the given member in a sorted set."""
         fut = self._conn.execute(b'ZSCORE', key, member)
         return wait_convert(fut, int_or_float)
 
@@ -367,12 +307,7 @@ class SortedSetCommandsMixin:
         raise NotImplementedError
 
     def zscan(self, key, cursor=0, match=None, count=None):
-        """Incrementally iterate sorted sets elements and associated scores.
-
-        :raises TypeError: if key is None
-        """
-        if key is None:
-            raise TypeError("key argument must not be None")
+        """Incrementally iterate sorted sets elements and associated scores."""
         args = []
         if match is not None:
             args += [b'MATCH', match]

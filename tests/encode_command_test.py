@@ -39,10 +39,6 @@ class EncodeCommandTest(unittest.TestCase):
         res = encode_command(-1.0)
         self.assertEqual(res, b'*1\r\n$4\r\n-1.0\r\n')
 
-    def test_encode_None(self):
-        res = encode_command(None)
-        self.assertEqual(res, b'*1\r\n$-1\r\n')
-
     def test_encode_empty(self):
         res = encode_command()
         self.assertEqual(res, b'*0\r\n')
@@ -52,3 +48,5 @@ class EncodeCommandTest(unittest.TestCase):
             encode_command(dict())
         with self.assertRaises(TypeError):
             encode_command(list())
+        with self.assertRaises(TypeError):
+            encode_command(None)

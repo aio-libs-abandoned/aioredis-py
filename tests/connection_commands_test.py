@@ -25,7 +25,7 @@ class ConnectionCommandsTest(RedisTest):
         resp = yield from self.redis.echo('ECHO')
         self.assertEqual(resp, b'ECHO')
 
-        with self.assertRaises(ReplyError):
+        with self.assertRaises(TypeError):
             yield from self.redis.echo(None)
 
     @run_until_complete

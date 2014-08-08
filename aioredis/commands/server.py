@@ -46,8 +46,6 @@ class ServerCommandsMixin:
 
     def client_setname(self, name):
         """Set the current connection name."""
-        if name is None:
-            raise TypeError("name argument must not be None")
         fut = self._conn.execute(b'CLIENT', b'SETNAME', name)
         return wait_ok(fut)
 
@@ -73,8 +71,6 @@ class ServerCommandsMixin:
 
     def debug_object(self, key):
         """Get debugging information about a key."""
-        if key is None:
-            raise TypeError("key argument must not be None")
         return self._conn.execute(b'DEBUG', b'OBJECT', key)
 
     def debug_segfault(self, key):
