@@ -6,11 +6,28 @@ Changes
 
 * High-level commands implemented:
 
-  * generic commands;
+  * generic commands (tests);
+  * transactions commands (api stabilization).
+
+
+0.1.3 (2014-08-08)
+^^^^^^^^^^^^^^^^^^
+
+* RedisConnection.execute refactored to support commands pipelining
+  (see http://github.com/aio-libs/aioredis/issues/33);
+
+* Several fixes;
+
+* WIP on transactions and commands interface;
+
+* High-level commands implemented and tested:
+
   * hash commands;
+  * hyperloglog commands;
   * set commands;
-  * strings commands;
-  * transactions commands.
+  * scripting commands;
+  * string commands;
+  * list commands;
 
 
 0.1.2 (2014-07-31)
