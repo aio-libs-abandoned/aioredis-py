@@ -56,6 +56,7 @@ Contents
 .. toctree::
    :maxdepth: 3
 
+   start
    api_reference
    mixins
    examples
