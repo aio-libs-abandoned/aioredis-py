@@ -19,9 +19,21 @@ class TransactionsCommandsMixin:
     >>> except RedisErrror:
     ...     if not redis.closed:
     ...         yield from redis.discard()
+    ...     raise
     >>> else:
     ...     if not redis.closed:
     ...         result = yield from redis.exec()
+
+    >>> tr = MultiExec(redis)   # Pipeline(redis, multi_exec=True)
+    >>> try:
+    ...     result_future1 = yield from tr.redis.incr('foo')
+    ...     result_future2 = yield from tr.redis.incr('bar')
+    >>> except RedisError:
+    ...     pass
+    >>> else:
+    ...     yield from tr
+    >>> result1 = yield from result_future1
+    >>> result2 = yield from result_future2
     """
 
     def discard(self):
@@ -49,8 +61,6 @@ class TransactionsCommandsMixin:
 
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
-
-        :raises TypeError: if any of arguments is None
         """
         fut = self._conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
@@ -87,7 +97,7 @@ class _MultiExec:
 
     def __init__(self, redis):
         self.redis = redis
-        self._fut = redis.multi()
+        self._fut = redis.multi()   # Bad hack
 
     @asyncio.coroutine
     def __call__(self, *futures):
@@ -116,3 +126,63 @@ def check_errors(res):
         if isinstance(obj, RedisError):
             raise obj
     return res
+
+
+class MultiExec:
+    """Multi/Exec wrapper.
+
+    Usage:
+
+    >>> tr = redis.multi_exec()
+    >>> f1 = tr.redis.incr('foo')
+    >>> f2 = tr.redis.incr('bar')
+    >>> # exec, A)
+    >>> yield from tr.execute()
+    >>> res1 = yield from f1
+    >>> res2 = yield from f2
+    >>> # exec, B)
+    >>> res1, res2 = yield from tr.execute()
+
+    and ofcourse try/except:
+
+    >>> tr = redis.multi_exec()
+    >>> f1 = tr.redis.incr('1') # won't raise any exception (why?)
+    >>> try:
+    ...     res = yield from tr.execute()
+    ... except RedisError:
+    ...     pass
+    >>> assert f1.done()
+    >>> assert f1.result() is res
+    """
+
+    def __init__(self, connection, commands_factory=None):
+        # self._redis = redis
+        self._conn = connection
+        self._pipeline = []
+        self._buffer_connection = None
+        self._redis = commands_factory(self._buffer_connection)
+
+    @property
+    def redis(self):
+        return "Mock"
+
+    @asyncio.coroutine
+    def execute(self):
+        """Executes all buffered commands."""
+        yield from self._conn.execute(b'MULTI')
+        try:
+            for fut, command in self._pipeline:
+                q = yield from self._conn.execute(*command)
+                assert q == b'QUEUED'
+        finally:
+            if not self._conn.closed:
+                if self._conn._transaction_error:
+                    yield from self._conn.execute(b'DISCARD')
+                else:
+                    res = yield from self._conn.execute(b'EXEC')
+                    for val, (fut, spam) in zip(res, self._pipeline):
+                        fut.set_result(val)
+
+
+class RedisMock:
+    pass
