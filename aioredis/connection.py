@@ -75,7 +75,10 @@ class RedisConnection:
     def _read_data(self):
         """Response reader task."""
         while not self._reader.at_eof():
-            data = yield from self._reader.read(MAX_CHUNK_SIZE)
+            try:
+                data = yield from self._reader.read(MAX_CHUNK_SIZE)
+            except Exception as exc:
+                break
             self._parser.feed(data)
             while True:
                 try:

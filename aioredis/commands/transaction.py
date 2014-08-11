@@ -183,34 +183,56 @@ class MultiExec:
                     waiting.append(fut)
                 except Exception as exc:
                     fut.set_exception(exc)
-                    futures.append(fut)
-            yield from asyncio.gather(*futures, loop=self._loop)
+            try:
+                yield from asyncio.gather(*futures, loop=self._loop)
+            except asyncio.CancelledError:
+                pass    # some command was cancelled, we handle this in finally
         finally:
+            assert len(waiting) == len(futures)
             if not self._conn.closed:
-                err = self._conn._transaction_error
-                if err:
-                    yield from self._conn.execute(b'DISCARD')
-                    for fut in waiting:
-                        fut.set_exception(err)
+                if self._conn._transaction_error:
+                    yield from self._discard(waiting)
                 else:
-                    result = yield from self._conn.execute(b'EXEC')
-                    assert len(result) == len(waiting), (
-                        result, waiting, self._pipeline)
-                    errors = []
-                    for val, fut in zip(result, waiting):
-                        if isinstance(val, RedisError):
-                            fut.set_exception(val)
-                            errors.append(val)
-                        else:
-                            fut.set_result(val)
-                    if errors and not return_exceptions:
-                        raise MultiExecError(errors)
-                    gather = asyncio.gather(
-                        *self._results, loop=self._loop,
-                        return_exceptions=return_exceptions)
-                    return (yield from gather)
+                    return (yield from self._exec(waiting, return_exceptions))
             else:   # connection is closed
-                pass
+                assert len(futures) == len(waiting), (futures, waiting)
+                self._cancel(futures, waiting)
+    # end
+
+    def _discard(self, waiting):
+        err = self._conn._transaction_error
+        yield from self._conn.execute(b'DISCARD')
+        for fut in waiting:
+            fut.set_exception(err)
+
+    def _exec(self, waiting, return_exceptions):
+        result = yield from self._conn.execute(b'EXEC')
+        assert len(result) == len(waiting), (result, waiting)
+        errors = []
+        for val, fut in zip(result, waiting):
+            if isinstance(val, RedisError):
+                fut.set_exception(val)
+                errors.append(val)
+            else:
+                fut.set_result(val)
+        if errors and not return_exceptions:
+            raise MultiExecError(errors)
+        gather = asyncio.gather(
+            *self._results, loop=self._loop,
+            return_exceptions=return_exceptions)
+        return (yield from gather)
+
+    def _cancel(self, futures, waiting):
+        for src_fut, dst_fut in zip(futures, waiting):
+            if src_fut.done():
+                if src_fut.cancelled():
+                    dst_fut.cancel()
+                elif src_fut.exception():
+                    dst_fut.set_exception(src_fut.exception())
+                else:
+                    dst_fut.set_result(src_fut.result())
+            else:
+                dst_fut.cancel()
 
 
 class _Buffer:
