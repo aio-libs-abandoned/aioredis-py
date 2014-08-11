@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import RedisTest, run_until_complete
-from aioredis import ReplyError
+from aioredis import ReplyError, MultiExecError
 
 
 class TransactionCommandsTest(RedisTest):
@@ -30,39 +30,81 @@ class TransactionCommandsTest(RedisTest):
         self.assertEqual((yield from f1), 2)
         self.assertEqual((yield from f2), 2)
 
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "At least one command"):
             yield from self.redis.multi_exec().execute()
+        tr = self.redis.multi_exec()
+        tr.incrby('foo', 1.0)
+        with self.assertRaisesRegex(TypeError, "increment must be .* int"):
+            yield from tr.execute()
 
     # @run_until_complete
     # def test_multi_exec__conn_closed(self):
-    #     with self.assertRaises(ReplyError):
-    #         yield from self.redis.multi_exec(
-    #             self.redis.incr('key'))
+    #     tr = self.redis.multi_exec()
+    #     fut = tr.quit()
+    #     res = yield from tr.execute()
+    #     self.assertIsNone(res)
+    #     res = yield from fut
+    #     self.assertIsNone(res)
+    #     # self.assertEqual(res, b'OK')
 
     @run_until_complete
     def test_multi_exec__discard(self):
+        tr = self.redis.multi_exec()
+        fut1 = tr.incrby('foo', 1.0)
+        fut2 = tr.connection.execute('MULTI')
+        fut3 = tr.connection.execute('incr', 'foo')
+
         with self.assertRaises(ReplyError):
-            tr = self.redis.multi_exec()
-            fut = tr.connection.execute('MULTI')
+            yield from tr.execute()
+        with self.assertRaises(TypeError):
+            yield from fut1
+        with self.assertRaises(ReplyError):
+            yield from fut2
+        with self.assertRaises(ReplyError):
+            yield from fut3
+
+    @run_until_complete
+    def test_multi_exec__exec_error(self):
+        tr = self.redis.multi_exec()
+        fut = tr.connection.execute('INCRBY', 'key', '1.0')
+        with self.assertRaises(MultiExecError):
             yield from tr.execute()
         with self.assertRaises(ReplyError):
             yield from fut
 
-    @run_until_complete
-    def test_multi_exec__exec_error(self):
-        with self.assertRaises(ReplyError):
-            tr = self.redis.multi_exec()
-            fut = tr.connection.execute('INCRBY', 'key', '1.0')
-            yield from tr.execute(return_exceptions=False)
+        yield from self.redis.set('foo', 'bar')
+        tr = self.redis.multi_exec()
+        fut = tr.incrbyfloat('foo', 1.1)
+        res = yield from tr.execute(return_exceptions=True)
+        self.assertIsInstance(res[0], ReplyError)
         with self.assertRaises(ReplyError):
             yield from fut
 
+    @run_until_complete
+    def test_multi_exec__type_errors(self):
         tr = self.redis.multi_exec()
         fut = tr.incrby('key', 1.0)
         with self.assertRaises(TypeError):
-            yield from tr.execute(return_exceptions=False)
+            yield from tr.execute()
         with self.assertRaises(TypeError):
             yield from fut
+
+    @run_until_complete
+    def test_multi_exec__err_in_connection(self):
+        yield from self.redis.set('foo', 1)
+        tr = self.redis.multi_exec()
+        fut1 = tr.mget('foo', None)
+        fut2 = tr.incr('foo')
+        with self.assertRaises(TypeError):
+            # print('waiting type error...')
+            yield from tr.execute()
+        # print('got one!')
+        with self.assertRaises(TypeError):
+            # print('waiting error in future')
+            yield from fut1
+        # print('#'*90)
+        yield from fut2
+        # print('#'*90)
 
     @run_until_complete
     def test_watch_unwatch(self):
