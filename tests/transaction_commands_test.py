@@ -1,3 +1,4 @@
+import asyncio
 
 from ._testutil import RedisTest, run_until_complete
 from aioredis import ReplyError
@@ -9,37 +10,59 @@ class TransactionCommandsTest(RedisTest):
     def test_multi_exec(self):
         yield from self.redis.delete('foo', 'bar')
 
-        res = yield from self.redis.multi_exec(
-            self.redis.incr('foo'),
-            self.redis.incr('bar'))
+        tr = self.redis.multi_exec()
+        f1 = tr.incr('foo')
+        f2 = tr.incr('bar')
+        res = yield from tr.execute()
         self.assertEqual(res, [1, 1])
-        res = yield from self.redis.multi_exec(
-            self.redis.incr('foo'),
-            self.redis.incr('bar'))
-        self.assertEqual(res, [2, 2])
+        res2 = yield from asyncio.gather(f1, f2, loop=self.loop)
+        self.assertEqual(res, res2)
+
+        with self.assertRaises(AssertionError):
+            tr.incr('foo')
+        with self.assertRaises(AssertionError):
+            yield from tr.execute()
+
+        tr = self.redis.multi_exec()
+        f1 = tr.incr('foo')
+        f2 = tr.incr('bar')
+        yield from tr.execute()
+        self.assertEqual((yield from f1), 2)
+        self.assertEqual((yield from f2), 2)
 
         with self.assertRaises(TypeError):
-            yield from self.redis.multi_exec()
-        with self.assertRaises(TypeError):
-            yield from self.redis.multi_exec(self.redis.incr)
+            yield from self.redis.multi_exec().execute()
 
-    @run_until_complete
-    def test_multi_exec__conn_closed(self):
-        with self.assertRaises(ReplyError):
-            yield from self.redis.multi_exec(
-                self.redis.incr('key'))
+    # @run_until_complete
+    # def test_multi_exec__conn_closed(self):
+    #     with self.assertRaises(ReplyError):
+    #         yield from self.redis.multi_exec(
+    #             self.redis.incr('key'))
 
     @run_until_complete
     def test_multi_exec__discard(self):
         with self.assertRaises(ReplyError):
-            yield from self.redis.multi_exec(
-                self.redis.connection.execute('MULTI'))
+            tr = self.redis.multi_exec()
+            fut = tr.connection.execute('MULTI')
+            yield from tr.execute()
+        with self.assertRaises(ReplyError):
+            yield from fut
 
     @run_until_complete
     def test_multi_exec__exec_error(self):
         with self.assertRaises(ReplyError):
-            yield from self.redis.multi_exec(
-                self.redis.connection.execute('INCRBY', 'key', '1.0'))
+            tr = self.redis.multi_exec()
+            fut = tr.connection.execute('INCRBY', 'key', '1.0')
+            yield from tr.execute(return_exceptions=False)
+        with self.assertRaises(ReplyError):
+            yield from fut
+
+        tr = self.redis.multi_exec()
+        fut = tr.incrby('key', 1.0)
+        with self.assertRaises(TypeError):
+            yield from tr.execute(return_exceptions=False)
+        with self.assertRaises(TypeError):
+            yield from fut
 
     @run_until_complete
     def test_watch_unwatch(self):
@@ -81,6 +104,15 @@ class TransactionCommandsTest(RedisTest):
 
     @run_until_complete
     def test_exec(self):
+        yield from self.redis.multi()
+        yield from self.redis.connection.execute('INCRBY', 'foo', '1.0')
+        res = yield from self.redis.exec(return_exceptions=True)
+        self.assertIsInstance(res[0], ReplyError)
+
+        with self.assertRaises(ReplyError):
+            yield from self.redis.multi()
+            yield from self.redis.connection.execute('INCRBY', 'foo', '1.0')
+            yield from self.redis.exec()
         with self.assertRaises(AssertionError):
             yield from self.redis.exec()
         with self.assertRaises(ReplyError):

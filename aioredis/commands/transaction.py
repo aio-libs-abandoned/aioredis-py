@@ -1,4 +1,3 @@
-import warnings
 import asyncio
 import functools
 
@@ -25,10 +24,10 @@ class TransactionsCommandsMixin:
     ...     if not redis.closed:
     ...         result = yield from redis.exec()
 
-    >>> tr = MultiExec(redis)   # Pipeline(redis, multi_exec=True)
+    >>> tr = redis.multi_exec()
     >>> try:
-    ...     result_future1 = yield from tr.redis.incr('foo')
-    ...     result_future2 = yield from tr.redis.incr('bar')
+    ...     result_future1 = yield from tr.incr('foo')
+    ...     result_future2 = yield from tr.incr('bar')
     >>> except RedisError:
     ...     pass
     >>> else:
@@ -43,10 +42,12 @@ class TransactionsCommandsMixin:
         fut = self._conn.execute(b'DISCARD')
         return wait_ok(fut)
 
-    def exec(self):
+    def exec(self, *, return_exceptions=False):
         """Execute all commands issued after MULTI."""
         assert self._conn.in_transaction
         fut = self._conn.execute(b'EXEC')
+        if return_exceptions:
+            return fut
         return wait_convert(fut, check_errors)
 
     def multi(self):
@@ -66,64 +67,50 @@ class TransactionsCommandsMixin:
         fut = self._conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
 
-    @property
+    # @property
+    # def multi_exec(self):
+    #     """Executes redis commands in MULTI/EXEC block.
+
+    #     Usage as follows:
+
+    #     >>> yield from redis.multi_exec(
+    #     ...     redis.incr('foo'),
+    #     ...     redis.incr('bar'),
+    #     ...     )
+    #     [1, 1]
+
+    #     Returns list of results.
+
+    #     .. warning::
+    #        ``multi_exec`` method is a descriptor and MULTI redis command is
+    #        issued on __get__. This may lead to unexpected errors if
+    #        expression within parentheses raised exception.
+
+    #        This API method may be dropped in later releases.
+
+    #     :raises TypeError: if any of arguments is not coroutine object
+    #                        or Future.
+    #     """
+    #     warnings.warn("MultiExec API is not stable,"
+    #                   " use it on your own risk!")
+    #     return _MultiExec(self)
+
     def multi_exec(self):
-        """Executes redis commands in MULTI/EXEC block.
+        """Returns MULTI/EXEC pipeline wrapper.
 
-        Usage as follows:
+        Usage as following:
 
-        >>> yield from redis.multi_exec(
-        ...     redis.incr('foo'),
-        ...     redis.incr('bar'),
-        ...     )
+        >>> tr = redis.multi_exec()
+        >>> fut1 = tr.incr('foo')   # NO `yield from`!
+        >>> fut2 = tr.incr('bar')   # as it will block forever
+        >>> result = yield from tr.execute()
+        >>> result
         [1, 1]
-
-        Returns list of results.
-
-        .. warning::
-           ``multi_exec`` method is a descriptor and MULTI redis command is
-           issued on __get__. This may lead to unexpected errors if
-           expression within parentheses raised exception.
-
-           This API method may be dropped in later releases.
-
-        :raises TypeError: if any of arguments is not coroutine object
-                           or Future.
+        >>> yield from asyncio.gather(fut1, fut2)
+        [1, 1]
         """
-        warnings.warn("MultiExec API is not stable, use it on your own risk!")
-        return _MultiExec(self)
-
-    def new_multi_exec(self):
         return MultiExec(self._conn, self.__class__,
                          loop=self._conn._loop)
-
-
-class _MultiExec:
-
-    def __init__(self, redis):
-        self.redis = redis
-        self._fut = redis.multi()   # Bad hack
-
-    @asyncio.coroutine
-    def __call__(self, *futures):
-        if not len(futures):
-            raise TypeError("At least one future/coroutine object is required")
-        if not all(self._type_check(fut) for fut in futures):
-            raise TypeError("All arguments must be coroutine"
-                            " objects or Futures")
-        try:
-            yield from self._fut
-            for fut in futures:
-                yield from fut
-        finally:
-            if not self.redis.connection.closed:
-                if self.redis.connection._transaction_error:
-                    yield from self.redis.discard()
-                else:
-                    return (yield from self.redis.exec())
-
-    def _type_check(self, obj):
-        return asyncio.iscoroutine(obj) or isinstance(obj, asyncio.Future)
 
 
 def check_errors(res):
@@ -178,10 +165,11 @@ class MultiExec:
         self._loop = loop
         self._buffer = _Buffer(self._pipeline, loop=self._loop)
         self._redis = commands_factory(self._buffer)
+        self._done = False
 
     def __getattr__(self, name):
-        # TODO: override multi/exec/discard
-        #       as redis contains fake connection
+        assert not self._done, \
+            "Transaction has been already done. Create new one"
         attr = getattr(self._redis, name)
         if callable(attr):
 
@@ -201,7 +189,13 @@ class MultiExec:
     @asyncio.coroutine
     def execute(self, *, return_exceptions=True):
         """Executes all buffered commands."""
+        assert not self._done, \
+            "Transaction has been already done. Create new one"
+        if not self._pipeline:
+            raise TypeError("At least one command within MULTI/EXEC"
+                            " block is required")
         yield from self._conn.execute(b'MULTI')
+        self._done = True
         try:
             futures = []
             for fut, cmd, args, kw in self._pipeline:
@@ -210,15 +204,29 @@ class MultiExec:
         finally:
             if not self._conn.closed:
                 if self._conn._transaction_error:
-                    yield from self._conn.execute(b'DISCARD')
+                    yield from self._discard()
                 else:
                     return (yield from self._exec(return_exceptions))
 
     @asyncio.coroutine
+    def _discard(self):
+        err = self._conn._transaction_error
+        yield from self._conn.execute(b'DISCARD')
+        for fut, *spam in self._pipeline:
+            fut.set_exception(err)
+
+    @asyncio.coroutine
     def _exec(self, return_exceptions):
         result = yield from self._conn.execute(b'EXEC')
+        last_error = None
         for val, (fut, *spam) in zip(result, self._pipeline):
-            fut.set_result(val)
+            if isinstance(val, RedisError):
+                fut.set_exception(val)
+                last_error = val
+            else:
+                fut.set_result(val)
+        if last_error and not return_exceptions:
+            raise last_error
         gather = asyncio.gather(*self._results, loop=self._loop,
                                 return_exceptions=return_exceptions)
         return (yield from gather)
