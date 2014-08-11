@@ -1,5 +1,6 @@
 import warnings
 import asyncio
+import functools
 
 from ..errors import RedisError
 from ..util import wait_ok, wait_convert
@@ -89,8 +90,12 @@ class TransactionsCommandsMixin:
         :raises TypeError: if any of arguments is not coroutine object
                            or Future.
         """
-        warnings.warn("MutliExec API is not stable, use it on your own risk!")
+        warnings.warn("MultiExec API is not stable, use it on your own risk!")
         return _MultiExec(self)
+
+    def new_multi_exec(self):
+        return MultiExec(self._conn, self.__class__,
+                         loop=self._conn._loop)
 
 
 class _MultiExec:
@@ -134,8 +139,8 @@ class MultiExec:
     Usage:
 
     >>> tr = redis.multi_exec()
-    >>> f1 = tr.redis.incr('foo')
-    >>> f2 = tr.redis.incr('bar')
+    >>> f1 = tr.incr('foo')
+    >>> f2 = tr.incr('bar')
     >>> # exec, A)
     >>> yield from tr.execute()
     >>> res1 = yield from f1
@@ -146,43 +151,88 @@ class MultiExec:
     and ofcourse try/except:
 
     >>> tr = redis.multi_exec()
-    >>> f1 = tr.redis.incr('1') # won't raise any exception (why?)
+    >>> f1 = tr.incr('1') # won't raise any exception (why?)
     >>> try:
     ...     res = yield from tr.execute()
     ... except RedisError:
     ...     pass
     >>> assert f1.done()
     >>> assert f1.result() is res
+
+    >>> tr = redis.multi_exec()
+    >>> wait_ok_coro = tr.mset('1')
+    >>> try:
+    ...     ok1 = yield from tr.execute()
+    ... except RedisError:
+    ...     pass # handle it
+    >>> ok2 = yield from wait_ok_coro
+    >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
 
-    def __init__(self, connection, commands_factory=None):
-        # self._redis = redis
+    def __init__(self, connection, commands_factory=None, *, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
         self._conn = connection
         self._pipeline = []
-        self._buffer_connection = None
-        self._redis = commands_factory(self._buffer_connection)
+        self._results = []
+        self._loop = loop
+        self._buffer = _Buffer(self._pipeline, loop=self._loop)
+        self._redis = commands_factory(self._buffer)
 
-    @property
-    def redis(self):
-        return "Mock"
+    def __getattr__(self, name):
+        # TODO: override multi/exec/discard
+        #       as redis contains fake connection
+        attr = getattr(self._redis, name)
+        if callable(attr):
+
+            @functools.wraps(attr)
+            def wrapper(*args, **kw):
+                try:
+                    task = asyncio.async(attr(*args, **kw), loop=self._loop)
+                except Exception as exc:
+                    task = asyncio.Future(loop=self._loop)
+                    task.set_exception(exc)
+                self._results.append(task)
+                return task
+            return wrapper
+
+        return attr
 
     @asyncio.coroutine
-    def execute(self):
+    def execute(self, *, return_exceptions=True):
         """Executes all buffered commands."""
         yield from self._conn.execute(b'MULTI')
         try:
-            for fut, command in self._pipeline:
-                q = yield from self._conn.execute(*command)
-                assert q == b'QUEUED'
+            futures = []
+            for fut, cmd, args, kw in self._pipeline:
+                futures.append(self._conn.execute(cmd, *args, **kw))
+            yield from asyncio.gather(*futures, loop=self._loop)
         finally:
             if not self._conn.closed:
                 if self._conn._transaction_error:
                     yield from self._conn.execute(b'DISCARD')
                 else:
-                    res = yield from self._conn.execute(b'EXEC')
-                    for val, (fut, spam) in zip(res, self._pipeline):
-                        fut.set_result(val)
+                    return (yield from self._exec(return_exceptions))
+
+    @asyncio.coroutine
+    def _exec(self, return_exceptions):
+        result = yield from self._conn.execute(b'EXEC')
+        for val, (fut, *spam) in zip(result, self._pipeline):
+            fut.set_result(val)
+        gather = asyncio.gather(*self._results, loop=self._loop,
+                                return_exceptions=return_exceptions)
+        return (yield from gather)
 
 
-class RedisMock:
-    pass
+class _Buffer:
+
+    def __init__(self, pipeline, *, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        self._pipeline = pipeline
+        self._loop = loop
+
+    def execute(self, cmd, *args, **kw):
+        fut = asyncio.Future(loop=self._loop)
+        self._pipeline.append((fut, cmd, args, kw))
+        return fut
