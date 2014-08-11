@@ -10,10 +10,13 @@ def main():
         redis = yield from aioredis.create_redis(
             ('localhost', 6379))
         yield from redis.delete('foo', 'bar')
-        res = yield from redis.multi_exec(
-            redis.incr('foo'),
-            redis.incr('bar'))
+        tr = redis.multi_exec()
+        fut1 = tr.incr('foo')
+        fut2 = tr.incr('bar')
+        res = yield from tr.execute()
+        res2 = yield from asyncio.gather(fut1, fut2)
         print(res)
+        assert res == res2
 
     loop.run_until_complete(go())
 
