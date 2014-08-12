@@ -253,8 +253,9 @@ class MultiExec(Pipeline):
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, connection, commands_factory=lambda conn: conn,
+                 *, loop=None):
+        super().__init__(connection, commands_factory, loop=loop)
         self._waiters = []
 
     def execute(self, *, return_exceptions=False):
@@ -275,25 +276,28 @@ class MultiExec(Pipeline):
                 else:
                     if self._conn._transaction_error:
                         err = self._conn._transaction_error
-                        yield from self._conn.execute('DISCARD')
                         for fut in self._waiters:
                             fut.set_exception(err)
+                        yield from self._conn.execute('DISCARD')
                     else:
                         results = yield from self._conn.execute('EXEC')
-                        assert len(results) == len(self._waiters)
-                        errors = []
-                        for val, fut in zip(results, self._waiters):
-                            if isinstance(val, RedisError):
-                                fut.set_exception(val)
-                                errors.append(val)
-                            else:
-                                fut.set_result(val)
-                        if errors and not return_exceptions:
-                            raise MultiExecError(errors)
+                        self._resolve_waiters(results, return_exceptions)
                         return (yield from self._gather_result(
                             return_exceptions))
         else:
             return (yield from self._gather_result(return_exceptions))
+
+    def _resolve_waiters(self, results, return_exceptions):
+        assert len(results) == len(self._waiters), (results, self._waiters)
+        errors = []
+        for val, fut in zip(results, self._waiters):
+            if isinstance(val, RedisError):
+                fut.set_exception(val)
+                errors.append(val)
+            else:
+                fut.set_result(val)
+        if errors and not return_exceptions:
+            raise MultiExecError(errors)
 
     def _set_result(self, fut, waiter):
         # fut is done and must be 'QUEUED'
