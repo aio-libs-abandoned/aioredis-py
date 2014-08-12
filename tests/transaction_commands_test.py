@@ -38,8 +38,8 @@ class TransactionCommandsTest(RedisTest):
         res2 = yield from asyncio.gather(f1, f2, loop=self.loop)
         self.assertEqual(res, res2)
 
-        with self.assertRaisesRegex(TypeError, "At least one command"):
-            yield from self.redis.multi_exec().execute()
+        # with self.assertRaisesRegex(TypeError, "At least one command"):
+        #     yield from self.redis.multi_exec().execute()
         tr = self.redis.multi_exec()
         tr.incrby('foo', 1.0)
         with self.assertRaisesRegex(TypeError, "increment must be .* int"):
@@ -101,6 +101,18 @@ class TransactionCommandsTest(RedisTest):
             yield from tr.execute()
         with self.assertRaises(TypeError):
             yield from fut
+
+    @run_until_complete
+    def test_multi_exec__several_type_errors(self):
+        tr = self.redis.multi_exec()
+        fut1 = tr.incrby('key', 1.0)
+        fut2 = tr.rename('bar', 'bar')
+        with self.assertRaises(MultiExecError):
+            yield from tr.execute()
+        with self.assertRaises(TypeError):
+            yield from fut1
+        with self.assertRaises(ValueError):
+            yield from fut2
 
     @run_until_complete
     def test_multi_exec__err_in_connection(self):
