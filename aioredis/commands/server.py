@@ -51,19 +51,27 @@ class ServerCommandsMixin:
 
     def config_get(self, parameter):
         """Get the value of a configuration parameter."""
-        raise NotImplementedError
+        if not isinstance(parameter, str):
+            raise TypeError("parameter must be str")
+        fut = self._conn.execute(b'CONFIG', b'GET', parameter)
+        return wait_convert(fut, to_dict)
 
     def config_rewrite(self):
         """Rewrite the configuration file with the in memory configuration."""
-        raise NotImplementedError
+        fut = self._conn.execute(b'CONFIG', b'REWRITE')
+        return wait_ok(fut)
 
     def config_set(self, parameter, value):
         """Set a configuration parameter to the given value."""
-        raise NotImplementedError
+        if not isinstance(parameter, str):
+            raise TypeError("parameter must be str")
+        fut = self._conn.execute(b'CONFIG', b'SET', parameter, value)
+        return wait_ok(fut)
 
     def config_resetstat(self):
         """Reset the stats returned by INFO."""
-        raise NotImplementedError
+        fut = self._conn.execute(b'CONFIG', b'RESETSTAT')
+        return wait_ok(fut)
 
     def dbsize(self):
         """Return the number of keys in the selected database."""
@@ -94,6 +102,7 @@ class ServerCommandsMixin:
 
     def lastsave(self):
         """Get the UNIX time stamp of the last successful save to disk."""
+        return self._conn.execute(b'LASTSAVE')
         raise NotImplementedError
 
     def monitor(self):
@@ -131,3 +140,8 @@ class ServerCommandsMixin:
         """Return current server time."""
         fut = self._conn.execute(b'TIME')
         return wait_convert(fut, lambda obj: float(b'.'.join(obj)))
+
+
+def to_dict(value):
+    it = iter(value)
+    return dict(zip(it, it))
