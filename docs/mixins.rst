@@ -54,10 +54,19 @@ Transaction commands
 .. autoclass:: TransactionsCommandsMixin
    :members:
 
-.. class:: Pipeline
-   :module: aioredis.commands.transaction
+.. class:: Pipeline(connection, commands_factory=lambda conn: conn, \*,\
+                    loop=None)
 
    TBD
+
+   :param connection: Redis connection
+   :type connection: aioredis.RedisConnection
+
+   :param callable commands_factory: Commands factory to get methods from.
+
+   :param loop: An optional *event loop* instance
+                (uses :func:`asyncio.get_event_loop` if not specified).
+   :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    .. method:: execute(\*, return_exceptions=False)
 
@@ -67,10 +76,12 @@ Transaction commands
 
       :raise aioredis.PipelineError:
 
-.. class:: MultiExec
-   :module: aioredis.commands.transaction
+.. class:: MultiExec(connection, commands_factory=lambda conn: conn, \*,\
+                     loop=None)
 
    TBD
+
+   See :class:`~Pipeline` for parameters description.
 
    .. method:: execute(\*, return_exceptions=False)
 

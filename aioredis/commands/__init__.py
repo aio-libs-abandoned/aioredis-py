@@ -8,12 +8,12 @@ from .hash import HashCommandsMixin
 from .hyperloglog import HyperLogLogCommandsMixin
 from .set import SetCommandsMixin
 from .sorted_set import SortedSetCommandsMixin
-from .transaction import TransactionsCommandsMixin
+from .transaction import TransactionsCommandsMixin, Pipeline, MultiExec
 from .list import ListCommandsMixin
 from .scripting import ScriptingCommandsMixin
 from .server import ServerCommandsMixin
 
-__all__ = ['create_redis', 'Redis']
+__all__ = ['create_redis', 'Redis', 'Pipeline', 'MultiExec']
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,
@@ -102,3 +102,7 @@ def create_redis(address, *, db=None, password=None,
                                         encoding=encoding,
                                         loop=loop)
     return commands_factory(conn)
+
+
+# make pyflakes happy
+(Pipeline, MultiExec)
