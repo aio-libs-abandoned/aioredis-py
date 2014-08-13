@@ -2,7 +2,7 @@ import asyncio
 import functools
 
 from ..errors import RedisError, PipelineError, MultiExecError
-from ..util import wait_ok, wait_convert
+from ..util import wait_ok
 
 
 class TransactionsCommandsMixin:
@@ -23,27 +23,6 @@ class TransactionsCommandsMixin:
     >>> result2 = yield from result_future2
     >>> assert result == [result1, result2]
     """
-
-    # TODO: deprecate discard/exec/multi
-    def discard(self):
-        """Discard all commands issued after MULTI."""
-        assert self._conn.in_transaction
-        fut = self._conn.execute(b'DISCARD')
-        return wait_ok(fut)
-
-    def exec(self, *, return_exceptions=False):
-        """Execute all commands issued after MULTI."""
-        assert self._conn.in_transaction
-        fut = self._conn.execute(b'EXEC')
-        if return_exceptions:
-            return fut
-        return wait_convert(fut, check_errors)
-
-    def multi(self):
-        """Mark the start of a transaction block."""
-        assert not self._conn.in_transaction
-        fut = self._conn.execute(b'MULTI')
-        return wait_ok(fut)
 
     def unwatch(self):
         """Forget about all watched keys."""
@@ -99,13 +78,6 @@ class TransactionsCommandsMixin:
         """
         return Pipeline(self._conn, self.__class__,
                         loop=self._conn._loop)
-
-
-def check_errors(res):
-    for obj in res:
-        if isinstance(obj, RedisError):
-            raise obj
-    return res
 
 
 class _RedisBuffer:

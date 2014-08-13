@@ -4,6 +4,12 @@ Changes
 0.2.0 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
 
+* Dropped following Redis methods -- Redis.multi(), Redis.exec(), Redis.discard()
+
+* Redis.multi_exec hack'ish property removed
+
+* Redis.multi_exec() method added
+
 * High-level commands implemented:
 
   * generic commands (tests);

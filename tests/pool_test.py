@@ -245,7 +245,7 @@ class PoolTest(BaseTest):
 
         with (yield from pool) as redis:
             yield from redis.set('abc', 'def')
-            yield from redis.multi()
+            yield from redis.connection.execute('multi')
             yield from redis.set('abc', 'fgh')
         self.assertTrue(redis.closed)
         with (yield from pool) as redis:
