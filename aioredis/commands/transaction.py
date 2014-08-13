@@ -12,30 +12,19 @@ class TransactionsCommandsMixin:
 
     Transactions HOWTO:
 
-    >>> yield from redis.multi()
-    >>> try:
-    ...     yield from redis.incr('foo')
-    ...     yield from redis.incr('bar')
-    >>> except RedisErrror:
-    ...     if not redis.closed:
-    ...         yield from redis.discard()
-    ...     raise
-    >>> else:
-    ...     if not redis.closed:
-    ...         result = yield from redis.exec()
-
     >>> tr = redis.multi_exec()
+    >>> result_future1 = tr.incr('foo')
+    >>> result_future2 = tr.incr('bar')
     >>> try:
-    ...     result_future1 = yield from tr.incr('foo')
-    ...     result_future2 = yield from tr.incr('bar')
-    >>> except RedisError:
-    ...     pass
-    >>> else:
-    ...     yield from tr
+    ...     result = yield from tr.execute()
+    ... except MultiExecError:
+    ...     pass    # check what happened
     >>> result1 = yield from result_future1
     >>> result2 = yield from result_future2
+    >>> assert result == [result1, result2]
     """
 
+    # TODO: deprecate discard/exec/multi
     def discard(self):
         """Discard all commands issued after MULTI."""
         assert self._conn.in_transaction

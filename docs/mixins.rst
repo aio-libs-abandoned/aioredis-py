@@ -70,11 +70,19 @@ Transaction commands
 
    .. method:: execute(\*, return_exceptions=False)
 
-      Executes buffered commands and returns result
+      Executes all buffered commands and returns result.
+
+      Any exception that is raised by any command is caught and
+      raised later when processing results.
+
+      If ``return_exceptions`` is set to ``True`` then all collected errors
+      are returned in resulting list otherwise single
+      :exc:`aioredis.PipelineError` exception is raised
+      (containing all collected errors).
 
       :param bool return_exceptions: Raise or return exceptions.
 
-      :raise aioredis.PipelineError:
+      :raise aioredis.PipelineError: Raised when any command caused error.
 
 .. class:: MultiExec(connection, commands_factory=lambda conn: conn, \*,\
                      loop=None)
@@ -85,11 +93,13 @@ Transaction commands
 
    .. method:: execute(\*, return_exceptions=False)
 
-      Executes buffered commands and returns result.
+      Executes all buffered commands and returns result.
+
+      see :meth:`Pipeline.execute` for details.
 
       :param bool return_exceptions: Raise or return exceptions.
 
-      :raise aioredis.MultiExecError:
+      :raise aioredis.MultiExecError: raised instead of :exc:`aioredis.PipelineError`
 
 Scripting commands
 ------------------
