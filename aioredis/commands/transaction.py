@@ -74,7 +74,7 @@ class TransactionsCommandsMixin:
                          loop=self._conn._loop)
 
     def pipeline(self):
-        """Returns Pipeline object to execute bulk of commands.
+        """Returns :class:`Pipeline` object to execute bulk of commands.
 
         It is provided for convenience.
         Commands can be pipelined without it.

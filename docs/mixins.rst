@@ -57,7 +57,12 @@ Transaction commands
 .. class:: Pipeline(connection, commands_factory=lambda conn: conn, \*,\
                     loop=None)
 
-   TBD
+   Commands pipeline.
+
+   Buffers commands for execution in bulk.
+
+   This class implements `__getattr__` method allowing to call methods
+   on instance created with ``commands_factory``.
 
    :param connection: Redis connection
    :type connection: aioredis.RedisConnection
@@ -87,7 +92,9 @@ Transaction commands
 .. class:: MultiExec(connection, commands_factory=lambda conn: conn, \*,\
                      loop=None)
 
-   TBD
+   Bases: :class:`~Pipeline`.
+
+   Multi/Exec pipeline wrapper.
 
    See :class:`~Pipeline` for parameters description.
 
