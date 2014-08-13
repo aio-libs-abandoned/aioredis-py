@@ -54,6 +54,32 @@ Transaction commands
 .. autoclass:: TransactionsCommandsMixin
    :members:
 
+.. class:: Pipeline
+   :module: aioredis.commands.transaction
+
+   TBD
+
+   .. method:: execute(\*, return_exceptions=False)
+
+      Executes buffered commands and returns result
+
+      :param bool return_exceptions: Raise or return exceptions.
+
+      :raise aioredis.PipelineError:
+
+.. class:: MultiExec
+   :module: aioredis.commands.transaction
+
+   TBD
+
+   .. method:: execute(\*, return_exceptions=False)
+
+      Executes buffered commands and returns result.
+
+      :param bool return_exceptions: Raise or return exceptions.
+
+      :raise aioredis.MultiExecError:
+
 Scripting commands
 ------------------
 

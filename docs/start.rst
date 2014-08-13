@@ -1,3 +1,4 @@
+.. highlight:: python
 .. module:: aioredis.commands
 
 Getting started
@@ -16,9 +17,7 @@ When you making a call with ``yield from`` you will be waiting result,
 but if you want to make several calls simply collect futures of those calls
 and then gather their results.
 
-Simple example shows both cases:
-
-.. code:: python
+Simple example shows both cases::
 
    # No pipelining;
    def wait_each_command():
@@ -32,6 +31,20 @@ Simple example shows both cases:
        fut2 = redis.incr('bar')     # issue command and return future
        val, cnt = yield from asyncio.gather(fut1, fut2) # block until results are available
        return val, cnt
+
+
+.. note::
+
+   As as convenience :mod:`aioredis` provides
+   :meth:`~TransactionsCommandsMixin.pipeline`
+   method allowing to execute bulk of commands at once::
+
+      def convenience_way():
+          pipe = redis.pipeline()
+          fut1 = pipe.get('foo')
+          fut2 = pipe.incr('bar')
+          val, cnt = yield from asyncio.gather(fut1, fut2)
+          return val, cnt
 
 
 Multi/Exec transactions

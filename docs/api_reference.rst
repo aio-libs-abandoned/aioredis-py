@@ -264,6 +264,16 @@ Exceptions
 
    Raised for Redis :term:`error replies`.
 
+.. exception:: PipelineError
+
+   Raised from :meth:`~.commands.TransactionsCommandsMixin.pipeline`
+   if any pipelined command raised error.
+
+.. exception:: MultiExecError
+
+   Same as :exc:`~.PipelineError` but raised when executing multi_exec
+   block.
+
 ----
 
 .. _aioredis-redis:
