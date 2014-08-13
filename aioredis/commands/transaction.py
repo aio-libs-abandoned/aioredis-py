@@ -1,7 +1,7 @@
 import asyncio
 import functools
 
-from ..errors import RedisError, MultiExecError
+from ..errors import RedisError, PipelineError, MultiExecError
 from ..util import wait_ok, wait_convert
 
 
@@ -70,10 +70,10 @@ class TransactionsCommandsMixin:
     def multi_exec(self):
         """Returns MULTI/EXEC pipeline wrapper.
 
-        Usage as following:
+        Usage:
 
         >>> tr = redis.multi_exec()
-        >>> fut1 = tr.incr('foo')   # NO `yield from` as it will block forever
+        >>> fut1 = tr.incr('foo')   # NO `yield from` as it will block forever!
         >>> fut2 = tr.incr('bar')
         >>> result = yield from tr.execute()
         >>> result
@@ -85,6 +85,29 @@ class TransactionsCommandsMixin:
                          loop=self._conn._loop)
 
     def pipeline(self):
+        """Returns Pipeline object to execute bulk of commands.
+
+        It is provided for convenience.
+        Commands can be pipelined without it.
+
+        Example:
+
+        >>> pipe = redis.pipeline()
+        >>> fut1 = pipe.incr('foo') # NO `yield from` as it will block forever!
+        >>> fut2 = pipe.incr('bar')
+        >>> result = yield from pipe.execute()
+        >>> result
+        [1, 1]
+        >>> yield from asyncio.gather(fut1, fut2)
+        [1, 1]
+        >>> #
+        >>> # The same can be done without pipeline:
+        >>> #
+        >>> fut1 = redis.incr('foo')    # the 'INCRY foo' command already sent
+        >>> fut2 = redis.incr('bar')
+        >>> yield from asyncio.gather(fut1, fut2)
+        [2, 2]
+        """
         return Pipeline(self._conn, self.__class__,
                         loop=self._conn._loop)
 
@@ -127,6 +150,7 @@ class Pipeline:
     >>> yield from fut2
     1
     """
+    error_class = PipelineError
 
     def __init__(self, connection, commands_factory=lambda conn: conn,
                  *, loop=None):
@@ -157,24 +181,6 @@ class Pipeline:
             return wrapper
         return attr
 
-    def _gather_result(self, return_exceptions):
-        errors = []
-        results = []
-        for fut in self._results:
-            try:
-                res = yield from fut
-                results.append(res)
-            except Exception as exc:
-                errors.append(exc)
-                results.append(exc)
-        if errors and not return_exceptions:
-            if len(errors) == 1:
-                raise errors[0]
-            else:
-                raise MultiExecError(errors)
-        return results
-
-    @asyncio.coroutine
     def execute(self, *, return_exceptions=False):
         """Execute all buffered commands.
 
@@ -188,11 +194,31 @@ class Pipeline:
         self._done = True
 
         if self._pipeline:
-            yield from asyncio.gather(*self._send_pipeline(),
-                                      loop=self._loop,
-                                      return_exceptions=True)
+            return self._do_execute(return_exceptions=return_exceptions)
+        else:
+            return self._gather_result(return_exceptions)
 
+    @asyncio.coroutine
+    def _do_execute(self, *, return_exceptions=False):
+        yield from asyncio.gather(*self._send_pipeline(),
+                                  loop=self._loop,
+                                  return_exceptions=True)
         return (yield from self._gather_result(return_exceptions))
+
+    @asyncio.coroutine
+    def _gather_result(self, return_exceptions):
+        errors = []
+        results = []
+        for fut in self._results:
+            try:
+                res = yield from fut
+                results.append(res)
+            except Exception as exc:
+                errors.append(exc)
+                results.append(exc)
+        if errors and not return_exceptions:
+            raise self.error_class(errors)
+        return results
 
     def _send_pipeline(self):
         for fut, cmd, args, kw in self._pipeline:
@@ -252,43 +278,35 @@ class MultiExec(Pipeline):
     >>> ok2 = yield from wait_ok_coro
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
+    error_class = MultiExecError
 
-    def __init__(self, connection, commands_factory=lambda conn: conn,
-                 *, loop=None):
-        super().__init__(connection, commands_factory, loop=loop)
-        self._waiters = []
-
-    def execute(self, *, return_exceptions=False):
-        assert not self._done, "Transaction alredy executed. Create new one."
-        self._done = True
-
-        if self._pipeline:
-            yield from self._conn.execute('MULTI')
-            try:
-                yield from asyncio.gather(*self._send_pipeline(),
-                                          loop=self._loop)
-            except asyncio.CancelledError:
-                pass
-            finally:
-                if self._conn.closed:
-                    for fut in self._waiters:
-                        fut.cancel()
+    @asyncio.coroutine
+    def _do_execute(self, *, return_exceptions=False):
+        self._waiters = waiters = []
+        yield from self._conn.execute('MULTI')
+        try:
+            yield from asyncio.gather(*self._send_pipeline(),
+                                      loop=self._loop)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if self._conn.closed:
+                for fut in waiters:
+                    fut.cancel()
+            else:
+                if self._conn._transaction_error:
+                    err = self._conn._transaction_error
+                    for fut in waiters:
+                        fut.set_exception(err)
+                    yield from self._conn.execute('DISCARD')
                 else:
-                    if self._conn._transaction_error:
-                        err = self._conn._transaction_error
-                        for fut in self._waiters:
-                            fut.set_exception(err)
-                        yield from self._conn.execute('DISCARD')
-                    else:
-                        results = yield from self._conn.execute('EXEC')
-                        self._resolve_waiters(results, return_exceptions)
-                        return (yield from self._gather_result(
-                            return_exceptions))
-        else:
-            return (yield from self._gather_result(return_exceptions))
+                    results = yield from self._conn.execute('EXEC')
+                    assert len(results) == len(waiters), (results, waiters)
+                    self._resolve_waiters(results, return_exceptions)
+                    return (yield from self._gather_result(
+                        return_exceptions))
 
     def _resolve_waiters(self, results, return_exceptions):
-        assert len(results) == len(self._waiters), (results, self._waiters)
         errors = []
         for val, fut in zip(results, self._waiters):
             if isinstance(val, RedisError):
