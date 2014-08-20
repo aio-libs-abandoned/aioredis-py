@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert
+from aioredis.util import wait_convert, _NOTSET
 
 
 class HashCommandsMixin:
@@ -16,13 +16,15 @@ class HashCommandsMixin:
         fut = self._conn.execute(b'HEXISTS', key, field)
         return wait_convert(fut, bool)
 
-    def hget(self, key, field):
+    def hget(self, key, field, *, encoding=_NOTSET):
         """Get the value of a hash field."""
-        return self._conn.execute(b'HGET', key, field)
+        return self._conn.execute(b'HGET', key, field, encoding=encoding)
 
+    # TODO: add encoding param
     def hgetall(self, key):
         """Get all the fields and values in a hash."""
-        return self._conn.execute(b'HGETALL', key)
+        fut = self._conn.execute(b'HGETALL', key)
+        return wait_convert(fut, to_dict)
 
     def hincrby(self, key, field, increment=1):
         """Increment the integer value of a hash field by the given number."""
@@ -33,6 +35,7 @@ class HashCommandsMixin:
         fut = self._conn.execute(b'HINCRBYFLOAT', key, field, increment)
         return wait_convert(fut, float)
 
+    # TODO: add encoding param
     def hkeys(self, key):
         """Get all the fields in a hash."""
         return self._conn.execute(b'HKEYS', key)
@@ -68,3 +71,8 @@ class HashCommandsMixin:
         count is not None and args.extend([b'COUNT', count])
         fut = self._conn.execute(b'HSCAN', *args)
         return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
+
+
+def to_dict(value):
+    it = iter(value)
+    return dict(zip(it, it))

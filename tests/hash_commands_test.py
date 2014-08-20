@@ -70,11 +70,11 @@ class HashCommandsTest(RedisTest):
         yield from self.add(key, field2, value2)
 
         test_value = yield from self.redis.hgetall(key)
-        ref_set = {field1, field2, value1, value2}
-        self.assertEqual(ref_set, set(test_value))
+        self.assertIsInstance(test_value, dict)
+        self.assertEqual({field1: value1, field2: value2}, test_value)
         # try to get all values from key that does not exits
         test_value = yield from self.redis.hgetall(b'not:' + key)
-        self.assertEqual(test_value, [])
+        self.assertEqual(test_value, {})
 
         with self.assertRaises(TypeError):
             yield from self.redis.hgetall(None)
