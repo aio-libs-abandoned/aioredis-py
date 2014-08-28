@@ -161,6 +161,7 @@ class StringCommandsMixin:
         return wait_ok(fut)
 
     def set(self, key, value, expire=0, pexpire=0,
+            # exist={C.SET_IF_NOT_EXIST, C.SET_IF_EXIST, None},
             only_if_not_exists=False, only_if_exists=False):
         """Set the string value of a key.
 

@@ -1,6 +1,5 @@
-import math
-
 from aioredis.util import wait_convert
+from . import const as C
 
 
 class SortedSetCommandsMixin:
@@ -30,7 +29,7 @@ class SortedSetCommandsMixin:
         return self._conn.execute(b'ZCARD', key)
 
     def zcount(self, key, min=float('-inf'), max=float('inf'),
-               include_min=True, include_max=True):
+               *, exclude=None):
         """Count the members in a sorted set with scores
         within the given values.
 
@@ -43,13 +42,8 @@ class SortedSetCommandsMixin:
             raise TypeError("max argument must be int or float")
         if min > max:
             raise ValueError("min could not be grater then max")
-
-        if not include_min and not math.isinf(min):
-            min = ("(" + str(min)).encode('utf-8')
-        if not include_max and not math.isinf(max):
-            max = ("(" + str(max)).encode('utf-8')
-
-        return self._conn.execute(b'ZCOUNT', key, min, max)
+        return self._conn.execute(b'ZCOUNT', key,
+                                  *_encode_min_max(exclude, min, max))
 
     def zincrby(self, key, increment, member):
         """Increment the score of a member in a sorted set.
@@ -136,8 +130,8 @@ class SortedSetCommandsMixin:
         return self._conn.execute(b'ZRANGEBYLEX', key, min, max, *args)
 
     def zrangebyscore(self, key, min=float('-inf'), max=float('inf'),
-                      include_min=True, include_max=True,
-                      withscores=False, offset=None, count=None):
+                      withscores=False, offset=None, count=None,
+                      *, exclude=None):
         """Return a range of memebers in a sorted set, by score.
 
         :raises TypeError: if min or max is not float or int
@@ -158,10 +152,7 @@ class SortedSetCommandsMixin:
         if count is not None and not isinstance(count, int):
             raise TypeError("count argument must be int")
 
-        if not include_min and not math.isinf(min):
-            min = ("(" + str(min)).encode('utf-8')
-        if not include_max and not math.isinf(max):
-            max = ("(" + str(max)).encode('utf-8')
+        min, max = _encode_min_max(exclude, min, max)
 
         args = []
         if withscores:
@@ -169,7 +160,6 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
         fut = self._conn.execute(b'ZRANGEBYSCORE', key, min, max, *args)
-
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -213,30 +203,24 @@ class SortedSetCommandsMixin:
         return self._conn.execute(b'ZREMRANGEBYRANK', key, start, stop)
 
     def zremrangebyscore(self, key, min=float('-inf'), max=float('inf'),
-                         include_min=True, include_max=True):
+                         *, exclude=None):
         """Remove all members in a sorted set within the given scores.
 
-        :raises TypeError: if min is not int or float
-        :raises TypeError: if max is not int or float
+        :raises TypeError: if min or max is not int or float
         """
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
             raise TypeError("max argument must be int or float")
 
-        if not include_min and not math.isinf(min):
-            min = ("(" + str(min)).encode('utf-8')
-        if not include_max and not math.isinf(max):
-            max = ("(" + str(max)).encode('utf-8')
-
+        min, max = _encode_min_max(exclude, min, max)
         return self._conn.execute(b'ZREMRANGEBYSCORE', key, min, max)
 
     def zrevrange(self, key, start, stop, withscores=False):
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
 
-        :raises TypeError: if start is not int
-        :raises TypeError: if stop is not int
+        :raises TypeError: if start or stop is not int
         """
         if not isinstance(start, int):
             raise TypeError("start argument must be int")
@@ -252,8 +236,8 @@ class SortedSetCommandsMixin:
         return fut
 
     def zrevrangebyscore(self, key, max=float('inf'),  min=float('-inf'),
-                         include_min=True, include_max=True,
-                         withscores=False, offset=None, count=None):
+                         *, exclude=None, withscores=False,
+                         offset=None, count=None):
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
 
@@ -275,10 +259,7 @@ class SortedSetCommandsMixin:
         if count is not None and not isinstance(count, int):
             raise TypeError("count argument must be int")
 
-        if not include_min and not math.isinf(min):
-            min = ("(" + str(min)).encode('utf-8')
-        if not include_max and not math.isinf(max):
-            max = ("(" + str(max)).encode('utf-8')
+        min, max = _encode_min_max(exclude, min, max)
 
         args = []
         if withscores:
@@ -286,7 +267,6 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
         fut = self._conn.execute(b'ZREVRANGEBYSCORE', key, min, max, *args)
-
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -316,6 +296,16 @@ class SortedSetCommandsMixin:
         fut = self._conn.execute(b'ZSCAN', key, cursor, *args)
         _converter = lambda obj: (int(obj[0]), pairs_int_or_float(obj[1]))
         return wait_convert(fut, _converter)
+
+
+def _encode_min_max(flag, min, max):
+    if flag is C.ZSET_EXCLUDE_MIN:
+        return '({}'.format(min), max
+    elif flag is C.ZSET_EXCLUDE_MAX:
+        return min, '({}'.format(max)
+    elif flag is C.ZSET_EXCLUDE_BOTH:
+        return '({}'.format(min), '({}'.format(max)
+    return min, max
 
 
 def int_or_float(value):
