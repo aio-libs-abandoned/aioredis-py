@@ -1,5 +1,4 @@
 from aioredis.util import wait_convert
-from . import const as C
 
 
 class SortedSetCommandsMixin:
@@ -7,6 +6,10 @@ class SortedSetCommandsMixin:
 
     For commands details see: http://redis.io/commands/#sorted_set
     """
+
+    ZSET_EXCLUDE_MIN = 'ZSET_EXCLUDE_MIN'
+    ZSET_EXCLUDE_MAX = 'ZSET_EXCLUDE_MAX'
+    ZSET_EXCLUDE_BOTH = 'ZSET_EXCLUDE_BOTH'
 
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.
@@ -299,11 +302,11 @@ class SortedSetCommandsMixin:
 
 
 def _encode_min_max(flag, min, max):
-    if flag is C.ZSET_EXCLUDE_MIN:
+    if flag is SortedSetCommandsMixin.ZSET_EXCLUDE_MIN:
         return '({}'.format(min), max
-    elif flag is C.ZSET_EXCLUDE_MAX:
+    elif flag is SortedSetCommandsMixin.ZSET_EXCLUDE_MAX:
         return min, '({}'.format(max)
-    elif flag is C.ZSET_EXCLUDE_BOTH:
+    elif flag is SortedSetCommandsMixin.ZSET_EXCLUDE_BOTH:
         return '({}'.format(min), '({}'.format(max)
     return min, max
 
