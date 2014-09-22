@@ -7,6 +7,9 @@ class StringCommandsMixin:
     For commands details see: http://redis.io/commands/#string
     """
 
+    SET_IF_NOT_EXIST = 'SET_IF_NOT_EXIST'   # NX
+    SET_IF_EXIST = 'SET_IF_EXIST'           # XX
+
     def append(self, key, value):
         """Append a value to key."""
         return self._conn.execute(b'APPEND', key, value)
@@ -160,14 +163,10 @@ class StringCommandsMixin:
         fut = self._conn.execute(b'PSETEX', key, milliseconds, value)
         return wait_ok(fut)
 
-    def set(self, key, value, expire=0, pexpire=0,
-            only_if_not_exists=False, only_if_exists=False):
+    def set(self, key, value, *, expire=0, pexpire=0, exist=None):
         """Set the string value of a key.
 
-        :raises TypeError: if only_if_not_exists and  only_if_exists both
-                           specified in same time.
-        :raises TypeError: if expire is not int
-        :raises TypeError: if pexpire is not int
+        :raises TypeError: if expire or pexpire is not int
         """
         if expire and not isinstance(expire, int):
             raise TypeError("expire argument must be int")
@@ -175,15 +174,17 @@ class StringCommandsMixin:
             raise TypeError("pexpire argument must be int")
 
         args = []
-        expire and args.extend((b'EX', expire))
-        pexpire and args.extend((b'PX', pexpire))
+        if expire:
+            args[:] = [b'EX', expire]
+        if pexpire:
+            args[:] = [b'PX', pexpire]
 
-        if only_if_not_exists and only_if_exists:
-            raise TypeError('only_if_not_exists and only_if_exists '
-                            'cannot be true simultaneously')
-        only_if_not_exists and args.append(b'NX')
-        only_if_exists and args.append(b'XX')
-        return self._conn.execute(b'SET', key, value, *args)
+        if exist is self.SET_IF_EXIST:
+            args.append(b'XX')
+        elif exist is self.SET_IF_NOT_EXIST:
+            args.append(b'NX')
+        fut = self._conn.execute(b'SET', key, value, *args)
+        return wait_ok(fut)
 
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.

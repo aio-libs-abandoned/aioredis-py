@@ -30,6 +30,8 @@ class MultiExecTest(unittest.TestCase):
 
         @asyncio.coroutine
         def go():
+            # FIXME: tr.connection -- will return fake connection
+            #                         wrapper without execute method
             tr.connection.execute('PING')
             res = yield from tr.execute()
             self.assertEqual(res, [b'PONG'])

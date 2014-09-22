@@ -64,14 +64,20 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zcount(key, 100, 200)
         self.assertEqual(res, 0)
 
-        res = yield from self.redis.zcount(key, 1, 3, include_min=False)
+        res = yield from self.redis.zcount(
+            key, 1, 3, exclude=self.redis.ZSET_EXCLUDE_BOTH)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zcount(
+            key, 1, 3, exclude=self.redis.ZSET_EXCLUDE_MIN)
         self.assertEqual(res, 2)
-        res = yield from self.redis.zcount(key, 1, 3, include_max=False)
+        res = yield from self.redis.zcount(
+            key, 1, 3, exclude=self.redis.ZSET_EXCLUDE_MAX)
         self.assertEqual(res, 3)
-        res = yield from self.redis.zcount(key, 1, include_max=False)
+        res = yield from self.redis.zcount(
+            key, 1, exclude=self.redis.ZSET_EXCLUDE_MAX)
         self.assertEqual(res, 5)
-        res = yield from self.redis.zcount(key, float(b'-inf'), 3,
-                                           include_min=False)
+        res = yield from self.redis.zcount(
+            key, float('-inf'), 3, exclude=self.redis.ZSET_EXCLUDE_MIN)
         self.assertEqual(res, 4)
 
         with self.assertRaises(TypeError):
@@ -221,9 +227,8 @@ class SortedSetsCommandsTest(RedisTest):
         self.assertEqual(res, 5)
         res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=False)
         self.assertEqual(res, members)
-        res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=False,
-                                                  include_min=False,
-                                                  include_max=False)
+        res = yield from self.redis.zrangebyscore(
+            key, 1, 7, withscores=False, exclude=self.redis.ZSET_EXCLUDE_BOTH)
         self.assertEqual(res, members[2:-1])
         res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=True)
         self.assertEqual(res, rev_pairs)
@@ -347,16 +352,14 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zadd(key, *pairs)
         self.assertEqual(res, 5)
 
-        res = yield from self.redis.zremrangebyscore(key, 3, 7.5,
-                                                     include_min=False,
-                                                     include_max=True)
+        res = yield from self.redis.zremrangebyscore(
+            key, 3, 7.5, exclude=self.redis.ZSET_EXCLUDE_MIN)
         self.assertEqual(res, 1)
         res = yield from self.redis.zrange(key, 0, -1)
         self.assertEqual(res, members[:-1])
 
-        res = yield from self.redis.zremrangebyscore(key, 1, 3,
-                                                     include_min=False,
-                                                     include_max=False)
+        res = yield from self.redis.zremrangebyscore(
+            key, 1, 3, exclude=self.redis.ZSET_EXCLUDE_BOTH)
         self.assertEqual(res, 1)
         res = yield from self.redis.zrange(key, 0, -1)
         self.assertEqual(res, [b'one', b'uno', b'three'])
@@ -447,10 +450,9 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zrevrangebyscore(key, 1, 7,
                                                      withscores=False)
         self.assertEqual(res, members[::-1])
-        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
-                                                     withscores=False,
-                                                     include_min=False,
-                                                     include_max=False)
+        res = yield from self.redis.zrevrangebyscore(
+            key, 1, 7, withscores=False,
+            exclude=self.redis.ZSET_EXCLUDE_BOTH)
         self.assertEqual(res, members[-2:1:-1])
         res = yield from self.redis.zrevrangebyscore(key, 1, 7,
                                                      withscores=True)

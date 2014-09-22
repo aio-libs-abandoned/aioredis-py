@@ -184,10 +184,7 @@ class RedisConnection:
         return self._encoding
 
     def select(self, db):
-        """Change the selected database for the current connection.
-
-        This method is a coroutine.
-        """
+        """Change the selected database for the current connection."""
         if not isinstance(db, int):
             raise TypeError("DB must be of int type, not {!r}".format(db))
         if db < 0:

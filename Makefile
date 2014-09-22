@@ -15,9 +15,11 @@ flake:
 	$(PEP) aioredis tests examples
 
 test:
+	redis-cli FLUSHALL
 	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
 
 cov coverage:
+	redis-cli FLUSHALL
 	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
 
 dist:

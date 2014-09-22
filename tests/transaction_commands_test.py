@@ -29,7 +29,7 @@ class TransactionCommandsTest(RedisTest):
         f1 = tr.set('foo', 1.0)
         f2 = tr.incrbyfloat('foo', 1.2)
         res = yield from tr.execute()
-        self.assertEqual(res, [b'OK', 2.2])
+        self.assertEqual(res, [True, 2.2])
         res2 = yield from asyncio.gather(f1, f2, loop=self.loop)
         self.assertEqual(res, res2)
 

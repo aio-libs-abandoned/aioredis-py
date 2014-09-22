@@ -437,7 +437,7 @@ class StringCommandsTest(RedisTest):
     @run_until_complete
     def test_set(self):
         ok = yield from self.redis.set('my-key', 'value')
-        self.assertEqual(ok, b'OK')
+        self.assertTrue(ok)
 
         with self.assertRaises(TypeError):
             yield from self.redis.set(None, 'value')
@@ -464,12 +464,14 @@ class StringCommandsTest(RedisTest):
     @run_until_complete
     def test_set_only_if_not_exists(self):
         key, value = b'key:set:only_if_not_exists', b'foo'
-        yield from self.redis.set(key, value, only_if_not_exists=True)
+        yield from self.redis.set(
+            key, value, exist=self.redis.SET_IF_NOT_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, value)
 
         # new values not set cos, values exists
-        yield from self.redis.set(key, "foo2", only_if_not_exists=True)
+        yield from self.redis.set(
+            key, "foo2", exist=self.redis.SET_IF_NOT_EXIST)
         result_2 = yield from self.redis.get(key)
         # nothing changed result is same "foo"
         self.assertEqual(result_2, value)
@@ -479,13 +481,13 @@ class StringCommandsTest(RedisTest):
         key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
         # ensure that such key does not exits, and value not sets
         yield from self.redis.delete(key)
-        yield from self.redis.set(key, value, only_if_exists=True)
+        yield from self.redis.set(key, value, exist=self.redis.SET_IF_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, None)
 
         # ensure key exits, and value updates
         yield from self.redis.set(key, value)
-        yield from self.redis.set(key, b'foo', only_if_exists=True)
+        yield from self.redis.set(key, b'foo', exist=self.redis.SET_IF_EXIST)
         result_2 = yield from self.redis.get(key)
         self.assertEqual(result_2, b'foo')
 
@@ -499,9 +501,6 @@ class StringCommandsTest(RedisTest):
             yield from self.redis.set(key, value, expire=7.8)
         with self.assertRaises(TypeError):
             yield from self.redis.set(key, value, pexpire=7.8)
-        with self.assertRaises(TypeError):
-            yield from self.redis.set(key, value, only_if_not_exists=True,
-                                      only_if_exists=True)
 
     @run_until_complete
     def test_setbit(self):
