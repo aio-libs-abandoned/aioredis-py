@@ -437,7 +437,7 @@ class StringCommandsTest(RedisTest):
     @run_until_complete
     def test_set(self):
         ok = yield from self.redis.set('my-key', 'value')
-        self.assertEqual(ok, b'OK')
+        self.assertTrue(ok)
 
         with self.assertRaises(TypeError):
             yield from self.redis.set(None, 'value')

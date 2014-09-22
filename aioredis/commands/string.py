@@ -183,7 +183,8 @@ class StringCommandsMixin:
             args.append(b'XX')
         elif exist is self.SET_IF_NOT_EXIST:
             args.append(b'NX')
-        return self._conn.execute(b'SET', key, value, *args)
+        fut = self._conn.execute(b'SET', key, value, *args)
+        return wait_ok(fut)
 
     def setbit(self, key, offset, value):
         """Sets or clears the bit at offset in the string value stored at key.
