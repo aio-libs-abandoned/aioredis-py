@@ -34,10 +34,12 @@ class TransactionCommandsTest(RedisTest):
         self.assertEqual(res, res2)
 
         tr = self.redis.multi_exec()
-        tr.incrby('foo', 1.0)
+        f1 = tr.incrby('foo', 1.0)
         with self.assertRaisesRegex(MultiExecError,
                                     "increment must be .* int"):
             yield from tr.execute()
+        with self.assertRaises(TypeError):
+            yield from f1
 
     @run_until_complete
     def test_empty(self):
@@ -62,8 +64,11 @@ class TransactionCommandsTest(RedisTest):
         fut3 = tr.connection.execute('INCRBY', 'foo', '1.0')
         res = yield from tr.execute()
         self.assertIsNone(res)
-        res = yield from fut1
-        self.assertEqual(res, b'OK')
+        try:
+            res = yield from fut1
+            self.assertEqual(res, b'OK')
+        except asyncio.CancelledError:
+            pass
         with self.assertRaises(TypeError):
             yield from fut2
         with self.assertRaises(asyncio.CancelledError):
@@ -71,6 +76,7 @@ class TransactionCommandsTest(RedisTest):
 
     @run_until_complete
     def test_discard(self):
+        yield from self.redis.delete('foo')
         tr = self.redis.multi_exec()
         fut1 = tr.incrby('foo', 1.0)
         fut2 = tr.connection.execute('MULTI')
@@ -82,8 +88,9 @@ class TransactionCommandsTest(RedisTest):
             yield from fut1
         with self.assertRaises(ReplyError):
             yield from fut2
-        with self.assertRaises(ReplyError):
-            yield from fut3
+        # with self.assertRaises(ReplyError):
+        res = yield from fut3
+        self.assertEqual(res, 1)
 
     @run_until_complete
     def test_exec_error(self):

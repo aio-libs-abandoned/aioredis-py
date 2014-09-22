@@ -244,9 +244,12 @@ class MultiExec(Pipeline):
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
         self._waiters = waiters = []
-        yield from self._conn.execute('MULTI')
+        # yield from self._conn.execute('MULTI')
+        multi = self._conn.execute('MULTI')
+        coros = list(self._send_pipeline())
+        exec_ = self._conn.execute('EXEC')
         try:
-            yield from asyncio.gather(*self._send_pipeline(),
+            yield from asyncio.gather(multi, *coros,
                                       loop=self._loop)
         except asyncio.CancelledError:
             pass
@@ -255,13 +258,18 @@ class MultiExec(Pipeline):
                 for fut in waiters:
                     fut.cancel()
             else:
-                if self._conn._transaction_error:
-                    err = self._conn._transaction_error
+                try:
+                    results = yield from exec_
+                except RedisError as err:
                     for fut in waiters:
                         fut.set_exception(err)
-                    yield from self._conn.execute('DISCARD')
+                # if self._conn._transaction_error:
+                #     err = self._conn._transaction_error
+                #     for fut in waiters:
+                #         fut.set_exception(err)
+                #     yield from self._conn.execute('DISCARD')
                 else:
-                    results = yield from self._conn.execute('EXEC')
+                    # results = yield from self._conn.execute('EXEC')
                     assert len(results) == len(waiters), (results, waiters)
                     self._resolve_waiters(results, return_exceptions)
                     return (yield from self._gather_result(

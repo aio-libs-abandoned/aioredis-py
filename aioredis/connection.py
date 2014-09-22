@@ -78,6 +78,8 @@ class RedisConnection:
             try:
                 data = yield from self._reader.read(MAX_CHUNK_SIZE)
             except Exception as exc:
+                # XXX: for QUIT command connection error can be received
+                #       before response
                 break
             self._parser.feed(data)
             while True:
