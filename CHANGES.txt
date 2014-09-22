@@ -4,6 +4,10 @@ Changes
 0.2.0 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
 
+
+0.1.4 (2014-09-22)
+^^^^^^^^^^^^^^^^^^
+
 * Dropped following Redis methods -- Redis.multi(), Redis.exec(), Redis.discard()
 
 * Redis.multi_exec hack'ish property removed
@@ -14,6 +18,15 @@ Changes
 
   * generic commands (tests);
   * transactions commands (api stabilization).
+
+* Backward incompatibilities:
+
+  * Following sorted set commands' API changed:
+
+    zcount, zrangebyscore, zremrangebyscore, zrevrangebyscore;
+
+  * set string command' API changed;
+
 
 
 0.1.3 (2014-08-08)
