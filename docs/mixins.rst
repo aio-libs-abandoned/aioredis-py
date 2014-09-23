@@ -42,6 +42,12 @@ Set commands
 .. autoclass:: SetCommandsMixin
    :members:
 
+Sorted Set commands
+-------------------
+
+.. autoclass:: SortedSetCommandsMixin
+   :members:
+
 HyperLogLog commands
 --------------------
 
