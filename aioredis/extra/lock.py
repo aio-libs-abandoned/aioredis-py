@@ -4,7 +4,8 @@ import uuid
 import asyncio
 
 
-class LockError(Exception): pass
+class LockError(Exception):
+    pass
 
 
 class Lock:
@@ -57,7 +58,8 @@ class Lock:
     def _acquire(self):
         return self.redis.set(self.key, self._token,
                               exist=self.redis.SET_IF_NOT_EXIST,
-                             **{'expire': self.timeout} if self.timeout else {})
+                              **{'expire': self.timeout}
+                              if self.timeout else {})
 
     def release(self):
         if self._token is None:

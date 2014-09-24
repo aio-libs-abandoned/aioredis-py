@@ -6,7 +6,8 @@ from aioredis.extra.lock import Lock, LockMixin
 from ._testutil import RedisTest, run_until_complete
 
 
-class RedisWithLock(Redis, LockMixin): pass
+class RedisWithLock(Redis, LockMixin):
+    pass
 
 
 class LockTest(RedisTest):
