@@ -52,7 +52,7 @@ class Lock:
                 return False
             if stop_trying_at is not None and time.time() > stop_trying_at:
                 return False
-            yield from asyncio.sleep(self.sleep)
+            yield from asyncio.sleep(sleep)
 
     def _acquire(self):
         return self.redis.set(self.key, self._token,

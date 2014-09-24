@@ -2,7 +2,7 @@ import os
 import asyncio
 
 from aioredis import Redis, create_redis
-from aioredis.extra.lock import Lock, LockError, LockMixin
+from aioredis.extra.lock import Lock, LockMixin
 from ._testutil import RedisTest, run_until_complete
 
 
