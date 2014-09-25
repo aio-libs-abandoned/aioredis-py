@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
 import time
+import random
 import asyncio
 
 from aioredis.errors import ReplyError
@@ -36,7 +36,7 @@ class Lock:
         self.sleep_factor = sleep_factor
         self.blocking = blocking
         self.blocking_timeout = blocking_timeout
-        self._token = os.urandom(20)
+        self._token = bytes(random.randrange(256) for i in range(20))
         if self.timeout and self.sleep > self.timeout:
             raise LockError("'sleep' must be less than 'timeout'")
         if sleep_factor is not None:
