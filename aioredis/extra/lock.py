@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import os
 import time
-import uuid
 import asyncio
+
+from aioredis.errors import ReplyError
 
 
 class LockError(Exception):
@@ -22,24 +24,28 @@ class Lock:
         return 0
     end
     """
-    release_digest = None
+    release_digest = "RELEASE_DIGEST"
 
-    def __init__(self, redis, key, *, timeout=None, sleep=0.1,
+    def __init__(self, redis, key, *, timeout=None,
+                 sleep=0.1, sleep_factor=None,
                  blocking=True, blocking_timeout=None):
-        assert all(d for d in [self.release_digest]), "Scripts not loaded"
         self.redis = redis
         self.key = key
         self.timeout = timeout
         self.sleep = sleep
+        self.sleep_factor = sleep_factor
         self.blocking = blocking
         self.blocking_timeout = blocking_timeout
-        self._token = uuid.uuid4().hex
+        self._token = os.urandom(20)
         if self.timeout and self.sleep > self.timeout:
             raise LockError("'sleep' must be less than 'timeout'")
+        if sleep_factor is not None:
+            assert sleep_factor > 1, "'sleep_factor' must be > 1"
 
     @asyncio.coroutine
     def acquire(self, blocking=None, blocking_timeout=None):
         sleep = self.sleep
+        sleep_factor = self.sleep_factor
         blocking = blocking or self.blocking
         blocking_timeout = blocking_timeout or self.blocking_timeout
 
@@ -54,6 +60,8 @@ class Lock:
             if stop_trying_at is not None and time.time() > stop_trying_at:
                 return False
             yield from asyncio.sleep(sleep)
+            if sleep_factor is not None:
+                sleep *= sleep_factor
 
     def _acquire(self):
         return self.redis.set(self.key, self._token,
@@ -69,18 +77,28 @@ class Lock:
     @asyncio.coroutine
     def _release(self):
         """ Delete locked key if token is identical """
-        res = yield from self.redis.evalsha(self.release_digest,
-                                            keys=[self.key],
-                                            args=[self._token])
+        res = yield from self.execute_script(self.release_script,
+                                             self.release_digest,
+                                             keys=[self.key],
+                                             args=[self._token])
         if res:
             return True
         else:
             raise LockError("Cannot release a lock that's no longer owned")
 
-    @classmethod
     @asyncio.coroutine
-    def register_scripts(cls, redis):
-        cls.release_digest = yield from redis.script_load(cls.release_script)
+    def execute_script(self, script, digest, *, keys, args):
+        redis = self.redis
+        try:
+            res = yield from redis.evalsha(digest, keys=keys, args=args)
+        except ReplyError as e:
+            if "NOSCRIPT" in str(e):
+                digest = yield from redis.script_load(script)
+                res = yield from redis.evalsha(digest, keys=keys, args=args)
+                self.__class__.release_digest = digest  # TODO
+            else:
+                raise
+        return res
 
 
 class LockMixin:

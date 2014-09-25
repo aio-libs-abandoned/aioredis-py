@@ -23,7 +23,6 @@ class LockTest(RedisTest):
 
     @run_until_complete
     def test_lock_success(self):
-        yield from self.redis.register_lock_scripts()
         lock = Lock(self.redis, "TEST_KEY", timeout=3)
         acquired = yield from lock.acquire()
         self.assertEqual(acquired, True)
@@ -32,7 +31,6 @@ class LockTest(RedisTest):
 
     @run_until_complete
     def test_lock_acquired(self):
-        yield from self.redis.register_lock_scripts()
         yield from self.redis.set("TEST_KEY", "test")
         lock = Lock(self.redis, "TEST_KEY", blocking=False)
         acquired = yield from lock.acquire()
@@ -41,7 +39,6 @@ class LockTest(RedisTest):
 
     @run_until_complete
     def test_lock_mixin(self):
-        yield from self.redis.register_lock_scripts()
         lock = self.redis.lock("TEST_KEY", timeout=3)
         self.assertTrue(isinstance(lock, Lock))
         self.assertEqual(lock.key, "TEST_KEY")
@@ -49,7 +46,6 @@ class LockTest(RedisTest):
 
     @run_until_complete
     def test_execute_in_lock(self):
-        yield from self.redis.register_lock_scripts()
 
         @asyncio.coroutine
         def task():
