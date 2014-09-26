@@ -10,7 +10,13 @@ class MultiExecTest(unittest.TestCase):
 
     def test_global_loop(self):
         conn = mock.Mock()
-        loop = asyncio.get_event_loop()
+        try:
+            old_loop = asyncio.get_event_loop()
+        except AssertionError:
+            old_loop = None
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         tr = MultiExec(conn, commands_factory=Redis)
         self.assertIs(tr._loop, loop)
 
@@ -34,3 +40,4 @@ class MultiExecTest(unittest.TestCase):
             res = yield from tr.execute()
             self.assertEqual(res, [b'PONG'])
         loop.run_until_complete(go())
+        asyncio.set_event_loop(old_loop)
