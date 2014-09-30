@@ -11,6 +11,10 @@ class SortedSetCommandsMixin:
     ZSET_EXCLUDE_MAX = 'ZSET_EXCLUDE_MAX'
     ZSET_EXCLUDE_BOTH = 'ZSET_EXCLUDE_BOTH'
 
+    ZSET_AGGREGATE_SUM = 'ZSET_AGGREGATE_SUM'
+    ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
+    ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
+
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.
 
@@ -58,9 +62,35 @@ class SortedSetCommandsMixin:
         fut = self._conn.execute(b'ZINCRBY', key, increment, member)
         return wait_convert(fut, int_or_float)
 
-    def zinterstore(self, destkey, numkeys, key, *keys):  # TODO: weighs, etc
-        """Intersect multiple sorted sets and store result in a new key."""
-        raise NotImplementedError
+    def zinterstore(self, destkey, key, *keys,
+                    with_weights=False, aggregate=None):
+        """Intersect multiple sorted sets and store result in a new key.
+
+        :param bool with_weights: when set to true each key must be a tuple
+                                  in form of (key, weight)
+        """
+        keys = (key,) + keys
+        numkeys = len(keys)
+        args = []
+        if with_weights:
+            assert all(isinstance(val, (list, tuple)) for val in keys), (
+                "All key arguments must be (key, weight) tuples")
+            weights = ['WEIGHTS']
+            for key, weight in keys:
+                args.append(key)
+                weights.append(weight)
+            args.extend(weights)
+        else:
+            args.extend(keys)
+
+        if aggregate is self.ZSET_AGGREGATE_SUM:
+            args.extend(('AGGREGATE', 'SUM'))
+        elif aggregate is self.ZSET_AGGREGATE_MAX:
+            args.extend(('AGGREGATE', 'MAX'))
+        elif aggregate is self.ZSET_AGGREGATE_MIN:
+            args.extend(('AGGREGATE', 'MIN'))
+        fut = self._conn.execute(b'ZINTERSTORE', destkey, numkeys, *args)
+        return fut
 
     def zlexcount(self, key, min=b'-', max=b'+', include_min=True,
                   include_max=True):
@@ -285,9 +315,31 @@ class SortedSetCommandsMixin:
         fut = self._conn.execute(b'ZSCORE', key, member)
         return wait_convert(fut, int_or_float)
 
-    def zunionstore(self, destkey, numkeys, key, *keys):  # TODO: weights, etc
+    def zunionstore(self, destkey, key, *keys,
+                    with_weights=False, aggregate=None):
         """Add multiple sorted sets and store result in a new key."""
-        raise NotImplementedError
+        keys = (key,) + keys
+        numkeys = len(keys)
+        args = []
+        if with_weights:
+            assert all(isinstance(val, (list, tuple)) for val in keys), (
+                "All key arguments must be (key, weight) tuples")
+            weights = ['WEIGHTS']
+            for key, weight in keys:
+                args.append(key)
+                weights.append(weight)
+            args.extend(weights)
+        else:
+            args.extend(keys)
+
+        if aggregate is self.ZSET_AGGREGATE_SUM:
+            args.extend(('AGGREGATE', 'SUM'))
+        elif aggregate is self.ZSET_AGGREGATE_MAX:
+            args.extend(('AGGREGATE', 'MAX'))
+        elif aggregate is self.ZSET_AGGREGATE_MIN:
+            args.extend(('AGGREGATE', 'MIN'))
+        fut = self._conn.execute(b'ZUNIONSTORE', destkey, numkeys, *args)
+        return fut
 
     def zscan(self, key, cursor=0, match=None, count=None):
         """Incrementally iterate sorted sets elements and associated scores."""

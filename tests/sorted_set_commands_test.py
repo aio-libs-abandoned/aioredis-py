@@ -109,6 +109,53 @@ class SortedSetsCommandsTest(RedisTest):
             yield from self.redis.zincrby(key, 'one', 5)
 
     @run_until_complete
+    def test_zinterstore(self):
+        zset1 = [2, 'one', 2, 'two']
+        zset2 = [3, 'one', 3, 'three']
+
+        yield from self.redis.zadd('zset1', *zset1)
+        yield from self.redis.zadd('zset2', *zset2)
+
+        res = yield from self.redis.zinterstore('zout', 'zset1', 'zset2')
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 5])
+
+        res = yield from self.redis.zinterstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_SUM)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 5])
+
+        res = yield from self.redis.zinterstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_MIN)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 2])
+
+        res = yield from self.redis.zinterstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_MAX)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 3])
+
+        # weights
+
+        with self.assertRaises(AssertionError):
+            yield from self.redis.zinterstore('zout', 'zset1', 'zset2',
+                                              with_weights=True)
+
+        res = yield from self.redis.zinterstore('zout',
+                                                ('zset1', 2), ('zset2', 2),
+                                                with_weights=True)
+        self.assertEqual(res, 1)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 10])
+
+    @run_until_complete
     def test_zlexcount(self):
         key = b'key:zlexcount'
         pairs = [0, b'a', 0, b'b', 0, b'c', 0, b'd', 0, b'e']
@@ -437,6 +484,53 @@ class SortedSetsCommandsTest(RedisTest):
             self.assertEqual(res, s)
         with self.assertRaises(TypeError):
             yield from self.redis.zscore(None, b'one')
+
+    @run_until_complete
+    def test_zunionstore(self):
+        zset1 = [2, 'one', 2, 'two']
+        zset2 = [3, 'one', 3, 'three']
+
+        yield from self.redis.zadd('zset1', *zset1)
+        yield from self.redis.zadd('zset2', *zset2)
+
+        res = yield from self.redis.zunionstore('zout', 'zset1', 'zset2')
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'two', 2, b'three', 3, b'one', 5])
+
+        res = yield from self.redis.zunionstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_SUM)
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'two', 2, b'three', 3, b'one', 5])
+
+        res = yield from self.redis.zunionstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_MIN)
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'one', 2, b'two', 2, b'three', 3])
+
+        res = yield from self.redis.zunionstore(
+            'zout', 'zset1', 'zset2',
+            aggregate=self.redis.ZSET_AGGREGATE_MAX)
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'two', 2, b'one', 3, b'three', 3])
+
+        # weights
+
+        with self.assertRaises(AssertionError):
+            yield from self.redis.zunionstore('zout', 'zset1', 'zset2',
+                                              with_weights=True)
+
+        res = yield from self.redis.zunionstore('zout',
+                                                ('zset1', 2), ('zset2', 2),
+                                                with_weights=True)
+        self.assertEqual(res, 3)
+        res = yield from self.redis.zrange('zout', withscores=True)
+        self.assertEqual(res, [b'two', 4, b'three', 6, b'one', 10])
 
     @run_until_complete
     def test_zrevrangebyscore(self):
