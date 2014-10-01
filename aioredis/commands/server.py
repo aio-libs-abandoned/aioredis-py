@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from aioredis.util import wait_ok, wait_convert, _NOTSET
 
 
@@ -6,6 +8,9 @@ class ServerCommandsMixin:
 
     For commands details see: http://redis.io/commands/#server
     """
+
+    SHUTDOWN_SAVE = 'SHUTDOWN_SAVE'
+    SHUTDOWN_NOSAVE = 'SHUTDOWN_NOSAVE'
 
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""
@@ -18,14 +23,16 @@ class ServerCommandsMixin:
         return wait_ok(fut)
 
     def client_kill(self):
-        """Kill the connection of a client."""
+        """Kill the connection of a client.
+
+        .. warning:: Not Implemented
+        """
         raise NotImplementedError
 
     def client_list(self):
         """Get the list of client connections."""
         fut = self._conn.execute(b'CLIENT', b'LIST', encoding='utf-8')
-        # TODO: convert to named tuples
-        return fut
+        return wait_convert(fut, to_tuples)
 
     def client_getname(self, encoding=_NOTSET):
         """Get the current connection name."""
@@ -103,9 +110,14 @@ class ServerCommandsMixin:
     def lastsave(self):
         """Get the UNIX time stamp of the last successful save to disk."""
         return self._conn.execute(b'LASTSAVE')
-        raise NotImplementedError
 
     def monitor(self):
+        """Listen for all requests received by the server in real time.
+
+        .. warning::
+           Will not be implemented for now.
+        """
+        # NOTE: will not implement for now;
         raise NotImplementedError
 
     def role(self):
@@ -116,21 +128,43 @@ class ServerCommandsMixin:
         """Synchronously save the dataset to disk."""
         return self._conn.execute(b'SAVE')
 
-    def shutdown(self):
+    def shutdown(self, save=None):
         """Synchronously save the dataset to disk and then
         shut down the server.
         """
-        raise NotImplementedError
+        if save is self.SHUTDOWN_SAVE:
+            return self._conn.execute(b'SHUTDOWN', b'SAVE')
+        elif save is self.SHUTDOWN_NOSAVE:
+            return self._conn.execute(b'SHUTDOWN', b'NOSAVE')
+        else:
+            return self._conn.execute(b'SHUTDOWN')
 
-    def slaveof(self):
+    def slaveof(self, host=None, port=None):
         """Make the server a slave of another instance,
         or promote it as master.
-        """
-        raise NotImplementedError
 
-    def slowlog(self):
-        """Manages the Redis slow queries log."""
-        raise NotImplementedError
+        Calling slaveof without arguments will send ``SLAVEOF NO ONE``.
+        """
+        if host is None and port is None:
+            return self._conn.execute(b'SLAVEOF', b'NO', b'ONE')
+        return self._conn.execute(b'SLAVEOF', host, port)
+
+    def slowlog_get(self, length=None):
+        """Returns the Redis slow queries log."""
+        if length is not None:
+            if not isinstance(length, int):
+                raise TypeError("length must be int or None")
+            return self._conn.execute(b'SLOWLOG', b'GET', length)
+        else:
+            return self._conn.execute(b'SLOWLOG', b'GET')
+
+    def slowlog_len(self, length=None):
+        """Returns length of Redis slow queries log."""
+        return self._conn.execute(b'SLOWLOG', b'LEN')
+
+    def slowlog_reset(self):
+        """Resets Redis slow queries log."""
+        return self._conn.execute(b'SLOWLOG', b'RESET')
 
     def sync(self):
         """Redis-server internal command used for replication."""
@@ -145,3 +179,19 @@ class ServerCommandsMixin:
 def to_dict(value):
     it = iter(value)
     return dict(zip(it, it))
+
+
+def _split(s):
+    k, v = s.split('=')
+    return k.replace('-', '_'), v
+
+
+def to_tuples(value):
+    lines = iter(value.splitlines(False))
+    line = next(lines)
+    line = list(map(_split, line.split(' ')))
+    ClientInfo = namedtuple('ClientInfo', ' '.join(k for k, v in line))
+    result = [ClientInfo(**dict(line))]
+    for line in lines:
+        result.append(ClientInfo(**dict(map(_split, line.split(' ')))))
+    return result

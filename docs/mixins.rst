@@ -48,6 +48,12 @@ Sorted Set commands
 .. autoclass:: SortedSetCommandsMixin
    :members:
 
+Server commands
+---------------
+
+.. autoclass:: ServerCommandsMixin
+   :members:
+
 HyperLogLog commands
 --------------------
 
