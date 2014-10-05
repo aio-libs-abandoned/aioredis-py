@@ -253,7 +253,13 @@ class GenericCommandsTest(RedisTest):
 
         res = yield from self.redis.object_idletime('foo')
         self.assertEqual(res, 0)
-        yield from asyncio.sleep(1, loop=self.loop)
+
+        if REDIS_VERSION < (2, 8, 0):
+            # Redis at least 2.6.x requires more time to sleep to incr idletime
+            yield from asyncio.sleep(10, loop=self.loop)
+        else:
+            yield from asyncio.sleep(1, loop=self.loop)
+
         res = yield from self.redis.object_idletime('foo')
         self.assertGreaterEqual(res, 1)
 
