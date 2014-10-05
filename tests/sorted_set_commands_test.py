@@ -1,5 +1,7 @@
 import itertools
-from ._testutil import RedisTest, run_until_complete
+import unittest
+
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 class SortedSetsCommandsTest(RedisTest):
@@ -155,6 +157,8 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zrange('zout', withscores=True)
         self.assertEqual(res, [b'one', 10])
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 9),
+                     'ZLEXCOUNT is available since redis>=2.8.9')
     @run_until_complete
     def test_zlexcount(self):
         key = b'key:zlexcount'
@@ -203,6 +207,8 @@ class SortedSetsCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.zrange(key, 0, 'last')
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 9),
+                     'ZRANGEBYLEX is available since redis>=2.8.9')
     @run_until_complete
     def test_zrangebylex(self):
         key = b'key:zrangebylex'
@@ -326,6 +332,8 @@ class SortedSetsCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.zrem(None, b'one')
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 9),
+                     'ZREMRANGEBYLEX is available since redis>=2.8.9')
     @run_until_complete
     def test_zremrangebylex(self):
         key = b'key:zremrangebylex'
@@ -573,6 +581,8 @@ class SortedSetsCommandsTest(RedisTest):
             yield from self.redis.zrevrangebyscore(key, 1, 7, offset=1,
                                                    count='one')
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'ZSCAN is available since redis>=2.8.0')
     @run_until_complete
     def test_zscan(self):
         key = b'key:zscan'

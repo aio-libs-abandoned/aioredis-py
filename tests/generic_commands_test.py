@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest import mock
 
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 from aioredis import create_redis, ReplyError
 
 
@@ -328,7 +328,10 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.pttl('key')
         self.assertEqual(res, -1)
         res = yield from self.redis.pttl('non-existent-key')
-        self.assertEqual(res, -2)
+        if REDIS_VERSION < (2, 8, 0):
+            self.assertEqual(res, -1)
+        else:
+            self.assertEqual(res, -2)
 
         yield from self.redis.pexpire('key', 500)
         res = yield from self.redis.pttl('key')
@@ -398,6 +401,8 @@ class GenericCommandsTest(RedisTest):
     def test_restore(self):
         pass
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'SCAN is available since redis>=2.8.0')
     @run_until_complete
     def test_scan(self):
         for i in range(1, 11):
@@ -447,7 +452,10 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.ttl('key')
         self.assertEqual(res, -1)
         res = yield from self.redis.ttl('non-existent-key')
-        self.assertEqual(res, -2)
+        if REDIS_VERSION < (2, 8, 0):
+            self.assertEqual(res, -1)
+        else:
+            self.assertEqual(res, -2)
 
         yield from self.redis.expire('key', 10)
         res = yield from self.redis.ttl('key')

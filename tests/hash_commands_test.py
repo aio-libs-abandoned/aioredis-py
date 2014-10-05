@@ -1,6 +1,7 @@
 import asyncio
+import unittest
 
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 from aioredis import ReplyError
 
 
@@ -274,6 +275,8 @@ class HashCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.hvals(None)
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'HSCAN is available since redis>=2.8.0')
     @run_until_complete
     def test_hscan(self):
         key = b'key:hscan'
