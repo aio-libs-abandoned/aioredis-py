@@ -37,8 +37,6 @@ before_install:
   fi
 
 before_script:
-# start custom redis instance
-- export REDIS_VERSION="$(redis-server --version)"
 # main redis instance listening port & socket
 - >
   ${REDIS_PATH_PREFIX}redis-server --daemonize yes
@@ -55,6 +53,8 @@ before_script:
 - sleep 3
 - ${REDIS_PATH_PREFIX}redis-cli -s $REDIS_SOCKET PING
 - ${REDIS_PATH_PREFIX}redis-cli -p $REDIS_PORT_2 PING
+# set redis instance version for tests
+- export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
 
 script:
 - pyflakes aioredis tests
