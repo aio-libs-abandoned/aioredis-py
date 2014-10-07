@@ -17,26 +17,44 @@ install:
 - pip install coverage
 - pip install -e .
 
+env:
+  global:
+  - REDIS_PORT_1=6379 REDIS_PORT_2=6380 REDIS_SOCKET=/tmp/aioredis.sock REDIS_PATH_PREFIX=""
+  matrix:
+  - REDIS_TARGET="2.6"
+  - REDIS_TARGET="2.8"
+
+before_install:
+- env
+- >
+  if [ $REDIS_TARGET = "2.6" ]; then
+    wget http://download.redis.io/releases/redis-2.6.17.tar.gz
+    tar xzf redis-2.6.17.tar.gz
+    cd redis-2.6.17
+    make
+    export REDIS_PATH_PREFIX="$(pwd)/src/"
+    cd ..
+  fi
+
 before_script:
 # start custom redis instance
 - export REDIS_VERSION="$(redis-server --version)"
-- export REDIS_PORT=6379 REDIS_SOCKET=/tmp/aioredis.sock
 # main redis instance listening port & socket
 - >
-  redis-server --daemonize yes
+  ${REDIS_PATH_PREFIX}redis-server --daemonize yes
   --pidfile ./redis-server.pid
   --unixsocket $REDIS_SOCKET
-  --port $REDIS_PORT
+  --port $REDIS_PORT_1
   --save ""
 # second redis instance, yet for migrate command tests
 - >
-  redis-server --daemonize yes
+  ${REDIS_PATH_PREFIX}redis-server --daemonize yes
   --pidfile ./redis-server-2.pid
-  --port 6380
+  --port $REDIS_PORT_2
   --save ""
 - sleep 3
-- redis-cli -s $REDIS_SOCKET PING
-- redis-cli -p 6380 PING
+- ${REDIS_PATH_PREFIX}redis-cli -s $REDIS_SOCKET PING
+- ${REDIS_PATH_PREFIX}redis-cli -p $REDIS_PORT_2 PING
 
 script:
 - pyflakes aioredis tests
