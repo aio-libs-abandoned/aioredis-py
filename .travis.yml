@@ -4,11 +4,27 @@ python:
 - "3.3"
 - "3.4"
 
+env:
+  global:
+  - REDIS_PORT_1=6379
+  - REDIS_PORT_2=6380
+  - REDIS_SOCKET=/tmp/aioredis.sock
+  matrix:
+  - USE_REDIS_2_6=false
+  - USE_REDIS_2_6=true
+
+
 before_install:
 - sudo add-apt-repository -y ppa:chris-lea/redis-server
+- echo "deb http://ppa.launchpad.net/chris-lea/redis-server/ubuntu oneiric main" | sudo tee -a /etc/apt/sources.list
 - sudo apt-get update -qq
-- sudo apt-get install redis-server
-- redis-server --version
+- >
+  if [ "$USE_REDIS_2_6" = "true" ]; then
+    sudo apt-get install redis-server/oneiric -V --force-yes;
+  else
+    sudo apt-get install redis-server -V;
+  fi
+# - redis-server --version
 
 install:
 - pip install hiredis
@@ -18,25 +34,23 @@ install:
 - pip install -e .
 
 before_script:
-# start custom redis instance
-- export REDIS_VERSION="$(redis-server --version)"
-- export REDIS_PORT=6379 REDIS_SOCKET=/tmp/aioredis.sock
 # main redis instance listening port & socket
 - >
   redis-server --daemonize yes
   --pidfile ./redis-server.pid
   --unixsocket $REDIS_SOCKET
-  --port $REDIS_PORT
+  --port $REDIS_PORT_1
   --save ""
 # second redis instance, yet for migrate command tests
 - >
   redis-server --daemonize yes
   --pidfile ./redis-server-2.pid
-  --port 6380
+  --port $REDIS_PORT_2
   --save ""
 - sleep 3
 - redis-cli -s $REDIS_SOCKET PING
-- redis-cli -p 6380 PING
+- redis-cli -p $REDIS_PORT_2 PING
+- export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
 
 script:
 - pyflakes aioredis tests

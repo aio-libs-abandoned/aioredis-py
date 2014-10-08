@@ -1,9 +1,21 @@
 import asyncio
-import unittest
 import os
+import re
+import unittest
 
 from functools import wraps
 from aioredis import create_redis
+
+
+REDIS_VERSION = os.environ.get('REDIS_VERSION')
+if not REDIS_VERSION:
+    REDIS_VERSION = (0, 0, 0)
+else:
+    res = re.findall('(\d\.\d\.\d+)', REDIS_VERSION)
+    if res:
+        REDIS_VERSION = tuple(map(int, res[0].split('.')))
+    else:
+        REDIS_VERSION = (0, 0, 0)
 
 
 def run_until_complete(fun):

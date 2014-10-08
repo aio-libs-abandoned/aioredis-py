@@ -1,19 +1,6 @@
-import os
-import re
 import unittest
 
-from ._testutil import RedisTest, run_until_complete
-
-
-REDIS_VERSION = os.environ.get('REDIS_VERSION')
-if not REDIS_VERSION:
-    REDIS_VERSION = (0, 0, 0)
-else:
-    res = re.match('.* v=(\d\.\d\.\d+) .*', REDIS_VERSION)
-    if res is not None:
-        REDIS_VERSION = tuple(map(int, res.groups()[0].split('.')))
-    else:
-        REDIS_VERSION = (0, 0, 0)
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 @unittest.skipIf(REDIS_VERSION < (2, 8, 9),

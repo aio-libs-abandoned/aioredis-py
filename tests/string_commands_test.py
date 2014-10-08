@@ -1,5 +1,7 @@
 import asyncio
-from ._testutil import RedisTest, run_until_complete
+import unittest
+
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 from aioredis import ReplyError
 
 
@@ -129,6 +131,8 @@ class StringCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.bitop_not(destkey, None)
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'BITPOS is available since redis>=2.8.0')
     @run_until_complete
     def test_bitpos(self):
         key, value = b'key:bitop', b'\xff\xf0\x00'

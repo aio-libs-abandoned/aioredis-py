@@ -2,7 +2,7 @@
 PYTHON ?= python3
 FLAKE ?= pyflakes
 PEP ?= pep8
-REDIS_VERSION ?= "$(shell redis-server --version)"
+REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 
 .PHONY: all flake doc test cov dist
 all: flake doc cov
