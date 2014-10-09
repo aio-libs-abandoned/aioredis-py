@@ -2,9 +2,11 @@ Acknowledgements
 ----------------
 
 Andrew Svetlov
+Paul Colomiets
 
 
 Contributors
 ------------
 
 Nickolai Novik
+Alexander Shorin
