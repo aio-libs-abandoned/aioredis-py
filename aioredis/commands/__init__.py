@@ -16,6 +16,29 @@ from .server import ServerCommandsMixin
 __all__ = ['create_redis', 'Redis', 'Pipeline', 'MultiExec']
 
 
+class AutoConnector(object):
+    closed = False
+
+    def __init__(self, *conn_args, **conn_kwargs):
+        self._conn_args = conn_args
+        self._conn_kwargs = conn_kwargs
+        self._conn = None
+        self._lock = asyncio.Lock(loop=conn_kwargs.get('loop'))
+
+    def __repr__(self):
+        return '<AutoConnector {!r}>'.format(self._conn)
+
+    @asyncio.coroutine
+    def execute(self, *args, **kwargs):
+        if self._conn is None or self._conn.closed:
+            with (yield from self._lock):
+                if self._conn is None or self._conn.closed:
+                    conn = yield from create_connection(
+                        *self._conn_args, **self._conn_kwargs)
+                    self._conn = conn
+        return (yield from self._conn.execute(*args, **kwargs))
+
+
 class Redis(GenericCommandsMixin, StringCommandsMixin,
             HyperLogLogCommandsMixin, SetCommandsMixin,
             HashCommandsMixin, TransactionsCommandsMixin,
@@ -101,6 +124,23 @@ def create_redis(address, *, db=None, password=None,
                                         password=password,
                                         encoding=encoding,
                                         loop=loop)
+    return commands_factory(conn)
+
+
+@asyncio.coroutine
+def create_reconnecting_redis(address, *, db=None, password=None,
+                              encoding=None, commands_factory=Redis,
+                              loop=None):
+    """Creates high-level Redis interface.
+
+    This function is a coroutine.
+    """
+    # Note: this is not coroutine, but we may make it such. We may start
+    # a first connection in it, or just resolve DNS. So let's keep it
+    # coroutine for forward compatibility
+    conn = AutoConnector(address,
+                         db=db, password=password,
+                         encoding=encoding, loop=loop)
     return commands_factory(conn)
 
 
