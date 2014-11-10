@@ -161,7 +161,8 @@ class Pipeline:
 
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
-        yield from asyncio.gather(*self._send_pipeline(),
+        conn = yield from self._conn.get_atomic_connection()
+        yield from asyncio.gather(*self._send_pipeline(conn),
                                   loop=self._loop,
                                   return_exceptions=True)
         return (yield from self._gather_result(return_exceptions))
@@ -181,10 +182,10 @@ class Pipeline:
             raise self.error_class(errors)
         return results
 
-    def _send_pipeline(self):
+    def _send_pipeline(self, conn):
         for fut, cmd, args, kw in self._pipeline:
             try:
-                result_fut = self._conn.execute(cmd, *args, **kw)
+                result_fut = conn.execute(cmd, *args, **kw)
                 result_fut.add_done_callback(
                     functools.partial(self._check_result, waiter=fut))
             except Exception as exc:
@@ -244,9 +245,10 @@ class MultiExec(Pipeline):
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
         self._waiters = waiters = []
-        multi = self._conn.execute('MULTI')
-        coros = list(self._send_pipeline())
-        exec_ = self._conn.execute('EXEC')
+        conn = yield from self._conn.get_atomic_connection()
+        multi = conn.execute('MULTI')
+        coros = list(self._send_pipeline(conn))
+        exec_ = conn.execute('EXEC')
         try:
             yield from asyncio.gather(multi, *coros,
                                       loop=self._loop)

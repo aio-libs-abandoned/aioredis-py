@@ -20,3 +20,14 @@ class ReconnectTest(BaseTest):
         resp = yield from redis.echo('ECHO')
         self.assertEqual(resp, b'ECHO')
         self.assertNotEqual(conn_id, id(redis._conn._conn))
+
+    @run_until_complete
+    def test_multi_exec(self):
+        redis = yield from create_reconnecting_redis(
+            ('localhost', self.redis_port), db=1, loop=self.loop)
+        self.assertEqual(repr(redis), '<Redis <AutoConnector None>>')
+
+        m = redis.multi_exec()
+        m.echo('ECHO')
+        res = yield from m.execute()
+        self.assertEqual(res, [b'ECHO'])
