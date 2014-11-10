@@ -314,6 +314,29 @@ to Redis commands.
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
 
+.. function:: create_reconnecting_redis(address, \*, db=0, password=None,\
+                           encoding=None, commands_factory=Redis,\
+                           loop=None)
+
+   Like :func:`create_redis` this :ref:`coroutine<coroutine>` creates
+   high-level Redis interface instance that may reconnect to redis server
+   between requests.  Accepts same arguments as :func:`create_redis`.
+
+   The reconnect process is done at most once, at the start of the request. So
+   if your request is broken in the middle of sending or receiving reply, it
+   will not be repeated but an exception is raised.
+
+   .. note:: There are two important differences between :func:`create_redis`
+      and :func:`create_reconnecting_redis`:
+
+      1. The :func:`create_reconnecting_redis` does not establish connection
+         "right now", it defers connection establishing to the first request.
+
+      2. Methods of :func:`Redis` factory returned do not buffer commands
+         until you `yield from` it. I.e. they are real coroutines not the
+         functions returning future. It may impact your pipelining.
+
+
 .. class:: Redis(connection)
    :noindex:
 
