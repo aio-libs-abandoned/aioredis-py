@@ -218,3 +218,7 @@ class RedisConnection:
         """Authenticate to server."""
         fut = self.execute('AUTH', password)
         return wait_ok(fut)
+
+    @asyncio.coroutine
+    def get_atomic_connection(self):
+        return self

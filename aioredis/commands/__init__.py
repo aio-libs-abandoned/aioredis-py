@@ -23,20 +23,26 @@ class AutoConnector(object):
         self._conn_args = conn_args
         self._conn_kwargs = conn_kwargs
         self._conn = None
-        self._lock = asyncio.Lock(loop=conn_kwargs.get('loop'))
+        self._loop = conn_kwargs.get('loop')
+        self._lock = asyncio.Lock(loop=self._loop)
 
     def __repr__(self):
         return '<AutoConnector {!r}>'.format(self._conn)
 
     @asyncio.coroutine
     def execute(self, *args, **kwargs):
+        conn = yield from self.get_atomic_connection()
+        return (yield from conn.execute(*args, **kwargs))
+
+    @asyncio.coroutine
+    def get_atomic_connection(self):
         if self._conn is None or self._conn.closed:
             with (yield from self._lock):
                 if self._conn is None or self._conn.closed:
                     conn = yield from create_connection(
                         *self._conn_args, **self._conn_kwargs)
                     self._conn = conn
-        return (yield from self._conn.execute(*args, **kwargs))
+        return self._conn
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,

@@ -10,6 +10,9 @@ class MultiExecTest(unittest.TestCase):
 
     def test_global_loop(self):
         conn = mock.Mock()
+        # Needs to return yourself in get_atomic_connection()
+        conn.get_atomic_connection.side_effect = \
+            asyncio.coroutine(lambda: conn)
         try:
             old_loop = asyncio.get_event_loop()
         except AssertionError:
