@@ -313,7 +313,7 @@ class SortedSetCommandsMixin:
     def zscore(self, key, member):
         """Get the score associated with the given member in a sorted set."""
         fut = self._conn.execute(b'ZSCORE', key, member)
-        return wait_convert(fut, int_or_float)
+        return wait_convert(fut, optional_int_or_float)
 
     def zunionstore(self, destkey, key, *keys,
                     with_weights=False, aggregate=None):
@@ -369,6 +369,12 @@ def int_or_float(value):
         return int(value)
     except ValueError:
         return float(value)
+
+
+def optional_int_or_float(value):
+    if value is None:
+        return value
+    return int_or_float(value)
 
 
 def pairs_int_or_float(value):
