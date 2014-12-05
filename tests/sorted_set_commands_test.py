@@ -492,6 +492,9 @@ class SortedSetsCommandsTest(RedisTest):
             self.assertEqual(res, s)
         with self.assertRaises(TypeError):
             yield from self.redis.zscore(None, b'one')
+        # Check None on undefined members
+        res = yield from self.redis.zscore(key, "undefined")
+        self.assertEqual(res, None)
 
     @run_until_complete
     def test_zunionstore(self):
