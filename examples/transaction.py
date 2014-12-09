@@ -17,6 +17,8 @@ def main():
         res2 = yield from asyncio.gather(fut1, fut2)
         print(res)
         assert res == res2
+        redis.close()
+        yield from redis.wait_closed()
 
     loop.run_until_complete(go())
 

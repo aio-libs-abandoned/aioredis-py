@@ -14,7 +14,7 @@ def main():
             yield from redis.set('my-key', 'value')
             val = yield from redis.get('my-key')
         print('raw value:', val)
-        pool.clear()    # closing all open connections
+        yield from pool.clear()    # closing all open connections
 
     loop.run_until_complete(go())
 
