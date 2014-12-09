@@ -5,6 +5,18 @@ Changes
 ^^^^^^^^^^^^^^^^^^
 
 
+0.1.5 (2014-12-09)
+^^^^^^^^^^^^^^^^^^
+
+* AutoConnector added;
+
+* wait_closed method added for clean connections shutdown;
+
+* zscore command fixed;
+
+* Test fixes;
+
+
 0.1.4 (2014-09-22)
 ^^^^^^^^^^^^^^^^^^
 
