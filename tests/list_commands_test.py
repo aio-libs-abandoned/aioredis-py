@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import RedisTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from aioredis import ReplyError
 
 
 class ListCommandsTest(RedisTest):
@@ -35,7 +35,7 @@ class ListCommandsTest(RedisTest):
         key1, key2 = b'key:blpop:1', b'key:blpop:2'
         value = b'blpop:value:2'
 
-        other_redis = yield from create_redis(
+        other_redis = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
 
         # create blocking task in separate connection
@@ -91,7 +91,7 @@ class ListCommandsTest(RedisTest):
         key1, key2 = b'key:brpop:1', b'key:brpop:2'
         value = b'brpop:value:2'
 
-        other_redis = yield from create_redis(
+        other_redis = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         # create blocking task in separate connection
         consumer_task = other_redis.brpop(key1, key2)
@@ -150,7 +150,7 @@ class ListCommandsTest(RedisTest):
         source = b'key:brpoplpush:12'
         value = b'brpoplpush:value:2'
         destkey = b'destkey:brpoplpush:2'
-        other_redis = yield from create_redis(
+        other_redis = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         # create blocking task
         consumer_task = other_redis.brpoplpush(source, destkey)

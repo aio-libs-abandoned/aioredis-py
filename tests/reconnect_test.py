@@ -20,6 +20,10 @@ class ReconnectTest(BaseTest):
         resp = yield from redis.echo('ECHO')
         self.assertEqual(resp, b'ECHO')
         self.assertNotEqual(conn_id, id(redis._conn._conn))
+        # FIXME: bad interface
+        conn = yield from redis.connection.get_atomic_connection()
+        conn.close()
+        yield from conn.wait_closed()
 
     @run_until_complete
     def test_multi_exec(self):
@@ -31,3 +35,7 @@ class ReconnectTest(BaseTest):
         m.echo('ECHO')
         res = yield from m.execute()
         self.assertEqual(res, [b'ECHO'])
+        # FIXME: bad interface
+        conn = yield from redis.connection.get_atomic_connection()
+        conn.close()
+        yield from conn.wait_closed()

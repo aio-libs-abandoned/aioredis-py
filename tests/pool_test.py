@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import create_pool, create_redis, RedisPool, ReplyError
+from aioredis import RedisPool, ReplyError
 
 
 class PoolTest(BaseTest):
@@ -14,20 +14,20 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.freesize, 10)
 
     def test_connect(self):
-        pool = self.loop.run_until_complete(create_pool(
+        pool = self.loop.run_until_complete(self.create_pool(
             ('localhost', self.redis_port), loop=self.loop))
         self._assert_defaults(pool)
 
     def test_global_loop(self):
         asyncio.set_event_loop(self.loop)
 
-        pool = self.loop.run_until_complete(create_pool(
+        pool = self.loop.run_until_complete(self.create_pool(
             ('localhost', self.redis_port)))
         self._assert_defaults(pool)
 
     @run_until_complete
     def test_clear(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port), loop=self.loop)
         self._assert_defaults(pool)
 
@@ -36,7 +36,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_no_yield_from(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port), loop=self.loop)
 
         with self.assertRaises(RuntimeError):
@@ -45,7 +45,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_simple_command(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=10, loop=self.loop)
 
@@ -59,7 +59,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_create_new(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=1, loop=self.loop)
         self.assertEqual(pool.size, 1)
@@ -78,7 +78,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_create_constraints(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=1, maxsize=1, loop=self.loop)
         self.assertEqual(pool.size, 1)
@@ -95,7 +95,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_create_no_minsize(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=0, maxsize=1, loop=self.loop)
         self.assertEqual(pool.size, 0)
@@ -113,7 +113,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_release_closed(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=1, loop=self.loop)
         self.assertEqual(pool.size, 1)
@@ -121,24 +121,29 @@ class PoolTest(BaseTest):
 
         with (yield from pool) as redis:
             redis.close()
+            yield from redis.wait_closed()
         self.assertEqual(pool.size, 0)
         self.assertEqual(pool.freesize, 0)
 
     @run_until_complete
     def test_release_bad_connection(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             loop=self.loop)
-        yield from pool.acquire()
-        other_conn = yield from create_redis(
+        conn = yield from pool.acquire()
+        other_conn = yield from self.create_redis(
             ('localhost', self.redis_port),
             loop=self.loop)
         with self.assertRaises(AssertionError):
             pool.release(other_conn)
 
+        pool.release(conn)
+        other_conn.close()
+        yield from other_conn.wait_closed()
+
     @run_until_complete
     def test_select_db(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             loop=self.loop)
 
@@ -148,7 +153,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_change_db(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=1, db=0,
             loop=self.loop)
@@ -174,7 +179,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_change_db_errors(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             minsize=1, db=0,
             loop=self.loop)
@@ -206,7 +211,7 @@ class PoolTest(BaseTest):
         # then continues with propper db
         @asyncio.coroutine
         def test():
-            pool = yield from create_pool(
+            pool = yield from self.create_pool(
                 ('localhost', self.redis_port),
                 minsize=1, db=0,
                 loop=self.loop)
@@ -225,7 +230,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_response_decoding(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             encoding='utf-8', loop=self.loop)
 
@@ -238,7 +243,7 @@ class PoolTest(BaseTest):
 
     @run_until_complete
     def test_crappy_multiexec(self):
-        pool = yield from create_pool(
+        pool = yield from self.create_pool(
             ('localhost', self.redis_port),
             encoding='utf-8', loop=self.loop,
             minsize=1, maxsize=1)

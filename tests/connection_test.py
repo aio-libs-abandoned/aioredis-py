@@ -3,19 +3,19 @@ import asyncio
 import os
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import create_connection, ReplyError, ProtocolError
+from aioredis import ReplyError, ProtocolError
 
 
 class ConnectionTest(BaseTest):
 
     @run_until_complete
     def test_connect_tcp(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
         self.assertEqual(conn.db, 0)
         self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ['localhost', self.redis_port], loop=self.loop)
         self.assertEqual(conn.db, 0)
         self.assertEqual(str(conn), '<RedisConnection [db:0]>')
@@ -23,7 +23,7 @@ class ConnectionTest(BaseTest):
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     @run_until_complete
     def test_connect_unixsocket(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             self.redis_socket, db=0, loop=self.loop)
         self.assertEqual(conn.db, 0)
         self.assertEqual(str(conn), '<RedisConnection [db:0]>')
@@ -31,7 +31,7 @@ class ConnectionTest(BaseTest):
     def test_global_loop(self):
         asyncio.set_event_loop(self.loop)
 
-        conn = self.loop.run_until_complete(create_connection(
+        conn = self.loop.run_until_complete(self.create_connection(
             ('localhost', self.redis_port), db=0))
         self.assertEqual(conn.db, 0)
         self.assertIs(conn._loop, self.loop)
@@ -39,22 +39,22 @@ class ConnectionTest(BaseTest):
     @run_until_complete
     def test_select_db(self):
         address = ('localhost', self.redis_port)
-        conn = yield from create_connection(address, loop=self.loop)
+        conn = yield from self.create_connection(address, loop=self.loop)
         self.assertEqual(conn.db, 0)
 
         with self.assertRaises(ValueError):
-            yield from create_connection(address, db=-1, loop=self.loop)
+            yield from self.create_connection(address, db=-1, loop=self.loop)
         with self.assertRaises(TypeError):
-            yield from create_connection(address, db=1.0, loop=self.loop)
+            yield from self.create_connection(address, db=1.0, loop=self.loop)
         with self.assertRaises(TypeError):
-            yield from create_connection(
+            yield from self.create_connection(
                 address, db='bad value', loop=self.loop)
         with self.assertRaises(TypeError):
-            conn = yield from create_connection(
+            conn = yield from self.create_connection(
                 address, db=None, loop=self.loop)
             yield from conn.select(None)
         with self.assertRaises(ReplyError):
-            yield from create_connection(
+            yield from self.create_connection(
                 address, db=100000, loop=self.loop)
 
         yield from conn.select(1)
@@ -69,7 +69,7 @@ class ConnectionTest(BaseTest):
     @run_until_complete
     def test_protocol_error(self):
         loop = self.loop
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ('localhost', self.redis_port), loop=loop)
 
         reader = conn._reader
@@ -82,13 +82,13 @@ class ConnectionTest(BaseTest):
 
     def test_close_connection__tcp(self):
         loop = self.loop
-        conn = loop.run_until_complete(create_connection(
+        conn = loop.run_until_complete(self.create_connection(
             ('localhost', self.redis_port), loop=loop))
         conn.close()
         with self.assertRaises(AssertionError):
             loop.run_until_complete(conn.select(1))
 
-        conn = loop.run_until_complete(create_connection(
+        conn = loop.run_until_complete(self.create_connection(
             ('localhost', self.redis_port), loop=loop))
         with self.assertRaises(AssertionError):
             conn.close()
@@ -98,7 +98,7 @@ class ConnectionTest(BaseTest):
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     @run_until_complete
     def test_close_connection__socket(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             self.redis_socket, loop=self.loop)
         conn.close()
         with self.assertRaises(AssertionError):
@@ -106,13 +106,13 @@ class ConnectionTest(BaseTest):
 
     @run_until_complete
     def test_auth(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
 
         res = yield from conn.execute('CONFIG', 'SET', 'requirepass', 'pass')
         self.assertEqual(res, b'OK')
 
-        conn2 = yield from create_connection(
+        conn2 = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
 
         with self.assertRaises(ReplyError):
@@ -123,7 +123,7 @@ class ConnectionTest(BaseTest):
         res = yield from conn2.select(1)
         self.assertTrue(res)
 
-        conn3 = yield from create_connection(
+        conn3 = yield from self.create_connection(
             ('localhost', self.redis_port), password='pass', loop=self.loop)
 
         res = yield from conn3.select(1)
@@ -134,7 +134,7 @@ class ConnectionTest(BaseTest):
 
     @run_until_complete
     def test_decoding(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ('localhost', self.redis_port), encoding='utf-8', loop=self.loop)
         self.assertEqual(conn.encoding, 'utf-8',)
         res = yield from conn.execute('set', 'key1', 'value')
@@ -156,14 +156,14 @@ class ConnectionTest(BaseTest):
             yield from conn.execute('set', 'key1', 'значение')
             yield from conn.execute('get', 'key1', encoding='ascii')
 
-        conn2 = yield from create_connection(
+        conn2 = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
         res = yield from conn2.execute('get', 'key1', encoding='utf-8')
         self.assertEqual(res, 'значение')
 
     @run_until_complete
     def test_execute_exceptions(self):
-        conn = yield from create_connection(
+        conn = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
         with self.assertRaises(TypeError):
             yield from conn.execute(None)

@@ -41,10 +41,15 @@ def create_connection(address, *, db=None, password=None,
             address, loop=loop)
     conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
 
-    if password is not None:
-        yield from conn.auth(password)
-    if db is not None:
-        yield from conn.select(db)
+    try:
+        if password is not None:
+            yield from conn.auth(password)
+        if db is not None:
+            yield from conn.select(db)
+    except Exception:
+        conn.close()
+        yield from conn.wait_closed()
+        raise
     return conn
 
 
@@ -64,6 +69,8 @@ class RedisConnection:
         self._db = 0
         self._closing = False
         self._closed = False
+        self._close_waiter = asyncio.Future(loop=self._loop)
+        self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = False
         self._transaction_error = None
         self._encoding = encoding
@@ -174,6 +181,10 @@ class RedisConnection:
             self._closing = closed = True
             self._loop.call_soon(self._do_close, None)
         return closed
+
+    @asyncio.coroutine
+    def wait_closed(self):
+        yield from self._close_waiter
 
     @property
     def db(self):

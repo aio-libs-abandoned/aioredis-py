@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
-from aioredis import create_redis, ReplyError
+from aioredis import ReplyError
 
 
 class GenericCommandsTest(RedisTest):
@@ -171,8 +171,8 @@ class GenericCommandsTest(RedisTest):
     def test_migrate(self):
         yield from self.add('my-key', 123)
 
-        conn2 = yield from create_redis(('localhost', 6380), db=2,
-                                        loop=self.loop)
+        conn2 = yield from self.create_redis(('localhost', 6380), db=2,
+                                             loop=self.loop)
         yield from conn2.delete('my-key')
         self.assertTrue((yield from self.redis.exists('my-key')))
         self.assertFalse((yield from conn2.exists('my-key')))

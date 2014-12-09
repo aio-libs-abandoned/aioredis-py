@@ -1,16 +1,16 @@
 from ._testutil import RedisTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from aioredis import ReplyError
 
 
 class ConnectionCommandsTest(RedisTest):
 
     @run_until_complete
     def test_repr(self):
-        redis = yield from create_redis(
+        redis = yield from self.create_redis(
             ('localhost', self.redis_port), db=1, loop=self.loop)
         self.assertEqual(repr(redis), '<Redis <RedisConnection [db:1]>>')
 
-        redis = yield from create_redis(
+        redis = yield from self.create_redis(
             ('localhost', self.redis_port), db=0, loop=self.loop)
         self.assertEqual(repr(redis), '<Redis <RedisConnection [db:0]>>')
 
@@ -52,7 +52,8 @@ class ConnectionCommandsTest(RedisTest):
 
     @run_until_complete
     def test_encoding(self):
-        redis = yield from create_redis(('localhost', self.redis_port),
-                                        db=1, encoding='utf-8',
-                                        loop=self.loop)
+        redis = yield from self.create_redis(
+            ('localhost', self.redis_port),
+            db=1, encoding='utf-8',
+            loop=self.loop)
         self.assertEqual(redis.encoding, 'utf-8')

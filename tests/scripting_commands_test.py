@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import RedisTest, run_until_complete
-from aioredis import create_redis, ReplyError
+from aioredis import ReplyError
 
 
 class ScriptCommandsTest(RedisTest):
@@ -105,7 +105,7 @@ class ScriptCommandsTest(RedisTest):
     def test_script_kill(self):
         script = "while (1) do redis.call('TIME') end"
 
-        other_redis = yield from create_redis(
+        other_redis = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
 
         yield from self.add('key1', 'value')

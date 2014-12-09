@@ -4,7 +4,7 @@ import re
 import unittest
 
 from functools import wraps
-from aioredis import create_redis
+from aioredis import create_redis, create_connection, create_pool
 
 
 REDIS_VERSION = os.environ.get('REDIS_VERSION')
@@ -41,21 +41,56 @@ class BaseTest(unittest.TestCase):
         self.redis_port = int(os.environ.get('REDIS_PORT') or 6379)
         socket = os.environ.get('REDIS_SOCKET')
         self.redis_socket = socket or '/tmp/aioredis.sock'
+        self._conns = []
+        self._redises = []
+        self._pools = []
 
     def tearDown(self):
+        waiters = []
+        while self._conns:
+            conn = self._conns.pop(0)
+            conn.close()
+            waiters.append(conn.wait_closed())
+        while self._redises:
+            redis = self._redises.pop(0)
+            redis.close()
+            waiters.append(redis.wait_closed())
+        while self._pools:
+            pool = self._pools.pop(0)
+            waiters.append(pool.clear())
+        if waiters:
+            self.loop.run_until_complete(
+                asyncio.gather(*waiters, loop=self.loop))
         self.loop.close()
         del self.loop
+
+    @asyncio.coroutine
+    def create_connection(self, *args, **kw):
+        conn = yield from create_connection(*args, **kw)
+        self._conns.append(conn)
+        return conn
+
+    @asyncio.coroutine
+    def create_redis(self, *args, **kw):
+        redis = yield from create_redis(*args, **kw)
+        self._redises.append(redis)
+        return redis
+
+    @asyncio.coroutine
+    def create_pool(self, *args, **kw):
+        pool = yield from create_pool(*args, **kw)
+        self._pools.append(pool)
+        return pool
 
 
 class RedisTest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        self.redis = self.loop.run_until_complete(create_redis(
+        self.redis = self.loop.run_until_complete(self.create_redis(
             ('localhost', self.redis_port), loop=self.loop))
 
     def tearDown(self):
-        self.redis.close()
         del self.redis
         super().tearDown()
 

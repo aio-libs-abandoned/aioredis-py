@@ -66,6 +66,10 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def close(self):
         self._conn.close()
 
+    @asyncio.coroutine
+    def wait_closed(self):
+        yield from self._conn.wait_closed()
+
     @property
     def db(self):
         """Currently selected db index."""
