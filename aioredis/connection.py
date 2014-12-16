@@ -104,6 +104,10 @@ class RedisConnection:
                     if obj is False:
                         break
                     waiter, encoding, cb = self._waiters.popleft()
+                    if waiter.done():   # waiter possibly
+                        assert waiter.cancelled(), (
+                            "waiting future is in wrong state", waiter, obj)
+                        continue
                     if isinstance(obj, RedisError):
                         waiter.set_exception(obj)
                         if self._in_transaction:
