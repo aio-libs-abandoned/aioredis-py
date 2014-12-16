@@ -605,3 +605,4 @@ class StringCommandsTest(RedisTest):
         exists_coro = self.redis._conn.execute("EXISTS", b"key:test1")
         exists_coro.cancel()
         exists_check = yield from self.redis.exists(b"key:test2")
+        self.assertFalse(exists_check)
