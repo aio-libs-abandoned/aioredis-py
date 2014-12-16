@@ -6,6 +6,11 @@ asyncio (PEP 3156) Redis support
 .. image:: https://travis-ci.org/aio-libs/aioredis.svg?branch=master
    :target: https://travis-ci.org/aio-libs/aioredis
 
+
+.. image:: https://coveralls.io/repos/aio-libs/aioredis/badge.png?branch=master
+   :target: https://coveralls.io/r/aio-libs/aioredis?branch=master
+
+
 Documentation
 -------------
 
