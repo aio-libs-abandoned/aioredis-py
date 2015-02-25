@@ -450,7 +450,59 @@ class GenericCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sort(self):
-        pass
+        def _make_list(key, items):
+            yield from self.redis.delete(key)
+            for i in items:
+                yield from self.redis.rpush(key, i)
+
+        yield from _make_list('a', '4231')
+        res = yield from self.redis.sort('a')
+        self.assertEqual(res, [b'1', b'2', b'3', b'4'])
+
+        res = yield from self.redis.sort('a', offset=2, count=2)
+        self.assertEqual(res, [b'3', b'4'])
+
+        res = yield from self.redis.sort('a', asc=b'DESC')
+        self.assertEqual(res, [b'4', b'3', b'2', b'1'])
+
+        yield from _make_list('a', 'dbca')
+        res = yield from self.redis.sort(
+            'a', asc=b'DESC', alpha=True, offset=2, count=2
+        )
+        self.assertEqual(res, [b'b', b'a'])
+
+        yield from self.redis.set('key:1', 10)
+        yield from self.redis.set('key:2', 4)
+        yield from self.redis.set('key:3', 7)
+        yield from _make_list('a', '321')
+
+        res = yield from self.redis.sort('a', by='key:*')
+        self.assertEqual(res, [b'2', b'3', b'1'])
+
+        res = yield from self.redis.sort('a', by='nosort')
+        self.assertEqual(res, [b'3', b'2', b'1'])
+
+        res = yield from self.redis.sort('a', by='key:*', store='sorted_a')
+        self.assertEqual(res, 3)
+        res = yield from self.redis.lrange('sorted_a', 0, -1)
+        self.assertEqual(res, [b'2', b'3', b'1'])
+
+        yield from self.redis.set('value:1', 20)
+        yield from self.redis.set('value:2', 30)
+        yield from self.redis.set('value:3', 40)
+        res = yield from self.redis.sort('a', 'value:*', by='key:*')
+        self.assertEqual(res, [b'30', b'40', b'20'])
+
+        yield from self.redis.hset('data_1', 'weight', 30)
+        yield from self.redis.hset('data_2', 'weight', 20)
+        yield from self.redis.hset('data_3', 'weight', 10)
+        yield from self.redis.hset('hash_1', 'field', 20)
+        yield from self.redis.hset('hash_2', 'field', 30)
+        yield from self.redis.hset('hash_3', 'field', 10)
+        res = yield from self.redis.sort(
+            'a', 'hash_*->field', by='data_*->weight'
+        )
+        self.assertEqual(res, [b'10', b'30', b'20'])
 
     @run_until_complete
     def test_ttl(self):

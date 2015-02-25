@@ -55,3 +55,8 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# OS hidden files
+.DS_Store
+
+# Vim
+.vim

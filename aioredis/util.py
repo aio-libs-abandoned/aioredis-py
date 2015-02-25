@@ -23,7 +23,9 @@ def encode_command(*args):
     Raises TypeError if any of args not of bytes, str, int or float type.
     """
     buf = bytearray()
-    add = lambda data: buf.extend(data + b'\r\n')
+
+    def add(data):
+        return buf.extend(data + b'\r\n')
 
     add(b'*' + _bytes_len(args))
     for arg in args:

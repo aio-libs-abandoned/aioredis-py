@@ -349,7 +349,10 @@ class SortedSetCommandsMixin:
         if count is not None:
             args += [b'COUNT', count]
         fut = self._conn.execute(b'ZSCAN', key, cursor, *args)
-        _converter = lambda obj: (int(obj[0]), pairs_int_or_float(obj[1]))
+
+        def _converter(obj):
+            return (int(obj[0]), pairs_int_or_float(obj[1]))
+
         return wait_convert(fut, _converter)
 
 
