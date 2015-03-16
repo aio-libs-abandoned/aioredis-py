@@ -15,7 +15,7 @@ class MultiExecTest(unittest.TestCase):
             asyncio.coroutine(lambda: conn)
         try:
             old_loop = asyncio.get_event_loop()
-        except AssertionError:
+        except (AssertionError, RuntimeError):
             old_loop = None
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
