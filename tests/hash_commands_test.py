@@ -215,7 +215,7 @@ class HashCommandsTest(RedisTest):
         test_value = yield from self.redis.hmget(key, b'foo', b'bar')
         self.assertEqual(set(test_value), {b'baz', b'paz'})
 
-        with self.assertRaises(ReplyError):
+        with self.assertRaises(TypeError):
             yield from self.redis.hmset(key, b'foo', b'bar', b'baz')
 
         with self.assertRaises(TypeError):
