@@ -73,6 +73,7 @@ class RedisConnection:
         self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = False
         self._transaction_error = None
+        self._in_pubsub = 0
         self._encoding = encoding
 
     def __repr__(self):
@@ -103,27 +104,37 @@ class RedisConnection:
                 else:
                     if obj is False:
                         break
-                    waiter, encoding, cb = self._waiters.popleft()
-                    if waiter.done():   # waiter possibly
-                        assert waiter.cancelled(), (
-                            "waiting future is in wrong state", waiter, obj)
-                        continue
-                    if isinstance(obj, RedisError):
-                        waiter.set_exception(obj)
-                        if self._in_transaction:
-                            self._transaction_error = obj
+                    if self._in_pubsub:
+                        self._process_pubsub(obj)
                     else:
-                        if encoding is not None and isinstance(obj, bytes):
-                            try:
-                                obj = obj.decode(encoding)
-                            except Exception as exc:
-                                waiter.set_exception(exc)
-                                continue
-                        waiter.set_result(obj)
-                        if cb is not None:
-                            cb(obj)
+                        self._process_data(obj)
         self._closing = True
         self._loop.call_soon(self._do_close, None)
+
+    def _process_data(self, obj):
+        """Processes command results."""
+        waiter, encoding, cb = self._waiters.popleft()
+        if waiter.done():
+            assert waiter.cancelled(), (
+                "waiting future is in wrong state", waiter, obj)
+            return  # continue
+        if isinstance(obj, RedisError):
+            waiter.set_exception(obj)
+            if self._in_transaction:
+                self._transaction_error = obj
+        else:
+            if encoding is not None and isinstance(obj, bytes):
+                try:
+                    obj = obj.decode(encoding)
+                except Exception as exc:
+                    waiter.set_exception(exc)
+                    return  # continue
+            waiter.set_result(obj)
+            if cb is not None:
+                cb(obj)
+
+    def _process_pubsub(self, obj):
+        """Processes pubsub messages."""
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
