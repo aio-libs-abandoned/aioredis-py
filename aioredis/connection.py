@@ -18,6 +18,7 @@ _PUBSUB_COMMANDS = (
     'PUNSUSBSCRIBE', b'PUNSUSBSCRIBE',
     )
 
+
 @asyncio.coroutine
 def create_connection(address, *, db=None, password=None,
                       encoding=None, loop=None):
