@@ -11,6 +11,12 @@ __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
 
+_PUBSUB_COMMANDS = (
+    'SUBSCRIBE', b'SUBSCRIBE',
+    'PSUSBSCRIBE', b'PSUSBSCRIBE',
+    'UNSUBSCRIBE', B'UNSUBSCRIBE',
+    'PUNSUSBSCRIBE', b'PUNSUSBSCRIBE',
+    )
 
 @asyncio.coroutine
 def create_connection(address, *, db=None, password=None,
@@ -135,6 +141,22 @@ class RedisConnection:
 
     def _process_pubsub(self, obj):
         """Processes pubsub messages."""
+        msg_type, *message = obj
+        print(obj)
+        if self._in_pubsub and self._waiters:
+            self._process_data(obj)
+        if msg_type == b'subscribe':
+            pass
+        elif msg_type == b'unsubscribe':
+            pass
+        elif msg_type == b'psubscribe':
+            pass
+        elif msg_type == b'punsubscribe':
+            pass
+        elif msg_type == b'message':
+            pass
+        elif msg_type == b'pmessage':
+            pass
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
@@ -152,12 +174,16 @@ class RedisConnection:
         if None in set(args):
             raise TypeError("args must not contain None")
         command = command.upper().strip()
+        if self._in_pubsub and command not in _PUBSUB_COMMANDS:
+            raise RedisError("Connection in SUBSCRIBE mode")
         if command in ('SELECT', b'SELECT'):
             cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
             cb = self._start_transaction
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             cb = self._end_transaction
+        elif command in _PUBSUB_COMMANDS:
+            cb = self._update_pubsub
         else:
             cb = None
         if encoding is _NOTSET:
@@ -234,6 +260,11 @@ class RedisConnection:
         assert self._in_transaction
         self._in_transaction = False
         self._transaction_error = None
+
+    def _update_pubsub(self, obj):
+        *head, subscriptions = obj
+        self._in_pubsub = subscriptions
+        self._process_pubsub(obj)
 
     @property
     def in_transaction(self):
