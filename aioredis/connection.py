@@ -13,9 +13,9 @@ MAX_CHUNK_SIZE = 65536
 
 _PUBSUB_COMMANDS = (
     'SUBSCRIBE', b'SUBSCRIBE',
-    'PSUSBSCRIBE', b'PSUSBSCRIBE',
-    'UNSUBSCRIBE', B'UNSUBSCRIBE',
-    'PUNSUSBSCRIBE', b'PUNSUSBSCRIBE',
+    'PSUBSCRIBE', b'PSUBSCRIBE',
+    'UNSUBSCRIBE', b'UNSUBSCRIBE',
+    'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
     )
 
 
@@ -142,21 +142,20 @@ class RedisConnection:
 
     def _process_pubsub(self, obj):
         """Processes pubsub messages."""
-        msg_type, *message = obj
+        kind, *pattern, chan, data = obj
         print(obj)
         if self._in_pubsub and self._waiters:
             self._process_data(obj)
-        if msg_type == b'subscribe':
+
+        if kind in (b'subscribe', b'unsubscribe'):
+            self._in_pubsub = data
+        elif kind == b'psubscribe':
             pass
-        elif msg_type == b'unsubscribe':
+        elif kind == b'punsubscribe':
             pass
-        elif msg_type == b'psubscribe':
+        elif kind == b'message':
             pass
-        elif msg_type == b'punsubscribe':
-            pass
-        elif msg_type == b'message':
-            pass
-        elif msg_type == b'pmessage':
+        elif kind == b'pmessage':
             pass
 
     def execute(self, command, *args, encoding=_NOTSET):
@@ -264,13 +263,22 @@ class RedisConnection:
 
     def _update_pubsub(self, obj):
         *head, subscriptions = obj
-        self._in_pubsub = subscriptions
-        self._process_pubsub(obj)
+        self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
+        if not was_in_pubsub:
+            self._process_pubsub(obj)
 
     @property
     def in_transaction(self):
         """Set to True when MULTI command was issued."""
         return self._in_transaction
+
+    @property
+    def in_pubsub(self):
+        """Indicates that connection is in PUB/SUB mode.
+
+        Provides the number of subscribed channeles.
+        """
+        return self._in_pubsub
 
     def auth(self, password):
         """Authenticate to server."""

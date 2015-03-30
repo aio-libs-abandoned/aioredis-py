@@ -3,7 +3,7 @@ import asyncio
 import os
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import ReplyError, ProtocolError
+from aioredis import ReplyError, ProtocolError, RedisError
 
 
 class ConnectionTest(BaseTest):
@@ -169,3 +169,45 @@ class ConnectionTest(BaseTest):
             yield from conn.execute(None)
         with self.assertRaises(TypeError):
             yield from conn.execute("ECHO", None)
+
+    @run_until_complete
+    def test_subscribe_unsubscribe(self):
+        conn = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        self.assertEqual(conn.in_pubsub, 0)
+
+        res = yield from conn.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        self.assertTrue(conn.in_pubsub, 1)
+
+        res = yield from conn.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        self.assertEqual(conn.in_pubsub, 0)
+
+        res = yield from conn.execute('subscribe', 'chan:1', 'chan:2')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(conn.in_pubsub, 2)
+
+        res = yield from conn.execute('unsubscribe', 'non-existent')
+        self.assertEqual(res, [b'unsubscribe', b'non-existent', 2])
+        self.assertEqual(conn.in_pubsub, 2)
+
+        res = yield from conn.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 1])
+        self.assertEqual(conn.in_pubsub, 1)
+
+    @run_until_complete
+    def test_bad_command_in_pubsub(self):
+        conn = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        res = yield from conn.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        msg = "Connection in SUBSCRIBE mode"
+        with self.assertRaisesRegex(RedisError, msg):
+            yield from conn.execute('select', 1)
+        with self.assertRaisesRegex(RedisError, msg):
+            conn.execute('get')
