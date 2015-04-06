@@ -235,7 +235,10 @@ class GenericCommandsTest(RedisTest):
         yield from self.add('foo', 'bar')
 
         res = yield from self.redis.object_encoding('foo')
-        self.assertEqual(res, b'raw')
+        if REDIS_VERSION < (3, 0, 0):
+            self.assertEqual(res, b'raw')
+        else:
+            self.assertEqual(res, b'embstr')
         res = yield from self.redis.incr('key')
         self.assertEqual(res, 1)
         res = yield from self.redis.object_encoding('key')
