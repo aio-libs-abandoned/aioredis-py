@@ -142,6 +142,7 @@ class RedisConnection:
 
     def _process_pubsub(self, obj):
         """Processes pubsub messages."""
+        # TODO: decode data
         kind, *pattern, chan, data = obj
         print(obj)
         if self._in_pubsub and self._waiters:
@@ -149,10 +150,8 @@ class RedisConnection:
 
         if kind in (b'subscribe', b'unsubscribe'):
             self._in_pubsub = data
-        elif kind == b'psubscribe':
-            pass
-        elif kind == b'punsubscribe':
-            pass
+        elif kind in (b'psubscribe', b'punsubscribe'):
+            self._in_pubsub = data
         elif kind == b'message':
             pass
         elif kind == b'pmessage':

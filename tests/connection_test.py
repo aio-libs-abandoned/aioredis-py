@@ -199,6 +199,14 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.in_pubsub, 1)
 
     @run_until_complete
+    def test_psubscribe_punsubscribe(self):
+        conn = yield from self.create_connection(
+            ('localhost', 6379), loop=self.loop)
+        res = yield from conn.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        self.assertEqual(conn.in_pubsub, 1)
+
+    @run_until_complete
     def test_bad_command_in_pubsub(self):
         conn = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
