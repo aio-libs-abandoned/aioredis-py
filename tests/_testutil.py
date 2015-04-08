@@ -25,9 +25,13 @@ def run_until_complete(fun):
     @wraps(fun)
     def wrapper(test, *args, **kw):
         loop = test.loop
-        ret = loop.run_until_complete(
-            asyncio.wait_for(fun(test, *args, **kw), 15, loop=loop))
-        return ret
+        try:
+            ret = loop.run_until_complete(
+                asyncio.wait_for(fun(test, *args, **kw), 15, loop=loop))
+        except asyncio.CancelledError:
+            pass
+        else:
+            return ret
     return wrapper
 
 

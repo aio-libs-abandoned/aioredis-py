@@ -246,6 +246,7 @@ class RedisFuture(asyncio.Future):
 
     def cancel(self):
         super(RedisFuture, self).cancel()
-        if self._conn._closed:
-            return
-        self._conn._reader_task.cancel()
+        if self._conn._reader_task:
+            self._conn._reader_task.cancel()
+            self._conn._reader_task = asyncio.Task(self._conn._read_data(),
+                                                   loop=self._conn._loop)
