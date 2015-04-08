@@ -151,7 +151,7 @@ class RedisConnection:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        fut = asyncio.Future(loop=self._loop)
+        fut = RedisFuture(self, loop=self._loop)
         self._waiters.append((fut, encoding, cb))
         self._writer.write(encode_command(command, *args))
         return fut
@@ -237,3 +237,15 @@ class RedisConnection:
     @asyncio.coroutine
     def get_atomic_connection(self):
         return self
+
+
+class RedisFuture(asyncio.Future):
+    def __init__(self, conn, *args, **kwargs):
+        super(RedisFuture, self).__init__(*args, **kwargs)
+        self._conn = conn
+
+    def cancel(self):
+        super(RedisFuture, self).cancel()
+        if self._conn._closed:
+            return
+        self._conn._reader_task.cancel()
