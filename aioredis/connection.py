@@ -81,6 +81,8 @@ class RedisConnection:
         self._in_transaction = False
         self._transaction_error = None
         self._in_pubsub = 0
+        self._pubsub_channels = {}
+        self._pubsub_patterns = {}
         self._encoding = encoding
 
     def __repr__(self):
@@ -149,13 +151,24 @@ class RedisConnection:
             self._process_data(obj)
 
         if kind in (b'subscribe', b'unsubscribe'):
+            if kind == b'subscribe' and chan not in self._pubsub_channels:
+                self._pubsub_channels[chan] = asyncio.Queue(loop=self._loop)
+            elif kind == b'unsubscribe':
+                self._pubsub_channels.pop(chan, None)
+                # TODO: handle queued messages
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
+            if kind == b'psubscribe' and chan not in self._pubsub_patterns:
+                self._pubsub_patterns[chan] = asyncio.Queue(loop=self._loop)
+            elif kind == b'punsubscribe':
+                self._pubsub_patterns.pop(chan, None)
+                # TODO: handle queued messages
             self._in_pubsub = data
         elif kind == b'message':
-            pass
+            self._pubsub_channels[chan].put_nowait(data)
         elif kind == b'pmessage':
-            pass
+            pattern = pattern[0]
+            self._pubsub_patterns[pattern].put_nowait((chan, data))
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
@@ -278,6 +291,14 @@ class RedisConnection:
         Provides the number of subscribed channeles.
         """
         return self._in_pubsub
+
+    @property
+    def pubsub_channels(self):
+        return self._pubsub_channels    # FIXME: must be readonly
+
+    @property
+    def pubsub_patterns(self):
+        return self._pubsub_patterns    # FIXME: must be readonly
 
     def auth(self, password):
         """Authenticate to server."""

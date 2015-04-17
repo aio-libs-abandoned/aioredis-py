@@ -219,3 +219,34 @@ class ConnectionTest(BaseTest):
             yield from conn.execute('select', 1)
         with self.assertRaisesRegex(RedisError, msg):
             conn.execute('get')
+
+    @run_until_complete
+    def test_pubsub_messages(self):
+        sub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        pub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        res = yield from sub.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        self.assertIn(b'chan:1', sub.pubsub_channels)
+        queue = sub.pubsub_channels[b'chan:1']
+
+        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
+        self.assertEqual(res, 1)
+        msg = yield from queue.get()
+        self.assertEqual(msg, b'Hello!')
+
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 2])
+        self.assertIn(b'chan:*', sub.pubsub_patterns)
+        queue2 = sub.pubsub_patterns[b'chan:*']
+
+        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
+        self.assertEqual(res, 2)
+
+        msg = yield from queue.get()
+        self.assertEqual(msg, b'Hello!')
+        dest_chan, msg = yield from queue2.get()
+        self.assertEqual(dest_chan, b'chan:1')
+        self.assertEqual(msg, b'Hello!')
