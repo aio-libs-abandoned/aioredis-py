@@ -1,9 +1,10 @@
+import types
 import asyncio
 import hiredis
 from functools import partial
 from collections import deque
 
-from .util import encode_command, wait_ok, _NOTSET
+from .util import encode_command, wait_ok, _NOTSET, coerced_keys_dict
 from .errors import RedisError, ProtocolError, ReplyError
 
 
@@ -81,8 +82,8 @@ class RedisConnection:
         self._in_transaction = False
         self._transaction_error = None
         self._in_pubsub = 0
-        self._pubsub_channels = {}
-        self._pubsub_patterns = {}
+        self._pubsub_channels = coerced_keys_dict()
+        self._pubsub_patterns = coerced_keys_dict()
         self._encoding = encoding
 
     def __repr__(self):
@@ -146,7 +147,7 @@ class RedisConnection:
         """Processes pubsub messages."""
         # TODO: decode data
         kind, *pattern, chan, data = obj
-        print(obj)
+        # print(obj)
         if self._in_pubsub and self._waiters:
             self._process_data(obj)
 
@@ -155,14 +156,14 @@ class RedisConnection:
                 self._pubsub_channels[chan] = asyncio.Queue(loop=self._loop)
             elif kind == b'unsubscribe':
                 self._pubsub_channels.pop(chan, None)
-                # TODO: handle queued messages
+                # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
             if kind == b'psubscribe' and chan not in self._pubsub_patterns:
                 self._pubsub_patterns[chan] = asyncio.Queue(loop=self._loop)
             elif kind == b'punsubscribe':
                 self._pubsub_patterns.pop(chan, None)
-                # TODO: handle queued messages
+                # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind == b'message':
             self._pubsub_channels[chan].put_nowait(data)
@@ -294,11 +295,11 @@ class RedisConnection:
 
     @property
     def pubsub_channels(self):
-        return self._pubsub_channels    # FIXME: must be readonly
+        return types.MappingProxyType(self._pubsub_channels)
 
     @property
     def pubsub_patterns(self):
-        return self._pubsub_patterns    # FIXME: must be readonly
+        return types.MappingProxyType(self._pubsub_patterns)
 
     def auth(self, password):
         """Authenticate to server."""
