@@ -1,15 +1,23 @@
+import types
 import asyncio
 import hiredis
 from functools import partial
 from collections import deque
 
-from .util import encode_command, wait_ok, _NOTSET
+from .util import encode_command, wait_ok, _NOTSET, coerced_keys_dict
 from .errors import RedisError, ProtocolError, ReplyError
 
 
 __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
+
+_PUBSUB_COMMANDS = (
+    'SUBSCRIBE', b'SUBSCRIBE',
+    'PSUBSCRIBE', b'PSUBSCRIBE',
+    'UNSUBSCRIBE', b'UNSUBSCRIBE',
+    'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
+    )
 
 
 @asyncio.coroutine
@@ -73,6 +81,9 @@ class RedisConnection:
         self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = False
         self._transaction_error = None
+        self._in_pubsub = 0
+        self._pubsub_channels = coerced_keys_dict()
+        self._pubsub_patterns = coerced_keys_dict()
         self._encoding = encoding
 
     def __repr__(self):
@@ -103,27 +114,63 @@ class RedisConnection:
                 else:
                     if obj is False:
                         break
-                    waiter, encoding, cb = self._waiters.popleft()
-                    if waiter.done():   # waiter possibly
-                        assert waiter.cancelled(), (
-                            "waiting future is in wrong state", waiter, obj)
-                        continue
-                    if isinstance(obj, RedisError):
-                        waiter.set_exception(obj)
-                        if self._in_transaction:
-                            self._transaction_error = obj
+                    if self._in_pubsub:
+                        self._process_pubsub(obj)
                     else:
-                        if encoding is not None and isinstance(obj, bytes):
-                            try:
-                                obj = obj.decode(encoding)
-                            except Exception as exc:
-                                waiter.set_exception(exc)
-                                continue
-                        waiter.set_result(obj)
-                        if cb is not None:
-                            cb(obj)
+                        self._process_data(obj)
         self._closing = True
         self._loop.call_soon(self._do_close, None)
+
+    def _process_data(self, obj):
+        """Processes command results."""
+        waiter, encoding, cb = self._waiters.popleft()
+        if waiter.done():
+            assert waiter.cancelled(), (
+                "waiting future is in wrong state", waiter, obj)
+            return  # continue
+        if isinstance(obj, RedisError):
+            waiter.set_exception(obj)
+            if self._in_transaction:
+                self._transaction_error = obj
+        else:
+            if encoding is not None and isinstance(obj, bytes):
+                try:
+                    obj = obj.decode(encoding)
+                except Exception as exc:
+                    waiter.set_exception(exc)
+                    return  # continue
+            waiter.set_result(obj)
+            if cb is not None:
+                cb(obj)
+
+    def _process_pubsub(self, obj):
+        """Processes pubsub messages."""
+        # TODO: decode data
+        kind, *pattern, chan, data = obj
+        if self._in_pubsub and self._waiters:
+            self._process_data(obj)
+
+        if kind in (b'subscribe', b'unsubscribe'):
+            if kind == b'subscribe' and chan not in self._pubsub_channels:
+                self._pubsub_channels[chan] = asyncio.Queue(loop=self._loop)
+            elif kind == b'unsubscribe':
+                self._pubsub_channels.pop(chan, None)
+                # TODO: discard queued messages?
+            self._in_pubsub = data
+        elif kind in (b'psubscribe', b'punsubscribe'):
+            if kind == b'psubscribe' and chan not in self._pubsub_patterns:
+                self._pubsub_patterns[chan] = asyncio.Queue(loop=self._loop)
+            elif kind == b'punsubscribe':
+                self._pubsub_patterns.pop(chan, None)
+                # TODO: discard queued messages?
+            self._in_pubsub = data
+        elif kind == b'message':
+            self._pubsub_channels[chan].put_nowait(data)
+        elif kind == b'pmessage':
+            pattern = pattern[0]
+            self._pubsub_patterns[pattern].put_nowait((chan, data))
+        else:
+            pass    # TODO: log 'unknown message'
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
@@ -141,12 +188,16 @@ class RedisConnection:
         if None in set(args):
             raise TypeError("args must not contain None")
         command = command.upper().strip()
+        if self._in_pubsub and command not in _PUBSUB_COMMANDS:
+            raise RedisError("Connection in SUBSCRIBE mode")
         if command in ('SELECT', b'SELECT'):
             cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
             cb = self._start_transaction
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             cb = self._end_transaction
+        elif command in _PUBSUB_COMMANDS:
+            cb = self._update_pubsub
         else:
             cb = None
         if encoding is _NOTSET:
@@ -224,10 +275,32 @@ class RedisConnection:
         self._in_transaction = False
         self._transaction_error = None
 
+    def _update_pubsub(self, obj):
+        *head, subscriptions = obj
+        self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
+        if not was_in_pubsub:
+            self._process_pubsub(obj)
+
     @property
     def in_transaction(self):
         """Set to True when MULTI command was issued."""
         return self._in_transaction
+
+    @property
+    def in_pubsub(self):
+        """Indicates that connection is in PUB/SUB mode.
+
+        Provides the number of subscribed channeles.
+        """
+        return self._in_pubsub
+
+    @property
+    def pubsub_channels(self):
+        return types.MappingProxyType(self._pubsub_channels)
+
+    @property
+    def pubsub_patterns(self):
+        return types.MappingProxyType(self._pubsub_patterns)
 
     def auth(self, password):
         """Authenticate to server."""

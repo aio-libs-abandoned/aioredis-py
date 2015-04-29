@@ -3,7 +3,7 @@ import asyncio
 import os
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import ReplyError, ProtocolError
+from aioredis import ReplyError, ProtocolError, RedisError
 
 
 class ConnectionTest(BaseTest):
@@ -169,3 +169,109 @@ class ConnectionTest(BaseTest):
             yield from conn.execute(None)
         with self.assertRaises(TypeError):
             yield from conn.execute("ECHO", None)
+
+    @run_until_complete
+    def test_subscribe_unsubscribe(self):
+        conn = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        self.assertEqual(conn.in_pubsub, 0)
+
+        res = yield from conn.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        self.assertTrue(conn.in_pubsub, 1)
+
+        res = yield from conn.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        self.assertEqual(conn.in_pubsub, 0)
+
+        res = yield from conn.execute('subscribe', 'chan:1', 'chan:2')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(conn.in_pubsub, 2)
+
+        res = yield from conn.execute('unsubscribe', 'non-existent')
+        self.assertEqual(res, [b'unsubscribe', b'non-existent', 2])
+        self.assertEqual(conn.in_pubsub, 2)
+
+        res = yield from conn.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 1])
+        self.assertEqual(conn.in_pubsub, 1)
+
+    @run_until_complete
+    def test_psubscribe_punsubscribe(self):
+        conn = yield from self.create_connection(
+            ('localhost', 6379), loop=self.loop)
+        res = yield from conn.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        self.assertEqual(conn.in_pubsub, 1)
+
+    @run_until_complete
+    def test_bad_command_in_pubsub(self):
+        conn = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        res = yield from conn.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        msg = "Connection in SUBSCRIBE mode"
+        with self.assertRaisesRegex(RedisError, msg):
+            yield from conn.execute('select', 1)
+        with self.assertRaisesRegex(RedisError, msg):
+            conn.execute('get')
+
+    @run_until_complete
+    def test_pubsub_messages(self):
+        sub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        pub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+        res = yield from sub.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        self.assertIn(b'chan:1', sub.pubsub_channels)
+        queue = sub.pubsub_channels[b'chan:1']
+
+        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
+        self.assertEqual(res, 1)
+        msg = yield from queue.get()
+        self.assertEqual(msg, b'Hello!')
+
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 2])
+        self.assertIn(b'chan:*', sub.pubsub_patterns)
+        queue2 = sub.pubsub_patterns[b'chan:*']
+
+        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
+        self.assertEqual(res, 2)
+
+        msg = yield from queue.get()
+        self.assertEqual(msg, b'Hello!')
+        dest_chan, msg = yield from queue2.get()
+        self.assertEqual(dest_chan, b'chan:1')
+        self.assertEqual(msg, b'Hello!')
+
+    @run_until_complete
+    def test_multiple_subscribe_unsubscribe(self):
+        sub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        res = yield from sub.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        res = yield from sub.execute('subscribe', b'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        res = yield from sub.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        res = yield from sub.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+
+        res = yield from sub.execute('punsubscribe', 'chan:*')
+        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])
+        res = yield from sub.execute('punsubscribe', 'chan:*')
+        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])

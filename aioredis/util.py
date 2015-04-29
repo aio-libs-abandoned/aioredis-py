@@ -53,3 +53,16 @@ def wait_convert(fut, type_):
     if result == b'QUEUED':
         return result
     return type_(result)
+
+
+class coerced_keys_dict(dict):
+
+    def __getitem__(self, other):
+        if not isinstance(other, bytes):
+            other = _converters[type(other)](other)
+        return dict.__getitem__(self, other)
+
+    def __contains__(self, other):
+        if not isinstance(other, bytes):
+            other = _converters[type(other)](other)
+        return dict.__contains__(self, other)
