@@ -147,7 +147,6 @@ class RedisConnection:
         """Processes pubsub messages."""
         # TODO: decode data
         kind, *pattern, chan, data = obj
-        # print(obj)
         if self._in_pubsub and self._waiters:
             self._process_data(obj)
 
@@ -170,6 +169,8 @@ class RedisConnection:
         elif kind == b'pmessage':
             pattern = pattern[0]
             self._pubsub_patterns[pattern].put_nowait((chan, data))
+        else:
+            pass    # TODO: log 'unknown message'
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.

@@ -250,3 +250,28 @@ class ConnectionTest(BaseTest):
         dest_chan, msg = yield from queue2.get()
         self.assertEqual(dest_chan, b'chan:1')
         self.assertEqual(msg, b'Hello!')
+
+    @run_until_complete
+    def test_multiple_subscribe_unsubscribe(self):
+        sub = yield from self.create_connection(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        res = yield from sub.execute('subscribe', 'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        res = yield from sub.execute('subscribe', b'chan:1')
+        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+
+        res = yield from sub.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        res = yield from sub.execute('unsubscribe', 'chan:1')
+        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        res = yield from sub.execute('psubscribe', 'chan:*')
+        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+
+        res = yield from sub.execute('punsubscribe', 'chan:*')
+        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])
+        res = yield from sub.execute('punsubscribe', 'chan:*')
+        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])
