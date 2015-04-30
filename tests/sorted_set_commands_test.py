@@ -552,18 +552,18 @@ class SortedSetsCommandsTest(RedisTest):
         rev_pairs = list(itertools.chain(*zip(members[::-1], scores[::-1])))
         res = yield from self.redis.zadd(key, *pairs)
         self.assertEqual(res, 5)
-        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+        res = yield from self.redis.zrevrangebyscore(key, 7, 1,
                                                      withscores=False)
         self.assertEqual(res, members[::-1])
         res = yield from self.redis.zrevrangebyscore(
-            key, 1, 7, withscores=False,
+            key, 7, 1, withscores=False,
             exclude=self.redis.ZSET_EXCLUDE_BOTH)
         self.assertEqual(res, members[-2:1:-1])
-        res = yield from self.redis.zrevrangebyscore(key, 1, 7,
+        res = yield from self.redis.zrevrangebyscore(key, 7, 1,
                                                      withscores=True)
         self.assertEqual(res, rev_pairs)
 
-        res = yield from self.redis.zrevrangebyscore(key, 1, 10, offset=2,
+        res = yield from self.redis.zrevrangebyscore(key, 10, 1, offset=2,
                                                      count=2)
         self.assertEqual(res, members[-3:-5:-1])
 
