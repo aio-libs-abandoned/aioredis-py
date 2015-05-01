@@ -299,7 +299,7 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        fut = self._conn.execute(b'ZREVRANGEBYSCORE', key, min, max, *args)
+        fut = self._conn.execute(b'ZREVRANGEBYSCORE', key, max, min, *args)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
