@@ -39,6 +39,78 @@ def encode_command(*args):
     return buf
 
 
+class Channel:
+    """Wrapper around asyncio.Queue."""
+    __slots__ = ('_queue', '_name',
+                 '_closed', '_waiter',
+                 '_loop')
+
+    def __init__(self, name, loop=None):
+        self._queue = asyncio.Queue(loop=loop)
+        self._name = name
+        self._loop = loop
+        self._closed = False
+        self._waiter = None
+
+    @property
+    def name(self):
+        """Encoded channel name/pattern."""
+        return self._name
+
+    @asyncio.coroutine
+    def get(self):
+        if self._closed:
+            pass    # raise error
+        return self._queue.get()
+
+    def is_active(self):
+        """Returns True until there are messages in channel or
+        connection is subscribed to it.
+
+        Can be used with ``while``:
+
+        >>> ch = conn.pubsub_channels['chan:1']
+        >>> while ch.is_active():
+        ...     msg = yield from ch.get()   # may stuck for a long time
+
+        """
+        return not (self._queue.empty() and self._closed)
+
+    @asyncio.coroutine
+    def wait_message(self):
+        """Waits for message to become available in channel.
+
+        Possible usage:
+
+        >>> while (yield from ch.wait_message()):
+        ...     msg = yield from ch.get()
+        """
+        if not self.is_active():
+            return False
+        if self._waiter is None:
+            self._waiter = asyncio.Future(loop=self._loop)
+        yield from self._waiter
+        return True
+
+    # internale methods
+
+    def put_nowait(self, data):
+        self._queue.put_nowait(data)
+        if self._waiter is not None:
+            fut, self._waiter = self._waiter, None
+            fut.set_result(None)
+
+    def close(self):
+        """Marks channel as inactive.
+
+        Internal method, will be called from connection
+        on `unsubscribe` command.
+        """
+        if not self._closed:
+            self.put_nowait(None)
+        self._closed = True
+
+
 @asyncio.coroutine
 def wait_ok(fut):
     res = yield from fut

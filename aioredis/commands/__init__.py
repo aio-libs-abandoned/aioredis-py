@@ -12,6 +12,7 @@ from .transaction import TransactionsCommandsMixin, Pipeline, MultiExec
 from .list import ListCommandsMixin
 from .scripting import ScriptingCommandsMixin
 from .server import ServerCommandsMixin
+from .pubsub import PubSubCommandsMixin
 
 __all__ = ['create_redis', 'Redis', 'Pipeline', 'MultiExec']
 
@@ -49,7 +50,8 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             HyperLogLogCommandsMixin, SetCommandsMixin,
             HashCommandsMixin, TransactionsCommandsMixin,
             SortedSetCommandsMixin, ListCommandsMixin,
-            ScriptingCommandsMixin, ServerCommandsMixin):
+            ScriptingCommandsMixin, ServerCommandsMixin,
+            PubSubCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.

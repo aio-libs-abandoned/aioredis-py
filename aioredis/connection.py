@@ -4,7 +4,12 @@ import hiredis
 from functools import partial
 from collections import deque
 
-from .util import encode_command, wait_ok, _NOTSET, coerced_keys_dict
+from .util import (
+    encode_command,
+    wait_ok, _NOTSET,
+    coerced_keys_dict,
+    Channel,
+    )
 from .errors import RedisError, ProtocolError, ReplyError
 
 
@@ -152,17 +157,21 @@ class RedisConnection:
 
         if kind in (b'subscribe', b'unsubscribe'):
             if kind == b'subscribe' and chan not in self._pubsub_channels:
-                self._pubsub_channels[chan] = asyncio.Queue(loop=self._loop)
+                self._pubsub_channels[chan] = Channel(chan, loop=self._loop)
             elif kind == b'unsubscribe':
-                self._pubsub_channels.pop(chan, None)
-                # TODO: discard queued messages?
+                ch = self._pubsub_channels.pop(chan, None)
+                if ch:
+                    ch.close()
+                    # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
             if kind == b'psubscribe' and chan not in self._pubsub_patterns:
-                self._pubsub_patterns[chan] = asyncio.Queue(loop=self._loop)
+                self._pubsub_patterns[chan] = Channel(chan, loop=self._loop)
             elif kind == b'punsubscribe':
-                self._pubsub_patterns.pop(chan, None)
-                # TODO: discard queued messages?
+                ch = self._pubsub_patterns.pop(chan, None)
+                if ch:
+                    ch.close()
+                    # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind == b'message':
             self._pubsub_channels[chan].put_nowait(data)
@@ -227,6 +236,7 @@ class RedisConnection:
                 waiter.cancel()
             else:
                 waiter.set_exception(exc)
+        # TODO: close all subscribed channels
 
     @property
     def closed(self):
