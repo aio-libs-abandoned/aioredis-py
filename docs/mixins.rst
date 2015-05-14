@@ -131,3 +131,10 @@ Server commands
 
 .. autoclass:: ServerCommandsMixin
    :members:
+
+
+Pub/Sub commands
+----------------
+
+.. autoclass:: PubSubCommandsMixin
+   :members:
