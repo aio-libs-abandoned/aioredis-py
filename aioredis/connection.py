@@ -162,7 +162,6 @@ class RedisConnection:
                 ch = self._pubsub_channels.pop(chan, None)
                 if ch:
                     ch.close()
-                    # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
             if kind == b'psubscribe' and chan not in self._pubsub_patterns:
@@ -171,7 +170,6 @@ class RedisConnection:
                 ch = self._pubsub_patterns.pop(chan, None)
                 if ch:
                     ch.close()
-                    # TODO: discard queued messages?
             self._in_pubsub = data
         elif kind == b'message':
             self._pubsub_channels[chan].put_nowait(data)
