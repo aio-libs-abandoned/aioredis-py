@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 _NOTSET = object()
 
@@ -58,10 +59,25 @@ class Channel:
         return self._name
 
     @asyncio.coroutine
-    def get(self):
+    def get(self, *, encoding=None, decoder=None):
+        """Coroutine that waits for and returns a message.
+
+        Raises (TBD) exception if channel is unsubscribed and has no messages.
+        """
+        assert decoder is None or callable(decoder), decoder
         if self._closed:
             pass    # raise error
-        return self._queue.get()
+        msg = yield from self._queue.get()
+        if encoding is not None:
+            msg = msg.decode(encoding)
+        if decoder is not None:
+            msg = decoder(msg)
+        return msg
+
+    @asyncio.coroutine
+    def get_json(self, encoding='utf-8'):
+        """Shortcut to get JSON messages."""
+        return (yield from self.get(encoding=encoding, decoder=json.loads))
 
     def is_active(self):
         """Returns True until there are messages in channel or
@@ -90,7 +106,7 @@ class Channel:
         if self._waiter is None:
             self._waiter = asyncio.Future(loop=self._loop)
         yield from self._waiter
-        return True
+        return self.is_active()
 
     # internale methods
 
