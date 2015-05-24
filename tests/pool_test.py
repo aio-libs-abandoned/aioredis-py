@@ -242,6 +242,20 @@ class PoolTest(BaseTest):
             self.assertEqual(res, 'value')
 
     @run_until_complete
+    def test_hgetall_response_decoding(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            encoding='utf-8', loop=self.loop)
+
+        self.assertEqual(pool.encoding, 'utf-8')
+        with (yield from pool) as redis:
+            yield from redis.hmset('key1', 'foo', 'bar')
+            yield from redis.hmset('key1', 'baz', 'zap')
+        with (yield from pool) as redis:
+            res = yield from redis.hgetall('key1')
+            self.assertEqual(res, {'foo': 'bar', 'baz': 'zap'})
+
+    @run_until_complete
     def test_crappy_multiexec(self):
         pool = yield from self.create_pool(
             ('localhost', self.redis_port),
