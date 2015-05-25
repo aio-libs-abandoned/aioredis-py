@@ -44,11 +44,12 @@ class Channel:
     """Wrapper around asyncio.Queue."""
     __slots__ = ('_queue', '_name',
                  '_closed', '_waiter',
-                 '_loop')
+                 '_is_pattern', '_loop')
 
-    def __init__(self, name, loop=None):
+    def __init__(self, name, is_pattern, loop=None):
         self._queue = asyncio.Queue(loop=loop)
         self._name = name
+        self._is_pattern = is_pattern
         self._loop = loop
         self._closed = False
         self._waiter = None
@@ -57,6 +58,11 @@ class Channel:
     def name(self):
         """Encoded channel name/pattern."""
         return self._name
+
+    @property
+    def is_pattern(self):
+        """Set to True if channel is subscribed to pattern."""
+        return self._is_pattern
 
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
@@ -68,10 +74,16 @@ class Channel:
         if self._closed:
             pass    # raise error
         msg = yield from self._queue.get()
+        if msg is None:
+            return
+        if self._is_pattern:
+            dest_channel, msg = msg
         if encoding is not None:
             msg = msg.decode(encoding)
         if decoder is not None:
             msg = decoder(msg)
+        if self._is_pattern:
+            return dest_channel, msg
         return msg
 
     @asyncio.coroutine

@@ -230,24 +230,28 @@ class ConnectionTest(BaseTest):
         self.assertEqual(res, [b'subscribe', b'chan:1', 1])
 
         self.assertIn(b'chan:1', sub.pubsub_channels)
-        queue = sub.pubsub_channels[b'chan:1']
+        chan = sub.pubsub_channels[b'chan:1']
+        self.assertEqual(chan.name, b'chan:1')
+        self.assertTrue(chan.is_active())
 
         res = yield from pub.execute('publish', 'chan:1', 'Hello!')
         self.assertEqual(res, 1)
-        msg = yield from queue.get()
+        msg = yield from chan.get()
         self.assertEqual(msg, b'Hello!')
 
         res = yield from sub.execute('psubscribe', 'chan:*')
         self.assertEqual(res, [b'psubscribe', b'chan:*', 2])
         self.assertIn(b'chan:*', sub.pubsub_patterns)
-        queue2 = sub.pubsub_patterns[b'chan:*']
+        chan2 = sub.pubsub_patterns[b'chan:*']
+        self.assertEqual(chan2.name, b'chan:*')
+        self.assertTrue(chan2.is_active())
 
         res = yield from pub.execute('publish', 'chan:1', 'Hello!')
         self.assertEqual(res, 2)
 
-        msg = yield from queue.get()
+        msg = yield from chan.get()
         self.assertEqual(msg, b'Hello!')
-        dest_chan, msg = yield from queue2.get()
+        dest_chan, msg = yield from chan2.get()
         self.assertEqual(dest_chan, b'chan:1')
         self.assertEqual(msg, b'Hello!')
 
