@@ -178,24 +178,26 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.in_pubsub, 0)
 
         res = yield from conn.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
         self.assertTrue(conn.in_pubsub, 1)
 
         res = yield from conn.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
         self.assertEqual(conn.in_pubsub, 0)
 
         res = yield from conn.execute('subscribe', 'chan:1', 'chan:2')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1],
+                               [b'subscribe', b'chan:2', 2],
+                               ])
         self.assertEqual(conn.in_pubsub, 2)
 
         res = yield from conn.execute('unsubscribe', 'non-existent')
-        self.assertEqual(res, [b'unsubscribe', b'non-existent', 2])
+        self.assertEqual(res, [[b'unsubscribe', b'non-existent', 2]])
         self.assertEqual(conn.in_pubsub, 2)
 
         res = yield from conn.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [b'unsubscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 1]])
         self.assertEqual(conn.in_pubsub, 1)
 
     @run_until_complete
@@ -203,7 +205,7 @@ class ConnectionTest(BaseTest):
         conn = yield from self.create_connection(
             ('localhost', 6379), loop=self.loop)
         res = yield from conn.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
         self.assertEqual(conn.in_pubsub, 1)
 
     @run_until_complete
@@ -212,7 +214,7 @@ class ConnectionTest(BaseTest):
             ('localhost', self.redis_port), loop=self.loop)
 
         res = yield from conn.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
         msg = "Connection in SUBSCRIBE mode"
         with self.assertRaisesRegex(RedisError, msg):
@@ -227,7 +229,7 @@ class ConnectionTest(BaseTest):
         pub = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
         res = yield from sub.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
         self.assertIn(b'chan:1', sub.pubsub_channels)
         chan = sub.pubsub_channels[b'chan:1']
@@ -240,7 +242,7 @@ class ConnectionTest(BaseTest):
         self.assertEqual(msg, b'Hello!')
 
         res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [b'psubscribe', b'chan:*', 2])
+        self.assertEqual(res, [[b'psubscribe', b'chan:*', 2]])
         self.assertIn(b'chan:*', sub.pubsub_patterns)
         chan2 = sub.pubsub_patterns[b'chan:*']
         self.assertEqual(chan2.name, b'chan:*')
@@ -261,21 +263,21 @@ class ConnectionTest(BaseTest):
             ('localhost', self.redis_port), loop=self.loop)
 
         res = yield from sub.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
         res = yield from sub.execute('subscribe', b'chan:1')
-        self.assertEqual(res, [b'subscribe', b'chan:1', 1])
+        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
         res = yield from sub.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
         res = yield from sub.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [b'unsubscribe', b'chan:1', 0])
+        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
 
         res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
         res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [b'psubscribe', b'chan:*', 1])
+        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
 
         res = yield from sub.execute('punsubscribe', 'chan:*')
-        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])
+        self.assertEqual(res, [[b'punsubscribe', b'chan:*', 0]])
         res = yield from sub.execute('punsubscribe', 'chan:*')
-        self.assertEqual(res, [b'punsubscribe', b'chan:*', 0])
+        self.assertEqual(res, [[b'punsubscribe', b'chan:*', 0]])

@@ -148,10 +148,10 @@ class RedisConnection:
             if cb is not None:
                 cb(obj)
 
-    def _process_pubsub(self, obj):
+    def _process_pubsub(self, obj, *, _process_waiters=True):
         """Processes pubsub messages."""
         kind, *pattern, chan, data = obj
-        if self._in_pubsub and self._waiters:
+        if _process_waiters and self._in_pubsub and self._waiters:
             self._process_data(obj)
 
         if kind in (b'subscribe', b'unsubscribe'):
@@ -196,24 +196,51 @@ class RedisConnection:
         if None in set(args):
             raise TypeError("args must not contain None")
         command = command.upper().strip()
-        if self._in_pubsub and command not in _PUBSUB_COMMANDS:
+        is_pubsub = command in _PUBSUB_COMMANDS
+        if self._in_pubsub and not is_pubsub:
             raise RedisError("Connection in SUBSCRIBE mode")
+        elif is_pubsub:
+            # TODO: issue warning
+            return self.execute_pubsub(command, *args)
+
         if command in ('SELECT', b'SELECT'):
             cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
             cb = self._start_transaction
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             cb = self._end_transaction
-        elif command in _PUBSUB_COMMANDS:
-            cb = self._update_pubsub
         else:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
         fut = asyncio.Future(loop=self._loop)
+        # FIXME: change order: may cause this future stuck in queue if
+        #        command cannot be encoded
         self._waiters.append((fut, encoding, cb))
         self._writer.write(encode_command(command, *args))
         return fut
+
+    def execute_pubsub(self, command, *channels):
+        """Executes redis (p)subscribe/(p)unsubscribe commands.
+
+        Returns asyncio.gather coroutine waiting for all channels/patterns
+        to receive answers.
+        """
+        command = command.upper().strip()
+        assert command in _PUBSUB_COMMANDS, (
+            "Pub/Sub command expected", command)
+        if None in set(channels):
+            raise TypeError("args must not contain None")
+        if not len(channels):
+            raise ValueError("No channels/patterns supplied")
+        cmd = encode_command(command, *channels)
+        res = []
+        for ch in channels:
+            fut = asyncio.Future(loop=self._loop)
+            res.append(fut)
+            self._waiters.append((fut, None, self._update_pubsub))
+        self._writer.write(cmd)
+        return asyncio.gather(*res, loop=self._loop)
 
     def close(self):
         """Close connection."""
@@ -288,7 +315,7 @@ class RedisConnection:
         *head, subscriptions = obj
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
         if not was_in_pubsub:
-            self._process_pubsub(obj)
+            self._process_pubsub(obj, _process_waiters=False)
 
     @property
     def in_transaction(self):

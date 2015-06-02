@@ -155,6 +155,15 @@ def wait_convert(fut, type_):
     return type_(result)
 
 
+@asyncio.coroutine
+def wait_make_dict(fut):
+    res = yield from fut
+    if res == b'QUEUED':
+        return res
+    it = iter(res)
+    return dict(zip(it, it))
+
+
 class coerced_keys_dict(dict):
 
     def __getitem__(self, other):
