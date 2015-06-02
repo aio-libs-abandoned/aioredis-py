@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-from aioredis.util import wait_ok, wait_convert, _NOTSET
+from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET
 
 
 class ServerCommandsMixin:
@@ -61,7 +61,7 @@ class ServerCommandsMixin:
         if not isinstance(parameter, str):
             raise TypeError("parameter must be str")
         fut = self._conn.execute(b'CONFIG', b'GET', parameter)
-        return wait_convert(fut, to_dict)
+        return wait_make_dict(fut)
 
     def config_rewrite(self):
         """Rewrite the configuration file with the in memory configuration."""
@@ -174,11 +174,6 @@ class ServerCommandsMixin:
         """Return current server time."""
         fut = self._conn.execute(b'TIME')
         return wait_convert(fut, lambda obj: float(b'.'.join(obj)))
-
-
-def to_dict(value):
-    it = iter(value)
-    return dict(zip(it, it))
 
 
 def _split(s):
