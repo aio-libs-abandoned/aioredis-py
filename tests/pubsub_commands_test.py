@@ -1,6 +1,7 @@
+import unittest
 import asyncio
 
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 class PubSubCommandsTest(RedisTest):
@@ -93,6 +94,8 @@ class PubSubCommandsTest(RedisTest):
                                [b'punsubscribe', b'chan:*', 0],
                                ])
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'PUBSUB CHANNELS is available since redis>=2.8.0')
     @run_until_complete
     def test_pubsub_channels(self):
         redis = yield from self.create_redis(
@@ -119,6 +122,8 @@ class PubSubCommandsTest(RedisTest):
         res = yield from redis.pubsub_channels()
         self.assertEqual(res, [])
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'PUBSUB NUMSUB is available since redis>=2.8.0')
     @run_until_complete
     def test_pubsub_numsub(self):
         redis = yield from self.create_redis(
@@ -151,6 +156,8 @@ class PubSubCommandsTest(RedisTest):
         res = yield from redis.pubsub_numsub()
         self.assertEqual(res, {})
 
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'PUBSUB NUMPAT is available since redis>=2.8.0')
     @run_until_complete
     def test_pubsub_numpat(self):
         redis = yield from self.create_redis(
