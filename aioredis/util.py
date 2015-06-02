@@ -64,6 +64,20 @@ class Channel:
         """Set to True if channel is subscribed to pattern."""
         return self._is_pattern
 
+    @property
+    def is_active(self):
+        """Returns True until there are messages in channel or
+        connection is subscribed to it.
+
+        Can be used with ``while``:
+
+        >>> ch = conn.pubsub_channels['chan:1']
+        >>> while ch.is_active():
+        ...     msg = yield from ch.get()   # may stuck for a long time
+
+        """
+        return not (self._queue.empty() and self._closed)
+
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
@@ -91,19 +105,6 @@ class Channel:
         """Shortcut to get JSON messages."""
         return (yield from self.get(encoding=encoding, decoder=json.loads))
 
-    def is_active(self):
-        """Returns True until there are messages in channel or
-        connection is subscribed to it.
-
-        Can be used with ``while``:
-
-        >>> ch = conn.pubsub_channels['chan:1']
-        >>> while ch.is_active():
-        ...     msg = yield from ch.get()   # may stuck for a long time
-
-        """
-        return not (self._queue.empty() and self._closed)
-
     @asyncio.coroutine
     def wait_message(self):
         """Waits for message to become available in channel.
@@ -113,12 +114,12 @@ class Channel:
         >>> while (yield from ch.wait_message()):
         ...     msg = yield from ch.get()
         """
-        if not self.is_active():
+        if self._closed and self._queue.empty():
             return False
         if self._waiter is None:
             self._waiter = asyncio.Future(loop=self._loop)
         yield from self._waiter
-        return self.is_active()
+        return self.is_active
 
     # internale methods
 

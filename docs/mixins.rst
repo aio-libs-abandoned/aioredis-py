@@ -136,5 +136,7 @@ Server commands
 Pub/Sub commands
 ----------------
 
+Also see `aioredis-channel`_.
+
 .. autoclass:: PubSubCommandsMixin
    :members:

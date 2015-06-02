@@ -126,8 +126,8 @@ Connection usage is as simple as:
 
 .. _aioredis-pool:
 
-Pool
-----
+Connections Pool
+----------------
 
 The library provides connections pool. The basic usage is as follows:
 
@@ -242,6 +242,57 @@ The library provides connections pool. The basic usage is as follows:
 
       :param conn: A RedisCommand instance.
 
+
+----
+
+.. _aioredis-channel:
+
+Pub/Sub Channel object
+----------------------
+
+`Channel` object is a wrapper around queue for storing received pub/sub messages.
+
+
+.. class:: Channel(name, is_pattern, loop=None)
+
+   Object representing messages queue.
+
+   .. attribute:: name
+
+      Holds encoded channel/pattern name.
+
+   .. attribute:: is_pattern
+
+      Set to True for pattern channels.
+
+   .. attribute:: is_active
+
+      Set to True if there are messages in queue and connection is still
+      subscribed to this channel.
+
+   .. method:: get(\*, encoding=None, decoder=None)
+
+      Coroutine that waits for and returns a message.
+
+      :param str encoding: If not None used to decode resulting bytes message.
+
+      :param callable decoder: If specified used to decode message, ex. :func:`json.loads()`
+
+   .. method:: get_json(\*, encoding="utf-*")
+
+      Shortcut to `get(encoding="utf-8", decoder=json.loads)`
+
+   .. method:: wait_message()
+
+      Waits for message to become available in channel.
+
+      This function is coroutine.
+
+      Main idea is to use it in loops:
+
+      >>> ch = redis.channels['channel:1']
+      >>> while (yield from ch.wait_message()):
+      ...     msg = yield from ch.get()
 
 ----
 

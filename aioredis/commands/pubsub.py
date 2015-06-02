@@ -21,6 +21,9 @@ class PubSubCommandsMixin:
     def subscribe(self, channel, *channels):
         """Switch connection to Pub/Sub mode and
         subscribe to specified channels.
+
+        Returns :func:`asyncio.gather()` coroutine which when done will return
+        a list of subscribed channels.
         """
         conn = self._conn
         return wait_return_channels(
@@ -34,8 +37,10 @@ class PubSubCommandsMixin:
     def psubscribe(self, pattern, *patterns):
         """Switch connection to Pub/Sub mode and
         subscribe to specified patterns.
+
+        Returns :func:`asyncio.gather()` coroutine which when done will return
+        a list of subscribed patterns.
         """
-        # TODO: Implement
         conn = self._conn
         return wait_return_channels(
             conn.execute_pubsub(b'PSUBSCRIBE', pattern, *patterns),
@@ -63,14 +68,20 @@ class PubSubCommandsMixin:
 
     @property
     def channels(self):
+        """Returns read-only channels dict."""
         return self._conn.pubsub_channels
 
     @property
     def patterns(self):
+        """Returns read-only patterns dict."""
         return self._conn.pubsub_patterns
 
     @property
     def in_pubsub(self):
+        """Indicates that connection is in PUB/SUB mode.
+
+        Provides the number of subscribed channeles.
+        """
         return self._conn.in_pubsub
 
 

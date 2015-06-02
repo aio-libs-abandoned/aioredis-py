@@ -99,3 +99,40 @@ and **not with** ``tr.set(...)`` calls.
 
       tr = redis.multi_exec()
       yield from tr.incr('foo')   # that's all. we've stuck!
+
+
+Pub/Sub mode
+------------
+
+:mod:`aioredis` provides supports for Redis Publish/Subscribe messaging.
+
+Pub/Sub example:
+
+.. code-block:: python
+
+   sub = yield from aioredis.create_redis(
+        ('localhost', 6379))
+
+   ch1, ch2 = yield from sub.subscribe('channel:1', 'channel:2')
+   assert isinstance(ch1, aioredis.Channel)
+   assert isinstance(ch2, aioredis.Channel)
+
+   @asyncio.coroutine
+   def async_reader(channel):
+       while (yield from channel.wait_message()):
+           msg = yield from channel.get()
+           # ... process message ...
+
+   tsk = asyncio.async(async_reader(ch1))
+
+   # Or alternatively:
+
+   @asyncio.coroutine
+   def async_reader2(channel):
+       while True:
+           msg = yield from channel.get()
+           if msg is None:
+               break
+           # ... process message ...
+
+   tsk = asyncio.async(async_reader(ch1))

@@ -332,10 +332,12 @@ class RedisConnection:
 
     @property
     def pubsub_channels(self):
+        """Returns read-only channels dict."""
         return types.MappingProxyType(self._pubsub_channels)
 
     @property
     def pubsub_patterns(self):
+        """Returns read-only patterns dict."""
         return types.MappingProxyType(self._pubsub_patterns)
 
     def auth(self, password):

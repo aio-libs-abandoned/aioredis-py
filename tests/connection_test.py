@@ -234,7 +234,7 @@ class ConnectionTest(BaseTest):
         self.assertIn(b'chan:1', sub.pubsub_channels)
         chan = sub.pubsub_channels[b'chan:1']
         self.assertEqual(chan.name, b'chan:1')
-        self.assertTrue(chan.is_active())
+        self.assertTrue(chan.is_active)
 
         res = yield from pub.execute('publish', 'chan:1', 'Hello!')
         self.assertEqual(res, 1)
@@ -246,7 +246,7 @@ class ConnectionTest(BaseTest):
         self.assertIn(b'chan:*', sub.pubsub_patterns)
         chan2 = sub.pubsub_patterns[b'chan:*']
         self.assertEqual(chan2.name, b'chan:*')
-        self.assertTrue(chan2.is_active())
+        self.assertTrue(chan2.is_active)
 
         res = yield from pub.execute('publish', 'chan:1', 'Hello!')
         self.assertEqual(res, 2)
