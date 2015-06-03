@@ -1,8 +1,19 @@
 Changes
 -------
 
-0.2.0 (xxxx-xx-xx)
+0.2.1 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
+
+
+0.2.0 (2015-06-04)
+^^^^^^^^^^^^^^^^^^
+
+* Pub/Sub support added;
+
+* Fix in ZREVRANGEBYSCORE command
+  (see https://github.com/aio-libs/aioredis/pull/62);
+
+* Fixes/tests/docs;
 
 
 0.1.5 (2014-12-09)

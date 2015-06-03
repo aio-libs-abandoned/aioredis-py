@@ -10,3 +10,5 @@ Contributors
 
 Nickolai Novik
 Alexander Shorin
+Aider Ibragimov
+SeungHyun Hwang
