@@ -214,10 +214,8 @@ class RedisConnection:
         if encoding is _NOTSET:
             encoding = self._encoding
         fut = asyncio.Future(loop=self._loop)
-        # FIXME: change order: may cause this future stuck in queue if
-        #        command cannot be encoded
-        self._waiters.append((fut, encoding, cb))
         self._writer.write(encode_command(command, *args))
+        self._waiters.append((fut, encoding, cb))
         return fut
 
     def execute_pubsub(self, command, *channels):

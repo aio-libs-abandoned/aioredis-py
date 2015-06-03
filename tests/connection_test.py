@@ -169,6 +169,9 @@ class ConnectionTest(BaseTest):
             yield from conn.execute(None)
         with self.assertRaises(TypeError):
             yield from conn.execute("ECHO", None)
+        with self.assertRaises(TypeError):
+            yield from conn.execute("GET", ('a', 'b'))
+        self.assertEqual(len(conn._waiters), 0)
 
     @run_until_complete
     def test_subscribe_unsubscribe(self):
