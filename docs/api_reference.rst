@@ -86,6 +86,11 @@ Connection usage is as simple as:
       *Read-only* dict with subscribed patterns.
       Keys are bytes, values are :class:`~aioredis.Channel` instances.
 
+   .. attribute:: in_pubsub
+
+      Indicates that connection is in PUB/SUB mode.
+      Provides the number of subscribed channels. *Read-only*.
+
 
    .. method:: execute(command, \*args, encoding=_NOTSET)
 

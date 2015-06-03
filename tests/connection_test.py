@@ -236,6 +236,8 @@ class ConnectionTest(BaseTest):
 
         self.assertIn(b'chan:1', sub.pubsub_channels)
         chan = sub.pubsub_channels[b'chan:1']
+        self.assertEqual(
+            str(chan), "<Channel name:b'chan:1', is_pattern:False, qsize:0>")
         self.assertEqual(chan.name, b'chan:1')
         self.assertTrue(chan.is_active)
 

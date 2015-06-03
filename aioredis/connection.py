@@ -324,7 +324,7 @@ class RedisConnection:
     def in_pubsub(self):
         """Indicates that connection is in PUB/SUB mode.
 
-        Provides the number of subscribed channeles.
+        Provides the number of subscribed channels.
         """
         return self._in_pubsub
 
