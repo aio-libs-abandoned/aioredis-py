@@ -1,4 +1,7 @@
 import asyncio
+import json
+
+from .errors import ChannelClosedError
 
 _NOTSET = object()
 
@@ -39,6 +42,110 @@ def encode_command(*args):
     return buf
 
 
+class Channel:
+    """Wrapper around asyncio.Queue."""
+    __slots__ = ('_queue', '_name',
+                 '_closed', '_waiter',
+                 '_is_pattern', '_loop')
+
+    def __init__(self, name, is_pattern, loop=None):
+        self._queue = asyncio.Queue(loop=loop)
+        self._name = name
+        self._is_pattern = is_pattern
+        self._loop = loop
+        self._closed = False
+        self._waiter = None
+
+    def __repr__(self):
+        return "<Channel name:{}, is_pattern:{}, qsize:{}>".format(
+            self._name, self._is_pattern, self._queue.qsize())
+
+    @property
+    def name(self):
+        """Encoded channel name/pattern."""
+        return self._name
+
+    @property
+    def is_pattern(self):
+        """Set to True if channel is subscribed to pattern."""
+        return self._is_pattern
+
+    @property
+    def is_active(self):
+        """Returns True until there are messages in channel or
+        connection is subscribed to it.
+
+        Can be used with ``while``:
+
+        >>> ch = conn.pubsub_channels['chan:1']
+        >>> while ch.is_active():
+        ...     msg = yield from ch.get()   # may stuck for a long time
+
+        """
+        return not (self._queue.qsize() <= 1 and self._closed)
+
+    @asyncio.coroutine
+    def get(self, *, encoding=None, decoder=None):
+        """Coroutine that waits for and returns a message.
+
+        Raises (TBD) exception if channel is unsubscribed and has no messages.
+        """
+        assert decoder is None or callable(decoder), decoder
+        if not self.is_active:
+            raise ChannelClosedError()
+        msg = yield from self._queue.get()
+        if msg is None:
+            return
+        if self._is_pattern:
+            dest_channel, msg = msg
+        if encoding is not None:
+            msg = msg.decode(encoding)
+        if decoder is not None:
+            msg = decoder(msg)
+        if self._is_pattern:
+            return dest_channel, msg
+        return msg
+
+    @asyncio.coroutine
+    def get_json(self, encoding='utf-8'):
+        """Shortcut to get JSON messages."""
+        return (yield from self.get(encoding=encoding, decoder=json.loads))
+
+    @asyncio.coroutine
+    def wait_message(self):
+        """Waits for message to become available in channel.
+
+        Possible usage:
+
+        >>> while (yield from ch.wait_message()):
+        ...     msg = yield from ch.get()
+        """
+        if not self.is_active:
+            return False
+        if self._waiter is None:
+            self._waiter = asyncio.Future(loop=self._loop)
+        yield from self._waiter
+        return self.is_active
+
+    # internale methods
+
+    def put_nowait(self, data):
+        self._queue.put_nowait(data)
+        if self._waiter is not None:
+            fut, self._waiter = self._waiter, None
+            fut.set_result(None)
+
+    def close(self):
+        """Marks channel as inactive.
+
+        Internal method, will be called from connection
+        on `unsubscribe` command.
+        """
+        if not self._closed:
+            self.put_nowait(None)
+        self._closed = True
+
+
 @asyncio.coroutine
 def wait_ok(fut):
     res = yield from fut
@@ -53,6 +160,15 @@ def wait_convert(fut, type_):
     if result == b'QUEUED':
         return result
     return type_(result)
+
+
+@asyncio.coroutine
+def wait_make_dict(fut):
+    res = yield from fut
+    if res == b'QUEUED':
+        return res
+    it = iter(res)
+    return dict(zip(it, it))
 
 
 class coerced_keys_dict(dict):

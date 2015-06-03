@@ -30,3 +30,8 @@ Transaction example
 -------------------
 
 .. literalinclude:: ../examples/transaction.py
+
+Pub/Sub example
+---------------
+
+.. literalinclude:: ../examples/pubsub.py

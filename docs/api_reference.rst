@@ -76,6 +76,17 @@ Connection usage is as simple as:
       Set to True if connection is closed (*read-only*).
 
 
+   .. attribute:: pubsub_channels
+
+      *Read-only* dict with subscribed channels.
+      Keys are bytes, values are :class:`~aioredis.Channel` instances.
+
+   .. attribute:: pubsub_patterns
+
+      *Read-only* dict with subscribed patterns.
+      Keys are bytes, values are :class:`~aioredis.Channel` instances.
+
+
    .. method:: execute(command, \*args, encoding=_NOTSET)
 
       A :ref:`coroutine<coroutine>` function to execute Redis command.
@@ -95,6 +106,27 @@ Connection usage is as simple as:
                                      and/or connection is broken.
 
       :return: Returns bytes or int reply (or str if encoding was set)
+
+
+   .. method:: execute_pubsub(command, \*channels_or_patterns)
+
+      Method to execute Pub/Sub commands.
+      The method is not a coroutine itself but returns a :func:`asyncio.gather()`
+      coroutine.
+
+      :param command: One of the following Pub/Sub commands:
+                      ``subscribe``, ``unsubscribe``,
+                      ``psubscribe``, ``punsubscribe``.
+      :type command: str, bytes, bytearray
+
+      :param \*channels_or_patterns: Channels or patterns to subscribe connection
+                                     to or unsubscribe from.
+                                     At least one channel/pattern is required.
+
+      :return: Returns a list of subscribe/unsubscribe messages, ex:
+
+               >>> yield from conn.execute_pubsub('subscribe', 'A', 'B')
+               [[b'subscribe', b'A', 1], [b'subscribe', b'B', 2]]
 
 
    .. method:: close()
@@ -122,12 +154,13 @@ Connection usage is as simple as:
 
       :return bool: True if redis replied with 'OK'.
 
+
 ----
 
 .. _aioredis-pool:
 
-Pool
-----
+Connections Pool
+----------------
 
 The library provides connections pool. The basic usage is as follows:
 
@@ -245,6 +278,61 @@ The library provides connections pool. The basic usage is as follows:
 
 ----
 
+.. _aioredis-channel:
+
+Pub/Sub Channel object
+----------------------
+
+`Channel` object is a wrapper around queue for storing received pub/sub messages.
+
+
+.. class:: Channel(name, is_pattern, loop=None)
+
+   Object representing Pub/Sub messages queue.
+   It's basically a wrapper around :class:`asyncio.Queue`.
+
+   .. attribute:: name
+
+      Holds encoded channel/pattern name.
+
+   .. attribute:: is_pattern
+
+      Set to True for pattern channels.
+
+   .. attribute:: is_active
+
+      Set to True if there are messages in queue and connection is still
+      subscribed to this channel.
+
+   .. method:: get(\*, encoding=None, decoder=None)
+
+      Coroutine that waits for and returns a message.
+
+      Return value is message received or None signifying that channel has
+      been unsubscribed and no more messages will be received.
+
+      :param str encoding: If not None used to decode resulting bytes message.
+
+      :param callable decoder: If specified used to decode message, ex. :func:`json.loads()`
+
+   .. method:: get_json(\*, encoding="utf-*")
+
+      Shortcut to `get(encoding="utf-8", decoder=json.loads)`
+
+   .. method:: wait_message()
+
+      Waits for message to become available in channel.
+
+      This function is coroutine.
+
+      Main idea is to use it in loops:
+
+      >>> ch = redis.channels['channel:1']
+      >>> while (yield from ch.wait_message()):
+      ...     msg = yield from ch.get()
+
+----
+
 .. _aioredis-exceptions:
 
 Exceptions
@@ -273,6 +361,11 @@ Exceptions
 
    Same as :exc:`~.PipelineError` but raised when executing multi_exec
    block.
+
+.. exception:: ChannelClosedError
+
+   Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is
+   unsubscribed and messages queue is empty.
 
 ----
 

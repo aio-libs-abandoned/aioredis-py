@@ -99,3 +99,57 @@ and **not with** ``tr.set(...)`` calls.
 
       tr = redis.multi_exec()
       yield from tr.incr('foo')   # that's all. we've stuck!
+
+
+Pub/Sub mode
+------------
+
+:mod:`aioredis` provides support for Redis Publish/Subscribe messaging.
+
+To switch connection to subcribe mode you must execute ``subscribe`` command
+by yield'ing from :meth:`~PubSubCommandsMixin.subscribe` it returns a list of
+:class:`~aioredis.Channel` objects representing subscribed channels.
+
+As soon as connection is switched to subscribed mode the channel will receive
+and store messages
+(the ``Channel`` object is basically a wrapper around :class:`asyncio.Queue`).
+To read messages from channel you need to use :meth:`~aioredis.Channel.get`
+or :meth:`~aioredis.Channel.get_json` coroutines.
+
+.. note::
+   In Pub/Sub mode redis connection can only receive messages or issue
+   (P)SUBSCRIBE / (P)UNSUBSCRIBE commands.
+
+.. warning::
+   Pub/Sub mode currenty can not be used with :class:`~aioredis.Pool`.
+
+Pub/Sub example:
+
+.. code-block:: python
+
+   sub = yield from aioredis.create_redis(
+        ('localhost', 6379))
+
+   ch1, ch2 = yield from sub.subscribe('channel:1', 'channel:2')
+   assert isinstance(ch1, aioredis.Channel)
+   assert isinstance(ch2, aioredis.Channel)
+
+   @asyncio.coroutine
+   def async_reader(channel):
+       while (yield from channel.wait_message()):
+           msg = yield from channel.get()
+           # ... process message ...
+
+   tsk = asyncio.async(async_reader(ch1))
+
+   # Or alternatively:
+
+   @asyncio.coroutine
+   def async_reader2(channel):
+       while True:
+           msg = yield from channel.get()
+           if msg is None:
+               break
+           # ... process message ...
+
+   tsk = asyncio.async(async_reader(ch1))

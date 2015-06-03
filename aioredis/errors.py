@@ -30,4 +30,8 @@ class MultiExecError(PipelineError):
     """Raised if command within MULTI/EXEC block caused error."""
 
 
+class ChannelClosedError(RedisError):
+    """Raised when Pub/Sub channel is unsubscribed and messages queue is empty.
+    """
+
 # TODO: add ConnectionClosed exception.

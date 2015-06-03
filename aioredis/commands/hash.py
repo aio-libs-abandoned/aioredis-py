@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET
+from aioredis.util import wait_convert, wait_make_dict, _NOTSET
 
 
 class HashCommandsMixin:
@@ -24,7 +24,7 @@ class HashCommandsMixin:
     def hgetall(self, key):
         """Get all the fields and values in a hash."""
         fut = self._conn.execute(b'HGETALL', key)
-        return wait_convert(fut, to_dict)
+        return wait_make_dict(fut)
 
     def hincrby(self, key, field, increment=1):
         """Increment the integer value of a hash field by the given number."""
@@ -73,8 +73,3 @@ class HashCommandsMixin:
         count is not None and args.extend([b'COUNT', count])
         fut = self._conn.execute(b'HSCAN', *args)
         return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
-
-
-def to_dict(value):
-    it = iter(value)
-    return dict(zip(it, it))

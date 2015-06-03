@@ -4,7 +4,12 @@ import hiredis
 from functools import partial
 from collections import deque
 
-from .util import encode_command, wait_ok, _NOTSET, coerced_keys_dict
+from .util import (
+    encode_command,
+    wait_ok, _NOTSET,
+    coerced_keys_dict,
+    Channel,
+    )
 from .errors import RedisError, ProtocolError, ReplyError
 
 
@@ -143,26 +148,29 @@ class RedisConnection:
             if cb is not None:
                 cb(obj)
 
-    def _process_pubsub(self, obj):
+    def _process_pubsub(self, obj, *, _process_waiters=True):
         """Processes pubsub messages."""
-        # TODO: decode data
         kind, *pattern, chan, data = obj
-        if self._in_pubsub and self._waiters:
+        if _process_waiters and self._in_pubsub and self._waiters:
             self._process_data(obj)
 
         if kind in (b'subscribe', b'unsubscribe'):
             if kind == b'subscribe' and chan not in self._pubsub_channels:
-                self._pubsub_channels[chan] = asyncio.Queue(loop=self._loop)
+                self._pubsub_channels[chan] = Channel(chan, is_pattern=False,
+                                                      loop=self._loop)
             elif kind == b'unsubscribe':
-                self._pubsub_channels.pop(chan, None)
-                # TODO: discard queued messages?
+                ch = self._pubsub_channels.pop(chan, None)
+                if ch:
+                    ch.close()
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
             if kind == b'psubscribe' and chan not in self._pubsub_patterns:
-                self._pubsub_patterns[chan] = asyncio.Queue(loop=self._loop)
+                self._pubsub_patterns[chan] = Channel(chan, is_pattern=True,
+                                                      loop=self._loop)
             elif kind == b'punsubscribe':
-                self._pubsub_patterns.pop(chan, None)
-                # TODO: discard queued messages?
+                ch = self._pubsub_patterns.pop(chan, None)
+                if ch:
+                    ch.close()
             self._in_pubsub = data
         elif kind == b'message':
             self._pubsub_channels[chan].put_nowait(data)
@@ -188,24 +196,51 @@ class RedisConnection:
         if None in set(args):
             raise TypeError("args must not contain None")
         command = command.upper().strip()
-        if self._in_pubsub and command not in _PUBSUB_COMMANDS:
+        is_pubsub = command in _PUBSUB_COMMANDS
+        if self._in_pubsub and not is_pubsub:
             raise RedisError("Connection in SUBSCRIBE mode")
+        elif is_pubsub:
+            # TODO: issue warning
+            return self.execute_pubsub(command, *args)
+
         if command in ('SELECT', b'SELECT'):
             cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
             cb = self._start_transaction
         elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
             cb = self._end_transaction
-        elif command in _PUBSUB_COMMANDS:
-            cb = self._update_pubsub
         else:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
         fut = asyncio.Future(loop=self._loop)
+        # FIXME: change order: may cause this future stuck in queue if
+        #        command cannot be encoded
         self._waiters.append((fut, encoding, cb))
         self._writer.write(encode_command(command, *args))
         return fut
+
+    def execute_pubsub(self, command, *channels):
+        """Executes redis (p)subscribe/(p)unsubscribe commands.
+
+        Returns asyncio.gather coroutine waiting for all channels/patterns
+        to receive answers.
+        """
+        command = command.upper().strip()
+        assert command in _PUBSUB_COMMANDS, (
+            "Pub/Sub command expected", command)
+        if None in set(channels):
+            raise TypeError("args must not contain None")
+        if not len(channels):
+            raise ValueError("No channels/patterns supplied")
+        cmd = encode_command(command, *channels)
+        res = []
+        for ch in channels:
+            fut = asyncio.Future(loop=self._loop)
+            res.append(fut)
+            self._waiters.append((fut, None, self._update_pubsub))
+        self._writer.write(cmd)
+        return asyncio.gather(*res, loop=self._loop)
 
     def close(self):
         """Close connection."""
@@ -227,6 +262,7 @@ class RedisConnection:
                 waiter.cancel()
             else:
                 waiter.set_exception(exc)
+        # TODO: close all subscribed channels
 
     @property
     def closed(self):
@@ -279,7 +315,7 @@ class RedisConnection:
         *head, subscriptions = obj
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
         if not was_in_pubsub:
-            self._process_pubsub(obj)
+            self._process_pubsub(obj, _process_waiters=False)
 
     @property
     def in_transaction(self):
@@ -296,10 +332,12 @@ class RedisConnection:
 
     @property
     def pubsub_channels(self):
+        """Returns read-only channels dict."""
         return types.MappingProxyType(self._pubsub_channels)
 
     @property
     def pubsub_patterns(self):
+        """Returns read-only patterns dict."""
         return types.MappingProxyType(self._pubsub_patterns)
 
     def auth(self, password):
