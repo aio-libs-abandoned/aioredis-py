@@ -104,7 +104,24 @@ and **not with** ``tr.set(...)`` calls.
 Pub/Sub mode
 ------------
 
-:mod:`aioredis` provides supports for Redis Publish/Subscribe messaging.
+:mod:`aioredis` provides support for Redis Publish/Subscribe messaging.
+
+To switch connection to subcribe mode you must execute ``subscribe`` command
+by yield'ing from :meth:`~PubSubCommandsMixin.subscribe` it returns a list of
+:class:`~aioredis.Channel` objects representing subscribed channels.
+
+As soon as connection is switched to subscribed mode the channel will receive
+and store messages
+(the ``Channel`` object is basically a wrapper around :class:`asyncio.Queue`).
+To read messages from channel you need to use :meth:`~aioredis.Channel.get`
+or :meth:`~aioredis.Channel.get_json` coroutines.
+
+.. note::
+   In Pub/Sub mode redis connection can only receive messages or issue
+   (P)SUBSCRIBE / (P)UNSUBSCRIBE commands.
+
+.. warning::
+   Pub/Sub mode currenty can not be used with :class:`~aioredis.Pool`.
 
 Pub/Sub example:
 

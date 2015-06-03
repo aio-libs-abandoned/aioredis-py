@@ -68,12 +68,18 @@ class PubSubCommandsMixin:
 
     @property
     def channels(self):
-        """Returns read-only channels dict."""
+        """Returns read-only channels dict.
+
+        See :attr:`~aioredis.RedisConnection.pubsub_channels`
+        """
         return self._conn.pubsub_channels
 
     @property
     def patterns(self):
-        """Returns read-only patterns dict."""
+        """Returns read-only patterns dict.
+
+        See :attr:`~aioredis.RedisConnection.pubsub_patterns`
+        """
         return self._conn.pubsub_patterns
 
     @property

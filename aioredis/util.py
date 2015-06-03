@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+from .errors import ChannelClosedError
+
 _NOTSET = object()
 
 # NOTE: never put here anything else;
@@ -54,6 +56,10 @@ class Channel:
         self._closed = False
         self._waiter = None
 
+    def __repr__(self):
+        return "<Channel name:{}, is_pattern:{}, qsize:{}>".format(
+            self._name, self._is_pattern, self._queue.qsize())
+
     @property
     def name(self):
         """Encoded channel name/pattern."""
@@ -76,7 +82,7 @@ class Channel:
         ...     msg = yield from ch.get()   # may stuck for a long time
 
         """
-        return not (self._queue.empty() and self._closed)
+        return not (self._queue.qsize() <= 1 and self._closed)
 
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
@@ -85,8 +91,8 @@ class Channel:
         Raises (TBD) exception if channel is unsubscribed and has no messages.
         """
         assert decoder is None or callable(decoder), decoder
-        if self._closed:
-            pass    # raise error
+        if not self.is_active:
+            raise ChannelClosedError()
         msg = yield from self._queue.get()
         if msg is None:
             return
@@ -114,7 +120,7 @@ class Channel:
         >>> while (yield from ch.wait_message()):
         ...     msg = yield from ch.get()
         """
-        if self._closed and self._queue.empty():
+        if not self.is_active:
             return False
         if self._waiter is None:
             self._waiter = asyncio.Future(loop=self._loop)

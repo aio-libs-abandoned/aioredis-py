@@ -76,6 +76,17 @@ Connection usage is as simple as:
       Set to True if connection is closed (*read-only*).
 
 
+   .. attribute:: pubsub_channels
+
+      *Read-only* dict with subscribed channels.
+      Keys are bytes, values are :class:`~aioredis.Channel` instances.
+
+   .. attribute:: pubsub_patterns
+
+      *Read-only* dict with subscribed patterns.
+      Keys are bytes, values are :class:`~aioredis.Channel` instances.
+
+
    .. method:: execute(command, \*args, encoding=_NOTSET)
 
       A :ref:`coroutine<coroutine>` function to execute Redis command.
@@ -95,6 +106,27 @@ Connection usage is as simple as:
                                      and/or connection is broken.
 
       :return: Returns bytes or int reply (or str if encoding was set)
+
+
+   .. method:: execute_pubsub(command, \*channels_or_patterns)
+
+      Method to execute Pub/Sub commands.
+      The method is not a coroutine itself but returns a :func:`asyncio.gather()`
+      coroutine.
+
+      :param command: One of the following Pub/Sub commands:
+                      ``subscribe``, ``unsubscribe``,
+                      ``psubscribe``, ``punsubscribe``.
+      :type command: str, bytes, bytearray
+
+      :param \*channels_or_patterns: Channels or patterns to subscribe connection
+                                     to or unsubscribe from.
+                                     At least one channel/pattern is required.
+
+      :return: Returns a list of subscribe/unsubscribe messages, ex:
+
+               >>> yield from conn.execute_pubsub('subscribe', 'A', 'B')
+               [[b'subscribe', b'A', 1], [b'subscribe', b'B', 2]]
 
 
    .. method:: close()
@@ -121,6 +153,7 @@ Connection usage is as simple as:
       :param str password: Plain-text password
 
       :return bool: True if redis replied with 'OK'.
+
 
 ----
 
@@ -255,7 +288,8 @@ Pub/Sub Channel object
 
 .. class:: Channel(name, is_pattern, loop=None)
 
-   Object representing messages queue.
+   Object representing Pub/Sub messages queue.
+   It's basically a wrapper around :class:`asyncio.Queue`.
 
    .. attribute:: name
 
@@ -273,6 +307,9 @@ Pub/Sub Channel object
    .. method:: get(\*, encoding=None, decoder=None)
 
       Coroutine that waits for and returns a message.
+
+      Return value is message received or None signifying that channel has
+      been unsubscribed and no more messages will be received.
 
       :param str encoding: If not None used to decode resulting bytes message.
 
@@ -324,6 +361,11 @@ Exceptions
 
    Same as :exc:`~.PipelineError` but raised when executing multi_exec
    block.
+
+.. exception:: ChannelClosedError
+
+   Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is
+   unsubscribed and messages queue is empty.
 
 ----
 
