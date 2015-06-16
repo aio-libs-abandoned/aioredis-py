@@ -11,6 +11,7 @@ from .util import (
     Channel,
     )
 from .errors import RedisError, ProtocolError, ReplyError
+from .log import logger
 
 
 __all__ = ['create_connection', 'RedisConnection']
@@ -100,9 +101,12 @@ class RedisConnection:
         while not self._reader.at_eof():
             try:
                 data = yield from self._reader.read(MAX_CHUNK_SIZE)
+            except asyncio.CancelledError:
+                break
             except Exception as exc:
                 # XXX: for QUIT command connection error can be received
                 #       before response
+                logger.error("Exception on data read %r", exc, exc_info=True)
                 break
             self._parser.feed(data)
             while True:
@@ -130,6 +134,7 @@ class RedisConnection:
         """Processes command results."""
         waiter, encoding, cb = self._waiters.popleft()
         if waiter.done():
+            logger.debug("Waiter future is already done %r", waiter)
             assert waiter.cancelled(), (
                 "waiting future is in wrong state", waiter, obj)
             return  # continue
@@ -178,7 +183,7 @@ class RedisConnection:
             pattern = pattern[0]
             self._pubsub_patterns[pattern].put_nowait((chan, data))
         else:
-            pass    # TODO: log 'unknown message'
+            logger.warning("Unknown pubsub message received %r", obj)
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
@@ -200,7 +205,7 @@ class RedisConnection:
         if self._in_pubsub and not is_pubsub:
             raise RedisError("Connection in SUBSCRIBE mode")
         elif is_pubsub:
-            # TODO: issue warning
+            logger.warning("Deprecated. Use `execute_pubsub` method directly")
             return self.execute_pubsub(command, *args)
 
         if command in ('SELECT', b'SELECT'):
@@ -256,6 +261,7 @@ class RedisConnection:
         self._reader = None
         while self._waiters:
             waiter, *spam = self._waiters.popleft()
+            logger.debug("Cancelling waiter %r", (waiter, spam))
             if exc is None:
                 waiter.cancel()
             else:
