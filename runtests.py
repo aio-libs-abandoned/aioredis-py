@@ -41,8 +41,8 @@ assert sys.version >= '3.3', 'Please use Python 3.3 or higher.'
 
 ARGS = argparse.ArgumentParser(description="Run all unittests.")
 ARGS.add_argument(
-    '-v', action="store", dest='verbose',
-    nargs='?', const=1, type=int, default=0, help='verbose')
+    '-v', action="store_true", dest='verbose',
+    default=False, help='verbose')
 ARGS.add_argument(
     '-x', action="store_true", dest='exclude', help='exclude tests')
 ARGS.add_argument(
@@ -57,8 +57,6 @@ ARGS.add_argument(
 ARGS.add_argument(
     '--findleaks', action='store_true', dest='findleaks',
     help='detect tests that leak memory')
-ARGS.add_argument(
-    '-q', action="store_true", dest='quiet', help='quiet')
 ARGS.add_argument(
     '--tests', action="store", dest='testsdir', default='tests',
     help='tests directory')
@@ -92,9 +90,8 @@ def load_modules(basedir, suffix='.py', *, verbose=False):
             if os.path.isdir(path):
                 files.extend(list_dir('{}{}.'.format(prefix, name), path))
             else:
-                if (name != '__init__.py' and
-                    name.endswith(suffix) and
-                    not name.startswith(('.', '_'))):
+                if (name != '__init__.py' and name.endswith(suffix) and
+                        not name.startswith(('.', '_'))):
                     files.append(('{}{}'.format(prefix, name[:-3]), path))
 
         return files
@@ -232,7 +229,7 @@ def runtests():
     else:
         includes = args.pattern
 
-    v = 0 if args.quiet else args.verbose + 1
+    v = args.verbose and 4 or 0
     failfast = args.failfast
     catchbreak = args.catchbreak
     findleaks = args.findleaks
@@ -246,17 +243,12 @@ def runtests():
 
     finder = TestsFinder(args.testsdir, includes, excludes,
                          verbose=args.verbose)
-    logger = logging.getLogger()
-    if v == 0:
-        logger.setLevel(logging.CRITICAL)
-    elif v == 1:
-        logger.setLevel(logging.ERROR)
-    elif v == 2:
-        logger.setLevel(logging.WARNING)
-    elif v == 3:
-        logger.setLevel(logging.INFO)
-    elif v >= 4:
+    logger = logging.getLogger('aioredis')
+    logger.addHandler(logging.StreamHandler())
+    if args.verbose:
         logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.CRITICAL)
     if catchbreak:
         installHandler()
     try:
