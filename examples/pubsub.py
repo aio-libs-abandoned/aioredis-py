@@ -27,6 +27,8 @@ def main():
 
         yield from sub.unsubscribe('chan:1')
         yield from tsk
+        sub.close()
+        pub.close()
 
     loop.run_until_complete(go())
 
