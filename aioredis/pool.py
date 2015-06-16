@@ -1,6 +1,7 @@
 import asyncio
 
 from .commands import create_redis, Redis
+from .log import logger
 
 
 @asyncio.coroutine
@@ -138,7 +139,8 @@ class RedisPool:
         self._used.remove(conn)
         if not conn.closed:
             if conn.in_transaction:
-                # TODO: log warning
+                logger.warning("Connection %r in transaction, closing it.",
+                               conn)
                 conn.close()
             elif conn.db == self.db:
                 try:
