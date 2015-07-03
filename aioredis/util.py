@@ -122,6 +122,8 @@ class Channel:
         """
         if not self.is_active:
             return False
+        if not self._queue.empty():
+            return True
         if self._waiter is None:
             self._waiter = asyncio.Future(loop=self._loop)
         yield from self._waiter
