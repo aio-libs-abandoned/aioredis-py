@@ -143,12 +143,21 @@ class RedisConnection:
             if self._in_transaction:
                 self._transaction_error = obj
         else:
-            if encoding is not None and isinstance(obj, bytes):
-                try:
-                    obj = obj.decode(encoding)
-                except Exception as exc:
-                    waiter.set_exception(exc)
-                    return  # continue
+            if encoding is not None:
+                if isinstance(obj, bytes):
+                    try:
+                        obj = obj.decode(encoding)
+                    except Exception as exc:
+                        waiter.set_exception(exc)
+                        return  # continue
+                elif isinstance(obj, list):
+                    try:
+                        obj = [member.decode(encoding)
+                               if isinstance(member, bytes) else member
+                               for member in obj]
+                    except Exception as exc:
+                        waiter.set_exception(exc)
+                        return  # continue
             waiter.set_result(obj)
             if cb is not None:
                 cb(obj)
