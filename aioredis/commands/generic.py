@@ -183,7 +183,18 @@ class GenericCommandsMixin:
         return self._conn.execute(b'RESTORE', key, ttl, value)
 
     def scan(self, cursor=0, match=None, count=None):
-        """Incrementally iterate the keys space."""
+        """Incrementally iterate the keys space.
+
+        Usage example:
+
+        >>> match = 'something*'
+        >>> cur = b'0'
+        >>> while cur:
+        ...     cur, keys = yield from redis.scan(cur, match=match)
+        ...     for key in keys:
+        ...         print('Matched:', key)
+
+        """
         args = []
         if match is not None:
             args += [b'MATCH', match]
