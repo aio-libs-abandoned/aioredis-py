@@ -1,8 +1,17 @@
 Changes
 -------
 
-0.2.1 (xxxx-xx-xx)
+0.2.2 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
+
+
+0.2.1 (2015-07-06)
+^^^^^^^^^^^^^^^^^^
+
+* Logging added (aioredis.log module);
+
+* Fixed issue with ``wait_message`` in pub/sub
+  (see https://github.com/aio-libs/aioredis/issues/66);
 
 
 0.2.0 (2015-06-04)
