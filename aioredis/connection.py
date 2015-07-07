@@ -9,6 +9,7 @@ from .util import (
     wait_ok, _NOTSET,
     coerced_keys_dict,
     Channel,
+    decode,
     )
 from .errors import RedisError, ProtocolError, ReplyError
 from .log import logger
@@ -137,27 +138,18 @@ class RedisConnection:
             logger.debug("Waiter future is already done %r", waiter)
             assert waiter.cancelled(), (
                 "waiting future is in wrong state", waiter, obj)
-            return  # continue
+            return
         if isinstance(obj, RedisError):
             waiter.set_exception(obj)
             if self._in_transaction:
                 self._transaction_error = obj
         else:
             if encoding is not None:
-                if isinstance(obj, bytes):
-                    try:
-                        obj = obj.decode(encoding)
-                    except Exception as exc:
-                        waiter.set_exception(exc)
-                        return  # continue
-                elif isinstance(obj, list):
-                    try:
-                        obj = [member.decode(encoding)
-                               if isinstance(member, bytes) else member
-                               for member in obj]
-                    except Exception as exc:
-                        waiter.set_exception(exc)
-                        return  # continue
+                try:
+                    obj = decode(obj, encoding)
+                except Exception as exc:
+                    waiter.set_exception(exc)
+                    return
             waiter.set_result(obj)
             if cb is not None:
                 cb(obj)

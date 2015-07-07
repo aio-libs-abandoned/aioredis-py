@@ -42,6 +42,15 @@ def encode_command(*args):
     return buf
 
 
+def decode(obj, encoding):
+    if isinstance(obj, bytes):
+        return obj.decode(encoding)
+    elif isinstance(obj, list):
+        return [o.decode(encoding) if isinstance(o, bytes) else o
+                for o in obj]
+    return obj
+
+
 class Channel:
     """Wrapper around asyncio.Queue."""
     __slots__ = ('_queue', '_name',

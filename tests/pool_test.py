@@ -249,6 +249,7 @@ class PoolTest(BaseTest):
 
         self.assertEqual(pool.encoding, 'utf-8')
         with (yield from pool) as redis:
+            yield from redis.delete('key1')
             yield from redis.hmset('key1', 'foo', 'bar')
             yield from redis.hmset('key1', 'baz', 'zap')
         with (yield from pool) as redis:
