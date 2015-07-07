@@ -261,9 +261,15 @@ class StringCommandsTest(RedisTest):
 
         test_value = yield from self.redis.getrange(key, 0, -1)
         self.assertEqual(test_value, b'This is a string')
+        test_value = yield from self.redis.getrange(
+            key, 0, -1, encoding='utf-8')
+        self.assertEqual(test_value, 'This is a string')
 
         test_value = yield from self.redis.getrange(key, 10, 100)
         self.assertEqual(test_value, b'string')
+        test_value = yield from self.redis.getrange(
+            key, 10, 100, encoding='utf-8')
+        self.assertEqual(test_value, 'string')
 
         test_value = yield from self.redis.getrange(key, 50, 100)
         self.assertEqual(test_value, b'')
@@ -285,6 +291,10 @@ class StringCommandsTest(RedisTest):
 
         test_value = yield from self.redis.get(key)
         self.assertEqual(test_value, b'asyncio')
+
+        test_value = yield from self.redis.getset(
+            key, 'world', encoding='utf-8')
+        self.assertEqual(test_value, 'asyncio')
 
         test_value = yield from self.redis.getset(b'not:' + key, b'asyncio')
         self.assertEqual(test_value, None)
@@ -376,6 +386,10 @@ class StringCommandsTest(RedisTest):
 
         res = yield from self.redis.mget(key1, key2)
         self.assertEqual(res, [value1, value2])
+
+        # test encoding param
+        res = yield from self.redis.mget(key1, key2, encoding='utf-8')
+        self.assertEqual(res, ['bar', 'bzz'])
 
         with self.assertRaises(TypeError):
             yield from self.redis.mget(None, key2)
