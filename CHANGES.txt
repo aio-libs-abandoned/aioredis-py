@@ -1,8 +1,28 @@
 Changes
 -------
 
-0.2.2 (xxxx-xx-xx)
+0.2.3 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
+
+0.2.2 (2015-07-07)
+^^^^^^^^^^^^^^^^^^
+
+* Decoding data with ``encoding`` paramter now takes into account
+  list (array) replies
+  (see https://github.com/aio-libs/aioredis/pull/68);
+
+* ``encoding`` parameter added to following commands:
+  - generic commands: keys, randomkey;
+  - hash commands: hgetall, hkeys, hmget, hvals;
+  - list commands: blpop, brpop, brpoplpush, lindex, lpop, lrange, rpop, rpoplpush;
+  - set commands: smembers, spop, srandmember;
+  - string commands: getrange, getset, mget;
+
+* Backward incompatibility:
+
+  ``ltrim`` command now returns bool value instead of 'OK';
+
+* Tests updated;
 
 
 0.2.1 (2015-07-06)
