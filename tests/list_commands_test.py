@@ -30,6 +30,11 @@ class ListCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.blpop(key2, timeout=-10)
 
+        # test encoding param
+        yield from self.redis.rpush(key2, value1)
+        test_value = yield from self.redis.blpop(key2, encoding='utf-8')
+        self.assertEqual(test_value, ['key:blpop:2', 'blpop:value:1'])
+
     @run_until_complete
     def test_blpop_blocking_features(self):
         key1, key2 = b'key:blpop:1', b'key:blpop:2'
@@ -85,6 +90,11 @@ class ListCommandsTest(RedisTest):
             yield from self.redis.brpop(key1, timeout=b'one')
         with self.assertRaises(ValueError):
             yield from self.redis.brpop(key2, timeout=-10)
+
+        # test encoding param
+        yield from self.redis.rpush(key2, value1)
+        test_value = yield from self.redis.brpop(key2, encoding='utf-8')
+        self.assertEqual(test_value, ['key:brpop:2', 'brpop:value:1'])
 
     @run_until_complete
     def test_brpop_blocking_features(self):
@@ -145,6 +155,11 @@ class ListCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.brpoplpush(key, destkey, timeout=-10)
 
+        # test encoding param
+        result = yield from self.redis.brpoplpush(
+            destkey, key, encoding='utf-8')
+        self.assertEqual(result, 'brpoplpush:value:2')
+
     @run_until_complete
     def test_brpoplpush_blocking_features(self):
         source = b'key:brpoplpush:12'
@@ -190,6 +205,13 @@ class ListCommandsTest(RedisTest):
         # index of element if key does not exists
         test_value = yield from self.redis.lindex(b'not:' + key, 5)
         self.assertEqual(test_value, None)
+
+        # test encoding param
+        yield from self.redis.rpush(key, 'one', 'two')
+        test_value = yield from self.redis.lindex(key, 10, encoding='utf-8')
+        self.assertEqual(test_value, 'one')
+        test_value = yield from self.redis.lindex(key, 11, encoding='utf-8')
+        self.assertEqual(test_value, 'two')
 
         with self.assertRaises(TypeError):
             yield from self.redis.lindex(None, -1)
@@ -258,6 +280,11 @@ class ListCommandsTest(RedisTest):
         test_value = yield from self.redis.lpop(key)
         self.assertEqual(test_value, None)
 
+        # test encoding param
+        yield from self.redis.rpush(key, 'value')
+        test_value = yield from self.redis.lpop(key, encoding='utf-8')
+        self.assertEqual(test_value, 'value')
+
         with self.assertRaises(TypeError):
             yield from self.redis.lpop(None)
 
@@ -273,6 +300,10 @@ class ListCommandsTest(RedisTest):
         # make sure that values actually inserted in right placed and order
         test_value = yield from self.redis.lrange(key, 0, -1)
         self.assertEqual(test_value, [value2, value1])
+
+        # test encoding param
+        test_value = yield from self.redis.lrange(key, 0, -1, encoding='utf-8')
+        self.assertEqual(test_value, ['value:2', 'value:1'])
 
         with self.assertRaises(TypeError):
             yield from self.redis.lpush(None, value1)
@@ -400,7 +431,8 @@ class ListCommandsTest(RedisTest):
         self.assertEqual(test_value, values[:3])
 
         # try to trim out of range indexes
-        yield from self.redis.ltrim(key, 100, 110)
+        res = yield from self.redis.ltrim(key, 100, 110)
+        self.assertEqual(res, True)
         test_value = yield from self.redis.lrange(key, 0, -1)
         self.assertEqual(test_value, [])
 
@@ -431,6 +463,11 @@ class ListCommandsTest(RedisTest):
         test_value = yield from self.redis.rpop(key)
         self.assertEqual(test_value, None)
 
+        # test encoding param
+        yield from self.redis.rpush(key, 'value')
+        test_value = yield from self.redis.rpop(key, encoding='utf-8')
+        self.assertEqual(test_value, 'value')
+
         with self.assertRaises(TypeError):
             yield from self.redis.rpop(None)
 
@@ -451,8 +488,13 @@ class ListCommandsTest(RedisTest):
         self.assertEqual(result, value1)
 
         # make sure that all values stored in new destkey list
-        test_value = yield from self.redis.lrange(destkey, 0, -1)
-        self.assertEqual(test_value, [value1, value2])
+        result = yield from self.redis.lrange(destkey, 0, -1)
+        self.assertEqual(result, [value1, value2])
+
+        # test encoding param
+        result = yield from self.redis.rpoplpush(
+            destkey, key, encoding='utf-8')
+        self.assertEqual(result, 'rpoplpush:value:2')
 
         with self.assertRaises(TypeError):
             yield from self.redis.rpoplpush(None, destkey)
