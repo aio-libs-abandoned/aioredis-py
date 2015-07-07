@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert
+from aioredis.util import wait_convert, _NOTSET
 
 
 class SetCommandsMixin:
@@ -35,9 +35,9 @@ class SetCommandsMixin:
         """Determine if a given value is a member of a set."""
         return self._conn.execute(b'SISMEMBER', key, member)
 
-    def smembers(self, key):
+    def smembers(self, key, encoding=_NOTSET):
         """Get all the members in a set."""
-        return self._conn.execute(b'SMEMBERS', key)
+        return self._conn.execute(b'SMEMBERS', key, encoding=encoding)
 
     def smove(self, sourcekey, destkey, member):
         """Move a member from one set to another."""

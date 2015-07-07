@@ -20,10 +20,9 @@ class HashCommandsMixin:
         """Get the value of a hash field."""
         return self._conn.execute(b'HGET', key, field, encoding=encoding)
 
-    # TODO: add encoding param
-    def hgetall(self, key):
+    def hgetall(self, key, *, encoding=_NOTSET):
         """Get all the fields and values in a hash."""
-        fut = self._conn.execute(b'HGETALL', key)
+        fut = self._conn.execute(b'HGETALL', key, encoding=encoding)
         return wait_make_dict(fut)
 
     def hincrby(self, key, field, increment=1):
@@ -35,19 +34,20 @@ class HashCommandsMixin:
         fut = self._conn.execute(b'HINCRBYFLOAT', key, field, increment)
         return wait_convert(fut, float)
 
-    # TODO: add encoding param
-    def hkeys(self, key):
+    def hkeys(self, key, *, encoding=_NOTSET):
         """Get all the fields in a hash."""
-        return self._conn.execute(b'HKEYS', key)
+        return self._conn.execute(b'HKEYS', key, encoding=encoding)
 
     def hlen(self, key):
         """Get the number of fields in a hash."""
         return self._conn.execute(b'HLEN', key)
 
-    def hmget(self, key, field, *fields):
+    def hmget(self, key, field, *fields, encoding=_NOTSET):
         """Get the values of all the given fields."""
-        return self._conn.execute(b'HMGET', key, field, *fields)
+        return self._conn.execute(b'HMGET', key, field, *fields,
+                                  encoding=encoding)
 
+    # TODO: replace args with dict_or_pairs
     def hmset(self, key, field, value, *pairs):
         """Set multiple hash fields to multiple values."""
         if len(pairs) % 2 != 0:
@@ -62,9 +62,9 @@ class HashCommandsMixin:
         """Set the value of a hash field, only if the field does not exist."""
         return self._conn.execute(b'HSETNX', key, field, value)
 
-    def hvals(self, key):
+    def hvals(self, key, *, encoding=_NOTSET):
         """Get all the values in a hash."""
-        return self._conn.execute(b'HVALS', key)
+        return self._conn.execute(b'HVALS', key, encoding=encoding)
 
     def hscan(self, key, cursor=0, match=None, count=None):
         """Incrementally iterate hash fields and associated values."""

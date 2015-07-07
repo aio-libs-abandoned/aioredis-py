@@ -59,23 +59,29 @@ class HashCommandsTest(RedisTest):
         test_value = yield from self.redis.hget(b'not:' + key, b'baz')
         self.assertEqual(test_value, None)
 
+        # check encoding
+        test_value = yield from self.redis.hget(key, field, encoding='utf-8')
+        self.assertEqual(test_value, 'zap')
+
         with self.assertRaises(TypeError):
             yield from self.redis.hget(None, field)
 
     @run_until_complete
     def test_hgetall(self):
-        key = b'key:hgetall'
-        field1, field2 = b'foo', b'bar'
-        value1, value2 = b'baz', b'zap'
-        yield from self.add(key, field1, value1)
-        yield from self.add(key, field2, value2)
+        yield from self.add('key:hgetall', 'foo', 'baz')
+        yield from self.add('key:hgetall', 'bar', 'zap')
 
-        test_value = yield from self.redis.hgetall(key)
+        test_value = yield from self.redis.hgetall('key:hgetall')
         self.assertIsInstance(test_value, dict)
-        self.assertEqual({field1: value1, field2: value2}, test_value)
+        self.assertEqual({b'foo': b'baz', b'bar': b'zap'}, test_value)
         # try to get all values from key that does not exits
-        test_value = yield from self.redis.hgetall(b'not:' + key)
+        test_value = yield from self.redis.hgetall(b'not:key:hgetall')
         self.assertEqual(test_value, {})
+
+        # check encoding param
+        test_value = yield from self.redis.hgetall(
+            'key:hgetall', encoding='utf-8')
+        self.assertEqual({'foo': 'baz', 'bar': 'zap'}, test_value)
 
         with self.assertRaises(TypeError):
             yield from self.redis.hgetall(None)
@@ -152,6 +158,9 @@ class HashCommandsTest(RedisTest):
         test_value = yield from self.redis.hkeys(b'not:' + key)
         self.assertEqual(test_value, [])
 
+        test_value = yield from self.redis.hkeys(key, encoding='utf-8')
+        self.assertEqual(set(test_value), {'foo', 'bar'})
+
         with self.assertRaises(TypeError):
             yield from self.redis.hkeys(None)
 
@@ -186,6 +195,12 @@ class HashCommandsTest(RedisTest):
         test_value = yield from self.redis.hmget(
             key, b'not:' + field1, b'not:' + field2)
         self.assertEqual([None, None], test_value)
+
+        val = yield from self.redis.hincrby(key, 'numeric')
+        self.assertEqual(val, 1)
+        test_value = yield from self.redis.hmget(
+            key, field1, field2, 'numeric', encoding='utf-8')
+        self.assertEqual(['baz', 'zap', '1'], test_value)
 
         with self.assertRaises(TypeError):
             yield from self.redis.hmget(None, field1, field2)
@@ -272,6 +287,8 @@ class HashCommandsTest(RedisTest):
         test_value = yield from self.redis.hvals(b'not:' + key)
         self.assertEqual(test_value, [])
 
+        test_value = yield from self.redis.hvals(key, encoding='utf-8')
+        self.assertEqual(set(test_value), {'baz', 'zap'})
         with self.assertRaises(TypeError):
             yield from self.redis.hvals(None)
 
