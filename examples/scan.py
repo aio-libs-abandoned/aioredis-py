@@ -23,4 +23,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import os
+    if os.environ.get('USE_REDIS_2_6') != 'true':
+        main()
