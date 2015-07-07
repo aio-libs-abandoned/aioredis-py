@@ -430,7 +430,7 @@ class GenericCommandsTest(RedisTest):
         cursor, values = yield from self.redis.scan()
         # values should be *>=* just in case some other tests left
         # test keys
-        self.assertTrue(len(values) >= 10)
+        self.assertGreaterEqual(len(values), 10)
 
         cursor, test_values = b'0', []
         while cursor:
