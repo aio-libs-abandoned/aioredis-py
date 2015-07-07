@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, wait_ok
+from aioredis.util import wait_convert, wait_ok, _NOTSET
 
 
 class GenericCommandsMixin:
@@ -53,9 +53,9 @@ class GenericCommandsMixin:
         fut = self._conn.execute(b'EXPIREAT', key, timestamp)
         return wait_convert(fut, bool)
 
-    def keys(self, pattern):
+    def keys(self, pattern, *, encoding=_NOTSET):
         """Returns all keys matching pattern."""
-        return self._conn.execute(b'KEYS', pattern)
+        return self._conn.execute(b'KEYS', pattern, encoding=encoding)
 
     def migrate(self, host, port, key, dest_db, timeout,
                 copy=False, replace=False):
@@ -154,9 +154,9 @@ class GenericCommandsMixin:
         #       -1 to False - no expire
         return self._conn.execute(b'PTTL', key)
 
-    def randomkey(self):
+    def randomkey(self, *, encoding=_NOTSET):
         """Return a random key from the currently selected database."""
-        return self._conn.execute(b'RANDOMKEY')
+        return self._conn.execute(b'RANDOMKEY', encoding=encoding)
 
     def rename(self, key, newkey):
         """Renames key to newkey.

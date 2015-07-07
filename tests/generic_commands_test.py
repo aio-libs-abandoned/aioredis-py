@@ -162,6 +162,10 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.keys('my-key-*')
         self.assertEqual(sorted(res), [b'my-key-1', b'my-key-ab'])
 
+        # test with encoding param
+        res = yield from self.redis.keys('my-key-*', encoding='utf-8')
+        self.assertEqual(sorted(res), ['my-key-1', 'my-key-ab'])
+
         with self.assertRaises(TypeError):
             yield from self.redis.keys(None)
 
@@ -358,6 +362,10 @@ class GenericCommandsTest(RedisTest):
 
         res = yield from self.redis.randomkey()
         self.assertIn(res, [b'key:1', b'key:2', b'key:3'])
+
+        # test with encoding param
+        res = yield from self.redis.randomkey(encoding='utf-8')
+        self.assertIn(res, ['key:1', 'key:2', 'key:3'])
 
         yield from self.redis.connection.execute('flushdb')
         res = yield from self.redis.randomkey()
