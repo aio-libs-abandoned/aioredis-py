@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert
+from aioredis.util import wait_convert, _NOTSET
 
 
 class SetCommandsMixin:
@@ -35,23 +35,23 @@ class SetCommandsMixin:
         """Determine if a given value is a member of a set."""
         return self._conn.execute(b'SISMEMBER', key, member)
 
-    def smembers(self, key):
+    def smembers(self, key, *, encoding=_NOTSET):
         """Get all the members in a set."""
-        return self._conn.execute(b'SMEMBERS', key)
+        return self._conn.execute(b'SMEMBERS', key, encoding=encoding)
 
     def smove(self, sourcekey, destkey, member):
         """Move a member from one set to another."""
         return self._conn.execute(b'SMOVE', sourcekey, destkey, member)
 
-    def spop(self, key):
+    def spop(self, key, *, encoding=_NOTSET):
         """Remove and return a random member from a set."""
-        return self._conn.execute(b'SPOP', key)
+        return self._conn.execute(b'SPOP', key, encoding=encoding)
 
-    def srandmember(self, key, count=None):
+    def srandmember(self, key, count=None, *, encoding=_NOTSET):
         """Get one or multiple random members from a set."""
         args = [key]
         count is not None and args.append(count)
-        return self._conn.execute(b'SRANDMEMBER', *args)
+        return self._conn.execute(b'SRANDMEMBER', *args, encoding=encoding)
 
     def srem(self, key, member, *members):
         """Remove one or more members from a set."""

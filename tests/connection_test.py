@@ -183,7 +183,7 @@ class ConnectionTest(BaseTest):
         res = yield from conn.execute('subscribe', 'chan:1')
         self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
-        self.assertTrue(conn.in_pubsub, 1)
+        self.assertEqual(conn.in_pubsub, 1)
 
         res = yield from conn.execute('unsubscribe', 'chan:1')
         self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])

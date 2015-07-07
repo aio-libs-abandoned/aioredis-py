@@ -197,6 +197,10 @@ class SetCommandsTest(RedisTest):
         test_result = yield from self.redis.smembers(b'not:' + key)
         self.assertEqual(test_result, [])
 
+        # test encoding param
+        test_result = yield from self.redis.smembers(key, encoding='utf-8')
+        self.assertEqual(set(test_result), {'hello', 'world'})
+
         with self.assertRaises(TypeError):
             yield from self.redis.smembers(None)
 
@@ -206,7 +210,7 @@ class SetCommandsTest(RedisTest):
         key2 = b'key:smove:2'
         member1 = b'one'
         member2 = b'two'
-        member3 = b'tree'
+        member3 = b'three'
         yield from self.redis.sadd(key1, member1, member2)
         yield from self.redis.sadd(key2, member3)
         # move member2 to second set
@@ -242,12 +246,20 @@ class SetCommandsTest(RedisTest):
     @run_until_complete
     def test_spop(self):
         key = b'key:spop:1'
-        members = b'one', b'two', b'tree'
+        members = b'one', b'two', b'three'
         yield from self.redis.sadd(key, *members)
 
         for _ in members:
             test_result = yield from self.redis.spop(key)
-            self.assertTrue(test_result in members)
+            self.assertIn(test_result, members)
+
+        # test with encoding
+        members = 'four', 'five', 'six'
+        yield from self.redis.sadd(key, *members)
+
+        for _ in members:
+            test_result = yield from self.redis.spop(key, encoding='utf-8')
+            self.assertIn(test_result, members)
 
         # make sure set is empty, after all values poped
         test_result = yield from self.redis.smembers(key)
@@ -263,12 +275,17 @@ class SetCommandsTest(RedisTest):
     @run_until_complete
     def test_srandmember(self):
         key = b'key:srandmember:1'
-        members = b'one', b'two', b'tree', b'four', b'five', b'six', b'seven'
+        members = b'one', b'two', b'three', b'four', b'five', b'six', b'seven'
         yield from self.redis.sadd(key, *members)
 
         for _ in members:
             test_result = yield from self.redis.srandmember(key)
-            self.assertTrue(test_result in members)
+            self.assertIn(test_result, members)
+
+        # test with encoding
+        test_result = yield from self.redis.srandmember(key, encoding='utf-8')
+        strings = {'one', 'two', 'three', 'four', 'five', 'six', 'seven'}
+        self.assertIn(test_result, strings)
 
         # make sure set contains all values, and nothing missing
         test_result = yield from self.redis.smembers(key)
@@ -276,14 +293,14 @@ class SetCommandsTest(RedisTest):
 
         # fetch 4 elements for the first time, as result 4 distinct values
         test_result1 = yield from self.redis.srandmember(key, 4)
-        self.assertTrue(len(test_result1) == 4)
+        self.assertEqual(len(test_result1), 4)
         self.assertTrue(set(test_result1).issubset(members))
 
         # test negative count, same element may be returned multiple times
         test_result2 = yield from self.redis.srandmember(key, -10)
-        self.assertTrue(len(test_result2), 10)
+        self.assertEqual(len(test_result2), 10)
         self.assertTrue(set(test_result2).issubset(members))
-        self.assertTrue(len(set(test_result2)) <= len(members))
+        self.assertLessEqual(len(set(test_result2)), len(members))
 
         # pull member from empty set
         test_result = yield from self.redis.srandmember(b'not' + key)
@@ -295,7 +312,7 @@ class SetCommandsTest(RedisTest):
     @run_until_complete
     def test_srem(self):
         key = b'key:srem:1'
-        members = b'one', b'two', b'tree', b'four', b'five', b'six', b'seven'
+        members = b'one', b'two', b'three', b'four', b'five', b'six', b'seven'
         yield from self.redis.sadd(key, *members)
 
         # remove one element from set
