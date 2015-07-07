@@ -31,7 +31,14 @@ Transaction example
 
 .. literalinclude:: ../examples/transaction.py
 
+
 Pub/Sub example
 ---------------
 
 .. literalinclude:: ../examples/pubsub.py
+
+
+Scan command example
+--------------------
+
+.. literalinclude:: ../examples/scan.py
