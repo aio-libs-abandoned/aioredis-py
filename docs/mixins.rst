@@ -140,3 +140,10 @@ Also see :ref:`aioredis.Channel<aioredis-channel>`.
 
 .. autoclass:: PubSubCommandsMixin
    :members:
+
+
+Cluster commands
+----------------
+
+.. autoclass:: ClusterCommandsMixin
+   :members:
