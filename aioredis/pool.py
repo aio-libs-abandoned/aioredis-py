@@ -155,7 +155,10 @@ class RedisPool:
     def _fill_free(self):
         while self.freesize < self.minsize and self.size < self.maxsize:
             conn = yield from self._create_new_connection()
-            yield from self._pool.put(conn)
+            if self.freesize < self.minsize and self.size < self.maxsize:
+                yield from self._pool.put(conn)
+            else:
+                conn.close()
 
     @asyncio.coroutine
     def _create_new_connection(self):
