@@ -13,7 +13,7 @@ def create_pool(address, *, db=0, password=None, encoding=None,
     also possible to create pool of plain connections by passing
     ``lambda conn: conn`` as commands_factory.
 
-    All artuments are the same as for create_connection.
+    All arguments are the same as for create_connection.
 
     Returns RedisPool instance.
     """
