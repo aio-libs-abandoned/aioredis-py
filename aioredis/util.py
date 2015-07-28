@@ -172,6 +172,7 @@ def wait_convert(fut, type_):
         return result
     return type_(result)
 
+
 @asyncio.coroutine
 def wait_make_dict(fut):
     res = yield from fut
