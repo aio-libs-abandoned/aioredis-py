@@ -2,6 +2,7 @@ import asyncio
 import unittest
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
 
 
@@ -322,3 +323,15 @@ class HashCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.hscan(None)
+
+
+class HashCommandsEncodingTest(RedisEncodingTest):
+    @run_until_complete
+    def test_hgetall(self):
+        TEST_KEY = 'my-key-nx'
+        yield from self.redis._conn.execute('MULTI')
+
+        res = yield from self.redis.hgetall(TEST_KEY)
+        self.assertEqual(res, 'QUEUED')
+
+        yield from self.redis._conn.execute('EXEC')

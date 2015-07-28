@@ -103,3 +103,15 @@ class RedisTest(BaseTest):
     def flushall(self):
         ok = yield from self.redis.connection.execute('flushall')
         self.assertEqual(ok, b'OK')
+
+
+class RedisEncodingTest(BaseTest):
+
+    def setUp(self):
+        super().setUp()
+        self.redis = self.loop.run_until_complete(self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop, encoding='utf-8'))
+
+    def tearDown(self):
+        del self.redis
+        super().tearDown()
