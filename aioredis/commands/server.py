@@ -105,7 +105,8 @@ class ServerCommandsMixin:
     def info(self, section):
         """Get information and statistics about the server."""
         # TODO: check section
-        return self._conn.execute(b'INFO', section)
+        fut = self._conn.execute(b'INFO', section, encoding='utf-8')
+        return wait_convert(fut, parse_info)
 
     def lastsave(self):
         """Get the UNIX time stamp of the last successful save to disk."""
@@ -190,3 +191,17 @@ def to_tuples(value):
     for line in lines:
         result.append(ClientInfo(**dict(map(_split, line.split(' ')))))
     return result
+
+
+def parse_info(info):
+    res = {}
+    for block in info.split('\r\n\r\n'):
+        block = iter(block.strip().splitlines())
+        section = next(block)[2:].lower()
+        res[section] = tmp = {}
+        for line in block:
+            key, value = line.split(':')
+            if ',' in line and '=' in line:
+                value = dict(map(lambda i: i.split('='), value.split(',')))
+            tmp[key] = value
+    return res
