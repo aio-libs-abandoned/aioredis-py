@@ -160,15 +160,15 @@ class Channel:
 @asyncio.coroutine
 def wait_ok(fut):
     res = yield from fut
-    if res == b'QUEUED':
+    if res in (b'QUEUED', 'QUEUED'):
         return res
-    return res == b'OK'
+    return res in (b'OK', 'OK')
 
 
 @asyncio.coroutine
 def wait_convert(fut, type_):
     result = yield from fut
-    if result == b'QUEUED':
+    if result in (b'QUEUED', 'QUEUED'):
         return result
     return type_(result)
 
@@ -176,7 +176,7 @@ def wait_convert(fut, type_):
 @asyncio.coroutine
 def wait_make_dict(fut):
     res = yield from fut
-    if res == b'QUEUED':
+    if res in (b'QUEUED', 'QUEUED'):
         return res
     it = iter(res)
     return dict(zip(it, it))
