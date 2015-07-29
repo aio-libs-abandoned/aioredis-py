@@ -271,3 +271,57 @@ class PoolTest(BaseTest):
         with (yield from pool) as redis:
             value = yield from redis.get('abc')
         self.assertEquals(value, 'def')
+
+    @run_until_complete
+    def test_pool_does_not_create_connection_beyond_maximum(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            loop=self.loop, minsize=1, maxsize=2)
+
+        # task 1 acquired a connection
+        task1_conn = yield from pool.acquire()
+
+        # task2 and task 3 wait for _create_new_connection
+        def test_decorator(wait, ready, create_new_connection):
+            @asyncio.coroutine
+            def wrapper():
+                ready.release()
+                yield from wait.acquire()
+                conn = yield from create_new_connection()
+                return conn
+
+            return wrapper
+
+        ready = asyncio.Semaphore(value=0, loop=self.loop)
+        wait = asyncio.Semaphore(value=0, loop=self.loop)
+
+        pool._create_new_connection = test_decorator(
+            wait, ready, pool._create_new_connection)
+
+        wait_conn_release = asyncio.Semaphore(value=0, loop=self.loop)
+
+        @asyncio.coroutine
+        def start_task():
+            conn = yield from pool.acquire()
+            pool.release(conn)
+            wait_conn_release.release()
+
+        self.loop.create_task(start_task())  # task 2
+        self.loop.create_task(start_task())  # task 3
+
+        # task2 and task3 are ready to _create_new_connection
+        yield from ready.acquire()
+        yield from ready.acquire()
+
+        # task1 release own connection
+        pool.release(task1_conn)
+
+        # One of task2 and task3 acquired and release connection
+        wait.release()
+        yield from wait_conn_release.acquire()
+
+        wait.release()
+        # Occurs hang if there is no fix #71
+        yield from wait_conn_release.acquire()
+
+        self.assertEquals(wait_conn_release._value, 0)
