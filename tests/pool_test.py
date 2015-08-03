@@ -1,4 +1,5 @@
 import asyncio
+import unittest
 
 from ._testutil import BaseTest, run_until_complete
 from aioredis import RedisPool, ReplyError
@@ -271,3 +272,31 @@ class PoolTest(BaseTest):
         with (yield from pool) as redis:
             value = yield from redis.get('abc')
         self.assertEquals(value, 'def')
+
+    @unittest.expectedFailure
+    @run_until_complete
+    def test_pool_size_growth(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            loop=self.loop,
+            minsize=1, maxsize=2)
+
+        @asyncio.coroutine
+        def task1():
+            with (yield from pool):
+                self.assertLessEqual(pool.size, pool.maxsize)
+                self.assertEqual(pool.freesize, 0)
+                yield from asyncio.sleep(1, loop=self.loop)
+
+        @asyncio.coroutine
+        def task2():
+            with (yield from pool):
+                self.assertLessEqual(pool.size, pool.maxsize)
+                self.assertEqual(pool.freesize, 0)
+                yield from asyncio.sleep(1, loop=self.loop)
+
+        tasks = []
+        for _ in range(2):
+            tasks.append(asyncio.async(task1(), loop=self.loop))
+        tasks.append(asyncio.async(task2(), loop=self.loop))
+        yield from asyncio.gather(*tasks, loop=self.loop)
