@@ -1,4 +1,5 @@
 import asyncio
+import collections
 
 from .commands import create_redis, Redis
 from .log import logger
@@ -22,7 +23,7 @@ def create_pool(address, *, db=0, password=None, encoding=None,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      loop=loop)
-    yield from pool._fill_free()
+    yield from pool._fill_free(override_min=False)
     return pool
 
 
@@ -41,9 +42,10 @@ class RedisPool:
         self._minsize = minsize
         self._factory = commands_factory
         self._loop = loop
-        self._pool = asyncio.Queue(maxsize, loop=loop)
+        self._pool = collections.deque(maxlen=maxsize)
         self._used = set()
-        self._need_wait = None
+        self._acquiring = 0
+        self._cond = asyncio.Condition(loop=loop)
 
     @property
     def minsize(self):
@@ -53,17 +55,17 @@ class RedisPool:
     @property
     def maxsize(self):
         """Maximum pool size."""
-        return self._pool.maxsize
+        return self._pool.maxlen
 
     @property
     def size(self):
         """Current pool size."""
-        return self.freesize + len(self._used)
+        return self.freesize + len(self._used) + self._acquiring
 
     @property
     def freesize(self):
         """Current number of free connections."""
-        return self._pool.qsize()
+        return len(self._pool)
 
     @asyncio.coroutine
     def clear(self):
@@ -71,10 +73,13 @@ class RedisPool:
 
         Close and remove all free connections.
         """
-        while not self._pool.empty():
-            conn = yield from self._pool.get()
-            conn.close()
-            yield from conn.wait_closed()
+        with (yield from self._cond):
+            waiters = []
+            while self._pool:
+                conn = self._pool.popleft()
+                conn.close()
+                waiters.append(conn.wait_closed())
+            yield from asyncio.gather(*waiters, loop=self._loop)
 
     @property
     def db(self):
@@ -92,24 +97,11 @@ class RedisPool:
 
         All previously acquired connections will be closed when released.
         """
-        self._need_wait = fut = asyncio.Future(loop=self._loop)
-        try:
-            for _ in range(self.freesize):
-                conn = yield from self._pool.get()
-                try:
-                    yield from conn.select(db)
-                finally:
-                    yield from self._pool.put(conn)
+        with (yield from self._cond):
+            for i in range(self.freesize):
+                yield from self._pool[i].select(db)
             else:
                 self._db = db
-        finally:
-            self._need_wait = None
-            fut.set_result(None)
-
-    def _wait_select(self):
-        if self._need_wait is None:
-            return ()
-        return self._need_wait
 
     @asyncio.coroutine
     def acquire(self):
@@ -117,16 +109,17 @@ class RedisPool:
 
         Creates new connection if needed.
         """
-        yield from self._wait_select()
-        yield from self._fill_free()
-        if self.minsize > 0 or not self._pool.empty():
-            conn = yield from self._pool.get()
-        else:
-            conn = yield from self._create_new_connection()
-        assert not conn.closed, conn
-        assert conn not in self._used, (conn, self._used)
-        self._used.add(conn)
-        return conn
+        with (yield from self._cond):
+            while True:
+                yield from self._fill_free(override_min=True)
+                if self.freesize:
+                    conn = self._pool.popleft()
+                    assert not conn.closed, conn
+                    assert conn not in self._used, (conn, self._used)
+                    self._used.add(conn)
+                    return conn
+                else:
+                    yield from self._cond.wait()
 
     def release(self, conn):
         """Returns used connection back into pool.
@@ -143,19 +136,34 @@ class RedisPool:
                                conn)
                 conn.close()
             elif conn.db == self.db:
-                try:
-                    self._pool.put_nowait(conn)
-                except asyncio.QueueFull:
+                if self.maxsize and self.freesize < self.maxsize:
+                    self._pool.append(conn)
+                else:
                     # consider this connection as old and close it.
                     conn.close()
             else:
                 conn.close()
+        # FIXME: check event loop is not closed
+        asyncio.async(self._wakeup(), loop=self._loop)
 
     @asyncio.coroutine
-    def _fill_free(self):
-        while self.freesize < self.minsize and self.size < self.maxsize:
-            conn = yield from self._create_new_connection()
-            yield from self._pool.put(conn)
+    def _fill_free(self, *, override_min):
+        while self.size < self.minsize:
+            self._acquiring += 1
+            try:
+                conn = yield from self._create_new_connection()
+                self._pool.append(conn)
+            finally:
+                self._acquiring -= 1
+        if self.freesize:
+            return
+        if override_min and self.size < self.maxsize:
+            self._acquiring += 1
+            try:
+                conn = yield from self._create_new_connection()
+                self._pool.append(conn)
+            finally:
+                self._acquiring -= 1
 
     @asyncio.coroutine
     def _create_new_connection(self):
@@ -166,6 +174,13 @@ class RedisPool:
                                        commands_factory=self._factory,
                                        loop=self._loop)
         return conn
+
+    @asyncio.coroutine
+    def _wakeup(self, closing_conn=None):
+        with (yield from self._cond):
+            self._cond.notify()
+        if closing_conn is not None:
+            yield from closing_conn.wait_closed()
 
     def __enter__(self):
         raise RuntimeError(
