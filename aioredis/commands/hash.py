@@ -73,3 +73,7 @@ class HashCommandsMixin:
         count is not None and args.extend([b'COUNT', count])
         fut = self._conn.execute(b'HSCAN', *args)
         return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
+
+    def hstrlen(self, key, field):
+        """Get the length of the value of a hash field."""
+        return self._conn.execute(b'HSTRLEN', key, field)
