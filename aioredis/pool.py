@@ -165,15 +165,13 @@ class RedisPool:
             finally:
                 self._acquiring -= 1
 
-    @asyncio.coroutine
     def _create_new_connection(self):
-        conn = yield from create_redis(self._address,
-                                       db=self._db,
-                                       password=self._password,
-                                       encoding=self._encoding,
-                                       commands_factory=self._factory,
-                                       loop=self._loop)
-        return conn
+        return create_redis(self._address,
+                            db=self._db,
+                            password=self._password,
+                            encoding=self._encoding,
+                            commands_factory=self._factory,
+                            loop=self._loop)
 
     @asyncio.coroutine
     def _wakeup(self, closing_conn=None):
