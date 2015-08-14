@@ -19,8 +19,6 @@ Features
 - Low-level & high-level API
 - :term:`hiredis` parser
 
-.. note:: High-level API is under development
-
 Installation
 ------------
 

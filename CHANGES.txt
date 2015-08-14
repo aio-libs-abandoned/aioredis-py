@@ -1,8 +1,29 @@
 Changes
 -------
 
-0.2.3 (xxxx-xx-xx)
+0.2.4 (xxxx-xx-xx)
 ^^^^^^^^^^^^^^^^^^
+
+
+0.2.3 (2015-08-14)
+^^^^^^^^^^^^^^^^^^
+
+* Redis cluster support work in progress;
+
+* Fixed pool issue causing pool growth over max size & ``acquire`` call hangs
+  (see https://github.com/aio-libs/aioredis/issues/71);
+
+* ``info`` server command result parsing implemented;
+
+* Fixed behavior of util functions
+  (see https://github.com/aio-libs/aioredis/issues/70);
+
+* ``hstrlen`` command added;
+
+* Few fixes in examples;
+
+* Few fixes in documentation;
+
 
 0.2.2 (2015-07-07)
 ^^^^^^^^^^^^^^^^^^
@@ -39,7 +60,7 @@ Changes
 
 * Pub/Sub support added;
 
-* Fix in ZREVRANGEBYSCORE command
+* Fix in ``zrevrangebyscore`` command
   (see https://github.com/aio-libs/aioredis/pull/62);
 
 * Fixes/tests/docs;
@@ -52,7 +73,7 @@ Changes
 
 * wait_closed method added for clean connections shutdown;
 
-* zscore command fixed;
+* ``zscore`` command fixed;
 
 * Test fixes;
 

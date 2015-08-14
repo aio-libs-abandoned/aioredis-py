@@ -145,5 +145,13 @@ Also see :ref:`aioredis.Channel<aioredis-channel>`.
 Cluster commands
 ----------------
 
-.. autoclass:: ClusterCommandsMixin
-   :members:
+.. warning::
+   Current release (|release|) of the library **does not support**
+   `Redis Cluster`_ in a full manner.
+   It provides only several API methods which may be changed in future.
+
+.. _Redis Cluster: http://redis.io/topics/cluster-tutorial
+
+.. ::
+   .. autoclass:: ClusterCommandsMixin
+      :members:
