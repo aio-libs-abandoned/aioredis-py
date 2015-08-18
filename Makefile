@@ -28,7 +28,7 @@ dist:
 
 devel: aioredis.egg-info
 	pip install -U pip
-	pip install -U pyflakes pep8 sphinx coverage bumpversion
+	pip install -U pyflakes pep8 sphinx coverage bumpversion wheel
 
 aioredis.egg-info:
 	pip install -Ue .
