@@ -22,8 +22,8 @@ Pipelining support                  Yes
 Pub/Sub support                     Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested python versions              `3.3, 3.4 <travis_>`_
-Tested for Redis server             `2.6, 2.8, 3.0 <travis_>`_
+Tested python versions              `3.3, 3.4`_
+Tested for Redis server             `2.6, 2.8, 3.0`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
@@ -119,4 +119,6 @@ The aioredis is offered under MIT license.
 .. _Python: https://www.python.org
 .. _asyncio: https://pypi.python.org/pypi/asyncio
 .. _hiredis: https://pypi.python.org/pypi/hiredis
+.. _3.3, 3.4:
+.. _2.6, 2.8, 3.0:
 .. _travis: https://travis-ci.org/aio-libs/aioredis
