@@ -142,9 +142,6 @@ class RedisConnection:
             while True:
                 try:
                     obj = self._parser.gets()
-                    if isinstance(obj, ReplyError):
-                        if obj.args[0].startswith('READONLY'):
-                            obj = ReadOnlyError(obj.args[0])    # index 0?
                 except ProtocolError as exc:
                     # ProtocolError is fatal
                     # so connection must be closed
@@ -167,6 +164,9 @@ class RedisConnection:
         """Processes command results."""
         waiter, encoding, cb = self._waiters.popleft()
         if isinstance(obj, RedisError):
+            if isinstance(obj, ReplyError):
+                if obj.args[0].startswith('READONLY'):
+                    obj = ReadOnlyError(obj.args[0])
             _set_exception(waiter, obj)
             if self._in_transaction is not None:
                 self._transaction_error = obj
