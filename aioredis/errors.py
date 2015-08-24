@@ -4,6 +4,9 @@ __all__ = [
     'ReplyError',
     'PipelineError',
     'MultiExecError',
+    'MasterNotFoundError',
+    'SlaveNotFoundError',
+    'ReadOnlyError'
     ]
 
 
@@ -33,5 +36,18 @@ class MultiExecError(PipelineError):
 class ChannelClosedError(RedisError):
     """Raised when Pub/Sub channel is unsubscribed and messages queue is empty.
     """
+
+
+class ReadOnlyError(RedisError):
+    """Raised from slave when read-only mode is enabled"""
+
+
+class MasterNotFoundError(RedisError):
+    """Raised for sentinel master not found error."""
+
+
+class SlaveNotFoundError(RedisError):
+    """Raised for sentinel slave not found error."""
+
 
 # TODO: add ConnectionClosed exception.
