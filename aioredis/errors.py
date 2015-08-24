@@ -8,6 +8,9 @@ __all__ = [
     'ChannelClosedError',
     'ConnectionClosedError',
     'PoolClosedError',
+    'MasterNotFoundError',
+    'SlaveNotFoundError',
+    'ReadOnlyError',
     ]
 
 
@@ -41,6 +44,18 @@ class WatchVariableError(MultiExecError):
 class ChannelClosedError(RedisError):
     """Raised when Pub/Sub channel is unsubscribed and messages queue is empty.
     """
+
+
+class ReadOnlyError(RedisError):
+    """Raised from slave when read-only mode is enabled"""
+
+
+class MasterNotFoundError(RedisError):
+    """Raised for sentinel master not found error."""
+
+
+class SlaveNotFoundError(RedisError):
+    """Raised for sentinel slave not found error."""
 
 
 class ConnectionClosedError(RedisError):

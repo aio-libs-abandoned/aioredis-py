@@ -16,6 +16,7 @@ from .server import ServerCommandsMixin
 from .pubsub import PubSubCommandsMixin
 from .cluster import ClusterCommandsMixin
 from .geo import GeoCommandsMixin, GeoPoint, GeoMember
+from .sentinel import SentinelCommandsMixin
 
 __all__ = [
     'create_redis',
@@ -34,7 +35,8 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             SortedSetCommandsMixin, ListCommandsMixin,
             ScriptingCommandsMixin, ServerCommandsMixin,
             PubSubCommandsMixin, ClusterCommandsMixin,
-            GeoCommandsMixin):
+            GeoCommandsMixin,
+            SentinelCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
