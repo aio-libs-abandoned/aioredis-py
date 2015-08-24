@@ -115,3 +115,17 @@ class RedisEncodingTest(BaseTest):
     def tearDown(self):
         del self.redis
         super().tearDown()
+
+
+class RedisSentinelTest(BaseTest):
+
+    def setUp(self):
+        super().setUp()
+        sentinel_ip = os.environ.get('SENTINEL_IP', 'localhost')
+        sentinel_port = int(os.environ.get('SENTINEL_PORT', '26379'))
+        self.redis = self.loop.run_until_complete(self.create_redis(
+            (sentinel_ip, sentinel_port), loop=self.loop, encoding='utf-8'))
+
+    def tearDown(self):
+        del self.redis
+        super().tearDown()
