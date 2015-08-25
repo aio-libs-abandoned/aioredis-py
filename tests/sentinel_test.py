@@ -1,4 +1,5 @@
 import asyncio
+import pytest
 
 from ._testutil import RedisSentinelTest, run_until_complete
 import aioredis.errors
@@ -57,6 +58,7 @@ class SentinelTest(RedisSentinelTest):
         self.assertTrue(caught)
 
     @run_until_complete
+    @pytest.mark.timeout(600)
     def test_sentinel_slave_fail(self):
         caught = False
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
@@ -90,6 +92,14 @@ class SentinelTest(RedisSentinelTest):
             self.sentinel_name)
         self.assertEquals(ret, True)
         yield from asyncio.sleep(2, loop=self.loop)
+        redis = yield from self.get_slave_connection()
+        while True:
+            try:
+                yield from redis.hset(key, field, value)
+                yield from asyncio.sleep(1, loop=self.loop)
+                redis = yield from self.get_slave_connection()
+            except aioredis.errors.ReadOnlyError:
+                break
 
     @run_until_complete
     def test_sentinel_normal_fail(self):
@@ -113,6 +123,14 @@ class SentinelTest(RedisSentinelTest):
             self.sentinel_name)
         self.assertEquals(ret, True)
         yield from asyncio.sleep(2, loop=self.loop)
+        redis = yield from self.get_slave_connection()
+        while True:
+            try:
+                yield from redis.hset(key, field, value)
+                yield from asyncio.sleep(1, loop=self.loop)
+                redis = yield from self.get_slave_connection()
+            except aioredis.errors.ReadOnlyError:
+                break
 
     @run_until_complete
     def test_failover(self):
@@ -131,6 +149,15 @@ class SentinelTest(RedisSentinelTest):
         yield from asyncio.sleep(2, loop=self.loop)
         new_master = yield from func(self.sentinel_name)
         self.assertEquals(orig_master, new_master)
+        redis = yield from self.get_slave_connection()
+        key, field, value = b'key:hset', b'bar', b'zap'
+        while True:
+            try:
+                yield from redis.hset(key, field, value)
+                yield from asyncio.sleep(1, loop=self.loop)
+                redis = yield from self.get_slave_connection()
+            except aioredis.errors.ReadOnlyError:
+                break
 
     @run_until_complete
     def test_get_master(self):
