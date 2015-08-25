@@ -26,8 +26,17 @@ def run_until_complete(fun):
     @wraps(fun)
     def wrapper(test, *args, **kw):
         loop = test.loop
-        ret = loop.run_until_complete(
-            asyncio.wait_for(fun(test, *args, **kw), 15, loop=loop))
+        if hasattr(test, "timeout"):
+            timeout = test.timeout
+        elif hasattr(fun, "timeout"):
+            timeout = fun.timeout.args[0]
+        else:
+            timeout = 15
+        if timeout is None:
+            ret = loop.run_until_complete(fun(test, *args, **kw))
+        else:
+            ret = loop.run_until_complete(
+                asyncio.wait_for(fun(test, *args, **kw), timeout, loop=loop))
         return ret
     return wrapper
 
