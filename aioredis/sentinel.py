@@ -17,22 +17,59 @@ class SentinelManagedConnection(object):
         self._loop = conn_kwargs.get('loop')
         self._lock = asyncio.Lock(loop=self._loop)
 
+
+    def close(self):
+        self._conn.close()
+
+    @asyncio.coroutine
+    def wait_closed(self):
+        yield from self._conn.wait_closed()
+
     @asyncio.coroutine
     def execute(self, *args, **kwargs):
-        conn = yield from self.get_atomic_connection()
-        try:
-            return (yield from conn.execute(*args, **kwargs))
-        except ReadOnlyError:
-            if self._sentinel_service.is_master:
-                # When talking to a master, a ReadOnlyError when likely
-                # indicates that the previous master that we're still connected
-                # to has been demoted to a slave and there's a new master.
-                # calling disconnect will force the connection to re-query
-                # sentinel during the next connect() attempt.
-                self._conn.close()
-                yield from self._conn.wait_closed()
-                raise ConnectionError('The previous master is now a slave')
-            raise
+        first_time = True
+
+        while True:
+            conn = yield from self.get_atomic_connection()
+            try:
+                return (yield from conn.execute(*args, **kwargs))
+            except ReadOnlyError:
+                if self._sentinel_service.is_master:
+                    # When talking to a master, a ReadOnlyError when likely
+                    # indicates that the previous master that we're still connected
+                    # to has been demoted to a slave and there's a new master.
+                    # calling disconnect will force the connection to re-query
+                    # sentinel during the next connect() attempt.
+                    self._conn.close()
+                    yield from self._conn.wait_closed()
+                    if first_time:
+                        first_time = False
+                        continue
+                    raise ConnectionError('The previous master is now a slave')
+                raise
+
+    @asyncio.coroutine
+    def execute_pubsub(self, *args, **kwargs):
+        first_time = True
+
+        while True:
+            conn = yield from self.get_atomic_connection()
+            try:
+                return (yield from conn.execute_pubsub(*args, **kwargs))
+            except ReadOnlyError:
+                if self._sentinel_service.is_master:
+                    # When talking to a master, a ReadOnlyError when likely
+                    # indicates that the previous master that we're still connected
+                    # to has been demoted to a slave and there's a new master.
+                    # calling disconnect will force the connection to re-query
+                    # sentinel during the next connect() attempt.
+                    self._conn.close()
+                    yield from self._conn.wait_closed()
+                    if first_time:
+                        first_time = False
+                        continue
+                    raise ConnectionError('The previous master is now a slave')
+                raise
 
     @asyncio.coroutine
     def get_atomic_connection(self):
@@ -93,7 +130,7 @@ def create_sentinel(sentinels, *, db=None, password=None,
     return RedisSentinel(sentinels_connections, min_other_sentinels, loop=loop)
 
 
-class RedisSentinelServer:
+class RedisSentinelService:
     def __init__(self, service_name, sentinel, is_master):
         self.is_master = is_master
         self.service_name = service_name
@@ -111,7 +148,7 @@ class RedisSentinelServer:
             elif master_address != self.master_address:
                 # Master address changed, disconnect all clients in this pool
                 # TODO
-                self.disconnect()
+                pass
         return master_address
 
     @asyncio.coroutine
@@ -145,6 +182,15 @@ class RedisSentinel:
         self.min_other_sentinels = min_other_sentinels
         self.loop = loop
         self.services = {}
+
+    def close(self):
+        for sentinel in self.sentinels:
+            sentinel.close()
+
+    @asyncio.coroutine
+    def wait_closed(self):
+        for sentinel in self.sentinels:
+            yield from sentinel.wait_closed()
 
     def check_master_state(self, state, service_name):
         if not state['is_master'] or state['is_sdown'] or state['is_odown']:
@@ -217,7 +263,7 @@ class RedisSentinel:
             self.services[service_name] = {}
         if 'master' not in self.services[service_name]:
             self.services[service_name]['master'] = \
-                RedisSentinelServer(service_name, self, True)
+                RedisSentinelService(service_name, self, True)
         service = self.services[service_name]['master']
         conn = yield from create_sentinel_connection(service, **connection_kwargs)
         return conn
@@ -240,7 +286,7 @@ class RedisSentinel:
             self.services[service_name] = {}
         if 'slave' not in self.services[service_name]:
             self.services[service_name]['slave'] = \
-                RedisSentinelServer(service_name, self, True)
+                RedisSentinelService(service_name, self, True)
         service = self.services[service_name]['slave']
         conn = yield from create_sentinel_connection(service, **connection_kwargs)
         return conn
