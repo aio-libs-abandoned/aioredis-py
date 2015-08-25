@@ -84,8 +84,10 @@ class SentinelManagedConnection(object):
                         self._conn = conn
                     else:
                         service = self._sentinel_service
-                        slave = yield from service.rotate_slaves()
-                        while slave is not None:
+                        slaves = yield from service.get_slaves()
+                        num = service.num_slaves()
+                        for idx in range(num):
+                            slave = slaves[idx]
                             try:
                                 conn = yield from create_connection(
                                     slave, **self._conn_kwargs)
@@ -94,9 +96,15 @@ class SentinelManagedConnection(object):
                             except SlaveNotFoundError:
                                 raise
                             except RedisError:
-                                slave = yield from service.rotate_slaves()
-
-                        raise SlaveNotFoundError
+                                pass
+                        addr = yield from service.get_master_address()
+                        try:
+                            conn = yield from create_connection(
+                                addr, **self._conn_kwargs)
+                            self._conn = conn
+                            return self._conn
+                        except RedisError:
+                            raise SlaveNotFoundError
         return self._conn
 
 
@@ -139,7 +147,7 @@ class RedisSentinelService:
         self.service_name = service_name
         self.sentinel = sentinel
         self.master_address = None
-        self.slave_rr_counter = None
+        self.slaves = None
 
     @asyncio.coroutine
     def get_master_address(self):
@@ -154,26 +162,15 @@ class RedisSentinelService:
                 pass
         return master_address
 
+    def num_slaves(self):
+        return len(self.slaves)
+
     @asyncio.coroutine
-    def rotate_slaves(self):
+    def get_slaves(self):
         "Round-robin slave balancer"
-        slaves = yield from self.sentinel.discover_slaves(self.service_name)
-        if slaves:
-            if self.slave_rr_counter is None:
-                self.slave_rr_counter = 0
-            if self.slave_rr_counter < len(slaves):
-                slave = slaves[self.slave_rr_counter]
-                self.slave_rr_counter += 1
-                return slave
-        # Fallback to the master connection
-        try:
-            if self.slave_rr_counter == len(slaves):
-                master = yield from self.get_master_address()
-                return master
-            self.slave_rr_counter = 0
-        except MasterNotFoundError:
-            pass
-        raise SlaveNotFoundError('No slave found for %r' % (self.service_name))
+        self.slaves = yield from self.sentinel.discover_slaves(
+            self.service_name)
+        return self.slaves
 
 
 class RedisSentinel:
