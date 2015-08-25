@@ -4,7 +4,8 @@ import re
 import unittest
 
 from functools import wraps
-from aioredis import create_redis, create_connection, create_pool
+from aioredis import create_redis, create_connection, create_pool, \
+    create_sentinel
 
 
 REDIS_VERSION = os.environ.get('REDIS_VERSION')
@@ -25,8 +26,17 @@ def run_until_complete(fun):
     @wraps(fun)
     def wrapper(test, *args, **kw):
         loop = test.loop
-        ret = loop.run_until_complete(
-            asyncio.wait_for(fun(test, *args, **kw), 15, loop=loop))
+        if hasattr(test, "timeout"):
+            timeout = test.timeout
+        elif hasattr(fun, "timeout"):
+            timeout = fun.timeout.args[0]
+        else:
+            timeout = 15
+        if timeout is None:
+            ret = loop.run_until_complete(fun(test, *args, **kw))
+        else:
+            ret = loop.run_until_complete(
+                asyncio.wait_for(fun(test, *args, **kw), timeout, loop=loop))
         return ret
     return wrapper
 
@@ -77,6 +87,12 @@ class BaseTest(unittest.TestCase):
         return redis
 
     @asyncio.coroutine
+    def create_sentinel(self, *args, **kw):
+        redis = yield from create_sentinel(*args, **kw)
+        self._redises.append(redis)
+        return redis
+
+    @asyncio.coroutine
     def create_pool(self, *args, **kw):
         pool = yield from create_pool(*args, **kw)
         self._pools.append(pool)
@@ -114,4 +130,34 @@ class RedisEncodingTest(BaseTest):
 
     def tearDown(self):
         del self.redis
+        super().tearDown()
+
+
+class RedisSentinelTest(BaseTest):
+
+    def setUp(self):
+        super().setUp()
+        self.sentinel_ip = os.environ.get('SENTINEL_IP', 'localhost')
+        self.sentinel_port = int(os.environ.get('SENTINEL_PORT', '26379'))
+        self.sentinel_name = os.environ.get("SENTINEL_NAME", 'mymaster')
+        self.redis_sentinel = self.loop.run_until_complete(
+            self.create_sentinel([(self.sentinel_ip, self.sentinel_port)],
+                                 loop=self.loop, encoding='utf-8'))
+
+    @asyncio.coroutine
+    def get_master_connection(self):
+        redis = yield from self.redis_sentinel.master_for(self.sentinel_name,
+                                                          loop=self.loop)
+        self._redises.append(redis)
+        return redis
+
+    @asyncio.coroutine
+    def get_slave_connection(self):
+        redis = yield from self.redis_sentinel.slave_for(self.sentinel_name,
+                                                         loop=self.loop)
+        self._redises.append(redis)
+        return redis
+
+    def tearDown(self):
+        del self.redis_sentinel
         super().tearDown()
