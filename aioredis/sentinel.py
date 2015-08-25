@@ -1,5 +1,4 @@
 import asyncio
-import random
 
 from .connection import create_connection
 from .errors import MasterNotFoundError, SlaveNotFoundError, RedisError, \
@@ -16,7 +15,6 @@ class SentinelManagedConnection(object):
         self._conn = None
         self._loop = conn_kwargs.get('loop')
         self._lock = asyncio.Lock(loop=self._loop)
-
 
     def close(self):
         self._conn.close()
@@ -36,8 +34,9 @@ class SentinelManagedConnection(object):
             except ReadOnlyError:
                 if self._sentinel_service.is_master:
                     # When talking to a master, a ReadOnlyError when likely
-                    # indicates that the previous master that we're still connected
-                    # to has been demoted to a slave and there's a new master.
+                    # indicates that the previous master that we're still
+                    # connected to has been demoted to a slave and there's
+                    # a new master.
                     # calling disconnect will force the connection to re-query
                     # sentinel during the next connect() attempt.
                     self._conn.close()
@@ -59,8 +58,9 @@ class SentinelManagedConnection(object):
             except ReadOnlyError:
                 if self._sentinel_service.is_master:
                     # When talking to a master, a ReadOnlyError when likely
-                    # indicates that the previous master that we're still connected
-                    # to has been demoted to a slave and there's a new master.
+                    # indicates that the previous master that we're still
+                    # connected to has been demoted to a slave and there's
+                    # a new master.
                     # calling disconnect will force the connection to re-query
                     # sentinel during the next connect() attempt.
                     self._conn.close()
@@ -77,21 +77,24 @@ class SentinelManagedConnection(object):
             with (yield from self._lock):
                 if self._conn is None or self._conn.closed:
                     if self._sentinel_service.is_master:
-                        addr = yield from self._sentinel_service.get_master_address()
+                        service = self._sentinel_service
+                        addr = yield from service.get_master_address()
                         conn = yield from create_connection(
                             addr, **self._conn_kwargs)
                         self._conn = conn
                     else:
-                        slave = yield from self.connection_pool.rotate_slaves()
+                        service = self._sentinel_service
+                        slave = yield from service.rotate_slaves()
                         while slave is not None:
                             try:
                                 conn = yield from create_connection(
                                     slave, **self._conn_kwargs)
                                 self._conn = conn
+                                return self._conn
                             except SlaveNotFoundError:
                                 raise
                             except RedisError:
-                                slave = yield from self.connection_pool.rotate_slaves()
+                                slave = yield from service.rotate_slaves()
 
                         raise SlaveNotFoundError
         return self._conn
@@ -183,6 +186,12 @@ class RedisSentinel:
         self.loop = loop
         self.services = {}
 
+    def num_sentinels(self):
+        return len(self.sentinels)
+
+    def get_sentinel_connection(self, idx):
+        return self.sentinels[idx]
+
     def close(self):
         for sentinel in self.sentinels:
             sentinel.close()
@@ -265,7 +274,8 @@ class RedisSentinel:
             self.services[service_name]['master'] = \
                 RedisSentinelService(service_name, self, True)
         service = self.services[service_name]['master']
-        conn = yield from create_sentinel_connection(service, **connection_kwargs)
+        conn = yield from create_sentinel_connection(service,
+                                                     **connection_kwargs)
         return conn
 
     @asyncio.coroutine
@@ -286,7 +296,8 @@ class RedisSentinel:
             self.services[service_name] = {}
         if 'slave' not in self.services[service_name]:
             self.services[service_name]['slave'] = \
-                RedisSentinelService(service_name, self, True)
+                RedisSentinelService(service_name, self, False)
         service = self.services[service_name]['slave']
-        conn = yield from create_sentinel_connection(service, **connection_kwargs)
+        conn = yield from create_sentinel_connection(service,
+                                                     **connection_kwargs)
         return conn

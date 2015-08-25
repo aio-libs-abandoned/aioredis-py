@@ -133,3 +133,8 @@ class SentinelCommandsMixin:
         "Set Sentinel monitoring parameters for a given master"
         fut = self._conn.execute(b'SENTINEL', b'SET', name, option, value)
         return wait_ok(fut)
+
+    def sentinel_failover(self, name):
+        "Remove a master from Sentinel's monitoring"
+        fut = self._conn.execute(b'SENTINEL', b'FAILOVER', name)
+        return wait_ok(fut)
