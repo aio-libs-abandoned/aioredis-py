@@ -1,5 +1,6 @@
 import asyncio
 
+from .util import coerced_keys_dict
 from .connection import create_connection
 from .errors import MasterNotFoundError, SlaveNotFoundError, RedisError, \
     ReadOnlyError
@@ -17,11 +18,49 @@ class SentinelManagedConnection(object):
         self._lock = asyncio.Lock(loop=self._loop)
 
     def close(self):
-        self._conn.close()
+        if self._conn is not None:
+            self._conn.close()
+
+    @property
+    def in_transaction(self):
+        if self._conn is None:
+            return False
+        """Set to True when MULTI command was issued."""
+        return self._conn.in_transaction
+
+    @property
+    def in_pubsub(self):
+        """Indicates that connection is in PUB/SUB mode.
+
+        Provides the number of subscribed channels.
+        """
+        if self._conn is None:
+            return False
+        return self._conn.in_pubsub
+
+    @property
+    def pubsub_channels(self):
+        """Returns read-only channels dict."""
+        if self._conn is None:
+            return coerced_keys_dict()
+        return self._conn.pubsub_channels
+
+    @property
+    def pubsub_patterns(self):
+        """Returns read-only patterns dict."""
+        if self._conn is None:
+            return coerced_keys_dict()
+        return self._conn.pubsub_patterns
+
+    def auth(self, password):
+        if self._conn is None:
+            self._conn = yield from self.get_atomic_connection()
+        return self._conn.auth(password)
 
     @asyncio.coroutine
     def wait_closed(self):
-        yield from self._conn.wait_closed()
+        if self._conn is not None:
+            yield from self._conn.wait_closed()
 
     @asyncio.coroutine
     def execute(self, *args, **kwargs):
@@ -113,7 +152,9 @@ def create_sentinel_connection(sentinel_service, loop=None,
                                **connection_kwargs):
     conn = SentinelManagedConnection(sentinel_service, loop=loop,
                                      **connection_kwargs)
-    return Redis(conn)
+    ret = Redis(conn)
+    yield from conn.get_atomic_connection()
+    return ret
 
 
 @asyncio.coroutine
