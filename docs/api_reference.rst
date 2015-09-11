@@ -254,6 +254,8 @@ The library provides connections pool. The basic usage is as follows:
 
       Closes and removes all free connections in the pool.
 
+      This method is a :ref:`coroutine<coroutine>`.
+
    .. method:: select(db)
 
       Changes db index for all free connections in the pool.
