@@ -93,7 +93,7 @@ Connections pool:
         with (yield from pool) as redis:    # high-level redis API instance
             yield from redis.set('my-key', 'value')
             print((yield from redis.get('my-key')))
-        pool.clear()    # closing all open connections
+        yield from pool.clear()    # closing all open connections
 
     loop.run_until_complete(go())
 
