@@ -29,7 +29,7 @@ before_install:
 
 install:
 - pip install hiredis
-- pip install pip install git+https://github.com/pyflakes/pyflakes.git
+- pip install git+https://github.com/pyflakes/pyflakes.git
 - pip install pep8
 - pip install coverage
 - pip install coveralls
