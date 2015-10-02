@@ -75,6 +75,9 @@ Connection usage is as simple as:
 
       Set to True if connection is closed (*read-only*).
 
+   .. attribute:: in_transaction
+
+      Set to True when MULTI command was issued (*read-only*).
 
    .. attribute:: pubsub_channels
 
@@ -137,6 +140,10 @@ Connection usage is as simple as:
    .. method:: close()
 
       Closes connection.
+
+   .. method:: wait_closed()
+
+      Coroutine waiting for connection to get closed.
 
 
    .. method:: select(db)
