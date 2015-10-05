@@ -30,8 +30,7 @@ before_install:
   if [ ! -x "$REDIS_BIN/redis-server" ]; then
     wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
     tar -xvf redis-${REDIS_TAG}.tar.gz
-    cd redis-${REDIS_TAG}
-    make && make PREFIX=$HOME/redis-${REDIS_TAG} install
+    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis-${REDIS_TAG} install
   fi
 
 install:
