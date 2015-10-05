@@ -19,19 +19,19 @@ env:
 
 cache:
   directories:
-  - $PWD/redis-$REDIS_TAG
+  - $HOME/redis-$REDIS_TAG
   - $HOME/.cache/pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
 
 before_install:
-- export REDIS_DIR=redis-${REDIS_TAG}
-- export REDIS_BIN=${REDIS_DIR}/src
+- export REDIS_BIN=$HOME/redis-${REDIS_TAG}/bin
 - >
   if [ ! -x "$REDIS_BIN/redis-server" ]; then
-    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O ${REDIS_DIR}.tar.gz
-    tar -xvf ${REDIS_DIR}.tar.gz
-    make -C ${REDIS_DIR}
+    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
+    tar -xvf redis-${REDIS_TAG}.tar.gz
+    cd redis-${REDIS_TAG}
+    make && make PREFIX=$HOME/redis-${REDIS_TAG} install
   fi
 
 install:
