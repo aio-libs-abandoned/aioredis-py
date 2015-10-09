@@ -146,8 +146,18 @@ class RedisPool:
         # FIXME: check event loop is not closed
         asyncio.async(self._wakeup(), loop=self._loop)
 
+    def _drop_closed(self):
+        for i in range(self.freesize):
+            conn = self._pool[0]
+            if conn.closed:
+                self._pool.popleft()
+            else:
+                self._pool.rotate(1)
+
     @asyncio.coroutine
     def _fill_free(self, *, override_min):
+        # drop closed connections first
+        self._drop_closed()
         while self.size < self.minsize:
             self._acquiring += 1
             try:
@@ -155,15 +165,20 @@ class RedisPool:
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1
+                # connection may be closed at yeild point
+                self._drop_closed()
         if self.freesize:
             return
-        if override_min and self.size < self.maxsize:
-            self._acquiring += 1
-            try:
-                conn = yield from self._create_new_connection()
-                self._pool.append(conn)
-            finally:
-                self._acquiring -= 1
+        if override_min:
+            while not self._pool and self.size < self.maxsize:
+                self._acquiring += 1
+                try:
+                    conn = yield from self._create_new_connection()
+                    self._pool.append(conn)
+                finally:
+                    self._acquiring -= 1
+                    # connection may be closed at yeild point
+                    self._drop_closed()
 
     def _create_new_connection(self):
         return create_redis(self._address,
