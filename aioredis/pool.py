@@ -1,8 +1,12 @@
 import asyncio
 import collections
+import sys
 
 from .commands import create_redis, Redis
 from .log import logger
+
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 @asyncio.coroutine
@@ -207,6 +211,20 @@ class RedisPool:
         conn = yield from self.acquire()
         return _ConnectionContextManager(self, conn)
 
+    if PY_35:
+        def __await__(self):
+            # To make `with await pool` work
+            conn = yield from self.acquire()
+            return _ConnectionContextManager(self, conn)
+
+        def get(self):
+            '''Return async context manager for working with connection.
+
+            async with pool.get() as conn:
+                await conn.get(key)
+            '''
+            return _AsyncConnectionContextManager(self)
+
 
 class _ConnectionContextManager:
 
@@ -225,3 +243,26 @@ class _ConnectionContextManager:
         finally:
             self._pool = None
             self._conn = None
+
+
+if PY_35:
+    class _AsyncConnectionContextManager:
+
+        __slots__ = ('_pool', '_conn')
+
+        def __init__(self, pool):
+            self._pool = pool
+            self._conn = None
+
+        @asyncio.coroutine
+        def __aenter__(self):
+            self._conn = yield from self._pool.acquire()
+            return self._conn
+
+        @asyncio.coroutine
+        def __aexit__(self, exc_type, exc_value, tb):
+            try:
+                self._pool.release(self._conn)
+            finally:
+                self._pool = None
+                self._conn = None
