@@ -302,3 +302,18 @@ class PoolTest(BaseTest):
             tasks.append(asyncio.async(task1(_), loop=self.loop))
         tasks.append(asyncio.async(task2(), loop=self.loop))
         yield from asyncio.gather(*tasks, loop=self.loop)
+
+    @run_until_complete
+    def test_pool_with_closed_connections(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            loop=self.loop,
+            minsize=1, maxsize=2)
+        self.assertEqual(1, pool.freesize)
+        conn1 = pool._pool[0]
+        conn1.close()
+        self.assertTrue(conn1.closed)
+        self.assertEqual(1, pool.freesize)
+        with (yield from pool) as conn2:
+            self.assertFalse(conn2.closed)
+            self.assertIsNot(conn1, conn2)
