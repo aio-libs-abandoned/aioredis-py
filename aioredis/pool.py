@@ -1,8 +1,12 @@
 import asyncio
 import collections
+import sys
 
 from .commands import create_redis, Redis
 from .log import logger
+
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 @asyncio.coroutine
@@ -206,6 +210,12 @@ class RedisPool:
         # this method is needed to allow `yield`ing from pool
         conn = yield from self.acquire()
         return _ConnectionContextManager(self, conn)
+
+    if PY_35:
+        def __await__(self):
+            # this method is needed to allow `await pool`
+            conn = yield from self.acquire()
+            return _ConnectionContextManager(self, conn)
 
 
 class _ConnectionContextManager:

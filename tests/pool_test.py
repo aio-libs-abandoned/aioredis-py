@@ -1,7 +1,12 @@
 import asyncio
+import sys
+import unittest
 
+from textwrap import dedent
 from ._testutil import BaseTest, run_until_complete
 from aioredis import RedisPool, ReplyError
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 class PoolTest(BaseTest):
@@ -317,3 +322,19 @@ class PoolTest(BaseTest):
         with (yield from pool) as conn2:
             self.assertFalse(conn2.closed)
             self.assertIsNot(conn1, conn2)
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @run_until_complete
+    def test_await(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=10, loop=self.loop)
+
+        s = dedent('''\
+        async def coro(testcase, pool):
+            with await pool as conn:
+                msg = await conn.echo('hello')
+                testcase.assertEqual(msg, b'hello')
+        ''')
+        exec(s, globals(), locals())
+        yield from locals()['coro'](self, pool)
