@@ -338,3 +338,19 @@ class PoolTest(BaseTest):
         ''')
         exec(s, globals(), locals())
         yield from locals()['coro'](self, pool)
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @run_until_complete
+    def test_async_with(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=10, loop=self.loop)
+
+        s = dedent('''\
+        async def coro(testcase, pool):
+            async with pool.get() as conn:
+                msg = await conn.echo('hello')
+                testcase.assertEqual(msg, b'hello')
+        ''')
+        exec(s, globals(), locals())
+        yield from locals()['coro'](self, pool)
