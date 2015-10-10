@@ -2,11 +2,16 @@ import asyncio
 import time
 import math
 import os
+import sys
 import unittest
+from textwrap import dedent
 from unittest import mock
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 from aioredis import ReplyError
+
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 class GenericCommandsTest(RedisTest):
@@ -554,3 +559,58 @@ class GenericCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.type(None)
+
+    @unittest.skipUnless(PY_35,
+                         'Python 3.5+ required')
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'SCAN is available since redis>=2.8.0')
+    @run_until_complete
+    def test_iscan(self):
+        full = set()
+        foo = set()
+        bar = set()
+        for i in range(1, 11):
+            is_bar = i % 3
+            foo_or_bar = 'bar' if is_bar else 'foo'
+            key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+            full.add(key)
+            if is_bar:
+                bar.add(key)
+            else:
+                foo.add(key)
+            yield from self.add(key, i)
+
+        s1 = dedent('''\
+        async def coro(cmd):
+            lst = []
+            async for i in cmd:
+                lst.append(i)
+            return lst
+        ''')
+
+        lcl = {}
+        exec(s1, globals(), lcl)
+
+        coro = lcl['coro']
+
+        ret = yield from coro(self.redis.iscan())
+
+        self.assertGreaterEqual(len(ret), 10)
+
+        ret = yield from coro(self.redis.iscan(match='key:scan:*'))
+        self.assertEqual(10, len(ret), ret)
+        self.assertEqual(set(ret), full)
+
+        ret = yield from coro(self.redis.iscan(match='key:scan:foo*'))
+        self.assertEqual(set(ret), foo)
+
+        ret = yield from coro(self.redis.iscan(match='key:scan:bar*'))
+        self.assertEqual(set(ret), bar)
+
+        # SCAN family functions do not guarantee that the number of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+
+        ret = yield from coro(self.redis.iscan(match='key:scan:*', count=2))
+        self.assertEqual(10, len(ret), ret)
+        self.assertEqual(set(ret), full)

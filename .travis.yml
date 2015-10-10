@@ -35,8 +35,7 @@ before_install:
 
 install:
 - pip install hiredis
-- pip install pyflakes
-- pip install pep8
+- pip install flake8
 - pip install coverage
 - pip install coveralls
 - pip install -e .
@@ -62,8 +61,7 @@ before_script:
 - echo $REDIS_VERSION
 
 script:
-- pyflakes aioredis tests
-- pep8 aioredis tests
+- flake8 aioredis tests
 - python runtests.py --coverage -v
 
 # checking examples

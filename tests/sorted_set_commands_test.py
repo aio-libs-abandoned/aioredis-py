@@ -1,7 +1,12 @@
 import itertools
+import sys
+from textwrap import dedent
 import unittest
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 class SortedSetsCommandsTest(RedisTest):
@@ -589,6 +594,8 @@ class SortedSetsCommandsTest(RedisTest):
     @run_until_complete
     def test_zscan(self):
         key = b'key:zscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
         scores, members = [], []
 
         for i in range(1, 11):
@@ -617,3 +624,51 @@ class SortedSetsCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.zscan(None)
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'ZSCAN is available since redis>=2.8.0')
+    @run_until_complete
+    def test_izscan(self):
+        key = b'key:zscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
+        scores, members = [], []
+
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            members.append('zmem:{}:{}'.format(foo_or_bar, i).encode('utf-8'))
+            scores.append(i)
+        pairs = list(itertools.chain(*zip(scores, members)))
+        yield from self.redis.zadd(key, *pairs)
+        vals = list(zip(members, scores))
+
+        s = dedent('''\
+        async def coro(cmd):
+            lst = []
+            async for i in cmd:
+                lst.append(i)
+            return lst
+        ''')
+        lcl = {}
+        exec(s, globals(), lcl)
+        coro = lcl['coro']
+
+        ret = yield from coro(self.redis.izscan(key))
+        self.assertEqual(set(ret), set(vals))
+
+        ret = yield from coro(self.redis.izscan(key, match=b'zmem:foo:*'))
+        self.assertEqual(set(ret), set(v for v in vals if b'foo' in v[0]))
+
+        ret = yield from coro(self.redis.izscan(key, match=b'zmem:bar:*'))
+        self.assertEqual(set(ret), set(v for v in vals if b'bar' in v[0]))
+
+        # SCAN family functions do not guarantee that the number (count) of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+
+        ret = yield from coro(self.redis.izscan(key, count=2))
+        self.assertEqual(set(ret), set(vals))
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.izscan(None)
