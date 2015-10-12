@@ -1,9 +1,13 @@
 import asyncio
+import sys
 import unittest
+from textwrap import dedent
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
+
+PY_35 = sys.version_info > (3, 5)
 
 
 class HashCommandsTest(RedisTest):
@@ -298,6 +302,8 @@ class HashCommandsTest(RedisTest):
     @run_until_complete
     def test_hscan(self):
         key = b'key:hscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
         # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
         for i in range(1, 11):
             foo_or_bar = 'bar' if i % 3 else 'foo'
@@ -323,6 +329,66 @@ class HashCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.hscan(None)
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'HSCAN is available since redis>=2.8.0')
+    @run_until_complete
+    def test_ihscan(self):
+        key = b'key:hscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
+        # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            f = 'field:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+            v = 'value:{}'.format(i).encode('utf-8')
+            yield from self.add(key, f, v)
+
+        s = dedent('''\
+        async def coro(cmd):
+            lst = []
+            async for i in cmd:
+                lst.append(i)
+            return lst
+        ''')
+        lcl = {}
+        exec(s, globals(), lcl)
+        coro = lcl['coro']
+
+        # fetch 'field:foo:*' items expected tuple with 3 fields and 3 values
+        ret = yield from coro(self.redis.ihscan(key, match=b'field:foo:*'))
+        self.assertEqual(set(ret), {(b'field:foo:3', b'value:3'),
+                                    (b'field:foo:6', b'value:6'),
+                                    (b'field:foo:9', b'value:9')})
+
+        # fetch 'field:bar:*' items expected tuple with 7 fields and 7 values
+        ret = yield from coro(self.redis.ihscan(key, match=b'field:bar:*'))
+        self.assertEqual(set(ret), {(b'field:bar:1', b'value:1'),
+                                    (b'field:bar:2', b'value:2'),
+                                    (b'field:bar:4', b'value:4'),
+                                    (b'field:bar:5', b'value:5'),
+                                    (b'field:bar:7', b'value:7'),
+                                    (b'field:bar:8', b'value:8'),
+                                    (b'field:bar:10', b'value:10')})
+
+        # SCAN family functions do not guarantee that the number of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+        ret = yield from coro(self.redis.ihscan(key, count=1))
+        self.assertEqual(set(ret), {(b'field:foo:3', b'value:3'),
+                                    (b'field:foo:6', b'value:6'),
+                                    (b'field:foo:9', b'value:9'),
+                                    (b'field:bar:1', b'value:1'),
+                                    (b'field:bar:2', b'value:2'),
+                                    (b'field:bar:4', b'value:4'),
+                                    (b'field:bar:5', b'value:5'),
+                                    (b'field:bar:7', b'value:7'),
+                                    (b'field:bar:8', b'value:8'),
+                                    (b'field:bar:10', b'value:10')})
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.ihscan(None)
 
 
 class HashCommandsEncodingTest(RedisEncodingTest):

@@ -1,7 +1,10 @@
 import asyncio
 import json
+import sys
 
 from .errors import ChannelClosedError
+
+PY_35 = sys.version_info >= (3, 5)
 
 _NOTSET = object()
 
@@ -193,3 +196,42 @@ class coerced_keys_dict(dict):
         if not isinstance(other, bytes):
             other = _converters[type(other)](other)
         return dict.__contains__(self, other)
+
+
+if PY_35:
+    class _BaseScanIter:
+        __slots__ = ('_scan', '_cur', '_ret')
+
+        def __init__(self, scan):
+            self._scan = scan
+            self._cur = b'0'
+            self._ret = []
+
+        @asyncio.coroutine
+        def __aiter__(self):
+            return self
+
+    class _ScanIter(_BaseScanIter):
+
+        @asyncio.coroutine
+        def __anext__(self):
+            while not self._ret and self._cur:
+                self._cur, self._ret = yield from self._scan(self._cur)
+            if not self._cur and not self._ret:
+                raise StopAsyncIteration  # noqa
+            else:
+                ret = self._ret.pop(0)
+                return ret
+
+    class _ScanIterPairs(_BaseScanIter):
+
+        @asyncio.coroutine
+        def __anext__(self):
+            while not self._ret and self._cur:
+                self._cur, ret = yield from self._scan(self._cur)
+                self._ret = list(zip(ret[::2], ret[1::2]))
+            if not self._cur and not self._ret:
+                raise StopAsyncIteration  # noqa
+            else:
+                ret = self._ret.pop(0)
+                return ret

@@ -1,14 +1,18 @@
 import asyncio
+import sys
 import unittest
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from textwrap import dedent
+
+PY_35 = sys.version_info > (3, 5)
 
 
 class SetCommandsTest(RedisTest):
 
     @asyncio.coroutine
-    def add(self, key, memeber):
-        ok = yield from self.redis.connection.execute(b'sadd', key, memeber)
+    def add(self, key, members):
+        ok = yield from self.redis.connection.execute(b'sadd', key, members)
         self.assertEqual(ok, 1)
 
     @run_until_complete
@@ -396,6 +400,8 @@ class SetCommandsTest(RedisTest):
     @run_until_complete
     def test_sscan(self):
         key = b'key:sscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
         for i in range(1, 11):
             foo_or_bar = 'bar' if i % 3 else 'foo'
             member = 'member:{}:{}'.format(foo_or_bar, i).encode('utf-8')
@@ -421,3 +427,59 @@ class SetCommandsTest(RedisTest):
 
         with self.assertRaises(TypeError):
             yield from self.redis.sscan(None)
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'SSCAN is available since redis>=2.8.0')
+    @run_until_complete
+    def test_isscan(self):
+        key = b'key:sscan'
+        for k in (yield from self.redis.keys(key+b'*')):
+            self.redis.delete(k)
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            member = 'member:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+            yield from self.add(key, member)
+
+        s = dedent('''\
+        async def coro(cmd):
+            lst = []
+            async for i in cmd:
+                lst.append(i)
+            return lst
+        ''')
+        lcl = {}
+        exec(s, globals(), lcl)
+        coro = lcl['coro']
+
+        ret = yield from coro(self.redis.isscan(key, match=b'member:foo:*'))
+        self.assertEqual(set(ret), {b'member:foo:3',
+                                    b'member:foo:6',
+                                    b'member:foo:9'})
+
+        ret = yield from coro(self.redis.isscan(key, match=b'member:bar:*'))
+        self.assertEqual(set(ret), {b'member:bar:1',
+                                    b'member:bar:2',
+                                    b'member:bar:4',
+                                    b'member:bar:5',
+                                    b'member:bar:7',
+                                    b'member:bar:8',
+                                    b'member:bar:10'})
+
+        # SCAN family functions do not guarantee that the number (count) of
+        # elements returned per call are in a given range. So here
+        # just dummy test, that *count* argument does not break something
+        ret = yield from coro(self.redis.isscan(key, count=2))
+        self.assertEqual(set(ret), {b'member:foo:3',
+                                    b'member:foo:6',
+                                    b'member:foo:9',
+                                    b'member:bar:1',
+                                    b'member:bar:2',
+                                    b'member:bar:4',
+                                    b'member:bar:5',
+                                    b'member:bar:7',
+                                    b'member:bar:8',
+                                    b'member:bar:10'})
+
+        with self.assertRaises(TypeError):
+            yield from self.redis.isscan(None)
