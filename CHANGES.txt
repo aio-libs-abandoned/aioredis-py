@@ -8,7 +8,8 @@ Changes
 
   - New scan commands API (``iscan``, ``izscan``, ``ihscan``);
 
-  - Pool made awaitable (allowing ``with await pool: ...`` constructs);
+  - Pool made awaitable (allowing ``with await pool: ...`` and ``async
+    with pool.get() as conn:`` constructs);
 
 * Fixed dropping closed connections from free pool
   (see `#83 <https://github.com/aio-libs/aioredis/issues/83>`_);
