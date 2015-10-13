@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.2.4 (xxxx-xx-xx)
+0.2.4 (2015-10-13)
 ^^^^^^^^^^^^^^^^^^
 
 * Python 3.5 ``async`` support:
