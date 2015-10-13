@@ -6,7 +6,7 @@
 aioredis
 ========
 
-asyncio (:pep:`3156`) Redis support.
+asyncio (:pep:`3156`) Redis client library.
 
 The library is intended to provide simple and clear interface to Redis
 based on :term:`asyncio`.
@@ -24,7 +24,7 @@ Pipelining support                  Yes
 Pub/Sub support                     Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested python versions              `3.3, 3.4 <travis_>`_
+Tested python versions              `3.3, 3.4, 3.5 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================

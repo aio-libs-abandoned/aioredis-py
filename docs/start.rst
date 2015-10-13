@@ -153,3 +153,47 @@ Pub/Sub example:
            # ... process message ...
 
    tsk = asyncio.async(async_reader(ch1))
+
+
+Python 3.5 async/await support
+------------------------------
+
+:mod:`aioredis` is compatible with :pep:`492`.
+
+:class:`~aioredis.Pool` can be used with :ref:`async with<async with>`:
+
+.. code-block:: python
+
+    pool = yield from aioredis.create_pool(
+        ('localhost', 6379))
+
+    async with pool.get() as conn:
+        await conn.get(key)
+
+It also can be used with await:
+
+.. code-block:: python
+
+    pool = yield from aioredis.create_pool(
+        ('localhost', 6379))
+    with (await pool) as conn:
+        await conn.get(key)
+
+New ``scan``-family commands added with support of :ref:`async for<async for>`:
+
+.. code-block:: python
+
+    redis = yield from aioredis.create_redis(
+        ('localhost', 6379))
+
+    async for key in redis.iscan(match='something*'):
+        print('match', key)
+
+    async for name, val in redis.ihscan(key, match='something*'):
+        print('Matched:', name, '->', val)
+
+    async for val in redis.isscan(key, match='something*'):
+        print('Matched:', val)
+
+    async for val, score in redis.izscan(key, match='something*'):
+        print('Matched:', val, ':', score)
