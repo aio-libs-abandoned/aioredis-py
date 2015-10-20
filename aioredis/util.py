@@ -147,8 +147,11 @@ class Channel:
         self._queue.put_nowait(data)
         if self._waiter is not None:
             fut, self._waiter = self._waiter, None
-            if not fut.cancelled():
-                fut.set_result(None)
+            if fut.done():
+                assert fut.cancelled(), (
+                    "Waiting future is in wrong state", self, fut)
+                return
+            fut.set_result(None)
 
     def close(self):
         """Marks channel as inactive.

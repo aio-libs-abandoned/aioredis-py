@@ -267,7 +267,13 @@ class RedisConnection:
                 waiter.cancel()
             else:
                 waiter.set_exception(exc)
-        for ch in self._pubsub_channels.values():
+        while self._pubsub_channels:
+            _, ch = self._pubsub_channels.popitem()
+            logger.debug("Closing pubsub channel %r", ch)
+            ch.close()
+        while self._pubsub_patterns:
+            _, ch = self._pubsub_patterns.popitem()
+            logger.debug("Closing pubsub pattern %r", ch)
             ch.close()
 
     @property

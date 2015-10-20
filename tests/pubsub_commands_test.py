@@ -175,3 +175,62 @@ class PubSubCommandsTest(RedisTest):
         yield from sub.psubscribe('chan:*')
         res = yield from redis.pubsub_numpat()
         self.assertEqual(res, 1)
+
+    @run_until_complete
+    def test_close_pubsub_channels(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        ch, = yield from sub.subscribe('chan:1')
+
+        @asyncio.coroutine
+        def waiter(ch):
+            msg = _empty = object()
+            while (yield from ch.wait_message()):
+                msg = yield from ch.get()
+            # assert no ``ch.get()`` call
+            self.assertIs(msg, _empty)
+
+        tsk = asyncio.async(waiter(ch), loop=self.loop)
+        sub.close()
+        yield from sub.wait_closed()
+        yield from tsk
+
+    @run_until_complete
+    def test_close_pubsub_patterns(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        ch, = yield from sub.psubscribe('chan:*')
+
+        @asyncio.coroutine
+        def waiter(ch):
+            msg = _empty = object()
+            while (yield from ch.wait_message()):
+                msg = yield from ch.get()
+            # assert no ``ch.get()`` call
+            self.assertIs(msg, _empty)
+
+        tsk = asyncio.async(waiter(ch), loop=self.loop)
+        sub.close()
+        yield from sub.wait_closed()
+        yield from tsk
+
+    @run_until_complete
+    def test_close_cancelled_pubsub_channel(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        ch, = yield from sub.subscribe('chan:1')
+
+        @asyncio.coroutine
+        def waiter(ch):
+            with self.assertRaises(asyncio.CancelledError):
+                while (yield from ch.wait_message()):
+                    yield from ch.get()
+
+        tsk = asyncio.async(waiter(ch), loop=self.loop)
+        yield from asyncio.sleep(0, loop=self.loop)
+        tsk.cancel()
+        sub.close()
+        yield from sub.wait_closed()
