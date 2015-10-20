@@ -1,7 +1,12 @@
+import sys
 import unittest
 import asyncio
+from textwrap import dedent
 
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+
+
+PY_35 = sys.version_info > (3, 5)
 
 
 class PubSubCommandsTest(RedisTest):
@@ -234,3 +239,35 @@ class PubSubCommandsTest(RedisTest):
         tsk.cancel()
         sub.close()
         yield from sub.wait_closed()
+
+    @unittest.skipUnless(PY_35, "Python 3.5+ required")
+    @run_until_complete
+    def test_pubsub_channel_iget(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        pub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        ch, = yield from sub.subscribe('chan:1')
+
+        s = dedent('''\
+        async def coro(ch):
+            lst = []
+            async for msg in ch.iget():
+                lst.append(msg)
+            return lst
+        ''')
+        lcl = {}
+        exec(s, globals(), lcl)
+        coro = lcl['coro']
+
+        tsk = asyncio.async(coro(ch), loop=self.loop)
+        yield from pub.publish_json('chan:1', {'Hello': 'World'})
+        yield from pub.publish_json('chan:1', ['message'])
+        yield from asyncio.sleep(0, loop=self.loop)
+        ch.close()
+        lst = yield from tsk
+        self.assertEqual(lst, [
+            b'{"Hello": "World"}',
+            b'["message"]',
+            ])

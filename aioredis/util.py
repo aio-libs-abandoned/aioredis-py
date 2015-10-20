@@ -90,7 +90,7 @@ class Channel:
         Can be used with ``while``:
 
         >>> ch = conn.pubsub_channels['chan:1']
-        >>> while ch.is_active():
+        >>> while ch.is_active:
         ...     msg = yield from ch.get()   # may stuck for a long time
 
         """
@@ -122,6 +122,12 @@ class Channel:
     def get_json(self, encoding='utf-8'):
         """Shortcut to get JSON messages."""
         return (yield from self.get(encoding=encoding, decoder=json.loads))
+
+    if PY_35:
+        def iget(self, *, encoding=None, decoder=None):
+            """Same as get method but its native coroutine."""
+            return _ChannelIter(self, encoding=encoding,
+                                decoder=decoder)
 
     @asyncio.coroutine
     def wait_message(self):
@@ -239,3 +245,25 @@ if PY_35:
             else:
                 ret = self._ret.pop(0)
                 return ret
+
+    class _ChannelIter:
+
+        __slots__ = ('_ch', '_args', '_kw')
+
+        def __init__(self, ch, *args, **kw):
+            self._ch = ch
+            self._args = args
+            self._kw = kw
+
+        @asyncio.coroutine
+        def __aiter__(self):
+            return self
+
+        @asyncio.coroutine
+        def __anext__(self):
+            if not self._ch.is_active:
+                raise StopAsyncIteration
+            msg = yield from self._ch.get(*self._args, **self._kw)
+            if msg is None:
+                raise StopAsyncIteration
+            return msg
