@@ -267,7 +267,8 @@ class RedisConnection:
                 waiter.cancel()
             else:
                 waiter.set_exception(exc)
-        # TODO: close all subscribed channels
+        for ch in self._pubsub_channels.values():
+            ch.close()
 
     @property
     def closed(self):

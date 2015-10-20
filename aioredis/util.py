@@ -147,7 +147,8 @@ class Channel:
         self._queue.put_nowait(data)
         if self._waiter is not None:
             fut, self._waiter = self._waiter, None
-            fut.set_result(None)
+            if not fut.cancelled():
+                fut.set_result(None)
 
     def close(self):
         """Marks channel as inactive.
