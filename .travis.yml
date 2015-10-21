@@ -12,6 +12,7 @@ env:
   - REDIS_PORT_1=6379
   - REDIS_PORT_2=6380
   - REDIS_SOCKET=/tmp/aioredis.sock
+  - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.4"
   matrix:
   - REDIS_TAG=2.6.17
   - REDIS_TAG=2.8.22
@@ -28,9 +29,12 @@ before_install:
 - export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
 - >
   if [ ! -x "$REDIS_BIN/redis-server" ]; then
-    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
-    tar -xvf redis-${REDIS_TAG}.tar.gz
-    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
+    # For proper caching we must build all redis versions
+    for TAG in ${ALL_REDIS_TAGS}; do
+      wget -c https://github.com/antirez/redis/archive/${TAG}.tar.gz -O redis-${TAG}.tar.gz
+      tar -xvf redis-${TAG}.tar.gz
+      make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
+    done;
   fi
 
 install:
