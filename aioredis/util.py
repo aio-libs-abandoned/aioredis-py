@@ -107,6 +107,11 @@ class Channel:
             raise ChannelClosedError()
         msg = yield from self._queue.get()
         if msg is None:
+            # TODO: maybe we need an explicit marker for "end of stream"
+            #       currently, returning None may overlap with
+            #       possible return value from `decoder`
+            #       so the user would have to check `ch.is_active`
+            #       to determine if its EoS or payload
             return
         if self._is_pattern:
             dest_channel, msg = msg
@@ -262,8 +267,8 @@ if PY_35:
         @asyncio.coroutine
         def __anext__(self):
             if not self._ch.is_active:
-                raise StopAsyncIteration
+                raise StopAsyncIteration    # noqa
             msg = yield from self._ch.get(*self._args, **self._kw)
             if msg is None:
-                raise StopAsyncIteration
+                raise StopAsyncIteration    # noqa
             return msg
