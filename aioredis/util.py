@@ -130,7 +130,13 @@ class Channel:
 
     if PY_35:
         def iget(self, *, encoding=None, decoder=None):
-            """Same as get method but its native coroutine."""
+            """Same as get method but its native coroutine.
+
+            Usage example:
+
+            >>> async for msg in ch.iget():
+            ...     print(msg)
+            """
             return _ChannelIter(self, encoding=encoding,
                                 decoder=decoder)
 
