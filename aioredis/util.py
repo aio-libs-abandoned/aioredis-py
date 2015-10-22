@@ -90,7 +90,7 @@ class Channel:
         Can be used with ``while``:
 
         >>> ch = conn.pubsub_channels['chan:1']
-        >>> while ch.is_active():
+        >>> while ch.is_active:
         ...     msg = yield from ch.get()   # may stuck for a long time
 
         """
@@ -107,6 +107,11 @@ class Channel:
             raise ChannelClosedError()
         msg = yield from self._queue.get()
         if msg is None:
+            # TODO: maybe we need an explicit marker for "end of stream"
+            #       currently, returning None may overlap with
+            #       possible return value from `decoder`
+            #       so the user would have to check `ch.is_active`
+            #       to determine if its EoS or payload
             return
         if self._is_pattern:
             dest_channel, msg = msg
@@ -122,6 +127,18 @@ class Channel:
     def get_json(self, encoding='utf-8'):
         """Shortcut to get JSON messages."""
         return (yield from self.get(encoding=encoding, decoder=json.loads))
+
+    if PY_35:
+        def iter(self, *, encoding=None, decoder=None):
+            """Same as get method but its native coroutine.
+
+            Usage example:
+
+            >>> async for msg in ch.iter():
+            ...     print(msg)
+            """
+            return _ChannelIter(self, encoding=encoding,
+                                decoder=decoder)
 
     @asyncio.coroutine
     def wait_message(self):
@@ -239,3 +256,25 @@ if PY_35:
             else:
                 ret = self._ret.pop(0)
                 return ret
+
+    class _ChannelIter:
+
+        __slots__ = ('_ch', '_args', '_kw')
+
+        def __init__(self, ch, *args, **kw):
+            self._ch = ch
+            self._args = args
+            self._kw = kw
+
+        @asyncio.coroutine
+        def __aiter__(self):
+            return self
+
+        @asyncio.coroutine
+        def __anext__(self):
+            if not self._ch.is_active:
+                raise StopAsyncIteration    # noqa
+            msg = yield from self._ch.get(*self._args, **self._kw)
+            if msg is None:
+                raise StopAsyncIteration    # noqa
+            return msg
