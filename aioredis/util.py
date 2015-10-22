@@ -129,12 +129,12 @@ class Channel:
         return (yield from self.get(encoding=encoding, decoder=json.loads))
 
     if PY_35:
-        def iget(self, *, encoding=None, decoder=None):
+        def iter(self, *, encoding=None, decoder=None):
             """Same as get method but its native coroutine.
 
             Usage example:
 
-            >>> async for msg in ch.iget():
+            >>> async for msg in ch.iter():
             ...     print(msg)
             """
             return _ChannelIter(self, encoding=encoding,

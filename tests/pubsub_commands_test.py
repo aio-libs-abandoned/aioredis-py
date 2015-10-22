@@ -242,7 +242,7 @@ class PubSubCommandsTest(RedisTest):
 
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @run_until_complete
-    def test_pubsub_channel_iget(self):
+    def test_pubsub_channel_iter(self):
         sub = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         pub = yield from self.create_redis(
@@ -253,7 +253,7 @@ class PubSubCommandsTest(RedisTest):
         s = dedent('''\
         async def coro(ch):
             lst = []
-            async for msg in ch.iget():
+            async for msg in ch.iter():
                 lst.append(msg)
             return lst
         ''')
