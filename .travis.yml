@@ -70,7 +70,12 @@ script:
 
 # checking examples
 - >
-  for example in $(find $PWD/examples/ -name "*.py"); do
+  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
+    export EXAMPLES=$(find $PWD/examples/ -name "*.py");
+  else
+    export EXAMPLES=$(find $PWD/examples/ -name "*.py" -not -name "*_3.5_*.py");
+  fi;
+  for example in $EXAMPLES; do
     echo "Running ${example}";
     python3 ${example} || exit 1;
   done;

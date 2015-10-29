@@ -17,39 +17,20 @@ When you making a call with ``yield from`` you will be waiting result,
 but if you want to make several calls simply collect futures of those calls
 and then gather results.
 
-Simple example shows both cases::
+Simple example show both cases (:download:`get source code<../examples/pipeline.py>`):
 
-   # No pipelining;
-   @asyncio.coroutine
-   def wait_each_command():
-       val = yield from redis.get('foo')    # wait until `val` is available
-       cnt = yield from redis.incr('bar')   # wait until `cnt` is available
-       return val, cnt
-
-   # Sending multiple commands and then gathering results
-   @asyncio.coroutine
-   def pipelined():
-       fut1 = redis.get('foo')      # issue command and return future
-       fut2 = redis.incr('bar')     # issue command and return future
-       val, cnt = yield from asyncio.gather(fut1, fut2) # block until results are available
-       return val, cnt
-
+.. literalinclude:: ../examples/pipeline.py
+   :lines: 9-25
 
 .. note::
 
    As as convenience :mod:`aioredis` provides
    :meth:`~TransactionsCommandsMixin.pipeline`
-   method allowing to execute bulk of commands at once::
+   method allowing to execute bulk of commands at once
+   (:download:`get source code<../examples/pipeline.py>`):
 
-      @asyncio.coroutine
-      def convenience_way():
-          pipe = redis.pipeline()
-          fut1 = pipe.get('foo')
-          fut2 = pipe.incr('bar')
-          result = yield from pipe.execute()
-          val, cnt = yield from asyncio.gather(fut1, fut2)
-          assert result == [val, cnt]
-          return val, cnt
+      .. literalinclude:: ../examples/pipeline.py
+         :lines: 25-36
 
 
 Multi/Exec transactions
@@ -72,20 +53,13 @@ The later one is described in more details.
 :class:`~aioredis.commands.MultiExec` object which is used for buffering commands and
 then executing them inside MULTI/EXEC block.
 
-Here is simple example:
+Here is simple example
+(:download:`get source code<../examples/transaction2.py>`):
 
-.. code-block:: python
+.. literalinclude:: ../examples/transaction2.py
+   :lines: 9-18
    :linenos:
    :emphasize-lines: 6
-
-    @asyncio.coroutine
-    def transaction():
-        tr = redis.multi_exec()
-        future1 = tr.set('foo', '123')
-        future2 = tr.set('bar', '321')
-        result = yield from tr.execute()
-        assert result == (yield from asyncio.gather(future1, future2)
-        return result
 
 As you can notice ``yield from`` is **only** used at line 6 with ``tr.execute``
 and **not with** ``tr.set(...)`` calls.
@@ -123,36 +97,11 @@ or :meth:`~aioredis.Channel.get_json` coroutines.
 .. warning::
    Pub/Sub mode currenty can not be used with :class:`~aioredis.Pool`.
 
-Pub/Sub example:
+Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
 
-.. code-block:: python
-
-   sub = yield from aioredis.create_redis(
-        ('localhost', 6379))
-
-   ch1, ch2 = yield from sub.subscribe('channel:1', 'channel:2')
-   assert isinstance(ch1, aioredis.Channel)
-   assert isinstance(ch2, aioredis.Channel)
-
-   @asyncio.coroutine
-   def async_reader(channel):
-       while (yield from channel.wait_message()):
-           msg = yield from channel.get()
-           # ... process message ...
-
-   tsk = asyncio.async(async_reader(ch1))
-
-   # Or alternatively:
-
-   @asyncio.coroutine
-   def async_reader2(channel):
-       while True:
-           msg = yield from channel.get()
-           if msg is None:
-               break
-           # ... process message ...
-
-   tsk = asyncio.async(async_reader(ch1))
+.. literalinclude:: ../examples/pubsub2.py
+   :language: python
+   :lines: 7-35
 
 
 Python 3.5 async/await support
@@ -160,40 +109,24 @@ Python 3.5 async/await support
 
 :mod:`aioredis` is compatible with :pep:`492`.
 
-:class:`~aioredis.Pool` can be used with :ref:`async with<async with>`:
+:class:`~aioredis.Pool` can be used with :ref:`async with<async with>`
+(:download:`get source code<../examples/python_3.5_pool.py>`):
 
-.. code-block:: python
+.. literalinclude:: ../examples/python_3.5_pool.py
+   :language: python
+   :lines: 7-9,21-24
 
-    pool = yield from aioredis.create_pool(
-        ('localhost', 6379))
 
-    async with pool.get() as conn:
-        await conn.get(key)
+It also can be used with ``await``:
 
-It also can be used with await:
+.. literalinclude:: ../examples/python_3.5_pool.py
+   :language: python
+   :lines: 7-9,28-30
 
-.. code-block:: python
 
-    pool = yield from aioredis.create_pool(
-        ('localhost', 6379))
-    with (await pool) as conn:
-        await conn.get(key)
+New ``scan``-family commands added with support of :ref:`async for<async for>`
+(:download:`get source code<../examples/python_3.5_iscan.py>`):
 
-New ``scan``-family commands added with support of :ref:`async for<async for>`:
-
-.. code-block:: python
-
-    redis = yield from aioredis.create_redis(
-        ('localhost', 6379))
-
-    async for key in redis.iscan(match='something*'):
-        print('match', key)
-
-    async for name, val in redis.ihscan(key, match='something*'):
-        print('Matched:', name, '->', val)
-
-    async for val in redis.isscan(key, match='something*'):
-        print('Matched:', val)
-
-    async for val, score in redis.izscan(key, match='something*'):
-        print('Matched:', val, ':', score)
+.. literalinclude:: ../examples/python_3.5_iscan.py
+   :language: python
+   :lines: 7-10,31-33,36-38,41-43,46-48
