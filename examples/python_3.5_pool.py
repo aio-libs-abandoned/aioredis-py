@@ -2,28 +2,25 @@ import asyncio
 import aioredis
 
 
-@asyncio.coroutine
-def main():
+async def main():
 
-    pool = yield from aioredis.create_pool(
+    pool = await aioredis.create_pool(
         ('localhost', 6379))
 
-    with (yield from pool) as conn:
-        yield from conn.set('my-key', 'value')
+    async with pool.get() as conn:
+        await conn.set('my-key', 'value')
 
-    yield from async_with(pool)
-    yield from with_await(pool)
-    yield from pool.clear()
+    await async_with(pool)
+    await with_await(pool)
+    await pool.clear()
 
 
-@asyncio.coroutine
 async def async_with(pool):
     async with pool.get() as conn:
         value = await conn.get('my-key')
         print('raw value:', value)
 
 
-@asyncio.coroutine
 async def with_await(pool):
     with (await pool) as conn:
         value = await conn.get('my-key')
