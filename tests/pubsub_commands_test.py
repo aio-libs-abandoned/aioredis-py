@@ -240,6 +240,28 @@ class PubSubCommandsTest(RedisTest):
         sub.close()
         yield from sub.wait_closed()
 
+    @run_until_complete
+    def test_channel_get_after_close(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        pub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        ch, = yield from sub.subscribe('chan:1')
+
+        @asyncio.coroutine
+        def waiter():
+            while True:
+                msg = yield from ch.get()
+                if msg is None:
+                    break
+                self.assertEqual(msg, b'message')
+
+        tsk = asyncio.async(waiter(), loop=self.loop)
+
+        yield from pub.publish('chan:1', 'message')
+        sub.close()
+        yield from tsk
+
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @run_until_complete
     def test_pubsub_channel_iter(self):
