@@ -46,6 +46,7 @@ def pubsub():
             yield from pub.publish(ch, msg)
     pub.close()
     sub.close()
+    yield from asyncio.sleep(0)
     yield from pub.wait_closed()
     yield from sub.wait_closed()
     yield from asyncio.gather(tsk1, tsk2)
