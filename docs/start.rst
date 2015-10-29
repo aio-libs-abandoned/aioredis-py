@@ -114,14 +114,14 @@ Python 3.5 async/await support
 
 .. literalinclude:: ../examples/python_3.5_pool.py
    :language: python
-   :lines: 7-9,21-24
+   :lines: 6-8,19-21
 
 
 It also can be used with ``await``:
 
 .. literalinclude:: ../examples/python_3.5_pool.py
    :language: python
-   :lines: 7-9,28-30
+   :lines: 6-8,25-27
 
 
 New ``scan``-family commands added with support of :ref:`async for<async for>`
@@ -129,4 +129,4 @@ New ``scan``-family commands added with support of :ref:`async for<async for>`
 
 .. literalinclude:: ../examples/python_3.5_iscan.py
    :language: python
-   :lines: 7-10,31-33,36-38,41-43,46-48
+   :lines: 6-9,29-31,34-36,39-41,44-46
