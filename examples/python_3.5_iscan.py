@@ -2,31 +2,29 @@ import asyncio
 import aioredis
 
 
-@asyncio.coroutine
-def main():
+async def main():
 
-    redis = yield from aioredis.create_redis(
+    redis = await aioredis.create_redis(
         ('localhost', 6379))
 
-    yield from redis.delete('something:hash',
-                            'something:set',
-                            'something:zset')
-    yield from redis.mset('something', 'value',
-                          'something:else', 'else')
-    yield from redis.hmset('something:hash',
-                           'something:1', 'value:1',
-                           'something:2', 'value:2')
-    yield from redis.sadd('something:set', 'something:1',
-                          'something:2', 'something:else')
-    yield from redis.zadd('something:zset', 1, 'something:1',
-                          2, 'something:2', 3, 'something:else')
+    await redis.delete('something:hash',
+                       'something:set',
+                       'something:zset')
+    await redis.mset('something', 'value',
+                     'something:else', 'else')
+    await redis.hmset('something:hash',
+                      'something:1', 'value:1',
+                      'something:2', 'value:2')
+    await redis.sadd('something:set', 'something:1',
+                     'something:2', 'something:else')
+    await redis.zadd('something:zset', 1, 'something:1',
+                     2, 'something:2', 3, 'something:else')
 
-    yield from go(redis)
+    await go(redis)
     redis.close()
-    yield from redis.wait_closed()
+    await redis.wait_closed()
 
 
-@asyncio.coroutine
 async def go(redis):
     async for key in redis.iscan(match='something*'):
         print('Matched:', key)
