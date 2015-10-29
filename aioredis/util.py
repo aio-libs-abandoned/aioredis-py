@@ -104,6 +104,10 @@ class Channel:
         """
         assert decoder is None or callable(decoder), decoder
         if not self.is_active:
+            if self._queue.qsize() == 1:
+                msg = self._queue.get_nowait()
+                assert msg is None, msg
+                return
             raise ChannelClosedError()
         msg = yield from self._queue.get()
         if msg is None:
