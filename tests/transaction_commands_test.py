@@ -158,3 +158,17 @@ class TransactionCommandsTest(RedisTest):
 
         res = yield from self.redis.unwatch()
         self.assertTrue(res)
+
+    @run_until_complete
+    def test_encoding(self):
+        res = yield from self.redis.set('key', 'value')
+        self.assertTrue(res)
+
+        tr = self.redis.multi_exec()
+        fut1 = tr.get('key')
+        fut2 = tr.get('key', encoding='utf-8')
+        yield from tr.execute()
+        res = yield from fut1
+        self.assertEqual(res, b'value')
+        res = yield from fut2
+        self.assertEqual(res, 'value')
