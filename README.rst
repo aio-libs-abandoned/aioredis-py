@@ -7,8 +7,8 @@ asyncio (PEP 3156) Redis client library.
    :target: https://travis-ci.org/aio-libs/aioredis
 
 
-.. image:: https://coveralls.io/repos/aio-libs/aioredis/badge.png?branch=master
-   :target: https://coveralls.io/r/aio-libs/aioredis?branch=master
+.. image:: https://coveralls.io/repos/aio-libs/aioredis/badge.svg?branch=master&service=github
+   :target: https://coveralls.io/github/aio-libs/aioredis?branch=master
 
 Features
 --------
