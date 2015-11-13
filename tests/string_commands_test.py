@@ -642,4 +642,5 @@ class StringCommandsEncodingTest(RedisEncodingTest):
         res = yield from self.redis.setnx(TEST_KEY, 'value')
         self.assertEqual(res, 'QUEUED')
 
-        yield from self.redis._conn.execute('DISCARD')
+        ok = yield from self.redis._conn.execute('DISCARD')
+        self.assertEqual(ok, 'OK')
