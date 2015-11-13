@@ -157,6 +157,8 @@ class RedisConnection:
                     waiter.set_exception(exc)
                     return
             waiter.set_result(obj)
+            if self._in_transaction is not None:
+                self._in_transaction.append((encoding, cb))
 
     def _process_pubsub(self, obj, *, _process_waiters=True):
         """Processes pubsub messages."""
@@ -217,8 +219,10 @@ class RedisConnection:
             cb = partial(self._set_db, args=args)
         elif command in ('MULTI', b'MULTI'):
             cb = self._start_transaction
-        elif command in ('EXEC', b'EXEC', 'DISCARD', b'DISCARD'):
-            cb = self._end_transaction
+        elif command in ('EXEC', b'EXEC'):
+            cb = partial(self._end_transaction, discard=False)
+        elif command in ('DISCARD', b'DISCARD'):
+            cb = partial(self._end_transaction, discard=True)
         else:
             cb = None
         if encoding is _NOTSET:
@@ -324,9 +328,27 @@ class RedisConnection:
         self._transaction_error = None
         return ok
 
-    def _end_transaction(self, obj):
+    def _end_transaction(self, obj, discard):
         assert self._in_transaction is not None
         self._transaction_error = None
+        recall, self._in_transaction = self._in_transaction, None
+        recall.popleft()  # ignore first (its _start_transaction)
+        if discard:
+            return obj
+        assert len(obj) == len(recall), (obj, recall)
+        res = []
+        for o, (encoding, cb) in zip(obj, recall):
+            if not isinstance(o, RedisError):
+                try:
+                    if encoding:
+                        o = decode(o, encoding)
+                    if cb:
+                        o = cb(o)
+                except Exception as err:
+                    res.append(err)
+                    continue
+            res.append(o)
+        return res
 
     def _update_pubsub(self, obj):
         *head, subscriptions = obj
