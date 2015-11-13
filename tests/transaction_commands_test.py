@@ -158,3 +158,46 @@ class TransactionCommandsTest(RedisTest):
 
         res = yield from self.redis.unwatch()
         self.assertTrue(res)
+
+    @run_until_complete
+    def test_encoding(self):
+        res = yield from self.redis.set('key', 'value')
+        self.assertTrue(res)
+        res = yield from self.redis.hmset(
+            'hash-key', 'foo', 'val1', 'bar', 'val2')
+        self.assertTrue(res)
+
+        tr = self.redis.multi_exec()
+        fut1 = tr.get('key')
+        fut2 = tr.get('key', encoding='utf-8')
+        fut3 = tr.hgetall('hash-key', encoding='utf-8')
+        yield from tr.execute()
+        res = yield from fut1
+        self.assertEqual(res, b'value')
+        res = yield from fut2
+        self.assertEqual(res, 'value')
+        res = yield from fut3
+        self.assertEqual(res, {'foo': 'val1', 'bar': 'val2'})
+
+    @run_until_complete
+    def test_global_encoding(self):
+        redis = yield from self.create_redis(
+            ('localhost', self.redis_port),
+            loop=self.loop, encoding='utf-8')
+        res = yield from redis.set('key', 'value')
+        self.assertTrue(res)
+        res = yield from redis.hmset(
+            'hash-key', 'foo', 'val1', 'bar', 'val2')
+        self.assertTrue(res)
+
+        tr = redis.multi_exec()
+        fut1 = tr.get('key')
+        fut2 = tr.get('key', encoding='utf-8')
+        fut3 = tr.hgetall('hash-key', encoding='utf-8')
+        yield from tr.execute()
+        res = yield from fut1
+        self.assertEqual(res, 'value')
+        res = yield from fut2
+        self.assertEqual(res, 'value')
+        res = yield from fut3
+        self.assertEqual(res, {'foo': 'val1', 'bar': 'val2'})
