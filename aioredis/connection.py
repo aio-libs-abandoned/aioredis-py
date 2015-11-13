@@ -86,8 +86,8 @@ class RedisConnection:
         self._closed = False
         self._close_waiter = asyncio.Future(loop=self._loop)
         self._reader_task.add_done_callback(self._close_waiter.set_result)
-        self._in_transaction = False
-        self._transaction_error = None
+        self._in_transaction = None
+        self._transaction_error = None  # XXX: never used?
         self._in_pubsub = 0
         self._pubsub_channels = coerced_keys_dict()
         self._pubsub_patterns = coerced_keys_dict()
@@ -118,7 +118,7 @@ class RedisConnection:
                     # so connection must be closed
                     self._closing = True
                     self._loop.call_soon(self._do_close, exc)
-                    if self._in_transaction:
+                    if self._in_transaction is not None:
                         self._transaction_error = exc
                     return
                 else:
@@ -141,7 +141,7 @@ class RedisConnection:
             return
         if isinstance(obj, RedisError):
             waiter.set_exception(obj)
-            if self._in_transaction:
+            if self._in_transaction is not None:
                 self._transaction_error = obj
         else:
             if encoding is not None:
@@ -150,9 +150,13 @@ class RedisConnection:
                 except Exception as exc:
                     waiter.set_exception(exc)
                     return
-            waiter.set_result(obj)
             if cb is not None:
-                cb(obj)
+                try:
+                    obj = cb(obj)
+                except Exception as exc:
+                    waiter.set_exception(exc)
+                    return
+            waiter.set_result(obj)
 
     def _process_pubsub(self, obj, *, _process_waiters=True):
         """Processes pubsub messages."""
@@ -312,15 +316,16 @@ class RedisConnection:
     def _set_db(self, ok, args):
         assert ok in {b'OK', 'OK'}, ok
         self._db = args[0]
+        return ok
 
     def _start_transaction(self, ok):
-        assert not self._in_transaction
-        self._in_transaction = True
+        assert self._in_transaction is None
+        self._in_transaction = deque()
         self._transaction_error = None
+        return ok
 
-    def _end_transaction(self, ok):
-        assert self._in_transaction
-        self._in_transaction = False
+    def _end_transaction(self, obj):
+        assert self._in_transaction is not None
         self._transaction_error = None
 
     def _update_pubsub(self, obj):
@@ -328,11 +333,12 @@ class RedisConnection:
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
         if not was_in_pubsub:
             self._process_pubsub(obj, _process_waiters=False)
+        return obj
 
     @property
     def in_transaction(self):
         """Set to True when MULTI command was issued."""
-        return self._in_transaction
+        return self._in_transaction is not None
 
     @property
     def in_pubsub(self):
