@@ -49,9 +49,11 @@ def create_connection(address, *, db=None, password=None,
 
     if isinstance(address, (list, tuple)):
         host, port = address
+        logger.debug("Creating tcp connection to %r", address)
         reader, writer = yield from asyncio.open_connection(
             host, port, loop=loop)
     else:
+        logger.debug("Creating unix connection to %r", address)
         reader, writer = yield from asyncio.open_unix_connection(
             address, loop=loop)
     conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
