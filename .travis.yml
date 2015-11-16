@@ -12,11 +12,11 @@ env:
   - REDIS_PORT_1=6379
   - REDIS_PORT_2=6380
   - REDIS_SOCKET=/tmp/aioredis.sock
-  - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.4"
+  - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5"
   matrix:
   - REDIS_TAG=2.6.17
   - REDIS_TAG=2.8.22
-  - REDIS_TAG=3.0.4
+  - REDIS_TAG=3.0.5
 
 cache:
   directories:
