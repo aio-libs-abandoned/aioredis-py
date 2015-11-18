@@ -136,8 +136,12 @@ class RedisPool:
         self._used.remove(conn)
         if not conn.closed:
             if conn.in_transaction:
-                logger.warning("Connection %r in transaction, closing it.",
-                               conn)
+                logger.warning(
+                    "Connection %r is in transaction, closing it.", conn)
+                conn.close()
+            elif conn.in_pubsub:
+                logger.warning(
+                    "Connection %r is in subscribe mode, closing it.", conn)
                 conn.close()
             elif conn.db == self.db:
                 if self.maxsize and self.freesize < self.maxsize:
