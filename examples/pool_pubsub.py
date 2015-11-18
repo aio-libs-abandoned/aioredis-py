@@ -65,4 +65,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import os
+    if 'redis_version:2.6' not in os.environ.get('REDIS_VERSION', ''):
+        main()
