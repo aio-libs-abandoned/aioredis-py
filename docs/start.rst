@@ -94,14 +94,22 @@ or :meth:`~aioredis.Channel.get_json` coroutines.
    In Pub/Sub mode redis connection can only receive messages or issue
    (P)SUBSCRIBE / (P)UNSUBSCRIBE commands.
 
-.. warning::
-   Pub/Sub mode currenty can not be used with :class:`~aioredis.Pool`.
-
 Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
 
 .. literalinclude:: ../examples/pubsub2.py
    :language: python
    :lines: 7-35
+
+.. warning::
+   Using Pub/Sub mode with :class:`~aioredis.Pool` is possible but
+   only within ``with`` block or by explicitly ``acquiring/releasing``
+   connection. See example below.
+
+Pub/Sub example (:download:`get source code<../examples/pool_pubsub.py>`):
+
+.. literalinclude:: ../examples/pool_pubsub.py
+   :language: python
+   :lines: 14-36
 
 
 Python 3.5 async/await support
