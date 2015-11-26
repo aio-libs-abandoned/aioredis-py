@@ -110,6 +110,10 @@ Requirements
     hiredis is preferred requirement.
     Pure-python fallback protocol parser is TBD.
 
+Discussion list
+---------------
+
+*aio-libs* google group: https://groups.google.com/forum/#!forum/aio-libs
 
 License
 -------
