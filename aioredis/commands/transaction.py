@@ -2,7 +2,7 @@ import asyncio
 import functools
 
 from ..errors import RedisError, PipelineError, MultiExecError
-from ..util import wait_ok
+from ..util import wait_ok, async_task
 
 
 class TransactionsCommandsMixin:
@@ -133,7 +133,7 @@ class Pipeline:
             @functools.wraps(attr)
             def wrapper(*args, **kw):
                 try:
-                    task = asyncio.async(attr(*args, **kw), loop=self._loop)
+                    task = async_task(attr(*args, **kw), loop=self._loop)
                 except Exception as exc:
                     task = asyncio.Future(loop=self._loop)
                     task.set_exception(exc)

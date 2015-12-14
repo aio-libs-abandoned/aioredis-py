@@ -282,3 +282,9 @@ if PY_35:
             if msg is None:
                 raise StopAsyncIteration    # noqa
             return msg
+
+
+if hasattr(asyncio, 'ensure_future'):
+    async_task = asyncio.ensure_future
+else:
+    async_task = asyncio.async

@@ -4,6 +4,7 @@ import sys
 
 from .commands import create_redis, Redis
 from .log import logger
+from .util import async_task
 
 
 PY_35 = sys.version_info >= (3, 5)
@@ -152,7 +153,7 @@ class RedisPool:
             else:
                 conn.close()
         # FIXME: check event loop is not closed
-        asyncio.async(self._wakeup(), loop=self._loop)
+        async_task(self._wakeup(), loop=self._loop)
 
     def _drop_closed(self):
         for i in range(self.freesize):

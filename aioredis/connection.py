@@ -10,6 +10,7 @@ from .util import (
     coerced_keys_dict,
     Channel,
     decode,
+    async_task
     )
 from .errors import RedisError, ProtocolError, ReplyError
 from .log import logger
@@ -82,7 +83,7 @@ class RedisConnection:
         self._waiters = deque()
         self._parser = hiredis.Reader(protocolError=ProtocolError,
                                       replyError=ReplyError)
-        self._reader_task = asyncio.Task(self._read_data(), loop=self._loop)
+        self._reader_task = async_task(self._read_data(), loop=self._loop)
         self._db = 0
         self._closing = False
         self._closed = False
