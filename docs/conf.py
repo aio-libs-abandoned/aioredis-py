@@ -49,7 +49,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'aioredis'
-copyright = '2014, Alexey Popravka'
+copyright = '2014-2016, Alexey Popravka'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
