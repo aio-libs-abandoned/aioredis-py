@@ -1,6 +1,7 @@
 import types
 import asyncio
 import hiredis
+import socket
 from functools import partial
 from collections import deque
 
@@ -53,6 +54,8 @@ def create_connection(address, *, db=None, password=None,
         logger.debug("Creating tcp connection to %r", address)
         reader, writer = yield from asyncio.open_connection(
             host, port, loop=loop)
+        sock = writer.transport.get_extra_info('socket')
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     else:
         logger.debug("Creating unix connection to %r", address)
         reader, writer = yield from asyncio.open_unix_connection(
