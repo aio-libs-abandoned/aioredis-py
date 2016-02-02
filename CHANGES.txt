@@ -40,7 +40,7 @@ Changes
 0.2.2 (2015-07-07)
 ^^^^^^^^^^^^^^^^^^
 
-* Decoding data with ``encoding`` paramter now takes into account
+* Decoding data with ``encoding`` parameter now takes into account
   list (array) replies
   (see `#68 <https://github.com/aio-libs/aioredis/pull/68>`_);
 
