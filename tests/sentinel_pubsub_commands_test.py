@@ -9,7 +9,8 @@ class PubSubCommandsTest(RedisSentinelTest):
     @asyncio.coroutine
     def _reader(self, channel, output, waiter, conn=None):
         if conn is None:
-            master = yield from self.redis_sentinel.discover_master(self.sentinel_name)
+            master = yield from self.redis_sentinel.discover_master(
+                self.sentinel_name)
             conn = yield from self.create_connection(
                 master, loop=self.loop)
         yield from conn.execute('subscribe', channel)
