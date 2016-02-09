@@ -19,26 +19,37 @@ else:
         REDIS_VERSION = (0, 0, 0)
 
 
-def run_until_complete(fun):
-    if not asyncio.iscoroutinefunction(fun):
-        fun = asyncio.coroutine(fun)
+def run_until_complete(fun_or_timeout):
+    if isinstance(fun_or_timeout, int):
+        timeout = fun_or_timeout
 
-    @wraps(fun)
-    def wrapper(test, *args, **kw):
-        loop = test.loop
-        if hasattr(test, "timeout"):
-            timeout = test.timeout
-        elif hasattr(fun, "timeout"):
-            timeout = fun.timeout.args[0]
-        else:
+        def deco(fun):
+            if not asyncio.iscoroutinefunction(fun):
+                fun = asyncio.coroutine(fun)
+
+            @wraps(fun)
+            def wrapper(test, *args, **kw):
+                loop = test.loop
+                ret = loop.run_until_complete(
+                    asyncio.wait_for(fun(test, *args, **kw), timeout,
+                                     loop=loop))
+                return ret
+        return deco
+    else:
+        fun = fun_or_timeout
+        if not asyncio.iscoroutinefunction(fun):
+            fun = asyncio.coroutine(fun)
+
+        @wraps(fun)
+        def wrapper(test, *args, **kw):
             timeout = 15
-        if timeout is None:
-            ret = loop.run_until_complete(fun(test, *args, **kw))
-        else:
+            loop = test.loop
             ret = loop.run_until_complete(
                 asyncio.wait_for(fun(test, *args, **kw), timeout, loop=loop))
-        return ret
-    return wrapper
+            return ret
+
+        return wrapper
+
 
 
 class BaseTest(unittest.TestCase):

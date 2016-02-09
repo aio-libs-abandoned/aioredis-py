@@ -1,5 +1,4 @@
 import asyncio
-import pytest
 
 from ._testutil import RedisSentinelTest, run_until_complete
 import aioredis.errors
@@ -57,8 +56,7 @@ class SentinelTest(RedisSentinelTest):
                 caught = True
         self.assertTrue(caught)
 
-    @run_until_complete
-    @pytest.mark.timeout(600)
+    @run_until_complete(600)
     def test_sentinel_slave_fail(self):
         caught = False
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
