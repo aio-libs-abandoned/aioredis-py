@@ -38,54 +38,37 @@ class SentinelTest(RedisSentinelTest):
 
     @run_until_complete
     def test_sentinel_slave(self):
-        caught = False
         key, field, value = b'key:hset', b'bar', b'zap'
         redis = yield from self.get_slave_connection()
         exists = yield from redis.hexists(key, field)
         if exists:
-            try:
+            with self.assertRaises(aioredis.errors.ReadOnlyError):
                 yield from redis.hdel(key, field)
-            except aioredis.errors.ReadOnlyError:
-                caught = True
-            self.assertTrue(caught)
-            caught = False
 
-        try:
+        with self.assertRaises(aioredis.errors.ReadOnlyError):
             yield from redis.hset(key, field, value)
-        except aioredis.errors.ReadOnlyError:
-                caught = True
-        self.assertTrue(caught)
 
     @run_until_complete(600)
     def test_sentinel_slave_fail(self):
-        caught = False
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         key, field, value = b'key:hset', b'bar', b'zap'
         redis = yield from self.get_slave_connection()
         exists = yield from redis.hexists(key, field)
         if exists:
-            try:
+            with self.assertRaises(aioredis.errors.ReadOnlyError):
                 yield from redis.hdel(key, field)
-            except aioredis.errors.ReadOnlyError:
-                caught = True
-            self.assertTrue(caught)
-            caught = False
 
-        try:
+        with self.assertRaises(aioredis.errors.ReadOnlyError):
             yield from redis.hset(key, field, value)
-        except aioredis.errors.ReadOnlyError:
-                caught = True
-        self.assertTrue(caught)
+
         ret = yield from sentinel_connection.sentinel_failover(
             self.sentinel_name)
         self.assertEquals(ret, True)
         yield from asyncio.sleep(2, loop=self.loop)
-        caught = False
-        try:
+
+        with self.assertRaises(aioredis.errors.ReadOnlyError):
             yield from redis.hset(key, field, value)
-        except aioredis.errors.ReadOnlyError:
-                caught = True
-        self.assertFalse(caught)
+
         ret = yield from sentinel_connection.sentinel_failover(
             self.sentinel_name)
         self.assertEquals(ret, True)
@@ -231,13 +214,9 @@ class SentinelTest(RedisSentinelTest):
     @run_until_complete
     def test_get_sentinel_set_error(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
-        caught = False
-        try:
-            yield from sentinel_connection.sentinel_set(self.sentinel_name,
-                                                        'foo', 'bar')
-        except aioredis.errors.ReplyError:
-            caught = True
-        self.assertTrue(caught)
+        with self.assertRaises(aioredis.errors.ReplyError):
+            yield from sentinel_connection.sentinel_set(
+                self.sentinel_name, 'foo', 'bar')
 
     @run_until_complete
     def test_get_sentinel_set(self):
