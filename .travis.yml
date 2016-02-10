@@ -63,6 +63,8 @@ before_script:
 - $REDIS_BIN/redis-cli -p $REDIS_PORT_2 PING
 - export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
 - echo $REDIS_VERSION
+- $REDIS_BIN/redis-sentinel redis-${REDIS_TAG}/sentinel.conf --daemonize yes
+- sleep 1
 
 script:
 - flake8 aioredis tests
