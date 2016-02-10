@@ -49,8 +49,7 @@ def decode(obj, encoding):
     if isinstance(obj, bytes):
         return obj.decode(encoding)
     elif isinstance(obj, list):
-        return [o.decode(encoding) if isinstance(o, bytes) else o
-                for o in obj]
+        return [decode(o, encoding) for o in obj]
     return obj
 
 
