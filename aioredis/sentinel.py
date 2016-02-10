@@ -65,6 +65,7 @@ class SentinelManagedConnection(object):
         if self._conn is not None:
             yield from self._conn.wait_closed()
 
+    @asyncio.coroutine
     def _execute(self, *args, pub_sub=False, **kwargs):
         first_time = True
 
