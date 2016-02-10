@@ -13,7 +13,7 @@ from .util import (
     decode,
     async_task
     )
-from .errors import RedisError, ProtocolError, ReplyError
+from .errors import RedisError, ProtocolError, ReplyError, ReadOnlyError
 from .log import logger
 
 
@@ -147,6 +147,9 @@ class RedisConnection:
                 "waiting future is in wrong state", waiter, obj)
             return
         if isinstance(obj, RedisError):
+            if isinstance(obj, ReplyError):
+                if obj.args[0].startswith('READONLY'):
+                    obj = ReadOnlyError(obj.args[0])
             waiter.set_exception(obj)
             if self._in_transaction is not None:
                 self._transaction_error = obj
