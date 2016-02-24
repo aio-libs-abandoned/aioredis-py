@@ -51,7 +51,7 @@ class ClusterCommandsMixin:
 
     def cluster_info(self):
         """Provides info about Redis Cluster node state."""
-        pass    # TODO: Implement
+        return self._conn.execute(b'CLUSTER', b'INFO')
 
     def cluster_keyslot(self, key):
         """Returns the hash slot of the specified key."""
@@ -64,7 +64,7 @@ class ClusterCommandsMixin:
 
     def cluster_nodes(self):
         """Get Cluster config for the node."""
-        pass    # TODO: Implement
+        return self._conn.execute(b'CLUSTER', b'NODES')
 
     def cluster_replicate(self, node_id):
         """Reconfigure a node as a slave of the specified master node."""

@@ -40,6 +40,8 @@ class RedisPool:
                  *, minsize, maxsize, commands_factory, ssl=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
+        if minsize > maxsize:
+            maxsize = minsize
         self._address = address
         self._db = db
         self._password = password
@@ -244,7 +246,7 @@ class _ConnectionContextManager:
     def __enter__(self):
         return self._conn
 
-    def __exit__(self, exc_type, exc_value, tb):
+    def __exit__(self, *_):
         try:
             self._pool.release(self._conn)
         finally:

@@ -39,3 +39,6 @@ class ChannelClosedError(RedisError):
 class ConnectionClosedError(RedisError):
     """Raised if connection to server was closed.
     """
+
+class RedisClusterError(RedisError):
+    """Cluster exception class for aioredis exceptions."""
