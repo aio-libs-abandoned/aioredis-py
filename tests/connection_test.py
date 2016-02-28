@@ -113,9 +113,12 @@ class ConnectionTest(BaseTest):
     def test_closed_connection_with_none_reader(self):
         address = ('localhost', self.redis_port)
         conn = yield from self.create_connection(address, loop=self.loop)
+        stored_reader = conn._reader
         conn._reader = None
         with self.assertRaises(ConnectionClosedError):
             yield from conn.execute('blpop', 'test', 0)
+        conn._reader = stored_reader
+        conn.close()
 
     @run_until_complete
     def test_auth(self):
