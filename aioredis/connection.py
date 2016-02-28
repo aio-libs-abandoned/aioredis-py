@@ -13,7 +13,12 @@ from .util import (
     decode,
     async_task
     )
-from .errors import RedisError, ProtocolError, ReplyError
+from .errors import (
+    ConnectionClosedError,
+    RedisError,
+    ProtocolError,
+    ReplyError
+    )
 from .log import logger
 
 
@@ -208,8 +213,8 @@ class RedisConnection:
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        assert self._reader and not self._reader.at_eof(), (
-            "Connection closed or corrupted")
+        if self._reader is None or self._reader.at_eof():
+            raise ConnectionClosedError("Connection closed or corrupted")
         if command is None:
             raise TypeError("command must not be None")
         if None in set(args):

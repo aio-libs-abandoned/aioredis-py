@@ -3,7 +3,12 @@ import asyncio
 import os
 
 from ._testutil import BaseTest, run_until_complete
-from aioredis import ReplyError, ProtocolError, RedisError
+from aioredis import (
+    ConnectionClosedError,
+    ProtocolError,
+    RedisError,
+    ReplyError,
+    )
 
 
 class ConnectionTest(BaseTest):
@@ -85,12 +90,12 @@ class ConnectionTest(BaseTest):
         conn = loop.run_until_complete(self.create_connection(
             ('localhost', self.redis_port), loop=loop))
         conn.close()
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ConnectionClosedError):
             loop.run_until_complete(conn.select(1))
 
         conn = loop.run_until_complete(self.create_connection(
             ('localhost', self.redis_port), loop=loop))
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ConnectionClosedError):
             conn.close()
             fut = conn.select(1)
             loop.run_until_complete(fut)
@@ -101,8 +106,16 @@ class ConnectionTest(BaseTest):
         conn = yield from self.create_connection(
             self.redis_socket, loop=self.loop)
         conn.close()
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ConnectionClosedError):
             yield from conn.select(1)
+
+    @run_until_complete
+    def test_closed_connection_with_none_reader(self):
+        address = ('localhost', self.redis_port)
+        conn = yield from self.create_connection(address, loop=self.loop)
+        conn._reader = None
+        with self.assertRaises(ConnectionClosedError):
+            yield from conn.execute('blpop', 'test', 0)
 
     @run_until_complete
     def test_auth(self):

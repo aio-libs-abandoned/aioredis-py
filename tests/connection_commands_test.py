@@ -1,5 +1,6 @@
+from aioredis import ConnectionClosedError, ReplyError
+
 from ._testutil import RedisTest, run_until_complete
-from aioredis import ReplyError
 
 
 class ConnectionCommandsTest(RedisTest):
@@ -38,7 +39,7 @@ class ConnectionCommandsTest(RedisTest):
         resp = yield from self.redis.quit()
         self.assertEqual(resp, b'OK')
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ConnectionClosedError):
             yield from self.redis.ping()
 
     @run_until_complete
