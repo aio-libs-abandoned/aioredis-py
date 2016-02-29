@@ -3,9 +3,6 @@ import asyncio
 from aioredis.util import wait_ok
 
 
-def nativestr(x):
-    return x if isinstance(x, str) else x.decode('utf-8', 'replace')
-
 SENTINEL_STATE_TYPES = {
     'can-failover-its-master': int,
     'config-epoch': int,
@@ -65,7 +62,7 @@ def parse_sentinel_masters(fut):
     response = yield from fut
     result = {}
     for item in response:
-        state = parse_sentinel_state(map(nativestr, item))
+        state = parse_sentinel_state(item)
         result[state['name']] = state
     return result
 
@@ -73,13 +70,13 @@ def parse_sentinel_masters(fut):
 @asyncio.coroutine
 def parse_sentinel_slaves_and_sentinels(fut):
     response = yield from fut
-    return [parse_sentinel_state(map(nativestr, item)) for item in response]
+    return [parse_sentinel_state(item) for item in response]
 
 
 @asyncio.coroutine
 def parse_sentinel_master(fut):
     response = yield from fut
-    return parse_sentinel_state(map(nativestr, response))
+    return parse_sentinel_state(response)
 
 
 @asyncio.coroutine
@@ -100,22 +97,25 @@ class SentinelCommandsMixin:
 
     def sentinel_master(self, service_name):
         """Returns a dictionary containing the specified masters state."""
-        fut = self._conn.execute(b'SENTINEL', b'MASTER', service_name)
+        fut = self._conn.execute(b'SENTINEL', b'MASTER', service_name,
+                                 encoding='utf-8')
         return parse_sentinel_master(fut)
 
     def sentinel_masters(self):
         """Returns a list of dictionaries containing each master's state."""
-        fut = self._conn.execute(b'SENTINEL', b'MASTERS')
+        fut = self._conn.execute(b'SENTINEL', b'MASTERS', encoding='utf-8')
         return parse_sentinel_masters(fut)
 
     def sentinel_slaves(self, service_name):
         """Returns a list of slaves for ``service_name``"""
-        fut = self._conn.execute(b'SENTINEL', b'SLAVES', service_name)
+        fut = self._conn.execute(b'SENTINEL', b'SLAVES', service_name,
+                                 encoding='utf-8')
         return parse_sentinel_slaves_and_sentinels(fut)
 
     def sentinel_sentinels(self, service_name):
         """Returns a list of sentinels for ``service_name``"""
-        fut = self._conn.execute(b'SENTINEL', b'SENTINELS', service_name)
+        fut = self._conn.execute(b'SENTINEL', b'SENTINELS', service_name,
+                                 encoding='utf-8')
         return parse_sentinel_slaves_and_sentinels(fut)
 
     def sentinel_monitor(self, name, ip, port, quorum):
