@@ -66,7 +66,7 @@ class SentinelTest(RedisSentinelTest):
             yield from redis.hset(key, field, value)
 
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
 
@@ -74,7 +74,7 @@ class SentinelTest(RedisSentinelTest):
             yield from redis.hset(key, field, value)
 
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
         redis = yield from self.get_slave_connection()
@@ -99,13 +99,13 @@ class SentinelTest(RedisSentinelTest):
         ret = yield from redis.hset(key, field, value)
         self.assertEquals(ret, 1)
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
         ret = yield from redis.hset(key, field, value)
         self.assertEquals(ret, 0)
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
         redis = yield from self.get_slave_connection()
@@ -121,18 +121,18 @@ class SentinelTest(RedisSentinelTest):
     def test_failover(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         func = sentinel_connection.sentinel_get_master_addr_by_name
-        orig_master = yield from func(self.sentinel_name)
+        orig_master = yield from func(self.master_name)
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
-        new_master = yield from func(self.sentinel_name)
+        new_master = yield from func(self.master_name)
         self.assertNotEquals(orig_master, new_master)
         ret = yield from sentinel_connection.sentinel_failover(
-            self.sentinel_name)
+            self.master_name)
         self.assertTrue(ret)
         yield from asyncio.sleep(2, loop=self.loop)
-        new_master = yield from func(self.sentinel_name)
+        new_master = yield from func(self.master_name)
         self.assertEquals(orig_master, new_master)
         redis = yield from self.get_slave_connection()
         key, field, value = b'key:hset', b'bar', b'zap'
@@ -148,7 +148,7 @@ class SentinelTest(RedisSentinelTest):
     def test_get_master(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         func = sentinel_connection.sentinel_get_master_addr_by_name
-        master = yield from func(self.sentinel_name)
+        master = yield from func(self.master_name)
         self.assertIsInstance(master, tuple)
         self.assertEquals(len(master), 2)
         self.assertEquals(master[1], 6379)
@@ -158,10 +158,10 @@ class SentinelTest(RedisSentinelTest):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         master = yield from sentinel_connection.sentinel_masters()
         self.assertIsInstance(master, dict)
-        self.assertIn(self.sentinel_name, master)
-        master = master[self.sentinel_name]
+        self.assertIn(self.master_name, master)
+        master = master[self.master_name]
         self.assertFalse(master['is_slave'])
-        self.assertEquals(master['name'], self.sentinel_name)
+        self.assertEquals(master['name'], self.master_name)
         for k in ['is_master_down', 'num-other-sentinels', 'flags', 'is_odown',
                   'quorum', 'ip', 'failover-timeout', 'runid', 'info-refresh',
                   'config-epoch', 'parallel-syncs', 'role-reported-time',
@@ -176,10 +176,10 @@ class SentinelTest(RedisSentinelTest):
     def test_get_master_info(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         master = yield from sentinel_connection.sentinel_master(
-            self.sentinel_name)
+            self.master_name)
         self.assertIsInstance(master, dict)
         self.assertFalse(master['is_slave'])
-        self.assertEquals(master['name'], self.sentinel_name)
+        self.assertEquals(master['name'], self.master_name)
         for k in ['is_master_down', 'num-other-sentinels', 'flags', 'is_odown',
                   'quorum', 'ip', 'failover-timeout', 'runid', 'info-refresh',
                   'config-epoch', 'parallel-syncs', 'role-reported-time',
@@ -194,7 +194,7 @@ class SentinelTest(RedisSentinelTest):
     def test_get_slave_info(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         slave = yield from sentinel_connection.sentinel_slaves(
-            self.sentinel_name)
+            self.master_name)
         self.assertEquals(len(slave), 1)
         slave = slave[0]
         self.assertIsInstance(slave, dict)
@@ -212,7 +212,7 @@ class SentinelTest(RedisSentinelTest):
     def test_get_sentinel_info(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         sentinel = yield from sentinel_connection.sentinel_sentinels(
-            self.sentinel_name)
+            self.master_name)
         self.assertEqual(len(sentinel), 0)
 
     @run_until_complete
@@ -220,17 +220,17 @@ class SentinelTest(RedisSentinelTest):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
         with self.assertRaises(aioredis.errors.ReplyError):
             yield from sentinel_connection.sentinel_set(
-                self.sentinel_name, 'foo', 'bar')
+                self.master_name, 'foo', 'bar')
 
     @run_until_complete
     def test_get_sentinel_set(self):
         sentinel_connection = self.redis_sentinel.get_sentinel_connection(0)
-        resp = yield from sentinel_connection.sentinel_set(self.sentinel_name,
+        resp = yield from sentinel_connection.sentinel_set(self.master_name,
                                                            'failover-timeout',
                                                            1100)
         self.assertEqual(resp, True)
         master = yield from sentinel_connection.sentinel_masters()
-        self.assertEqual(master[self.sentinel_name]['failover-timeout'], 1100)
+        self.assertEqual(master[self.master_name]['failover-timeout'], 1100)
 
     @run_until_complete
     def test_get_sentinel_monitor(self):

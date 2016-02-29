@@ -13,7 +13,7 @@ class PubSubCommandsTest(RedisSentinelTest):
     def _reader(self, channel, output, waiter, conn=None):
         if conn is None:
             master = yield from self.redis_sentinel.discover_master(
-                self.sentinel_name)
+                self.master_name)
             conn = yield from self.create_connection(
                 master, loop=self.loop)
         yield from conn.execute('subscribe', channel)

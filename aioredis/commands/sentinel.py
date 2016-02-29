@@ -135,6 +135,6 @@ class SentinelCommandsMixin:
         return wait_ok(fut)
 
     def sentinel_failover(self, name):
-        """Remove a master from Sentinel's monitoring"""
+        """Force a failover of a named master."""
         fut = self._conn.execute(b'SENTINEL', b'FAILOVER', name)
         return wait_ok(fut)
