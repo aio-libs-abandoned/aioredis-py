@@ -1,3 +1,5 @@
+import os
+import unittest
 import asyncio
 
 from ._testutil import RedisSentinelTest, run_until_complete
@@ -20,6 +22,8 @@ It had one local diff:
 """
 
 
+@unittest.skipUnless(os.environ.get('SENTINEL'),
+                     "Configured to run on travis")
 class SentinelTest(RedisSentinelTest):
 
     @run_until_complete

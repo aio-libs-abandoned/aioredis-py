@@ -1,9 +1,12 @@
+import os
 import unittest
 import asyncio
 
 from ._testutil import RedisSentinelTest, run_until_complete, REDIS_VERSION
 
 
+@unittest.skipUnless(os.environ.get('SENTINEL'),
+                     "Configured to run on travis")
 class PubSubCommandsTest(RedisSentinelTest):
 
     @asyncio.coroutine
