@@ -3,11 +3,12 @@ from .commands import Redis, create_redis, create_reconnecting_redis
 from .pool import RedisPool, create_pool
 from .util import Channel
 from .errors import (
-    RedisError,
-    ProtocolError,
-    ReplyError,
-    PipelineError,
+    ConnectionClosedError,
     MultiExecError,
+    PipelineError,
+    ProtocolError,
+    RedisError,
+    ReplyError,
     )
 
 
@@ -18,4 +19,4 @@ __version__ = '0.2.4'
  create_redis, create_reconnecting_redis, Redis,
  create_pool, RedisPool, Channel,
  RedisError, ProtocolError, ReplyError,
- PipelineError, MultiExecError)
+ PipelineError, MultiExecError, ConnectionClosedError)

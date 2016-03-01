@@ -34,4 +34,7 @@ class ChannelClosedError(RedisError):
     """Raised when Pub/Sub channel is unsubscribed and messages queue is empty.
     """
 
-# TODO: add ConnectionClosed exception.
+
+class ConnectionClosedError(RedisError):
+    """Raised if connection to server was closed.
+    """
