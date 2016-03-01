@@ -100,7 +100,7 @@ class PubSubCommandsTest(RedisSentinelTest):
     def test_pubsub_channels(self):
         redis = yield from self.get_master_connection()
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [])
+        self.assertEqual(res, [b'__sentinel__:hello'])
 
         res = yield from redis.pubsub_channels('chan:*')
         self.assertEqual(res, [])
@@ -109,7 +109,7 @@ class PubSubCommandsTest(RedisSentinelTest):
         yield from sub.subscribe('chan:1')
 
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [b'chan:1'])
+        self.assertEqual(set(res), {b'__sentinel__:hello', b'chan:1'})
 
         res = yield from redis.pubsub_channels('ch*')
         self.assertEqual(res, [b'chan:1'])
@@ -118,7 +118,7 @@ class PubSubCommandsTest(RedisSentinelTest):
         yield from sub.psubscribe('chan:*')
 
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [])
+        self.assertEqual(res, [b'__sentinel__:hello'])
 
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'PUBSUB NUMSUB is available since redis>=2.8.0')
