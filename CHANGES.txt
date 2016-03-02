@@ -1,6 +1,51 @@
 Changes
 -------
 
+0.2.5 (2016-03-02)
+^^^^^^^^^^^^^^^^^^
+
+* Close all Pub/Sub channels on connection close
+  (see `#88 <https://github.com/aio-libs/aioredis/issues/88>`_);
+
+* Add ``iter()`` method to ``aioredis.Channel`` allowing to use it
+  with ``async for``
+  (see `#89 <https://github.com/aio-libs/aioredis/issues/89>`_);
+
+* Inline code samples in docs made runnable and downloadable
+  (see `#92 <https://github.com/aio-libs/aioredis/issues/92>`_);
+
+* Python 3.5 examples converted to use ``async``/``await`` syntax
+  (see `#93 <https://github.com/aio-libs/aioredis/issues/93>`_);
+
+* Fix Multi/Exec to honor encoding parameter
+  (see `#94 <https://github.com/aio-libs/aioredis/issues/94>`_
+  and `#97 <https://github.com/aio-libs/aioredis/issues/97>`_);
+
+* Add debug message in ``create_connection``
+  (see `#90 <https://github.com/aio-libs/aioredis/issues/90>`_);
+
+* Replace ``asyncio.async`` calls with wrapper that respects asyncio version
+  (see `#101 <https://github.com/aio-libs/aioredis/issues/101>`_);
+
+* Use NODELAY option for TCP sockets
+  (see `#105 <https://github.com/aio-libs/aioredis/issues/105>`_);
+
+* New ``aioredis.ConnectionClosedError`` exception added. Raised if
+  connection to Redis server is lost
+  (see `#109 <https://github.com/aio-libs/aioredis/issues/109>`_);
+
+* Fix RedisPool to close and drop connection in subscribe mode on release;
+
+* Fix ``aioredis.util.decode`` to recursively decode list responses;
+
+* More examples added and docs updated;
+
+* Add google groups link to README;
+
+* Bump year in LICENSE and docs;
+
+
+
 0.2.4 (2015-10-13)
 ^^^^^^^^^^^^^^^^^^
 

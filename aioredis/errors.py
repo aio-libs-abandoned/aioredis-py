@@ -4,6 +4,7 @@ __all__ = [
     'ReplyError',
     'PipelineError',
     'MultiExecError',
+    'ConnectionClosedError',
     ]
 
 

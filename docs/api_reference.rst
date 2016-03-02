@@ -366,6 +366,10 @@ Exceptions
 
    Raised for Redis :term:`error replies`.
 
+.. exception:: ConnectionClosedError
+
+   Raised if connection to server was lost/closed.
+
 .. exception:: PipelineError
 
    Raised from :meth:`~.commands.TransactionsCommandsMixin.pipeline`
