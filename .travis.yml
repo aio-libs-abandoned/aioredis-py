@@ -82,3 +82,13 @@ script:
 
 after_script:
 - coveralls
+
+deploy:
+  provider: pypi
+  user: popravich
+  password:
+    secure: R8Rcp/DAqsDhNd1i1JTpeMZTTIzvfZVjFU09yqoMC7jQ6I/50EFlPpiLIocEvBJgkJteS0snFP/raCes8LodoB4k12PqgCfrSZpaK959LXLUuWWvjcBHaIK/kVtzsmr0ZM0s1qQSQVqLn1yRYWMRoFcqHYbXBhXqrNRjXvBoerY=
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+    python: "3.5"
