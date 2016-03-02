@@ -32,7 +32,8 @@ Changes
 
 * New ``aioredis.ConnectionClosedError`` exception added. Raised if
   connection to Redis server is lost
-  (see `#109 <https://github.com/aio-libs/aioredis/issues/109>`_);
+  (see `#108 <https://github.com/aio-libs/aioredis/issues/108>`_
+  and `#109 <https://github.com/aio-libs/aioredis/issues/109>`_);
 
 * Fix RedisPool to close and drop connection in subscribe mode on release;
 
