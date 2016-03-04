@@ -30,7 +30,10 @@ class ServerCommandsMixin:
         raise NotImplementedError
 
     def client_list(self):
-        """Get the list of client connections."""
+        """Get the list of client connections.
+
+        Returns list of ClientInfo named tuples.
+        """
         fut = self._conn.execute(b'CLIENT', b'LIST', encoding='utf-8')
         return wait_convert(fut, to_tuples)
 
@@ -56,11 +59,17 @@ class ServerCommandsMixin:
         fut = self._conn.execute(b'CLIENT', b'SETNAME', name)
         return wait_ok(fut)
 
-    def config_get(self, parameter):
-        """Get the value of a configuration parameter."""
+    def config_get(self, parameter='*'):
+        """Get the value of a configuration parameter(s).
+
+        If called without argument will return all parameters.
+
+        :raises TypeError: if parameter is not string
+        """
         if not isinstance(parameter, str):
             raise TypeError("parameter must be str")
-        fut = self._conn.execute(b'CONFIG', b'GET', parameter)
+        fut = self._conn.execute(b'CONFIG', b'GET', parameter,
+                                 encoding='utf-8')
         return wait_make_dict(fut)
 
     def config_rewrite(self):
@@ -122,8 +131,13 @@ class ServerCommandsMixin:
         raise NotImplementedError
 
     def role(self):
-        """Return the role of the instance in the context of replication."""
-        return self._conn.execute(b'ROLE')
+        """Return the role of the server instance.
+
+        Returns named tuples describing role of the instance.
+        For fields information see http://redis.io/commands/role#output-format
+        """
+        fut = self._conn.execute(b'ROLE', encoding='utf-8')
+        return wait_convert(fut, parse_role)
 
     def save(self):
         """Synchronously save the dataset to disk."""
@@ -187,6 +201,7 @@ def to_tuples(value):
     line = next(lines)
     line = list(map(_split, line.split(' ')))
     ClientInfo = namedtuple('ClientInfo', ' '.join(k for k, v in line))
+    # TODO: parse flags and other known fields
     result = [ClientInfo(**dict(line))]
     for line in lines:
         result.append(ClientInfo(**dict(map(_split, line.split(' ')))))
@@ -205,3 +220,27 @@ def parse_info(info):
                 value = dict(map(lambda i: i.split('='), value.split(',')))
             tmp[key] = value
     return res
+
+
+# XXX: may change in future
+#      (may be hard to maintain for new/old redis versions)
+MasterInfo = namedtuple('MasterInfo', 'role replication_offset slaves')
+MasterSlaveInfo = namedtuple('MasterSlaveInfo', 'ip port ack_offset')
+
+SlaveInfo = namedtuple('SlaveInfo',
+                       'role master_ip master_port state received')
+
+SentinelInfo = namedtuple('SentinelInfo', 'masters')
+
+
+def parse_role(role):
+    type_ = role[0]
+    if type_ == 'master':
+        slaves = [MasterSlaveInfo(s[0], int(s[1]), int(s[2]))
+                  for s in role[2]]
+        return MasterInfo(role[0], int(role[1]), slaves)
+    elif type_ == 'slave':
+        return SlaveInfo(role[0], role[1], int(role[2]), role[3], int(role[4]))
+    elif type_ == 'sentinel':
+        return SentinelInfo(*role)
+    return role
