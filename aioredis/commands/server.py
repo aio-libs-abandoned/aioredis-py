@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET
+from aioredis.log import logger
 
 
 class ServerCommandsMixin:
@@ -154,12 +155,17 @@ class ServerCommandsMixin:
         else:
             return self._conn.execute(b'SHUTDOWN')
 
-    def slaveof(self, host=None, port=None):
+    def slaveof(self, host=_NOTSET, port=None):
         """Make the server a slave of another instance,
         or promote it as master.
 
-        Calling slaveof without arguments will send ``SLAVEOF NO ONE``.
+        Calling slaveof(None) will send ``SLAVEOF NO ONE``.
         """
+        if host is _NOTSET:
+            logger.warning("slaveof() form is deprecated!"
+                           " Use slaveof(None) to turn redis into a MASTER.")
+            host = None
+            # TODO: drop in 0.3.0
         if host is None and port is None:
             return self._conn.execute(b'SLAVEOF', b'NO', b'ONE')
         return self._conn.execute(b'SLAVEOF', host, port)
