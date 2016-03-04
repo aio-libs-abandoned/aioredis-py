@@ -3,7 +3,7 @@ import unittest
 from unittest import mock
 
 from aioredis import ReplyError
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 class ServerCommandsTest(RedisTest):
@@ -13,8 +13,7 @@ class ServerCommandsTest(RedisTest):
         res = yield from self.redis.client_list()
         self.assertIsInstance(res, list)
         res = [dict(i._asdict()) for i in res]
-        self.assertEqual(res, [{
-            'id': mock.ANY,
+        expected = {
             'addr': mock.ANY,
             'fd': mock.ANY,
             'age': '0',
@@ -32,9 +31,14 @@ class ServerCommandsTest(RedisTest):
             'events': 'r',
             'cmd': 'client',
             'name': '',
-            }])
+            }
+        if REDIS_VERSION >= (2, 8, 12):
+            expected['id'] = mock.ANY
+        self.assertEqual(res, [expected])
 
     @run_until_complete
+    @unittest.skipIf(REDIS_VERSION < (2, 9, 50),
+                     'CLIENT PAUSE is available since redis>=2.9.50')
     def test_client_pause(self):
         res = yield from self.redis.client_pause(2000)
         self.assertTrue(res)
@@ -76,7 +80,7 @@ class ServerCommandsTest(RedisTest):
 
     @run_until_complete
     def test_config_rewrite(self):
-        with self.assertRaisesRegexp(ReplyError, "Permission denied"):
+        with self.assertRaises(ReplyError):
             yield from self.redis.config_rewrite()
 
     @run_until_complete
@@ -90,9 +94,9 @@ class ServerCommandsTest(RedisTest):
 
         with self.assertRaisesRegex(
                 ReplyError, "Unsupported CONFIG parameter"):
-            yield from self.redis.config_set('databases', 1)
+            yield from self.redis.config_set('databases', 100)
         with self.assertRaises(TypeError):
-            yield from self.redis.config_set(1, 'databases')
+            yield from self.redis.config_set(100, 'databases')
 
     @run_until_complete
     @unittest.skip("Not implemented")
@@ -117,6 +121,8 @@ class ServerCommandsTest(RedisTest):
         pass
 
     @run_until_complete
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 12),
+                     'ROLE is available since redis>=2.8.12')
     def test_role(self):
         res = yield from self.redis.role()
         self.assertEqual(dict(res._asdict()), {
