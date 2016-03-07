@@ -7,12 +7,7 @@ from ..commands import (
     Redis,
 )
 from ..pool import create_pool
-from ..util import (
-    cached_property,
-    parse_nodes_info,
-    parse_moved_response_error,
-    decode,
-)
+from ..util import decode
 from ..log import logger
 from ..errors import (
     RedisClusterError,
@@ -30,10 +25,60 @@ __all__ = (
 )
 
 
+def parse_moved_response_error(err):
+    if not err or not err.args or not err.args[0]:
+        return
+    data = err.args[0].strip()
+    if not data.startswith('MOVED'):
+        return
+    try:
+        host, port = data.split()[-1].split(':')
+        return host, int(port)
+    except IndexError:
+        return
+
+
+class cached_property:
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, instance, cls=None):
+        name = self.func.__name__
+        result = instance.__dict__[name] = self.func(instance)
+        return result
+
+
+def parse_nodes_info(raw_data, select_func):
+    try:
+        data = raw_data.decode().strip()
+    except (UnicodeDecodeError, AttributeError):
+        data = raw_data.strip()
+    nodes_info = (node.strip().split() for node in data.split('\n'))
+    for node_info in nodes_info:
+        if len(node_info) == 8:
+            # slave node
+            node_info.append('0')
+        cluster_node_info = select_func(node_info)
+        (id_node_info, address_node_info,
+         flags_nodes_info, master_node_info,
+         state_node_info, ranges_node_info) = cluster_node_info
+        ranges_info = tuple(sorted(
+            rng if len(rng) == 2 else rng * 2 for rng in (
+                tuple(map(int, range_info.strip().split('-')))
+                for range_info in ranges_node_info.strip().split()
+            )))
+        flags_info = tuple(str(flag.strip()) for flag in
+                           flags_nodes_info.strip().split(','))
+        host, port = address_node_info.split(':')
+        yield id_node_info, host, int(port), flags_info, \
+            master_node_info, state_node_info, ranges_info
+
+
 class ClusterNode:
 
     def __init__(self, number, *args):
-        self.id, self.host, self.port, self.flags, self.ranges = args
+        self.id, self.host, self.port, self.flags, \
+            self.master, self.status, self.ranges = args
         self.number = number
 
     def __repr__(self):
@@ -74,30 +119,37 @@ class ClusterNodesManager:
     ID = 0
     ADDRESS = 1  # ip:port
     FLAGS = 2  # master,fail,slave..
+    MASTER = 3  # master node or -
+    STATE = 7
     SLOTS = 8
-    CLUSTER_NODES_TUPLE = itemgetter(ID, ADDRESS, FLAGS, SLOTS)
+    CLUSTER_NODES_TUPLE = itemgetter(ID, ADDRESS, FLAGS, MASTER, STATE, SLOTS)
 
     def __init__(self, nodes):
-        self.nodes = list(nodes)
+        nodes = list(nodes)
+        masters_slots = {node.id: node.ranges for node in nodes}
+        for node in nodes:
+            if node.is_slave:
+                node.slots = masters_slots[node.master]
+        self.nodes = nodes
 
     def __iter__(self):
         return iter(self.alive_nodes)
 
     def __repr__(self):
-        return r' == '.join(repr(node) for node in self.masters)
+        return r' == '.join(repr(node) for node in self.nodes)
 
     def __str__(self):
-        return '\n'.join(repr(node) for node in self.masters)
+        return '\n'.join(repr(node) for node in self.nodes)
 
     @classmethod
-    def parse_raw_info(cls, raw_info, encoding=None):
+    def parse_raw_info(cls, raw_info):
         for index, node_data in enumerate(parse_nodes_info(
-                raw_info, cls.CLUSTER_NODES_TUPLE, encoding=encoding)):
+                raw_info, cls.CLUSTER_NODES_TUPLE)):
             yield ClusterNode(index, *node_data)
 
     @classmethod
-    def create(cls, raw_data, encoding=None):
-        nodes = cls.parse_raw_info(raw_data, encoding=encoding)
+    def create(cls, raw_data):
+        nodes = cls.parse_raw_info(raw_data)
         return cls(nodes)
 
     @staticmethod
@@ -151,7 +203,7 @@ class ClusterNodesManager:
         return random.choice(self.masters)
 
     def get_random_slave_node(self):
-        return random.choice(self.masters)
+        return random.choice(self.slaves)
 
     def determine_eval_slot(self, *args):
         """
@@ -275,21 +327,24 @@ class RedisCluster(RedisClusterMixin):
     @asyncio.coroutine
     def get_cluster_info(self):
         conn = yield from create_redis(
-            self._nodes[0], db=self._db, password=self._password,
+            self._nodes[0],
+            db=self._db,
+            password=self._password,
             encoding=self._encoding,
-            commands_factory=self._factory, loop=self._loop)
+            commands_factory=self._factory,
+            loop=self._loop
+        )
         nodes_raw_resp = yield from conn.cluster_nodes()
         conn.close()
         yield from conn.wait_closed()
-        self._cluster_manager = ClusterNodesManager.create(
-            nodes_raw_resp, encoding=self._encoding)
+        self._cluster_manager = ClusterNodesManager.create(nodes_raw_resp)
 
     @asyncio.coroutine
     def initialize(self):
-        logger.info('Initialising cluster...')
+        logger.info('Initializing cluster...')
         self._moved_count = 0
         yield from self.get_cluster_info()
-        logger.info('Initialised cluster.\n{}'.format(self._cluster_manager))
+        logger.info('Initialized cluster.\n{}'.format(self._cluster_manager))
 
     @asyncio.coroutine
     def clear(self):
@@ -357,7 +412,7 @@ class RedisCluster(RedisClusterMixin):
         """
         return (yield from asyncio.gather(
             *[self._execute_node(node.address, command, *args, **kwargs)
-              for node in self._cluster_manager],
+              for node in self._cluster_manager.masters],
             loop=self._loop))
 
     @asyncio.coroutine
