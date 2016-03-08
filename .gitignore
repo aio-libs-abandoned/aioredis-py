@@ -60,3 +60,6 @@ docs/_build/
 
 # Vim
 .vim
+
+# IntelliJ config
+*.iml
