@@ -7,7 +7,6 @@ from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 class ServerCommandsTest(RedisTest):
-
     @run_until_complete
     def test_client_list(self):
         res = yield from self.redis.client_list()
@@ -34,7 +33,7 @@ class ServerCommandsTest(RedisTest):
             }
         if REDIS_VERSION >= (2, 8, 12):
             expected['id'] = mock.ANY
-        self.assertEqual(res, [expected])
+        self.assertIn(expected, res)
 
     @run_until_complete
     @unittest.skipIf(REDIS_VERSION < (2, 9, 50),

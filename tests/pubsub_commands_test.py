@@ -99,6 +99,10 @@ class PubSubCommandsTest(RedisTest):
                                [b'punsubscribe', b'chan:*', 0],
                                ])
 
+    def _withoutSentinelAutoDiscoveryChannel(self, res):
+        SENTINEL_AUTO_DISCOVERY_CHANNEL = b'__sentinel__:hello'
+        return [channel for channel in res if channel != SENTINEL_AUTO_DISCOVERY_CHANNEL]
+
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'PUBSUB CHANNELS is available since redis>=2.8.0')
     @run_until_complete
@@ -106,7 +110,8 @@ class PubSubCommandsTest(RedisTest):
         redis = yield from self.create_redis(
             ('localhost', self.redis_port), loop=self.loop)
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [])
+
+        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [])
 
         res = yield from redis.pubsub_channels('chan:*')
         self.assertEqual(res, [])
@@ -116,7 +121,7 @@ class PubSubCommandsTest(RedisTest):
         yield from sub.subscribe('chan:1')
 
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [b'chan:1'])
+        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [b'chan:1'])
 
         res = yield from redis.pubsub_channels('ch*')
         self.assertEqual(res, [b'chan:1'])
@@ -125,7 +130,7 @@ class PubSubCommandsTest(RedisTest):
         yield from sub.psubscribe('chan:*')
 
         res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [])
+        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [])
 
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'PUBSUB NUMSUB is available since redis>=2.8.0')
