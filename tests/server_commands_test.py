@@ -3,9 +3,10 @@ import unittest
 from unittest import mock
 
 from aioredis import ReplyError
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ServerCommandsTest(RedisTest):
     @run_until_complete
     def test_client_list(self):

@@ -1,10 +1,12 @@
+import unittest
+
 from aioredis import ConnectionClosedError, ReplyError
 
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ConnectionCommandsTest(RedisTest):
-
     @run_until_complete
     def test_repr(self):
         redis = yield from self.create_redis(

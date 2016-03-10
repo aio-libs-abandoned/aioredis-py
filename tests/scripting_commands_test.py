@@ -1,9 +1,11 @@
 import asyncio
+import unittest
 
-from ._testutil import RedisTest, run_until_complete
+from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import ReplyError
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ScriptCommandsTest(RedisTest):
 
     @run_until_complete

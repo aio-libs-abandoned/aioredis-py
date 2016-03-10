@@ -3,12 +3,13 @@ import sys
 import unittest
 
 from textwrap import dedent
-from ._testutil import BaseTest, run_until_complete
+from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import RedisPool, ReplyError
 
 PY_35 = sys.version_info >= (3, 5)
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class PoolTest(BaseTest):
 
     def _assert_defaults(self, pool):

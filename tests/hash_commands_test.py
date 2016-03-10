@@ -3,13 +3,14 @@ import sys
 import unittest
 from textwrap import dedent
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
 
 PY_35 = sys.version_info > (3, 5)
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class HashCommandsTest(RedisTest):
 
     @asyncio.coroutine
@@ -391,6 +392,7 @@ class HashCommandsTest(RedisTest):
             yield from self.redis.ihscan(None)
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class HashCommandsEncodingTest(RedisEncodingTest):
     @run_until_complete
     def test_hgetall(self):

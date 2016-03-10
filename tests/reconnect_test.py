@@ -1,7 +1,10 @@
-from ._testutil import BaseTest, run_until_complete
+import unittest
+
+from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import create_reconnecting_redis
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ReconnectTest(BaseTest):
 
     @run_until_complete

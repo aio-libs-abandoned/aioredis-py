@@ -6,11 +6,9 @@ class RedisClusterMixin:
     """Redis cluster mixin."""
 
     @asyncio.coroutine
-    def keys(self, *, pattern=None, **kwargs):
+    def keys(self, pattern, **kwargs):
         if 'encoding' not in kwargs:
             kwargs['encoding'] = self._encoding
-        if pattern is None:
-            pattern = '*'
         res = (yield from self.execute(b'KEYS', pattern, many=True, **kwargs))
         return [item for part in res for item in part]
 
@@ -52,7 +50,7 @@ class RedisClusterMixin:
         for entity in entities:
             futures.append(scan_corr(entity, cur=cursor))
 
-        return (yield from asyncio.gather(*futures))
+        return (yield from asyncio.gather(*futures, loop=self._loop))
 
     if PY_35:
         def iscan(self, *, match=None, count=None):

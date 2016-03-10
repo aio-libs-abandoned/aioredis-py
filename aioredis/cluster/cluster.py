@@ -159,13 +159,17 @@ class ClusterNodesManager:
         :param key - str
         :param bucket - int
         """
-        k = str(key)
-        start = k.find("{")
+        if not isinstance(key, str):
+            if not isinstance(key, bytes):
+                raise TypeError('Keys must be either strings or bytes')
+            key = key.decode('utf-8')
+
+        start = key.find("{")
         if start > -1:
-            end = k.find("}", start + 1)
+            end = key.find("}", start + 1)
             if end > -1 and end != start + 1:
-                k = k[start + 1:end]
-        return crc16(k) % bucket
+                key = key[start + 1:end]
+        return crc16(key) % bucket
 
     @cached_property
     def alive_nodes(self):

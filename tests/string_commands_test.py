@@ -1,21 +1,23 @@
 import asyncio
 import unittest
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
+from aioredis.commands.string import StringCommandsMixin
 
 
 class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_append(self):
+        yield from self.redis.delete('my-key')
         len_ = yield from self.redis.append('my-key', 'Hello')
         self.assertEqual(len_, 5)
         len_ = yield from self.redis.append('my-key', ', world!')
         self.assertEqual(len_, 13)
 
-        val = yield from self.redis.connection.execute('GET', 'my-key')
+        val = yield from self.execute('GET', 'my-key')
         self.assertEqual(val, b'Hello, world!')
 
         with self.assertRaises(TypeError):
@@ -55,13 +57,13 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_bitop_and(self):
-        key1, value1 = b'key:bitop:and:1', 5
-        key2, value2 = b'key:bitop:and:2', 7
+        key1, value1 = b'{key:bitop:and}:1', 5
+        key2, value2 = b'{key:bitop:and}:2', 7
 
         yield from self.add(key1, value1)
         yield from self.add(key2, value2)
 
-        destkey = b'key:bitop:dest'
+        destkey = b'{key:bitop:and}:dest'
 
         yield from self.redis.bitop_and(destkey, key1, key2)
         test_value = yield from self.redis.get(destkey)
@@ -76,13 +78,13 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_bitop_or(self):
-        key1, value1 = b'key:bitop:or:1', 5
-        key2, value2 = b'key:bitop:or:2', 7
+        key1, value1 = b'{key:bitop:or}:1', 5
+        key2, value2 = b'{key:bitop:or}:2', 7
 
         yield from self.add(key1, value1)
         yield from self.add(key2, value2)
 
-        destkey = b'key:bitop:dest'
+        destkey = b'{key:bitop:or}:dest'
 
         yield from self.redis.bitop_or(destkey, key1, key2)
         test_value = yield from self.redis.get(destkey)
@@ -97,13 +99,13 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_bitop_xor(self):
-        key1, value1 = b'key:bitop:xor:1', 5
-        key2, value2 = b'key:bitop:xor:2', 7
+        key1, value1 = b'{key:bitop:xor}:1', 5
+        key2, value2 = b'{key:bitop:xor}:2', 7
 
         yield from self.add(key1, value1)
         yield from self.add(key2, value2)
 
-        destkey = b'key:bitop:dest'
+        destkey = b'{key:bitop:xor}:dest'
 
         yield from self.redis.bitop_xor(destkey, key1, key2)
         test_value = yield from self.redis.get(destkey)
@@ -118,10 +120,10 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_bitop_not(self):
-        key1, value1 = b'key:bitop:not:1', 5
+        key1, value1 = b'{key:bitop:not}:1', 5
         yield from self.add(key1, value1)
 
-        destkey = b'key:bitop:dest'
+        destkey = b'{key:bitop:not}:dest'
 
         yield from self.redis.bitop_not(destkey, key1)
         res = yield from self.redis.get(destkey)
@@ -374,9 +376,9 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_mget(self):
-        yield from self.redis.connection.execute('flushall')
-        key1, value1 = b'foo', b'bar'
-        key2, value2 = b'baz', b'bzz'
+        yield from self.flushall()
+        key1, value1 = b'{key:mget}:1', b'bar'
+        key2, value2 = b'{key:mget}:2', b'bzz'
         yield from self.add(key1, value1)
         yield from self.add(key2, value2)
 
@@ -399,17 +401,18 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_mset(self):
-        key1, value1 = b'key:mset:1', b'hello'
-        key2, value2 = b'key:mset:2', b'world'
+        key1, value1 = b'{key:mset}:1', b'hello'
+        key2, value2 = b'{key:mset}:2', b'world'
+        key2, value2 = b'{key:mset}:3', b'other'
 
         yield from self.redis.mset(key1, value1, key2, value2)
 
         test_value = yield from self.redis.mget(key1, key2)
         self.assertEqual(test_value, [value1, value2])
 
-        yield from self.redis.mset(b'other:' + key1, b'other:' + value1)
-        test_value = yield from self.redis.get(b'other:' + key1)
-        self.assertEqual(test_value, b'other:' + value1)
+        yield from self.redis.mset(b'{key:mset}:3', b'other')
+        test_value = yield from self.redis.get(b'{key:mset}:3')
+        self.assertEqual(test_value, b'other')
 
         with self.assertRaises(TypeError):
             yield from self.redis.mset(None, value1)
@@ -418,9 +421,9 @@ class StringCommandsTest(RedisTest):
 
     @run_until_complete
     def test_msetnx(self):
-        key1, value1 = b'key:msetnx:1', b'Hello'
-        key2, value2 = b'key:msetnx:2', b'there'
-        key3, value3 = b'key:msetnx:3', b'world'
+        key1, value1 = b'{key:msetnx}:1', b'Hello'
+        key2, value2 = b'{key:msetnx}:2', b'there'
+        key3, value3 = b'{key:msetnx}:3', b'world'
 
         res = yield from self.redis.msetnx(key1, value1, key2, value2)
         self.assertEqual(res, 1)
@@ -484,13 +487,13 @@ class StringCommandsTest(RedisTest):
     def test_set_only_if_not_exists(self):
         key, value = b'key:set:only_if_not_exists', b'foo'
         yield from self.redis.set(
-            key, value, exist=self.redis.SET_IF_NOT_EXIST)
+            key, value, exist=StringCommandsMixin.SET_IF_NOT_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, value)
 
         # new values not set cos, values exists
         yield from self.redis.set(
-            key, "foo2", exist=self.redis.SET_IF_NOT_EXIST)
+            key, "foo2", exist=StringCommandsMixin.SET_IF_NOT_EXIST)
         result_2 = yield from self.redis.get(key)
         # nothing changed result is same "foo"
         self.assertEqual(result_2, value)
@@ -500,13 +503,13 @@ class StringCommandsTest(RedisTest):
         key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
         # ensure that such key does not exits, and value not sets
         yield from self.redis.delete(key)
-        yield from self.redis.set(key, value, exist=self.redis.SET_IF_EXIST)
+        yield from self.redis.set(key, value, exist=StringCommandsMixin.SET_IF_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, None)
 
         # ensure key exits, and value updates
         yield from self.redis.set(key, value)
-        yield from self.redis.set(key, b'foo', exist=self.redis.SET_IF_EXIST)
+        yield from self.redis.set(key, b'foo', exist=StringCommandsMixin.SET_IF_EXIST)
         result_2 = yield from self.redis.get(key)
         self.assertEqual(result_2, b'foo')
 
@@ -615,14 +618,16 @@ class StringCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.strlen(None)
 
+
     @run_until_complete
     def test_cancel_hang(self):
-        exists_coro = self.redis._conn.execute("EXISTS", b"key:test1")
-        exists_coro.cancel()
+        exists_future = asyncio.ensure_future(self.execute("EXISTS", b"key:test1"), loop=self.loop)
+        exists_future.cancel()
         exists_check = yield from self.redis.exists(b"key:test2")
         self.assertFalse(exists_check)
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class StringCommandsEncodingTest(RedisEncodingTest):
     @run_until_complete
     def test_set(self):

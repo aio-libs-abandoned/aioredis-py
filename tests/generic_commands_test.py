@@ -7,7 +7,7 @@ import unittest
 from textwrap import dedent
 from unittest import mock
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
 from aioredis import ReplyError
 
 
@@ -18,20 +18,20 @@ class GenericCommandsTest(RedisTest):
 
     @run_until_complete
     def test_delete(self):
-        yield from self.add('my-key', 123)
-        yield from self.add('other-key', 123)
+        yield from self.add('{key:delete}:1', 123)
+        yield from self.add('{key:delete}:2', 123)
 
-        res = yield from self.redis.delete('my-key', 'non-existent-key')
+        res = yield from self.redis.delete('{key:delete}:1', '{key:delete}:non-existent')
         self.assertEqual(res, 1)
 
-        res = yield from self.redis.delete('other-key', 'other-key')
+        res = yield from self.redis.delete('{key:delete}:2', '{key:delete}:2')
         self.assertEqual(res, 1)
 
         with self.assertRaises(TypeError):
             yield from self.redis.delete(None)
 
         with self.assertRaises(TypeError):
-            yield from self.redis.delete('my-key', 'my-key', None)
+            yield from self.redis.delete('key', 'key', None)
 
     @run_until_complete
     def test_dump(self):
@@ -49,7 +49,7 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.dump(None)
 
     @run_until_complete
-    def test_exists(self):
+    def  test_exists(self):
         yield from self.add('my-key', 123)
 
         res = yield from self.redis.exists('my-key')
@@ -68,7 +68,7 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.expire('my-key', 10)
         self.assertIs(res, True)
 
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertGreaterEqual(res, 10)
 
         yield from self.redis.expire('my-key', -1)
@@ -81,7 +81,7 @@ class GenericCommandsTest(RedisTest):
         yield from self.add('my-key', 1)
         res = yield from self.redis.expire('my-key', 10.0)
         self.assertIs(res, True)
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertGreaterEqual(res, 10)
 
         with self.assertRaises(TypeError):
@@ -120,7 +120,7 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.expireat('my-key', now + 10)
         self.assertIs(res, True)
 
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertGreaterEqual(res, 10)
 
         res = yield from self.redis.expireat('my-key', -1)
@@ -141,7 +141,7 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.expireat('my-key', time.time() + 10)
         self.assertIs(res, True)
 
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertGreaterEqual(res, 10)
 
         yield from self.add('my-key', 123)
@@ -155,7 +155,7 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.keys('*pattern*')
         self.assertEqual(res, [])
 
-        yield from self.redis.connection.execute('FLUSHDB')
+        yield from self.flushall()
         res = yield from self.redis.keys('*')
         self.assertEqual(res, [])
 
@@ -207,6 +207,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
             yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Move is not available on Redis cluster')
     @run_until_complete
     def test_move(self):
         yield from self.flushall()
@@ -290,7 +291,7 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.persist('my-key')
         self.assertIs(res, True)
 
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertEqual(res, -1)
 
         with self.assertRaises(TypeError):
@@ -302,9 +303,9 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.pexpire('my-key', 100)
         self.assertIs(res, True)
 
-        res = yield from self.redis.connection.execute('TTL', 'my-key')
+        res = yield from self.execute('TTL', 'my-key')
         self.assertEqual(res, 0)
-        res = yield from self.redis.connection.execute('PTTL', 'my-key')
+        res = yield from self.execute('PTTL', 'my-key')
         self.assertGreater(res, 0)
 
         yield from self.add('my-key', 123)
@@ -325,13 +326,13 @@ class GenericCommandsTest(RedisTest):
     def test_pexpireat(self):
         yield from self.add('my-key', 123)
         now = math.ceil(time.time() * 1000)
-        res = yield from self.redis.pexpireat('my-key', now + 500)
+        res = yield from self.redis.pexpireat('my-key', now + 100)
         self.assertTrue(res)
 
         res = yield from self.redis.ttl('my-key')
-        self.assertAlmostEqual(res, 1)
+        self.assertAlmostEqual(res, 0)
         res = yield from self.redis.pttl('my-key')
-        self.assertAlmostEqual(res, 500, -2)
+        self.assertAlmostEqual(res, 100, -2)
 
         with self.assertRaises(TypeError):
             yield from self.redis.pexpireat(None, 1234)
@@ -358,6 +359,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.pttl(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Would return random key from each node.')
     @run_until_complete
     def test_randomkey(self):
         yield from self.flushall()
@@ -378,51 +380,52 @@ class GenericCommandsTest(RedisTest):
 
     @run_until_complete
     def test_rename(self):
-        yield from self.add('foo', 'bar')
-        yield from self.redis.delete('bar')
+        yield from self.add('{key:rename}:1', 'bar')
+        yield from self.redis.delete('{key:rename}:2')
 
-        res = yield from self.redis.rename('foo', 'bar')
+        res = yield from self.redis.rename('{key:rename}:1', '{key:rename}:2')
         self.assertTrue(res)
 
         with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
-            yield from self.redis.rename('foo', 'bar')
+            yield from self.redis.rename('{key:rename}:1', '{key:rename}:2')
         with self.assertRaises(TypeError):
-            yield from self.redis.rename(None, 'bar')
+            yield from self.redis.rename(None, 'key')
         with self.assertRaises(TypeError):
-            yield from self.redis.rename('foo', None)
+            yield from self.redis.rename('key', None)
         with self.assertRaises(ValueError):
-            yield from self.redis.rename('foo', 'foo')
+            yield from self.redis.rename('key', 'key')
 
         with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-            yield from self.redis.rename('bar', b'bar')
+            yield from self.redis.rename('key', b'key')
 
     @run_until_complete
     def test_renamenx(self):
-        yield from self.redis.delete('foo', 'bar')
-        yield from self.add('foo', 123)
+        yield from self.redis.delete('{key:renamenx}:1', '{key:renamenx}:2')
+        yield from self.add('{key:renamenx}:1', 123)
 
-        res = yield from self.redis.renamenx('foo', 'bar')
+        res = yield from self.redis.renamenx('{key:renamenx}:1', '{key:renamenx}:2')
         self.assertTrue(res)
-        yield from self.add('foo', 123)
-        res = yield from self.redis.renamenx('foo', 'bar')
+        yield from self.add('{key:renamenx}:1', 123)
+        res = yield from self.redis.renamenx('{key:renamenx}:1', '{key:renamenx}:2')
         self.assertFalse(res)
 
         with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
-            yield from self.redis.renamenx('baz', 'foo')
+            yield from self.redis.renamenx('{key:renamenx}:non-existing', '{key:renamenx}:1')
         with self.assertRaises(TypeError):
-            yield from self.redis.renamenx(None, 'foo')
+            yield from self.redis.renamenx(None, 'key')
         with self.assertRaises(TypeError):
-            yield from self.redis.renamenx('foo', None)
+            yield from self.redis.renamenx('key', None)
         with self.assertRaises(ValueError):
-            yield from self.redis.renamenx('foo', 'foo')
+            yield from self.redis.renamenx('key', 'key')
 
         with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-            yield from self.redis.renamenx('foo', b'foo')
+            yield from self.redis.renamenx('key', b'key')
 
     @run_until_complete
     def test_restore(self):
         pass
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Scan command behaves differently on cluster')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SCAN is available since redis>=2.8.0')
     @run_until_complete
@@ -464,14 +467,35 @@ class GenericCommandsTest(RedisTest):
             test_values.extend(values)
         self.assertEqual(len(test_values), 10)
 
+    @unittest.skipUnless(IS_REDIS_CLUSTER, 'Scan command behaves differently on cluster')
+    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
+                     'SCAN is available since redis>=2.8.0')
+    @run_until_complete
+    def test_scan_cluster(self):
+        yield from self.flushall()
+
+        for i in range(1, 11):
+            foo_or_bar = 'bar' if i % 3 else 'foo'
+            key = 'key:scan:{}:{}'.format(foo_or_bar, i)
+            yield from self.add(key, i)
+
+        values_per_node = yield from self.redis.scan()
+        values_per_node = set(frozenset(values) for values in values_per_node)
+        expected = {
+            frozenset([b'key:scan:bar:4', b'key:scan:foo:6', b'key:scan:bar:8']),
+            frozenset([b'key:scan:bar:1', b'key:scan:bar:2', b'key:scan:foo:3', b'key:scan:bar:5']),
+            frozenset([b'key:scan:bar:7', b'key:scan:foo:9', b'key:scan:bar:10'])
+        }
+        self.assertEqual(values_per_node, expected)
+
+    def _make_list(self, key, items):
+        yield from self.redis.delete(key)
+        for i in items:
+            yield from self.redis.rpush(key, i)
+
     @run_until_complete
     def test_sort(self):
-        def _make_list(key, items):
-            yield from self.redis.delete(key)
-            for i in items:
-                yield from self.redis.rpush(key, i)
-
-        yield from _make_list('a', '4231')
+        yield from self._make_list('a', '4231')
         res = yield from self.redis.sort('a')
         self.assertEqual(res, [b'1', b'2', b'3', b'4'])
 
@@ -481,16 +505,19 @@ class GenericCommandsTest(RedisTest):
         res = yield from self.redis.sort('a', asc=b'DESC')
         self.assertEqual(res, [b'4', b'3', b'2', b'1'])
 
-        yield from _make_list('a', 'dbca')
+        yield from self._make_list('a', 'dbca')
         res = yield from self.redis.sort(
             'a', asc=b'DESC', alpha=True, offset=2, count=2
         )
         self.assertEqual(res, [b'b', b'a'])
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'BY option not supported on cluster')
+    @run_until_complete
+    def test_sort_by(self):
         yield from self.redis.set('key:1', 10)
         yield from self.redis.set('key:2', 4)
         yield from self.redis.set('key:3', 7)
-        yield from _make_list('a', '321')
+        yield from self._make_list('a', '321')
 
         res = yield from self.redis.sort('a', by='key:*')
         self.assertEqual(res, [b'2', b'3', b'1'])
@@ -560,6 +587,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.type(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
     @unittest.skipUnless(PY_35,
                          'Python 3.5+ required')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),

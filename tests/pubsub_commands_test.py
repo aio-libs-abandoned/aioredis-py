@@ -3,12 +3,13 @@ import unittest
 import asyncio
 from textwrap import dedent
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
 
 
 PY_35 = sys.version_info > (3, 5)
 
 
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class PubSubCommandsTest(RedisTest):
 
     @asyncio.coroutine
