@@ -3,10 +3,12 @@ import json
 import sys
 
 from .errors import ChannelClosedError
+from .log import logger
 
 PY_35 = sys.version_info >= (3, 5)
 
 _NOTSET = object()
+
 
 # NOTE: never put here anything else;
 #       just this basic types
@@ -281,6 +283,24 @@ if PY_35:
             if msg is None:
                 raise StopAsyncIteration    # noqa
             return msg
+
+
+def _set_result(fut, result):
+    if fut.done():
+        logger.debug("Waiter future is already done %r", fut)
+        assert fut.cancelled(), (
+            "waiting future is in wrong state", fut, result)
+    else:
+        fut.set_result(result)
+
+
+def _set_exception(fut, exception):
+    if fut.done():
+        logger.debug("Waiter future is already done %r", fut)
+        assert fut.cancelled(), (
+            "waiting future is in wrong state", fut, exception)
+    else:
+        fut.set_exception(exception)
 
 
 if hasattr(asyncio, 'ensure_future'):

@@ -199,10 +199,7 @@ class Pipeline:
         elif fut.exception():
             waiter.set_exception(fut.exception())
         else:
-            self._set_result(fut, waiter)
-
-    def _set_result(self, fut, waiter):
-        waiter.set_result(fut.result())
+            waiter.set_result(fut.result())
 
 
 class MultiExec(Pipeline):
@@ -249,13 +246,14 @@ class MultiExec(Pipeline):
         multi = conn.execute('MULTI')
         coros = list(self._send_pipeline(conn))
         exec_ = conn.execute('EXEC')
+        gather = asyncio.gather(multi, *coros, loop=self._loop,
+                                return_exceptions=True)
         try:
-            yield from asyncio.gather(multi, *coros,
-                                      loop=self._loop)
+            yield from asyncio.shield(gather, loop=self._loop)
         except asyncio.CancelledError:
-            pass
+            yield from gather
         finally:
-            if self._conn.closed:
+            if conn.closed:
                 for fut in waiters:
                     fut.cancel()
             else:
@@ -265,10 +263,10 @@ class MultiExec(Pipeline):
                     for fut in waiters:
                         fut.set_exception(err)
                 else:
-                    assert len(results) == len(waiters), (results, waiters)
+                    assert len(results) == len(waiters), (
+                        "Results does not match waiters", results, waiters)
                     self._resolve_waiters(results, return_exceptions)
-                    return (yield from self._gather_result(
-                        return_exceptions))
+            return (yield from self._gather_result(return_exceptions))
 
     def _resolve_waiters(self, results, return_exceptions):
         errors = []
@@ -281,15 +279,13 @@ class MultiExec(Pipeline):
         if errors and not return_exceptions:
             raise MultiExecError(errors)
 
-    def _set_result(self, fut, waiter):
-        # fut is done and must be 'QUEUED'
-        if fut in self._waiters:
-            self._waiters.remove(fut)
-            waiter.set_result(fut.result())
-        elif fut.result() not in {b'QUEUED', 'QUEUED'}:
-            waiter.set_result(fut.result())
-        else:
-            fut = asyncio.Future(loop=self._loop)
-            self._waiters.append(fut)
-            fut.add_done_callback(
-                functools.partial(self._check_result, waiter=waiter))
+    def _check_result(self, fut, waiter):
+        assert waiter not in self._waiters, (fut, waiter, self._waiters)
+        assert not waiter.done(), waiter
+        if fut.cancelled():     # yield from gather was cancelled
+            waiter.cancel()
+        elif fut.exception():   # server replied with error
+            waiter.set_exception(fut.exception())
+        elif fut.result() in {b'QUEUED', 'QUEUED'}:
+            # got result, it should be QUEUED
+            self._waiters.append(waiter)
