@@ -7,7 +7,10 @@ from collections import deque
 
 from .util import (
     encode_command,
-    wait_ok, _NOTSET,
+    wait_ok,
+    _NOTSET,
+    _set_result,
+    _set_exception,
     coerced_keys_dict,
     Channel,
     decode,
@@ -146,13 +149,8 @@ class RedisConnection:
     def _process_data(self, obj):
         """Processes command results."""
         waiter, encoding, cb = self._waiters.popleft()
-        if waiter.done():
-            logger.debug("Waiter future is already done %r", waiter)
-            assert waiter.cancelled(), (
-                "waiting future is in wrong state", waiter, obj)
-            return
         if isinstance(obj, RedisError):
-            waiter.set_exception(obj)
+            _set_exception(waiter, obj)
             if self._in_transaction is not None:
                 self._transaction_error = obj
         else:
@@ -160,15 +158,15 @@ class RedisConnection:
                 try:
                     obj = decode(obj, encoding)
                 except Exception as exc:
-                    waiter.set_exception(exc)
+                    _set_exception(waiter, exc)
                     return
             if cb is not None:
                 try:
                     obj = cb(obj)
                 except Exception as exc:
-                    waiter.set_exception(exc)
+                    _set_exception(waiter, exc)
                     return
-            waiter.set_result(obj)
+            _set_result(waiter, obj)
             if self._in_transaction is not None:
                 self._in_transaction.append((encoding, cb))
 
@@ -330,24 +328,27 @@ class RedisConnection:
         return wait_ok(fut)
 
     def _set_db(self, ok, args):
-        assert ok in {b'OK', 'OK'}, ok
+        assert ok in {b'OK', 'OK'}, ("Unexpected result of SELECT", ok)
         self._db = args[0]
         return ok
 
     def _start_transaction(self, ok):
-        assert self._in_transaction is None
+        assert self._in_transaction is None, (
+            "Connection is already in transaction", self._in_transaction)
         self._in_transaction = deque()
         self._transaction_error = None
         return ok
 
     def _end_transaction(self, obj, discard):
-        assert self._in_transaction is not None
+        assert self._in_transaction is not None, (
+            "Connection is not in transaction", obj)
         self._transaction_error = None
         recall, self._in_transaction = self._in_transaction, None
         recall.popleft()  # ignore first (its _start_transaction)
         if discard:
             return obj
-        assert len(obj) == len(recall), (obj, recall)
+        assert len(obj) == len(recall), (
+            "Wrong number of result items in mutli-exec", obj, recall)
         res = []
         for o, (encoding, cb) in zip(obj, recall):
             if not isinstance(o, RedisError):

@@ -62,17 +62,22 @@ class TransactionCommandsTest(RedisTest):
         fut1 = tr.quit()
         fut2 = tr.incrby('foo', 1.0)
         fut3 = tr.connection.execute('INCRBY', 'foo', '1.0')
-        res = yield from tr.execute()
-        self.assertIsNone(res)
+        with self.assertRaises(MultiExecError):
+            yield from tr.execute()
+
+        self.assertTrue(fut1.done())
+        self.assertTrue(fut2.done())
+        self.assertTrue(fut3.done())
+
         try:
             res = yield from fut1
             self.assertEqual(res, b'OK')
         except asyncio.CancelledError:
             pass
-        with self.assertRaises(TypeError):
-            yield from fut2
-        with self.assertRaises(asyncio.CancelledError):
-            yield from fut3
+        self.assertFalse(fut2.cancelled())
+        self.assertIsInstance(fut2.exception(), TypeError)
+
+        self.assertTrue(fut3.cancelled())
 
     @run_until_complete
     def test_discard(self):
