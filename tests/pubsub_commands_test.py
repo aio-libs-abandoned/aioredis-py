@@ -293,3 +293,21 @@ class PubSubCommandsTest(RedisTest):
             b'{"Hello": "World"}',
             b'["message"]',
             ])
+
+    @run_until_complete
+    def test_subscribe_concurrency(self):
+        sub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+        pub = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        res = yield from asyncio.gather(
+            sub.subscribe('channel:0'),
+            pub.publish('channel:0', 'Hello'),
+            sub.subscribe('channel:1'),
+            loop=self.loop)
+        (ch1,), subs, (ch2,) = res
+
+        self.assertEqual(ch1.name, b'channel:0')
+        self.assertEqual(subs, 1)
+        self.assertEqual(ch2.name, b'channel:1')
