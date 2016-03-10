@@ -256,6 +256,9 @@ class MultiExec(Pipeline):
             if conn.closed:
                 for fut in waiters:
                     fut.cancel()
+                for fut in self._results:
+                    if not fut.done():
+                        fut.cancel()
             else:
                 try:
                     results = yield from exec_
