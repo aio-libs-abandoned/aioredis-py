@@ -173,10 +173,9 @@ class RedisConnection:
     def _process_pubsub(self, obj, *, _process_waiters=True):
         """Processes pubsub messages."""
         kind, *pattern, chan, data = obj
-        if _process_waiters and self._in_pubsub and self._waiters:
-            self._process_data(obj)
-
         if kind in (b'subscribe', b'unsubscribe'):
+            if _process_waiters and self._in_pubsub and self._waiters:
+                self._process_data(obj)
             if kind == b'subscribe' and chan not in self._pubsub_channels:
                 self._pubsub_channels[chan] = Channel(chan, is_pattern=False,
                                                       loop=self._loop)
@@ -186,6 +185,8 @@ class RedisConnection:
                     ch.close()
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
+            if _process_waiters and self._in_pubsub and self._waiters:
+                self._process_data(obj)
             if kind == b'psubscribe' and chan not in self._pubsub_patterns:
                 self._pubsub_patterns[chan] = Channel(chan, is_pattern=True,
                                                       loop=self._loop)
