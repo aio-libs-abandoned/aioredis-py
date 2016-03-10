@@ -42,15 +42,17 @@ XMODEMCRC16Lookup = [
 
 def _crc16_py3(data):
     crc = 0
-    for byte in data.encode("utf-8"):
-        crc = ((crc << 8) & 0xff00) ^ XMODEMCRC16Lookup[((crc >> 8) & 0xff) ^ byte]
+    for byte in data:
+        crc = ((crc << 8) & 0xff00) ^ \
+            XMODEMCRC16Lookup[((crc >> 8) & 0xff) ^ byte]
     return crc & 0xffff
 
 
 def _crc16_py2(data):
     crc = 0
-    for byte in data.encode("utf-8"):
-        crc = ((crc << 8) & 0xff00) ^ XMODEMCRC16Lookup[((crc >> 8) & 0xff) ^ ord(byte)]
+    for byte in data:
+        crc = ((crc << 8) & 0xff00) ^ \
+            XMODEMCRC16Lookup[((crc >> 8) & 0xff) ^ ord(byte)]
     return crc & 0xffff
 
 

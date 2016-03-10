@@ -50,8 +50,22 @@ def encode_command(*args):
 def decode(obj, encoding='utf8'):
     if isinstance(obj, bytes):
         return obj.decode(encoding)
-    elif isinstance(obj, list):
+    elif isinstance(obj, (list, tuple)):
         return [decode(o, encoding) for o in obj]
+    return obj
+
+
+def encode(obj, encoding='utf8'):
+    if isinstance(obj, str):
+        return obj.encode(encoding)
+    elif isinstance(obj, (list, tuple)):
+        return [encode(o, encoding) for o in obj]
+    return obj
+
+
+def encode_str(obj, encoding='utf8'):
+    if isinstance(obj, str):
+        return obj.encode(encoding)
     return obj
 
 

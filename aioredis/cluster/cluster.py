@@ -7,7 +7,10 @@ from ..commands import (
     Redis,
 )
 from ..pool import create_pool
-from ..util import decode
+from ..util import (
+    decode,
+    encode_str,
+)
 from ..log import logger
 from ..errors import (
     RedisClusterError,
@@ -49,10 +52,7 @@ class cached_property:
 
 
 def parse_nodes_info(raw_data, select_func):
-    try:
-        data = raw_data.decode().strip()
-    except (UnicodeDecodeError, AttributeError):
-        data = raw_data.strip()
+    data = decode(raw_data).strip()
     nodes_info = (node.strip().split() for node in data.split('\n'))
     for node_info in nodes_info:
         if len(node_info) == 8:
@@ -156,20 +156,16 @@ class ClusterNodesManager:
     def key_slot(key, bucket=REDIS_CLUSTER_HASH_SLOTS):
         """Calculate key slot for a given key.
 
-        :param key - str
+        :param key - str|bytes
         :param bucket - int
         """
-        if not isinstance(key, str):
-            if not isinstance(key, bytes):
-                raise TypeError('Keys must be either strings or bytes')
-            key = key.decode('utf-8')
-
-        start = key.find("{")
+        k = encode_str(key)
+        start = k.find(b'{')
         if start > -1:
-            end = key.find("}", start + 1)
+            end = k.find(b'}', start + 1)
             if end > -1 and end != start + 1:
-                key = key[start + 1:end]
-        return crc16(key) % bucket
+                k = k[start + 1:end]
+        return crc16(k) % bucket
 
     @cached_property
     def alive_nodes(self):
