@@ -20,5 +20,5 @@ class TaskCancellationTest(BaseTest):
 
         # XXX: Connection becomes available only after timeout expires
         yield from conn.execute('TIME')
-        dt = int(self.loop.time() - ts)
-        self.assertAlmostEqual(dt, 5, places=5)
+        dt = self.loop.time() - ts
+        self.assertAlmostEqual(dt, 5.0, delta=.1)
