@@ -18,7 +18,7 @@ else:
         REDIS_VERSION = (0, 0, 0)
 
 IS_REDIS_CLUSTER = os.environ.get('REDIS_CLUSTER') == 'true'
-SLOT_ZERO_KEY = 'key:3444' # is mapped to keyslot 0
+SLOT_ZERO_KEY = 'key:24358' # is mapped to keyslot 0
 
 def run_until_complete(fun):
     if not asyncio.iscoroutinefunction(fun):
