@@ -49,7 +49,7 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.dump(None)
 
     @run_until_complete
-    def  test_exists(self):
+    def test_exists(self):
         yield from self.add('my-key', 123)
 
         res = yield from self.redis.exists('my-key')

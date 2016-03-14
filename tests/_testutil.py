@@ -95,18 +95,26 @@ class BaseTest(unittest.TestCase):
         self._clusters.append(cluster)
         return cluster
 
+    @staticmethod
+    def get_cluster_nodes(start_port):
+        ports = [start_port + i for i in range(6)]
+        nodes = [('localhost', port) for port in ports]
+        return nodes
+
+    @asyncio.coroutine
+    def create_test_redis_or_cluster(self, encoding=None):
+        if not IS_REDIS_CLUSTER:
+            return self.create_redis(('localhost', self.redis_port), encoding=encoding, loop=self.loop)
+        else:
+            nodes = self.get_cluster_nodes(self.redis_port)
+            return self.create_cluster(nodes, loop=self.loop, encoding=encoding)
+
 
 class RedisTest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        if not IS_REDIS_CLUSTER:
-            self.redis = self.loop.run_until_complete(self.create_redis(
-                ('localhost', self.redis_port), loop=self.loop))
-        else:
-            ports = [self.redis_port + i for i in range(6)]
-            nodes = [('localhost', port) for port in ports]
-            self.redis = self.loop.run_until_complete(self.create_cluster(nodes, loop=self.loop))
+        self.redis = self.loop.run_until_complete(self.create_test_redis_or_cluster())
 
     def tearDown(self):
         del self.redis
@@ -136,7 +144,7 @@ class RedisTest(BaseTest):
             ok = yield from self.redis.connection.execute('flushall')
             self.assertEqual(ok, b'OK')
         else:
-            ok = yield from self.redis.execute('FLUSHALL')
+            ok = yield from self.redis.execute('flushall')
             self.assertTrue(ok)
 
 
@@ -144,8 +152,7 @@ class RedisEncodingTest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        self.redis = self.loop.run_until_complete(self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop, encoding='utf-8'))
+        self.redis = self.loop.run_until_complete(self.create_test_redis_or_cluster(encoding='utf-8'))
 
     def tearDown(self):
         del self.redis

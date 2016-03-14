@@ -8,12 +8,11 @@ from textwrap import dedent
 PY_35 = sys.version_info > (3, 5)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class SetCommandsTest(RedisTest):
 
     @asyncio.coroutine
     def add(self, key, members):
-        ok = yield from self.redis.connection.execute(b'sadd', key, members)
+        ok = yield from self.execute(b'sadd', key, members)
         self.assertEqual(ok, 1)
 
     @run_until_complete
@@ -54,9 +53,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sdiff(self):
-        key1 = b'key:sdiff:1'
-        key2 = b'key:sdiff:2'
-        key3 = b'key:sdiff:3'
+        key1 = b'{key:sdiff}:1'
+        key2 = b'{key:sdiff}:2'
+        key3 = b'{key:sdiff}:3'
 
         members1 = (b'a', b'b', b'c', b'd')
         members2 = (b'c',)
@@ -81,9 +80,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sdiffstore(self):
-        key1 = b'key:sdiffstore:1'
-        key2 = b'key:sdiffstore:2'
-        destkey = b'key:sdiffstore:destkey'
+        key1 = b'{key:sdiffstore}:1'
+        key2 = b'{key:sdiffstore}:2'
+        destkey = b'{key:sdiffstore}:destkey'
         members1 = (b'a', b'b', b'c')
         members2 = (b'c', b'd', b'e')
 
@@ -112,9 +111,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sinter(self):
-        key1 = b'key:sinter:1'
-        key2 = b'key:sinter:2'
-        key3 = b'key:sinter:3'
+        key1 = b'{key:sinter}:1'
+        key2 = b'{key:sinter}:2'
+        key3 = b'{key:sinter}:3'
 
         members1 = (b'a', b'b', b'c', b'd')
         members2 = (b'c',)
@@ -139,9 +138,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sinterstore(self):
-        key1 = b'key:sinterstore:1'
-        key2 = b'key:sinterstore:2'
-        destkey = b'key:sinterstore:destkey'
+        key1 = b'{key:sinterstore}:1'
+        key2 = b'{key:sinterstore}:2'
+        destkey = b'{key:sinterstore}:destkey'
         members1 = (b'a', b'b', b'c')
         members2 = (b'c', b'd', b'e')
 
@@ -211,8 +210,8 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_smove(self):
-        key1 = b'key:smove:1'
-        key2 = b'key:smove:2'
+        key1 = b'{key:smove}:1'
+        key2 = b'{key:smove}:2'
         member1 = b'one'
         member2 = b'two'
         member3 = b'three'
@@ -316,7 +315,7 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_srem(self):
-        key = b'key:srem:1'
+        key = b'{key:srem}:1'
         members = b'one', b'two', b'three', b'four', b'five', b'six', b'seven'
         yield from self.redis.sadd(key, *members)
 
@@ -340,9 +339,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sunion(self):
-        key1 = b'key:sunion:1'
-        key2 = b'key:sunion:2'
-        key3 = b'key:sunion:3'
+        key1 = b'{key:sunion}:1'
+        key2 = b'{key:sunion}:2'
+        key3 = b'{key:sunion}:3'
 
         members1 = [b'a', b'b', b'c', b'd']
         members2 = [b'c']
@@ -367,9 +366,9 @@ class SetCommandsTest(RedisTest):
 
     @run_until_complete
     def test_sunionstore(self):
-        key1 = b'key:sunionstore:1'
-        key2 = b'key:sunionstore:2'
-        destkey = b'key:sunionstore:destkey'
+        key1 = b'{key:sunionstore}:1'
+        key2 = b'{key:sunionstore}:2'
+        destkey = b'{key:sunionstore}:destkey'
         members1 = (b'a', b'b', b'c')
         members2 = (b'c', b'd', b'e')
 
@@ -401,8 +400,7 @@ class SetCommandsTest(RedisTest):
     @run_until_complete
     def test_sscan(self):
         key = b'key:sscan'
-        for k in (yield from self.redis.keys(key+b'*')):
-            self.redis.delete(k)
+        yield from self.flushall()
         for i in range(1, 11):
             foo_or_bar = 'bar' if i % 3 else 'foo'
             member = 'member:{}:{}'.format(foo_or_bar, i).encode('utf-8')
@@ -429,6 +427,7 @@ class SetCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.sscan(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'isscan not yet implemented')
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SSCAN is available since redis>=2.8.0')

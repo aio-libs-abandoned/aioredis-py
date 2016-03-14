@@ -5,7 +5,6 @@ from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import ReplyError
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ListCommandsTest(RedisTest):
 
     @run_until_complete
@@ -39,7 +38,7 @@ class ListCommandsTest(RedisTest):
 
     @run_until_complete
     def test_blpop_blocking_features(self):
-        key1, key2 = b'key:blpop:1', b'key:blpop:2'
+        key1, key2 = b'{key:blpop}:1', b'{key:blpop}:2'
         value = b'blpop:value:2'
 
         other_redis = yield from self.create_redis(
@@ -100,11 +99,10 @@ class ListCommandsTest(RedisTest):
 
     @run_until_complete
     def test_brpop_blocking_features(self):
-        key1, key2 = b'key:brpop:1', b'key:brpop:2'
+        key1, key2 = b'{key:brpop}:1', b'{key:brpop}:2'
         value = b'brpop:value:2'
 
-        other_redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
+        other_redis = yield from self.create_test_redis_or_cluster()
         # create blocking task in separate connection
         consumer_task = other_redis.brpop(key1, key2)
 
@@ -126,10 +124,10 @@ class ListCommandsTest(RedisTest):
 
     @run_until_complete
     def test_brpoplpush(self):
-        key = b'key:brpoplpush:1'
+        key = b'{key:brpoplpush}:1'
         value1, value2 = b'brpoplpush:value:1', b'brpoplpush:value:2'
 
-        destkey = b'destkey:brpoplpush:1'
+        destkey = b'{key:brpoplpush}:2'
 
         # setup list
         yield from self.redis.rpush(key, value1, value2)
@@ -164,11 +162,11 @@ class ListCommandsTest(RedisTest):
 
     @run_until_complete
     def test_brpoplpush_blocking_features(self):
-        source = b'key:brpoplpush:12'
+        source = b'{key:brpoplpush}:1'
         value = b'brpoplpush:value:2'
-        destkey = b'destkey:brpoplpush:2'
-        other_redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
+        destkey = b'{key:brpoplpush}:2'
+        yield from self.redis.delete(source, destkey)
+        other_redis = yield from self.create_test_redis_or_cluster()
         # create blocking task
         consumer_task = other_redis.brpoplpush(source, destkey)
         producer_task = asyncio.Task(
@@ -475,9 +473,9 @@ class ListCommandsTest(RedisTest):
 
     @run_until_complete
     def test_rpoplpush(self):
-        key = b'key:rpoplpush:1'
+        key = b'{key:rpoplpush}:1'
         value1, value2 = b'rpoplpush:value:1', b'rpoplpush:value:2'
-        destkey = b'destkey:rpoplpush:1'
+        destkey = b'{key:rpoplpush}:2'
 
         # setup list
         yield from self.redis.rpush(key, value1, value2)

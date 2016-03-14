@@ -627,7 +627,6 @@ class StringCommandsTest(RedisTest):
         self.assertFalse(exists_check)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class StringCommandsEncodingTest(RedisEncodingTest):
     @run_until_complete
     def test_set(self):
@@ -640,6 +639,7 @@ class StringCommandsEncodingTest(RedisEncodingTest):
 
         yield from self.redis.delete(TEST_KEY)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Client does not yet support transactions on clusters')
     @run_until_complete
     def test_setnx(self):
         TEST_KEY = 'my-key-nx'

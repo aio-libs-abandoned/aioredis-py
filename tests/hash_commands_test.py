@@ -10,13 +10,10 @@ from aioredis import ReplyError
 PY_35 = sys.version_info > (3, 5)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class HashCommandsTest(RedisTest):
-
     @asyncio.coroutine
     def add(self, key, field, value):
-        ok = yield from self.redis.connection.execute(
-            b'hset', key, field, value)
+        ok = yield from self.execute(b'hset', key, field, value)
         self.assertEqual(ok, 1)
 
     @run_until_complete
@@ -52,7 +49,6 @@ class HashCommandsTest(RedisTest):
 
     @run_until_complete
     def test_hget(self):
-
         key, field, value = b'key:hget', b'bar', b'zap'
         yield from self.add(key, field, value)
         # basic test, fetch value and check in to reference
@@ -244,17 +240,19 @@ class HashCommandsTest(RedisTest):
 
     @run_until_complete
     def test_hset(self):
-        key, field, value = b'key:hset', b'bar', b'zap'
-        test_value = yield from self.redis.hset(key, field, value)
+        key1, field, value = b'{key:hset}:1', b'bar', b'zap'
+        key2 = b'{key:hset}:2'
+        yield from self.redis.delete(key1, key2)
+        test_value = yield from self.redis.hset(key1, field, value)
         self.assertEqual(test_value, 1)
 
-        test_value = yield from self.redis.hset(key, field, value)
+        test_value = yield from self.redis.hset(key1, field, value)
         self.assertEqual(test_value, 0)
 
-        test_value = yield from self.redis.hset(b'other:' + key, field, value)
+        test_value = yield from self.redis.hset(key2, field, value)
         self.assertEqual(test_value, 1)
 
-        result = yield from self.redis.hexists(b'other:' + key, field)
+        result = yield from self.redis.hexists(key2, field)
         self.assertEqual(result, 1)
 
         with self.assertRaises(TypeError):
@@ -263,6 +261,7 @@ class HashCommandsTest(RedisTest):
     @run_until_complete
     def test_hsetnx(self):
         key, field, value = b'key:hsetnx', b'bar', b'zap'
+        yield from self.redis.delete(key)
         # field does not exists, operation should be successful
         test_value = yield from self.redis.hsetnx(key, field, value)
         self.assertEqual(test_value, 1)
@@ -331,6 +330,7 @@ class HashCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.hscan(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'ihscan not yet implemented')
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'HSCAN is available since redis>=2.8.0')
@@ -392,8 +392,8 @@ class HashCommandsTest(RedisTest):
             yield from self.redis.ihscan(None)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class HashCommandsEncodingTest(RedisEncodingTest):
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Client does not yet support transactions on clusters')
     @run_until_complete
     def test_hgetall(self):
         TEST_KEY = 'my-key-nx'
