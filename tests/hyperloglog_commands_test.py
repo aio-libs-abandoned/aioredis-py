@@ -5,13 +5,12 @@ from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CL
 
 @unittest.skipIf(REDIS_VERSION < (2, 8, 9),
                  'HyperLogLog works only with redis>=2.8.9')
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class HyperLogLogCommandsTest(RedisTest):
 
     @run_until_complete
     def test_pfcount(self):
-        key = 'hll_pfcount'
-        other_key = 'some-other-hll'
+        key = '{key:pfcount}:1'
+        other_key = '{key:pfcount}:2'
 
         # add initial data, cardinality changed so command returns 1
         is_changed = yield from self.redis.pfadd(key, 'foo', 'bar', 'zap')
@@ -62,10 +61,10 @@ class HyperLogLogCommandsTest(RedisTest):
 
     @run_until_complete
     def test_pfmerge(self):
-        key = 'hll_asyncio'
-        key_other = 'hll_aioredis'
+        key = '{key:pfmerge}:1'
+        key_other = '{key:pfmerge}:2'
 
-        key_dest = 'hll_aio'
+        key_dest = '{key:pfmerge}:dest'
 
         values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
         values_other = ['a', 'i', 'o', 'r', 'e', 'd', 'i', 's']
