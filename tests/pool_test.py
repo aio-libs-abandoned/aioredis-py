@@ -9,7 +9,7 @@ from aioredis import RedisPool, ReplyError
 PY_35 = sys.version_info >= (3, 5)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
+@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO need separate tests for pool cluster')
 class PoolTest(BaseTest):
 
     def _assert_defaults(self, pool):

@@ -3,7 +3,7 @@ import asyncio
 import os
 
 from aioredis.util import async_task
-from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER, SLOT_ZERO_KEY
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -142,7 +142,6 @@ class ConnectionTest(BaseTest):
         conn._reader = stored_reader
         conn.close()
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
     @run_until_complete
     def test_wait_closed(self):
         address = ('localhost', self.redis_port)
@@ -197,34 +196,34 @@ class ConnectionTest(BaseTest):
         res = yield from conn2.execute('CONFIG', 'SET', 'requirepass', '')
         self.assertEqual(res, b'OK')
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
     @run_until_complete
     def test_decoding(self):
+        key = SLOT_ZERO_KEY
         conn = yield from self.create_connection(
             ('localhost', self.redis_port), encoding='utf-8', loop=self.loop)
         self.assertEqual(conn.encoding, 'utf-8',)
-        res = yield from conn.execute('set', 'key', 'value')
+        res = yield from conn.execute('set', key, 'value')
         self.assertEqual(res, 'OK')
-        res = yield from conn.execute('get', 'key')
+        res = yield from conn.execute('get', key)
         self.assertEqual(res, 'value')
 
-        res = yield from conn.execute('set', 'key', b'bin-value')
+        res = yield from conn.execute('set', key, b'bin-value')
         self.assertEqual(res, 'OK')
-        res = yield from conn.execute('get', 'key')
+        res = yield from conn.execute('get', key)
         self.assertEqual(res, 'bin-value')
 
-        res = yield from conn.execute('get', 'key', encoding='ascii')
+        res = yield from conn.execute('get', key, encoding='ascii')
         self.assertEqual(res, 'bin-value')
-        res = yield from conn.execute('get', 'key', encoding=None)
+        res = yield from conn.execute('get', key, encoding=None)
         self.assertEqual(res, b'bin-value')
 
         with self.assertRaises(UnicodeDecodeError):
-            yield from conn.execute('set', 'key', 'значение')
-            yield from conn.execute('get', 'key', encoding='ascii')
+            yield from conn.execute('set', key, 'значение')
+            yield from conn.execute('get', key, encoding='ascii')
 
         conn2 = yield from self.create_connection(
             ('localhost', self.redis_port), loop=self.loop)
-        res = yield from conn2.execute('get', 'key', encoding='utf-8')
+        res = yield from conn2.execute('get', key, encoding='utf-8')
         self.assertEqual(res, 'значение')
 
     @run_until_complete

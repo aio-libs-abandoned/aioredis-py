@@ -18,7 +18,7 @@ else:
         REDIS_VERSION = (0, 0, 0)
 
 IS_REDIS_CLUSTER = os.environ.get('REDIS_CLUSTER') == 'true'
-
+SLOT_ZERO_KEY = 'key:3444' # is mapped to keyslot 0
 
 def run_until_complete(fun):
     if not asyncio.iscoroutinefunction(fun):
@@ -108,6 +108,11 @@ class BaseTest(unittest.TestCase):
         else:
             nodes = self.get_cluster_nodes(self.redis_port)
             return self.create_cluster(nodes, loop=self.loop, encoding=encoding)
+
+    @asyncio.coroutine
+    def create_test_connection_for_key(self, key, encoding=None):
+        if IS_REDIS_CLUSTER:
+            node = self.redis.get_node()
 
 
 class RedisTest(BaseTest):

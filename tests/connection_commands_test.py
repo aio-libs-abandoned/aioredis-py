@@ -5,17 +5,17 @@ from aioredis import ConnectionClosedError, ReplyError
 from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ConnectionCommandsTest(RedisTest):
     @run_until_complete
     def test_repr(self):
         redis = yield from self.create_redis(
-            ('localhost', self.redis_port), db=1, loop=self.loop)
-        self.assertEqual(repr(redis), '<Redis <RedisConnection [db:1]>>')
-
-        redis = yield from self.create_redis(
             ('localhost', self.redis_port), db=0, loop=self.loop)
         self.assertEqual(repr(redis), '<Redis <RedisConnection [db:0]>>')
+
+        if not IS_REDIS_CLUSTER:
+            redis = yield from self.create_redis(
+                ('localhost', self.redis_port), db=1, loop=self.loop)
+            self.assertEqual(repr(redis), '<Redis <RedisConnection [db:1]>>')
 
     @run_until_complete
     def test_auth(self):
@@ -34,8 +34,12 @@ class ConnectionCommandsTest(RedisTest):
     @run_until_complete
     def test_ping(self):
         resp = yield from self.redis.ping()
-        self.assertEqual(resp, b'PONG')
+        if not IS_REDIS_CLUSTER:
+            self.assertEqual(resp, b'PONG')
+        else:
+            self.assertEqual(resp, [b'PONG'] * 3)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'use cluster.clear instead')
     @run_until_complete
     def test_quit(self):
         resp = yield from self.redis.quit()
@@ -44,6 +48,7 @@ class ConnectionCommandsTest(RedisTest):
         with self.assertRaises(ConnectionClosedError):
             yield from self.redis.ping()
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'select is not available on Redis cluster')
     @run_until_complete
     def test_select(self):
         self.assertEqual(self.redis.db, 0)
@@ -57,6 +62,6 @@ class ConnectionCommandsTest(RedisTest):
     def test_encoding(self):
         redis = yield from self.create_redis(
             ('localhost', self.redis_port),
-            db=1, encoding='utf-8',
+            encoding='utf-8',
             loop=self.loop)
         self.assertEqual(redis.encoding, 'utf-8')

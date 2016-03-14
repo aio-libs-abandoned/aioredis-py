@@ -5,12 +5,11 @@ from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import ReplyError
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'TODO')
 class ScriptCommandsTest(RedisTest):
 
     @run_until_complete
     def test_eval(self):
-        yield from self.redis.delete('key:eval', 'value:eval')
+        yield from self.redis.delete('key:eval')
 
         script = "return 42"
         res = yield from self.redis.eval(script)
@@ -41,6 +40,7 @@ class ScriptCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.eval(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'script_load not yet implemented')
     @run_until_complete
     def test_evalsha(self):
         script = b"return 42"
@@ -64,6 +64,7 @@ class ScriptCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.evalsha(None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'script_load not yet implemented')
     @run_until_complete
     def test_script_exists(self):
         sha_hash1 = yield from self.redis.script_load(b'return 1')
@@ -83,6 +84,7 @@ class ScriptCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.script_exists('123', None)
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'script_load not yet implemented')
     @run_until_complete
     def test_script_flush(self):
         sha_hash1 = yield from self.redis.script_load(b'return 1')
@@ -94,6 +96,7 @@ class ScriptCommandsTest(RedisTest):
         res = yield from self.redis.script_exists(sha_hash1)
         self.assertEqual(res, [0])
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'script_load not yet implemented')
     @run_until_complete
     def test_script_load(self):
         sha_hash1 = yield from self.redis.script_load(b'return 1')
@@ -103,12 +106,12 @@ class ScriptCommandsTest(RedisTest):
         res = yield from self.redis.script_exists(sha_hash1, sha_hash1)
         self.assertEqual(res, [1, 1])
 
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'script_kill not yet implemented')
     @run_until_complete
     def test_script_kill(self):
         script = "while (1) do redis.call('TIME') end"
 
-        other_redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
+        other_redis = yield from self.create_test_redis_or_cluster()
 
         yield from self.add('key1', 'value')
 
