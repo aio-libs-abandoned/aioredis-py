@@ -265,10 +265,7 @@ def create_cluster(
     """
     Create Redis Pool Cluster.
 
-    :param nodes = [
-        {"address1": address1, "port1": port1} | (address1, port1)
-        {"address2": address2, "port2": port2} | (address2, port2)
-    ]
+    :param nodes = [(address1, port1), (address2, port2), ...]
     :param db - int
     :param password: str
     :param encoding: str
