@@ -233,10 +233,7 @@ def create_pool_cluster(
     """
     Create Redis Pool Cluster.
 
-    :param nodes = [
-        {"address1": address1, "port1": port1} | (address1, port1)
-        {"address2": address2, "port2": port2} | (address2, port2)
-    ]
+    :param nodes = [(address1, port1), (address2, port2), ...]
     :param db - int
     :param password: str
     :param encoding: str
@@ -453,6 +450,11 @@ class RedisPoolCluster(RedisCluster):
 
     def get_nodes_entities(self):
         return self._cluster_pool.values()
+
+    @asyncio.coroutine
+    def reload_cluster_pool(self):
+        yield from self.clear()
+        yield from self.initialize()
 
     @asyncio.coroutine
     def prepare_cluster_pool(self):
