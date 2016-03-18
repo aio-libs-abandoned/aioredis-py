@@ -191,6 +191,11 @@ class ClusterNodesManager:
     def slaves(self):
         return [node for node in self.alive_nodes if node.is_slave]
 
+    @cached_property
+    def all_slots_covered(self):
+        covered_slots_number = sum(end - start + 1 for master in self.masters for start, end in master.ranges)
+        return covered_slots_number >= self.REDIS_CLUSTER_HASH_SLOTS
+
     def get_node_by_slot(self, slot):
         for node in self.masters:
             if node.in_range(slot):
@@ -319,9 +324,11 @@ class RedisCluster(RedisClusterMixin):
         return [node.address for node in self._cluster_manager.masters]
 
     @asyncio.coroutine
-    def get_cluster_info(self):
+    def get_cluster_info(self, node_index=0):
+        node = self._nodes[node_index]
+        logger.info('Loading cluster map from {}...'.format(node))
         conn = yield from create_redis(
-            self._nodes[0],
+            node,
             db=self._db,
             password=self._password,
             encoding=self._encoding,
@@ -452,11 +459,6 @@ class RedisPoolCluster(RedisCluster):
         return self._cluster_pool.values()
 
     @asyncio.coroutine
-    def reload_cluster_pool(self):
-        yield from self.clear()
-        yield from self.initialize()
-
-    @asyncio.coroutine
     def prepare_cluster_pool(self):
         for node in self._cluster_manager.masters:
             pool = yield from create_pool(
@@ -467,6 +469,16 @@ class RedisPoolCluster(RedisCluster):
             self._cluster_pool[node.number] = pool
 
     @asyncio.coroutine
+    def reload_cluster_pool(self, node_index=0):
+        logger.info('Reloading cluster...')
+        yield from self.clear()
+        self._moved_count = 0
+        yield from self.get_cluster_info(node_index)
+        self._cluster_pool = {}
+        yield from self.prepare_cluster_pool()
+        logger.info('Reloaded cluster')
+
+    @asyncio.coroutine
     def initialize(self):
         yield from super().initialize()
         self._cluster_pool = {}
@@ -474,12 +486,13 @@ class RedisPoolCluster(RedisCluster):
 
     @asyncio.coroutine
     def clear(self):
-        """
-        Clear pool connections.
-        Close and remove all free connections.
-        """
+        """Clear pool connections. Close and remove all free connections."""
         for pool in self._cluster_pool.values():
             yield from pool.clear()
+
+    @property
+    def all_slots_covered(self):
+        return self._cluster_manager.all_slots_covered
 
     def get_pool(self, *args):
         node = self.get_node(*args)

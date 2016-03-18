@@ -12,15 +12,24 @@ from ._testutil import (
 )
 
 
-# slightly modified example from the cluster spec
-RAW_NODE_INFO_DATA = textwrap.dedent("""\
+# example from the CLUSTER NODES doc
+RAW_NODE_INFO_DATA_OK = textwrap.dedent("""
+07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master - 0 1426238316232 2 connected 5461-10922
+292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master - 0 1426238318243 3 connected 10923-16383
+6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
+824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master - 0 0 1 connected 0-5460"""
+)
+
+RAW_NODE_INFO_DATA_FAIL = textwrap.dedent("""\
     07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave,fail e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
     67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master,fail? - 0 1426238316232 2 connected 5461-10922
     292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master - 0 1426238318243 3 connected 10923-16383
     6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
     824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
     e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master - 0 0 1 connected 0-5460"""
-                                     )
+)
 
 
 class ParseTest(unittest.TestCase):
@@ -34,7 +43,7 @@ class ParseTest(unittest.TestCase):
 
     def test_parse_nodes_info(self):
         self.assertTupleEqual(
-            list(parse_nodes_info(RAW_NODE_INFO_DATA, ClusterNodesManager.CLUSTER_NODES_TUPLE))[0],
+            list(parse_nodes_info(RAW_NODE_INFO_DATA_FAIL, ClusterNodesManager.CLUSTER_NODES_TUPLE))[0],
             [
                 ('07c37dfeb235213a872192d90877d0cd55635b91', '127.0.0.1', 30004, ('slave', 'fail'), 'e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca', 'connected', ((0, 0), )),
                 ('67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1', '127.0.0.1', 30002, ('master', 'fail?'), '0', 'connected', ((5461, 10922), )),
@@ -54,22 +63,22 @@ class ClusterNodesManagerTest(unittest.TestCase):
         self.assertEqual(ClusterNodesManager.key_slot(b'key'), 12539)
 
     def test_create(self):
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA)
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         self.assertEqual(len(manager.nodes), 6)
         self.assertTrue(all(isinstance(node, ClusterNode) for node in manager.nodes))
 
     def test_node_count(self):
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA)
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         self.assertEqual(manager.nodes_count, 4)
         self.assertEqual(manager.masters_count, 2)
         self.assertEqual(manager.slaves_count, 2)
 
     def test_alive_nodes(self):
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA)
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         self.assertEqual(manager.alive_nodes, manager.nodes[2:])
 
     def test_cluster_node(self):
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA)
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         node1 = manager.nodes[0]
         self.assertFalse(node1.is_master)
         self.assertTrue(node1.is_slave)
@@ -82,11 +91,21 @@ class ClusterNodesManagerTest(unittest.TestCase):
         self.assertTrue(node2.is_alive)
 
     def test_in_range(self):
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA)
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         master = manager.nodes[5]
         self.assertTrue(master.in_range(0))
         self.assertTrue(master.in_range(5460))
         self.assertFalse(master.in_range(5461))
+
+    def test_all_slots_covered(self):
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK)
+        self.assertTrue(manager.all_slots_covered)
+
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
+        self.assertFalse(manager.all_slots_covered)
+
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK.replace('16383', '16382'))
+        self.assertFalse(manager.all_slots_covered)
 
 
 @unittest.skipUnless(IS_REDIS_CLUSTER, 'need a running cluster')
@@ -259,3 +278,11 @@ class RedisPoolClusterTest(BaseTest):
         self.assertEqual(ok, [b'OK'] * 3)
         for connection in expected_connections.values():
             connection.execute.assert_called_once_with('PING', encoding=unittest.mock.ANY)
+
+    @run_until_complete
+    def test_reload_cluster_pool(self):
+        cluster = yield from self.create_test_pool_cluster()
+        old_pools = set(id(pool) for pool in cluster._cluster_pool.values())
+        yield from cluster.reload_cluster_pool()
+        new_pools = set(id(pool) for pool in cluster._cluster_pool.values())
+        self.assertTrue(old_pools.isdisjoint(new_pools))
