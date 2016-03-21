@@ -9,8 +9,7 @@ import time
 
 REDIS_SERVER_EXEC = 'redis-server'
 REDIS_SLOT_COUNT = 16384
-_SOCKET_READ_BYTE_COUNT = 1024  # must be large enough to hold a CLUSTER INFO response
-_MAX_ATTEMPTS = 4
+_MAX_RETRY_ERRORS = 4
 _ATTEMPT_INTERVAL = 0.3
 
 
@@ -96,32 +95,14 @@ class TestCluster:
         self._assign_slots(masters, master_addresses)
         self._send_meet_messages_to_all(sockets, addresses)
         time.sleep(_ATTEMPT_INTERVAL)  # MEET messages need some time to propagate
-        self._wait_and_send_replicate_messages(slaves, master_node_ids)
+        self._send_replicate_messages(slaves, master_node_ids)
         self._wait_until_cluster_state_ok(sockets)
 
         for socket in sockets:
             socket.close()
 
     def _connect_sockets(self, addresses):
-        sockets = {}
-        attempt = 0
-        while len(sockets) < len(addresses):
-            attempt += 1
-            for address in addresses:
-                if address in sockets:
-                    continue
-
-                try:
-                    sockets[address] = socket.create_connection(address)
-                except ConnectionRefusedError as e:
-                    if attempt >= _MAX_ATTEMPTS:
-                        raise IOError(
-                            'Could not connect to cluster after {} attempts.'.format(_MAX_ATTEMPTS)
-                        )
-                    logger.info('Connection failed, will retry. ({})'.format(str(e)))
-                    time.sleep(_ATTEMPT_INTERVAL)
-
-        return [sockets[address] for address in addresses]
+        return self._retry(socket.create_connection, addresses, error_message='Could not connect to Redis.')
 
     def _determine_node_id(self, socket, address):
         socket.sendall(b'CLUSTER NODES\r\n')
@@ -147,49 +128,48 @@ class TestCluster:
                 if i != j:
                     self._send_command_and_expect_ok(socket, 'CLUSTER MEET {} {}\r\n'.format(*address))
 
-    def _wait_and_send_replicate_messages(self, slaves, master_node_ids):
-        replicated = []
-        attempt = 0
-        while len(replicated) < len(slaves):
-            attempt += 1
-            for slave, master_node_id in zip(slaves, master_node_ids):
-                if slave in replicated:
-                    continue
+    def _send_replicate_messages(self, slaves, master_node_ids):
+        def _send_replicate_message(arg):
+            slave, master_node_id = arg
+            self._send_command_and_expect_ok(slave, 'CLUSTER REPLICATE {}\r\n'.format(master_node_id))
 
-                try:
-                    self._send_command_and_expect_ok(slave, 'CLUSTER REPLICATE {}\r\n'.format(master_node_id))
-                    replicated.append(slave)
-                except IOError as e:
-                    if attempt >= _MAX_ATTEMPTS:
-                        raise IOError(
-                            'Replication still not successful after {} attempts.'.format(_MAX_ATTEMPTS)
-                        )
-                    logger.info('Replication failed, will retry. ({})'.format(str(e)))
-                    time.sleep(_ATTEMPT_INTERVAL)
+        self._retry(_send_replicate_message, list(zip(slaves, master_node_ids)), 'Replication failed.')
 
     def _wait_until_cluster_state_ok(self, sockets):
-        state_ok = []
-        attempt = 0
-        while len(state_ok) < len(sockets):
-            attempt += 1
-            for socket in sockets:
-                if socket in state_ok:
-                    continue
+        def _check_state(socket):
+            socket.sendall(b'CLUSTER INFO\r\n')
+            data = self._read_bulk_string_response(socket).decode('utf-8')
+            if 'cluster_state:ok' not in data:
+                raise IOError('Cluster state not ok')
 
-                socket.sendall(b'CLUSTER INFO\r\n')
-                data = self._read_bulk_string_response(socket).decode('utf-8')
-                if 'cluster_state:ok' in data:
-                    state_ok.append(socket)
-                else:
-                    if attempt >= _MAX_ATTEMPTS:
-                        raise IOError('Cluster state is still not ok after {} attempts.'.format(_MAX_ATTEMPTS))
-                    time.sleep(_ATTEMPT_INTERVAL)
+        self._retry(_check_state, sockets, error_message='Cluster state not ok.', max_errors=10)
+
+    def _retry(self, method, arguments, error_message, max_errors=_MAX_RETRY_ERRORS, interval=_ATTEMPT_INTERVAL):
+        results = [None] * len(arguments)
+        successful_indexes = []
+        errors = 0
+        while len(successful_indexes) < len(arguments):
+            for i, argument in enumerate(arguments):
+                if i not in successful_indexes:
+                    try:
+                        results[i] = method(argument)
+                        successful_indexes.append(i)
+                    except (IOError, ConnectionRefusedError):
+                        errors += 1
+                        if errors >= max_errors:
+                            raise IOError(error_message + ' Stop retrying after {} errors.'.format(errors))
+                        else:
+                            logger.info(error_message + ' Will retry after {}s.'.format(interval))
+                            time.sleep(interval)
+
+        return results
 
     def _send_command_and_expect_ok(self, socket, command):
         socket.sendall(command.encode('utf-8'))
-        response = socket.recv(_SOCKET_READ_BYTE_COUNT).decode('utf-8')
-        if not response.startswith('+OK\r\n'):
-            raise IOError("Redis command failed. Response was: " + response)
+        response = socket.recv(5)
+        if response != b'+OK\r\n':
+            response += socket.recv(200)
+            raise IOError(response.decode('utf-8', errors='ignore'))
 
     def _read_bulk_string_response(self, socket):
         data = socket.recv(10)
