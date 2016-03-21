@@ -164,23 +164,39 @@ class TestCluster:
 
         return results
 
+    def _recv_until(self, socket, delimiter):
+        data = b''
+        while delimiter not in data:
+            data += socket.recv(1024)
+
+        index = data.index(delimiter)
+        return data[:index], data[index + len(delimiter):]
+
+    def _recv_bytes(self, socket, byte_count):
+        data = b''
+        while len(data) < byte_count:
+            received = socket.recv(min(1024, byte_count - len(data)))
+            if len(received) == 0:
+                raise IOError('Socket closed')
+            else:
+                data += received
+        return data
+
     def _send_command_and_expect_ok(self, socket, command):
         socket.sendall(command.encode('utf-8'))
-        response = socket.recv(5)
-        if response != b'+OK\r\n':
-            response += socket.recv(200)
-            raise IOError(response.decode('utf-8', errors='ignore'))
+        response, _ = self._recv_until(socket, b'\r\n')
+        if response != b'+OK':
+            raise IOError(response.decode('utf-8'))
 
     def _read_bulk_string_response(self, socket):
-        data = socket.recv(10)
-        if data[0] != ord('$'):
+        header, data = self._recv_until(socket, b'\r\n')
+        if header[0] != ord('$'):
             raise ValueError('Expected bulk string response.')
-        byte_count, data = data[1:].split(b'\r\n')
-        byte_count = int(byte_count.decode('utf-8'))
-        data += socket.recv(byte_count - len(data))
-        end = socket.recv(2)
-        if end != b'\r\n':
+        byte_count = int(header[1:].decode('utf-8'))
+        remaining_data = self._recv_bytes(socket, byte_count - len(data) + 2)
+        if not remaining_data[:-2] != 'b\r\n':
             raise ValueError('Invalid bulk string received.')
+        data += remaining_data[:-2]
         return data
 
     def _get_redis_directory(self, port):
