@@ -52,7 +52,6 @@ class ParseTest(unittest.TestCase):
                 ('824fe116063bc5fcf9f4ffd895bc17aee7731ac3', '127.0.0.1', 30006, ('slave', ), '292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f', 'connected', ((0, 0), )),
                 ('e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca', '127.0.0.1', 30001, ('myself', 'master'), '0', 'connected', ((0, 5460), )),
             ][0]
-
         )
 
 
@@ -125,7 +124,7 @@ class RedisClusterTest(BaseTest):
     @run_until_complete
     def test_get_node(self):
         cluster = yield from self.create_test_cluster()
-        # Compare the redis_trib.rb script used to setup the test cluster
+        # Compare script used to setup the test cluster
         node = cluster.get_node('key:0')
         self.assertEqual(node.address[1], self.redis_port)
         node = cluster.get_node(b'key:1')

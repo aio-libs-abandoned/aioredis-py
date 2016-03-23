@@ -11,7 +11,7 @@ REDIS_COUNT = 6
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Set up a Redis cluster and run all unittests")
+    parser = argparse.ArgumentParser(description="Set up a Redis cluster for the unittests.")
     parser.add_argument(
         '--dir',
         default='redis-cluster',
@@ -29,3 +29,7 @@ def setup_test_cluster(args):
 if __name__ == '__main__':
     args = parse_arguments()
     setup_test_cluster(args)
+    print(
+        "Cluster has been set up. Use 'python runclustertests.py' to run the tests. "
+        "To stop the cluster, simply kill the processes."
+    )
