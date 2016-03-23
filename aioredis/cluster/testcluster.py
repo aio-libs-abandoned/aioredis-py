@@ -26,6 +26,14 @@ def setup_test_cluster(*args, **kwargs):
 class TestCluster:
     """This class allows to create a local Redis cluster for test purposes. It also includes methods to stop and
     restart nodes to test failover behaviour.
+
+    Parameters:
+        - *redis_count* is the number of processes the cluster should contain. The first half of them will be
+        master nodes (rounding upwards).
+        - *start_port*: The cluster will use the ports from start_port to start_port + redis_count.
+        - *directory* is used to store the configuration files of all processes.
+        - *node_timeout*: The cluster node timeout in millliseconds, see http://redis.io/topics/cluster-tutorial.
+
     """
     def __init__(self, redis_count, start_port, directory, node_timeout=3000):
         self.redis_count = redis_count
