@@ -48,9 +48,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     * when address is a str it represents unix domain socket path.
     (no other address formats supported)
 
-    SSL argument is passed through to asyncio.create_connection.    
-    By default SSL/TLS is not used. 
-    
+    SSL argument is passed through to asyncio.create_connection.
+    By default SSL/TLS is not used.
+
     Encoding argument can be used to decode byte-replies to strings.
     By default no decoding is done.
 
