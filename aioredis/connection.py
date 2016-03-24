@@ -100,6 +100,7 @@ class RedisConnection:
                                       replyError=ReplyError)
         self._reader_task = async_task(self._read_data(), loop=self._loop)
         self._db = 0
+        self._expect_close = False
         self._closing = False
         self._closed = False
         self._close_waiter = asyncio.Future(loop=self._loop)
@@ -123,10 +124,18 @@ class RedisConnection:
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                # XXX: for QUIT command connection error can be received
-                #       before response
                 logger.error("Exception on data read %r", exc, exc_info=True)
-                break
+                if self._expect_close:
+                    # for QUIT command connection error can be received
+                    # before response
+                    break
+                else:
+                    # Something unexpected happend to the connection
+                    self._closing = True
+                    self._loop.call_soon(self._do_close, exc)
+                    if self._in_transaction is not None:
+                        self._transaction_error = exc
+                    return
             self._parser.feed(data)
             while True:
                 try:
@@ -241,6 +250,8 @@ class RedisConnection:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
+        if command in ('QUIT', b'QUIT'):
+            self._expect_close = True
         fut = asyncio.Future(loop=self._loop)
         self._writer.write(encode_command(command, *args))
         self._waiters.append((fut, encoding, cb))
