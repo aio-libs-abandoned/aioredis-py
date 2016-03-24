@@ -32,7 +32,7 @@ Connection usage is as simple as:
    asyncio.get_event_loop().run_until_complete(connection_example())
 
 
-.. function:: create_connection(address, \*, db=0, password=None,\
+.. function:: create_connection(address, \*, db=0, password=None, ssl=None,\
                                 encoding=None, loop=None)
 
    Creates Redis connection.
@@ -48,6 +48,10 @@ Connection usage is as simple as:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+   
+   :param ssl: SSL context that is passed through to 
+               :func:`asyncio.BaseEventLoop.create_connection`.
+   :type ssl: :class:`ssl.SSLContext` or True or None 
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -190,9 +194,9 @@ The library provides connections pool. The basic usage is as follows:
 
 .. _aioredis-create_pool:
 
-.. function:: create_pool(address, \*, db=0, password=None, encoding=None, \
-                          minsize=10, maxsize=10, commands_factory=Redis,\
-                          loop=None)
+.. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
+                          encoding=None, minsize=10, maxsize=10, \
+                          commands_factory=Redis, loop=None)
 
    A :ref:`coroutine<coroutine>` that creates Redis connections pool.
 
@@ -209,6 +213,10 @@ The library provides connections pool. The basic usage is as follows:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+   
+   :param ssl: SSL context that is passed through to 
+               :func:`asyncio.BaseEventLoop.create_connection`.
+   :type ssl: :class:`ssl.SSLContext` or True or None    
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -395,7 +403,7 @@ Commands Interface
 The library provides high-level API implementing simple interface
 to Redis commands.
 
-.. function:: create_redis(address, \*, db=0, password=None,\
+.. function:: create_redis(address, \*, db=0, password=None, ssl=None,\
                            encoding=None, commands_factory=Redis,\
                            loop=None)
 
@@ -411,6 +419,10 @@ to Redis commands.
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
+   
+   :param ssl: SSL context that is passed through to 
+               :func:`asyncio.BaseEventLoop.create_connection`.
+   :type ssl: :class:`ssl.SSLContext` or True or None    
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -426,7 +438,7 @@ to Redis commands.
 
 
 .. function:: create_reconnecting_redis(address, \*, db=0, password=None,\
-                           encoding=None, commands_factory=Redis,\
+                           ssl=None, encoding=None, commands_factory=Redis,\
                            loop=None)
 
    Like :func:`create_redis` this :ref:`coroutine<coroutine>` creates
