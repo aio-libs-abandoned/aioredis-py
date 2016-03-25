@@ -252,6 +252,8 @@ class RedisConnection:
         command = command.upper().strip()
         assert command in _PUBSUB_COMMANDS, (
             "Pub/Sub command expected", command)
+        if self._reader is None or self._reader.at_eof():
+            raise ConnectionClosedError("Connection closed or corrupted")
         if None in set(channels):
             raise TypeError("args must not contain None")
         if not len(channels):

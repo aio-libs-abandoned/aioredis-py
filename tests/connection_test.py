@@ -100,6 +100,12 @@ class ConnectionTest(BaseTest):
             fut = conn.select(1)
             loop.run_until_complete(fut)
 
+        conn = loop.run_until_complete(self.create_connection(
+            ('localhost', self.redis_port), loop=loop))
+        conn.close()
+        with self.assertRaises(ConnectionClosedError):
+            conn.execute_pubsub('subscribe', 'channel:1')
+
     @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
     @run_until_complete
     def test_close_connection__socket(self):
@@ -109,6 +115,12 @@ class ConnectionTest(BaseTest):
         with self.assertRaises(ConnectionClosedError):
             yield from conn.select(1)
 
+        conn = yield from self.create_connection(
+            self.redis_socket, loop=self.loop)
+        conn.close()
+        with self.assertRaises(ConnectionClosedError):
+            yield from conn.execute_pubsub('subscribe', 'channel:1')
+
     @run_until_complete
     def test_closed_connection_with_none_reader(self):
         address = ('localhost', self.redis_port)
@@ -117,6 +129,14 @@ class ConnectionTest(BaseTest):
         conn._reader = None
         with self.assertRaises(ConnectionClosedError):
             yield from conn.execute('blpop', 'test', 0)
+        conn._reader = stored_reader
+        conn.close()
+
+        conn = yield from self.create_connection(address, loop=self.loop)
+        stored_reader = conn._reader
+        conn._reader = None
+        with self.assertRaises(ConnectionClosedError):
+            yield from conn.execute_pubsub('subscribe', 'channel:1')
         conn._reader = stored_reader
         conn.close()
 
