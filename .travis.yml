@@ -1,5 +1,10 @@
 sudo: false
 
+addons:
+  apt:
+    packages:
+    - socat
+
 language: python
 
 python:
