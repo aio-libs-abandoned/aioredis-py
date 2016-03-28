@@ -41,6 +41,11 @@ before_install:
       make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
     done;
   fi
+# make certificate for ssl/tls test
+- openssl genrsa -out /tmp/server.key 1024
+- openssl req -new -key /tmp/server.key -x509 -out /tmp/server.crt -batch
+- cat /tmp/server.key /tmp/server.crt > /tmp/server.pem
+- export CERT_FILE=/tmp/server.crt
 
 install:
 - pip install hiredis
@@ -68,6 +73,9 @@ before_script:
 - $REDIS_BIN/redis-cli -p $REDIS_PORT_2 PING
 - export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
 - echo $REDIS_VERSION
+# running socat
+- socat openssl-listen:6443,cert=/tmp/server.pem,verify=0,fork tcp-connect:localhost:6379 &
+- echo "PING" | socat stdin openssl-connect:localhost:6443,verify=0
 
 script:
 - flake8 aioredis tests
