@@ -138,3 +138,12 @@ New ``scan``-family commands added with support of :ref:`async for<async for>`
 .. literalinclude:: ../examples/python_3.5_iscan.py
    :language: python
    :lines: 6-9,29-31,34-36,39-41,44-46
+
+
+SSL/TLS support
+---------------
+
+:mod:`aioredis` library support secure connections through :mod:`asyncio`
+SSL support. See `BaseEventLoop.create_connection`_ for details.
+
+.. _BaseEventLoop.create_connection: https://docs.python.org/3/library/asyncio-eventloop.html#creating-connections

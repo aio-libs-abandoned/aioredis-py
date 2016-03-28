@@ -20,6 +20,7 @@ Low-level & High-level APIs         Yes
 Connections Pool                    Yes
 Pipelining support                  Yes
 Pub/Sub support                     Yes
+SSL/TLS support                     Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
 Tested python versions              `3.3, 3.4, 3.5`_

@@ -48,10 +48,10 @@ Connection usage is as simple as:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
-   
-   :param ssl: SSL context that is passed through to 
+
+   :param ssl: SSL context that is passed through to
                :func:`asyncio.BaseEventLoop.create_connection`.
-   :type ssl: :class:`ssl.SSLContext` or True or None 
+   :type ssl: :class:`ssl.SSLContext` or True or None
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -213,10 +213,10 @@ The library provides connections pool. The basic usage is as follows:
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
-   
-   :param ssl: SSL context that is passed through to 
+
+   :param ssl: SSL context that is passed through to
                :func:`asyncio.BaseEventLoop.create_connection`.
-   :type ssl: :class:`ssl.SSLContext` or True or None    
+   :type ssl: :class:`ssl.SSLContext` or True or None
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -419,10 +419,10 @@ to Redis commands.
    :param password: Password to use if redis server instance requires
                     authorization.
    :type password: str or None
-   
-   :param ssl: SSL context that is passed through to 
+
+   :param ssl: SSL context that is passed through to
                :func:`asyncio.BaseEventLoop.create_connection`.
-   :type ssl: :class:`ssl.SSLContext` or True or None    
+   :type ssl: :class:`ssl.SSLContext` or True or None
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
@@ -466,6 +466,3 @@ to Redis commands.
    High-level Redis commands interface.
 
    For details see :ref:`mixins<aioredis-commands>` reference.
-
-..
-    https://github.com/aio-libs/aioredis/tree/master/aioredis/commands
