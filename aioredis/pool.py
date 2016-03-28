@@ -24,10 +24,10 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
     Returns RedisPool instance.
     """
 
-    pool = RedisPool(address, db, password, ssl, encoding,
+    pool = RedisPool(address, db, password, encoding,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
-                     loop=loop)
+                     ssl=ssl, loop=loop)
     yield from pool._fill_free(override_min=False)
     return pool
 
