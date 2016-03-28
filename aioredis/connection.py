@@ -38,7 +38,7 @@ _PUBSUB_COMMANDS = (
 
 
 @asyncio.coroutine
-def create_connection(address, *, db=None, password=None,
+def create_connection(address, *, db=None, password=None, ssl=None,
                       encoding=None, loop=None):
     """Creates redis connection.
 
@@ -47,6 +47,9 @@ def create_connection(address, *, db=None, password=None,
     * when address is a tuple it represents (host, port) pair;
     * when address is a str it represents unix domain socket path.
     (no other address formats supported)
+
+    SSL argument is passed through to asyncio.create_connection.
+    By default SSL/TLS is not used.
 
     Encoding argument can be used to decode byte-replies to strings.
     By default no decoding is done.
@@ -61,14 +64,14 @@ def create_connection(address, *, db=None, password=None,
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
         reader, writer = yield from asyncio.open_connection(
-            host, port, loop=loop)
+            host, port, ssl=ssl, loop=loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     else:
         logger.debug("Creating unix connection to %r", address)
         reader, writer = yield from asyncio.open_unix_connection(
-            address, loop=loop)
+            address, ssl=ssl, loop=loop)
     conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
 
     try:

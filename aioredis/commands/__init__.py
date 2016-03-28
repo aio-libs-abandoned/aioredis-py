@@ -126,7 +126,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
 
 @asyncio.coroutine
-def create_redis(address, *, db=None, password=None,
+def create_redis(address, *, db=None, password=None, ssl=None,
                  encoding=None, commands_factory=Redis,
                  loop=None):
     """Creates high-level Redis interface.
@@ -135,13 +135,14 @@ def create_redis(address, *, db=None, password=None,
     """
     conn = yield from create_connection(address, db=db,
                                         password=password,
+                                        ssl=ssl,
                                         encoding=encoding,
                                         loop=loop)
     return commands_factory(conn)
 
 
 @asyncio.coroutine
-def create_reconnecting_redis(address, *, db=None, password=None,
+def create_reconnecting_redis(address, *, db=None, password=None, ssl=None,
                               encoding=None, commands_factory=Redis,
                               loop=None):
     """Creates high-level Redis interface.
@@ -152,7 +153,7 @@ def create_reconnecting_redis(address, *, db=None, password=None,
     # a first connection in it, or just resolve DNS. So let's keep it
     # coroutine for forward compatibility
     conn = AutoConnector(address,
-                         db=db, password=password,
+                         db=db, password=password, ssl=ssl,
                          encoding=encoding, loop=loop)
     return commands_factory(conn)
 

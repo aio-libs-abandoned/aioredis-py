@@ -11,7 +11,7 @@ PY_35 = sys.version_info >= (3, 5)
 
 
 @asyncio.coroutine
-def create_pool(address, *, db=0, password=None, encoding=None,
+def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
                 minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
 
@@ -24,7 +24,7 @@ def create_pool(address, *, db=0, password=None, encoding=None,
     Returns RedisPool instance.
     """
 
-    pool = RedisPool(address, db, password, encoding,
+    pool = RedisPool(address, db, password, ssl, encoding,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      loop=loop)
@@ -36,13 +36,14 @@ class RedisPool:
     """Redis connections pool.
     """
 
-    def __init__(self, address, db=0, password=None, encoding=None,
+    def __init__(self, address, db=0, password=None, ssl=None, encoding=None,
                  *, minsize, maxsize, commands_factory, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._address = address
         self._db = db
         self._password = password
+        self._ssl = ssl
         self._encoding = encoding
         self._minsize = minsize
         self._factory = commands_factory
@@ -193,6 +194,7 @@ class RedisPool:
         return create_redis(self._address,
                             db=self._db,
                             password=self._password,
+                            ssl=self._ssl,
                             encoding=self._encoding,
                             commands_factory=self._factory,
                             loop=self._loop)
