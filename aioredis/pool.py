@@ -36,8 +36,8 @@ class RedisPool:
     """Redis connections pool.
     """
 
-    def __init__(self, address, db=0, password=None, ssl=None, encoding=None,
-                 *, minsize, maxsize, commands_factory, loop=None):
+    def __init__(self, address, db=0, password=None, encoding=None,
+                 *, minsize, maxsize, commands_factory, ssl=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._address = address
