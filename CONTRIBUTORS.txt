@@ -14,3 +14,8 @@ Aider Ibragimov
 SeungHyun Hwang
 Taku Fukada
 Volodymyr Hotsyk
+Jeff Moser
+Dima Kruk
+Leonid Shvechikov
+Samuel Colvin
+Ihor Gorobets
