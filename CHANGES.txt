@@ -1,6 +1,29 @@
 Changes
 -------
 
+0.2.6 (2016-03-30)
+^^^^^^^^^^^^^^^^^^
+
+* Fixed Multi/Exec transactions cancellation issue
+  (see `#110 <https://github.com/aio-libs/aioredis/issues/110>`_
+  and `#114 <https://github.com/aio-libs/aioredis/issues/114>`_);
+
+* Fixed Pub/Sub subscribe concurrency issue
+  (see `#113 <https://github.com/aio-libs/aioredis/issues/113>`_
+  and `#115 <https://github.com/aio-libs/aioredis/issues/115>`_);
+
+* Add SSL/TLS support
+  (see  `#116 <https://github.com/aio-libs/aioredis/issues/116>`_);
+
+* ``aioredis.ConnectionClosedError`` raised in ``execute_pubsub`` as well
+  (see `#108 <https://github.com/aio-libs/aioredis/issues/108>`_);
+
+* ``Redis.slaveof()`` method signature changed: now to disable
+  replication one should call ``redis.slaveof(None)`` instead of ``redis.slaveof()``;
+
+* More tests added;
+
+
 0.2.5 (2016-03-02)
 ^^^^^^^^^^^^^^^^^^
 
