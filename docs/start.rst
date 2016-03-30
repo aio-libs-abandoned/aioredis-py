@@ -143,7 +143,10 @@ New ``scan``-family commands added with support of :ref:`async for<async for>`
 SSL/TLS support
 ---------------
 
+Though Redis server `does not support data encryption <data_encryption_>`_
+it is still possible to setup Redis server behind SSL proxy. For such cases
 :mod:`aioredis` library support secure connections through :mod:`asyncio`
 SSL support. See `BaseEventLoop.create_connection`_ for details.
 
+.. _data_encryption: http://redis.io/topics/security#data-encryption-support
 .. _BaseEventLoop.create_connection: https://docs.python.org/3/library/asyncio-eventloop.html#creating-connections

@@ -159,7 +159,11 @@ class ServerCommandsMixin:
         """Make the server a slave of another instance,
         or promote it as master.
 
-        Calling slaveof(None) will send ``SLAVEOF NO ONE``.
+        Calling ``slaveof(None)`` will send ``SLAVEOF NO ONE``.
+
+        .. versionchanged:: v0.2.6
+           ``slaveof()`` form deprecated
+           in favour of explicit ``slaveof(None)``.
         """
         if host is _NOTSET:
             logger.warning("slaveof() form is deprecated!"
