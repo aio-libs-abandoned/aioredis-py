@@ -6,6 +6,7 @@ import asyncio
 from aioredis import ReplyError, ProtocolError
 from aioredis.cluster import RedisCluster, RedisPoolCluster
 from aioredis.cluster.cluster import parse_moved_response_error, parse_nodes_info, ClusterNodesManager, ClusterNode
+from aioredis.errors import RedisClusterError
 from ._testutil import (
     SLOT_ZERO_KEY, run_until_complete, BaseTest, IS_REDIS_CLUSTER,
     CreateConnectionMock, FakeConnection, PoolConnectionMock
@@ -113,6 +114,16 @@ class RedisClusterTest(BaseTest):
     def test_create(self):
         cluster = yield from self.create_test_cluster()
         self.assertIsInstance(cluster, RedisCluster)
+
+    @run_until_complete
+    def test_create_fails(self):
+        expected_connections = {
+            port: FakeConnection(self, port, return_value=ProtocolError('ERROR'))
+            for port in range(self.redis_port, self.redis_port + 6)
+        }
+        with CreateConnectionMock(self, expected_connections):
+            with self.assertRaises(RedisClusterError):
+                yield from self.create_test_cluster()
 
     @run_until_complete
     def test_counts(self):
@@ -281,7 +292,7 @@ class RedisPoolClusterTest(BaseTest):
     @run_until_complete
     def test_reload_cluster_pool(self):
         cluster = yield from self.create_test_pool_cluster()
-        old_pools = set(id(pool) for pool in cluster._cluster_pool.values())
+        old_pools = list(cluster._cluster_pool.values())
         yield from cluster.reload_cluster_pool()
-        new_pools = set(id(pool) for pool in cluster._cluster_pool.values())
-        self.assertTrue(old_pools.isdisjoint(new_pools))
+        new_pools = list(cluster._cluster_pool.values())
+        self.assertTrue({id(pool) for pool in old_pools}.isdisjoint({id(pool) for pool in new_pools}))

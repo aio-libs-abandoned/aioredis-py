@@ -15,6 +15,7 @@ from .errors import (
     ProtocolError,
     RedisError,
     ReplyError,
+    RedisClusterError,
     )
 
 
@@ -27,4 +28,5 @@ __version__ = '0.2.6'
  create_pool_cluster, RedisPoolCluster, Channel,
  create_cluster, RedisCluster,
  RedisError, ProtocolError, ReplyError,
- PipelineError, MultiExecError, ConnectionClosedError)
+ PipelineError, MultiExecError, ConnectionClosedError,
+ RedisClusterError)

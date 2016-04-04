@@ -110,12 +110,12 @@ class BaseTest(unittest.TestCase):
     @staticmethod
     def get_cluster_addresses(start_port):
         ports = [start_port + i for i in range(6)]
-        return [('localhost', port) for port in ports]
+        return [('127.0.0.1', port) for port in ports]
 
     @asyncio.coroutine
     def create_test_redis_or_cluster(self, encoding=None):
         if not IS_REDIS_CLUSTER:
-            return self.create_redis(('localhost', self.redis_port), encoding=encoding, loop=self.loop)
+            return self.create_redis(('127.0.0.1', self.redis_port), encoding=encoding, loop=self.loop)
         else:
             return self.create_test_cluster(encoding=encoding)
 
@@ -204,6 +204,7 @@ class FakeConnection:
 
 class CreateConnectionMock:
     def __init__(self, test_case, connections):
+        assert isinstance(connections, dict)
         self.test_case = test_case
         self.connections = connections
         self.contextManager = unittest.mock.patch(

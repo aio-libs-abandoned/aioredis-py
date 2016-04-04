@@ -2,6 +2,8 @@ import random
 import asyncio
 from functools import partial
 from operator import itemgetter
+
+from aioredis.errors import ProtocolError
 from ..commands import (
     create_redis,
     Redis,
@@ -103,7 +105,7 @@ class ClusterNode:
 
     @cached_property
     def is_alive(self):
-        return 'fail' not in self.flags and 'fail?' not in self.flags
+        return 'fail' not in self.flags and 'fail?' not in self.flags and self.status == 'connected'
 
     def in_range(self, value):
         if value < self.ranges[0][0]:
@@ -309,7 +311,7 @@ class RedisCluster(RedisClusterMixin):
         slot = self._cluster_manager.determine_slot(*args)
         for node in self._cluster_manager.get_node_by_slot(slot):
             return node
-        return self._cluster_manager.get_random_node()
+        return self._cluster_manager.get_random_master_node()
 
     def node_count(self):
         return self._cluster_manager.nodes_count
@@ -324,9 +326,7 @@ class RedisCluster(RedisClusterMixin):
         return [node.address for node in self._cluster_manager.masters]
 
     @asyncio.coroutine
-    def get_cluster_info(self, node_index=0):
-        node = self._nodes[node_index]
-        logger.info('Loading cluster map from {}...'.format(node))
+    def _get_raw_cluster_info_from_node(self, node):
         conn = yield from create_redis(
             node,
             db=self._db,
@@ -338,13 +338,34 @@ class RedisCluster(RedisClusterMixin):
         nodes_raw_resp = yield from conn.cluster_nodes()
         conn.close()
         yield from conn.wait_closed()
-        self._cluster_manager = ClusterNodesManager.create(nodes_raw_resp)
+        return nodes_raw_resp
+
+    @asyncio.coroutine
+    def fetch_cluster_info(self):
+        logger.info('Loading cluster map from {}...'.format(self._nodes))
+        tasks = [self._loop.create_task(self._get_raw_cluster_info_from_node(node)) for node in self._nodes]
+
+        try:
+            for task in asyncio.as_completed(tasks, loop=self._loop):
+                try:
+                    nodes_raw_response = yield from task
+                    self._cluster_manager = ClusterNodesManager.create(nodes_raw_response)
+                    logger.info('Cluster map loaded successfully: %s', nodes_raw_response)
+                    return
+                except (ReplyError, ProtocolError, ConnectionError) as exc:
+                    logger.warning('Loading cluster map from a node failed with {}'.format(repr(exc)))
+
+        finally:
+            for task in tasks:
+                task.cancel()
+
+        raise RedisClusterError('No cluster map could be loaded from any host')
 
     @asyncio.coroutine
     def initialize(self):
         logger.info('Initializing cluster...')
         self._moved_count = 0
-        yield from self.get_cluster_info()
+        yield from self.fetch_cluster_info()
         logger.info('Initialized cluster.\n{}'.format(self._cluster_manager))
 
     @asyncio.coroutine
@@ -472,12 +493,14 @@ class RedisPoolCluster(RedisCluster):
         return cluster_pool
 
     @asyncio.coroutine
-    def reload_cluster_pool(self, node_index=0):
+    def reload_cluster_pool(self):
         logger.info('Reloading cluster...')
         yield from self.clear()
         self._moved_count = 0
-        yield from self.get_cluster_info(node_index)
-        self._cluster_pool = yield from self.get_cluster_pool()
+        yield from self.fetch_cluster_info()
+        self._cluster_pool = {}
+        logger.info('Connecting to cluster...')
+        yield from self.prepare_cluster_pool()
         logger.info('Reloaded cluster')
 
     @asyncio.coroutine
