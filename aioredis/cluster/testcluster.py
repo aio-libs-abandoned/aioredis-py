@@ -201,10 +201,12 @@ class TestCluster:
         if header[0] != ord('$'):
             raise ValueError('Expected bulk string response.')
         byte_count = int(header[1:].decode('utf-8'))
-        remaining_data = self._recv_bytes(socket, byte_count - len(data) + 2)
-        if not remaining_data[:-2] != 'b\r\n':
-            raise ValueError('Invalid bulk string received.')
-        data += remaining_data[:-2]
+        missing_byte_count = byte_count - len(data) + 2
+        if missing_byte_count > 0:
+            remaining_data = self._recv_bytes(socket, missing_byte_count)
+            if remaining_data[-2:] != b'\r\n':
+                raise ValueError('Invalid bulk string received.')
+            data += remaining_data[:-2]
         return data
 
     def _get_redis_directory(self, port):
