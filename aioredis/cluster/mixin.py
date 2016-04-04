@@ -30,7 +30,7 @@ class RedisClusterMixin:
         entities = self.get_nodes_entities()
         futures = []
         @asyncio.coroutine
-        def scan_corr(ent, cur=cursor):
+        def scan_coroutine(ent, cur=cursor):
             """
 
             :param address - address tuple
@@ -48,21 +48,6 @@ class RedisClusterMixin:
             return ks
 
         for entity in entities:
-            futures.append(scan_corr(entity, cur=cursor))
+            futures.append(scan_coroutine(entity, cur=cursor))
 
         return (yield from asyncio.gather(*futures, loop=self._loop))
-
-    if PY_35:
-        def iscan(self, *, match=None, count=None):
-            """Incrementally iterate the keys space using async for.
-
-            :param match - str
-            :param count - int
-            Usage example:
-
-            >>> async for key in conn.iscan(match='key*'):
-            ...     print('Matched:', key)
-
-            """
-            return _ScanIter(
-                lambda cur: self.scan(cur, match=match, count=count))
