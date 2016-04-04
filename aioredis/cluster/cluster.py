@@ -482,14 +482,19 @@ class RedisPoolCluster(RedisCluster):
     @asyncio.coroutine
     def get_cluster_pool(self):
         cluster_pool = {}
-        node_pools = [(node, create_pool(node.address, db=self._db, password=self._password,
-                                         encoding=self._encoding, minsize=self._minsize,
-                                         maxsize=self._maxsize, commands_factory=self._factory,
-                                         loop=self._loop))
-                      for node in self._cluster_manager.masters]
+        nodes = list(self._cluster_manager.masters)
+        tasks = [
+            self._loop.create_task(
+                create_pool(node.address, db=self._db, password=self._password,
+                encoding=self._encoding, minsize=self._minsize,
+                maxsize=self._maxsize, commands_factory=self._factory,
+                loop=self._loop))
+            for node in nodes
+        ]
+        yield from asyncio.gather(*tasks, loop=self._loop)
 
-        for node, node_pool_future in node_pools:
-            cluster_pool[node.id] = yield from node_pool_future
+        for node, task in zip(nodes, tasks):
+            cluster_pool[node.id] = task.result()
         return cluster_pool
 
     @asyncio.coroutine
