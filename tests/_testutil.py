@@ -213,7 +213,7 @@ class CreateConnectionMock:
         )
 
     @asyncio.coroutine
-    def get_fake_connection(self, address, db, password, encoding, loop):
+    def get_fake_connection(self, address, db, password, ssl, encoding, loop):
         host, port = address
         self.test_case.assertEqual(host, '127.0.0.1')
         expected_connection = self.connections[port]
