@@ -468,7 +468,7 @@ class RedisPoolCluster(RedisCluster):
                       for node in self._cluster_manager.masters]
 
         for node, node_pool_future in node_pools:
-            cluster_pool[node.number] = yield from node_pool_future
+            cluster_pool[node.id] = yield from node_pool_future
         return cluster_pool
 
     @asyncio.coroutine
@@ -497,7 +497,7 @@ class RedisPoolCluster(RedisCluster):
 
     def get_pool(self, *args):
         node = self.get_node(*args)
-        return self._cluster_pool[node.number]
+        return self._cluster_pool[node.id]
 
     @asyncio.coroutine
     def _execute_node(self, pool, command, *args, **kwargs):
