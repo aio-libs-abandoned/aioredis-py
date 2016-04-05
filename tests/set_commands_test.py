@@ -2,7 +2,9 @@ import asyncio
 import sys
 import unittest
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import (
+    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+)
 from textwrap import dedent
 
 PY_35 = sys.version_info > (3, 5)

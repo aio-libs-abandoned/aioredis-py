@@ -7,7 +7,9 @@ import unittest
 from textwrap import dedent
 from unittest import mock
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import (
+    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+)
 from aioredis import ReplyError
 
 
@@ -21,7 +23,8 @@ class GenericCommandsTest(RedisTest):
         yield from self.add('{key:delete}:1', 123)
         yield from self.add('{key:delete}:2', 123)
 
-        res = yield from self.redis.delete('{key:delete}:1', '{key:delete}:non-existent')
+        res = yield from self.redis.delete(
+            '{key:delete}:1', '{key:delete}:non-existent')
         self.assertEqual(res, 1)
 
         res = yield from self.redis.delete('{key:delete}:2', '{key:delete}:2')
@@ -207,7 +210,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
             yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Move is not available on Redis cluster')
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'Move is not available on cluster')
     @run_until_complete
     def test_move(self):
         yield from self.flushall()
@@ -359,7 +362,8 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.pttl(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Would return random key from each node.')
+    @unittest.skipIf(IS_REDIS_CLUSTER,
+                     'Would return random key from each node.')
     @run_until_complete
     def test_randomkey(self):
         yield from self.flushall()
@@ -403,14 +407,17 @@ class GenericCommandsTest(RedisTest):
         yield from self.redis.delete('{key:renamenx}:1', '{key:renamenx}:2')
         yield from self.add('{key:renamenx}:1', 123)
 
-        res = yield from self.redis.renamenx('{key:renamenx}:1', '{key:renamenx}:2')
+        res = yield from self.redis.renamenx(
+            '{key:renamenx}:1', '{key:renamenx}:2')
         self.assertTrue(res)
         yield from self.add('{key:renamenx}:1', 123)
-        res = yield from self.redis.renamenx('{key:renamenx}:1', '{key:renamenx}:2')
+        res = yield from self.redis.renamenx(
+            '{key:renamenx}:1', '{key:renamenx}:2')
         self.assertFalse(res)
 
         with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
-            yield from self.redis.renamenx('{key:renamenx}:non-existing', '{key:renamenx}:1')
+            yield from self.redis.renamenx(
+                '{key:renamenx}:non-existing', '{key:renamenx}:1')
         with self.assertRaises(TypeError):
             yield from self.redis.renamenx(None, 'key')
         with self.assertRaises(TypeError):
@@ -425,7 +432,8 @@ class GenericCommandsTest(RedisTest):
     def test_restore(self):
         pass
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Scan command behaves differently on cluster')
+    @unittest.skipIf(IS_REDIS_CLUSTER,
+                     'Scan command behaves differently on cluster')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SCAN is available since redis>=2.8.0')
     @run_until_complete
@@ -467,7 +475,8 @@ class GenericCommandsTest(RedisTest):
             test_values.extend(values)
         self.assertEqual(len(test_values), 10)
 
-    @unittest.skipUnless(IS_REDIS_CLUSTER, 'Scan command behaves differently on cluster')
+    @unittest.skipUnless(IS_REDIS_CLUSTER,
+                         'Scan command behaves differently on cluster')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SCAN is available since redis>=2.8.0')
     @run_until_complete
@@ -482,9 +491,12 @@ class GenericCommandsTest(RedisTest):
         values_per_node = yield from self.redis.scan()
         values_per_node = set(frozenset(values) for values in values_per_node)
         expected = {
-            frozenset([b'key:scan:bar:4', b'key:scan:foo:6', b'key:scan:bar:8']),
-            frozenset([b'key:scan:bar:1', b'key:scan:bar:2', b'key:scan:foo:3', b'key:scan:bar:5']),
-            frozenset([b'key:scan:bar:7', b'key:scan:foo:9', b'key:scan:bar:10'])
+            frozenset([b'key:scan:bar:4', b'key:scan:foo:6',
+                       b'key:scan:bar:8']),
+            frozenset([b'key:scan:bar:1', b'key:scan:bar:2',
+                       b'key:scan:foo:3', b'key:scan:bar:5']),
+            frozenset([b'key:scan:bar:7', b'key:scan:foo:9',
+                       b'key:scan:bar:10'])
         }
         self.assertEqual(values_per_node, expected)
 

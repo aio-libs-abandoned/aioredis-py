@@ -3,7 +3,9 @@ import sys
 import unittest
 from textwrap import dedent
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import (
+    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+)
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
 
@@ -393,7 +395,8 @@ class HashCommandsTest(RedisTest):
 
 
 class HashCommandsEncodingTest(RedisEncodingTest):
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Client does not yet support transactions on clusters')
+    @unittest.skipIf(IS_REDIS_CLUSTER,
+                     'Client does not yet support transactions on clusters')
     @run_until_complete
     def test_hgetall(self):
         TEST_KEY = 'my-key-nx'

@@ -3,7 +3,9 @@ import sys
 from textwrap import dedent
 import unittest
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import (
+    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+)
 
 from aioredis.commands import SortedSetCommandsMixin
 
@@ -86,7 +88,8 @@ class SortedSetsCommandsTest(RedisTest):
             key, 1, exclude=SortedSetCommandsMixin.ZSET_EXCLUDE_MAX)
         self.assertEqual(res, 5)
         res = yield from self.redis.zcount(
-            key, float('-inf'), 3, exclude=SortedSetCommandsMixin.ZSET_EXCLUDE_MIN)
+            key, float('-inf'), 3,
+            exclude=SortedSetCommandsMixin.ZSET_EXCLUDE_MIN)
         self.assertEqual(res, 4)
 
         with self.assertRaises(TypeError):
@@ -292,7 +295,8 @@ class SortedSetsCommandsTest(RedisTest):
         res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=False)
         self.assertEqual(res, members)
         res = yield from self.redis.zrangebyscore(
-            key, 1, 7, withscores=False, exclude=SortedSetCommandsMixin.ZSET_EXCLUDE_BOTH)
+            key, 1, 7, withscores=False,
+            exclude=SortedSetCommandsMixin.ZSET_EXCLUDE_BOTH)
         self.assertEqual(res, members[2:-1])
         res = yield from self.redis.zrangebyscore(key, 1, 7, withscores=True)
         self.assertEqual(res, rev_pairs)

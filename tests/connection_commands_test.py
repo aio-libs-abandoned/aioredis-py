@@ -48,7 +48,8 @@ class ConnectionCommandsTest(RedisTest):
         with self.assertRaises(ConnectionClosedError):
             yield from self.redis.ping()
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'select is not available on Redis cluster')
+    @unittest.skipIf(IS_REDIS_CLUSTER,
+                     'select is not available on Redis cluster')
     @run_until_complete
     def test_select(self):
         self.assertEqual(self.redis.db, 0)

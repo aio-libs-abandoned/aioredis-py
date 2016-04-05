@@ -1,7 +1,10 @@
 import asyncio
 import unittest
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from aioredis.util import async_task
+from ._testutil import (
+    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+)
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
 from aioredis.commands.string import StringCommandsMixin
@@ -503,13 +506,15 @@ class StringCommandsTest(RedisTest):
         key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
         # ensure that such key does not exits, and value not sets
         yield from self.redis.delete(key)
-        yield from self.redis.set(key, value, exist=StringCommandsMixin.SET_IF_EXIST)
+        yield from self.redis.set(
+            key, value, exist=StringCommandsMixin.SET_IF_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, None)
 
         # ensure key exits, and value updates
         yield from self.redis.set(key, value)
-        yield from self.redis.set(key, b'foo', exist=StringCommandsMixin.SET_IF_EXIST)
+        yield from self.redis.set(
+            key, b'foo', exist=StringCommandsMixin.SET_IF_EXIST)
         result_2 = yield from self.redis.get(key)
         self.assertEqual(result_2, b'foo')
 
@@ -618,10 +623,10 @@ class StringCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.strlen(None)
 
-
     @run_until_complete
     def test_cancel_hang(self):
-        exists_future = asyncio.ensure_future(self.execute("EXISTS", b"key:test1"), loop=self.loop)
+        exists_future = async_task(
+            self.execute("EXISTS", b"key:test1"), loop=self.loop)
         exists_future.cancel()
         exists_check = yield from self.redis.exists(b"key:test2")
         self.assertFalse(exists_check)
@@ -639,7 +644,8 @@ class StringCommandsEncodingTest(RedisEncodingTest):
 
         yield from self.redis.delete(TEST_KEY)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Client does not yet support transactions on clusters')
+    @unittest.skipIf(IS_REDIS_CLUSTER,
+                     'Client does not yet support transactions on clusters')
     @run_until_complete
     def test_setnx(self):
         TEST_KEY = 'my-key-nx'

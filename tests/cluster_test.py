@@ -5,7 +5,10 @@ import asyncio
 
 from aioredis import ReplyError, ProtocolError
 from aioredis.cluster import RedisCluster, RedisPoolCluster
-from aioredis.cluster.cluster import parse_moved_response_error, parse_nodes_info, ClusterNodesManager, ClusterNode
+from aioredis.cluster.cluster import (
+    parse_moved_response_error, parse_nodes_info, ClusterNodesManager,
+    ClusterNode
+)
 from aioredis.errors import RedisClusterError
 from ._testutil import (
     SLOT_ZERO_KEY, run_until_complete, BaseTest, IS_REDIS_CLUSTER,
@@ -15,22 +18,34 @@ from ._testutil import (
 
 # example from the CLUSTER NODES doc
 RAW_NODE_INFO_DATA_OK = textwrap.dedent("""
-07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
-67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master - 0 1426238316232 2 connected 5461-10922
-292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master - 0 1426238318243 3 connected 10923-16383
-6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
-824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
-e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master - 0 0 1 connected 0-5460"""
-)
+    07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave \
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+    67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master \
+    - 0 1426238316232 2 connected 5461-10922
+    292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master \
+    - 0 1426238318243 3 connected 10923-16383
+    6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave \
+    67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
+    824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave \
+    292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master \
+    - 0 0 1 connected 0-5460
+""")
 
-RAW_NODE_INFO_DATA_FAIL = textwrap.dedent("""\
-    07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave,fail e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
-    67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master,fail? - 0 1426238316232 2 connected 5461-10922
-    292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master - 0 1426238318243 3 connected 10923-16383
-    6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
-    824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
-    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master - 0 0 1 connected 0-5460"""
-)
+RAW_NODE_INFO_DATA_FAIL = textwrap.dedent("""
+    07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004 slave,fail \
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+    67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002 master,fail? \
+    - 0 1426238316232 2 connected 5461-10922
+    292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003 master \
+    - 0 1426238318243 3 connected 10923-16383
+    6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005 slave \
+    67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
+    824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave \
+    292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master \
+    - 0 0 1 connected 0-5460
+""")
 
 
 class ParseTest(unittest.TestCase):
@@ -38,20 +53,43 @@ class ParseTest(unittest.TestCase):
         self.assertIsNone(parse_moved_response_error(ReplyError()))
         self.assertIsNone(parse_moved_response_error(ReplyError('ASK')))
         self.assertEqual(
-            parse_moved_response_error(ReplyError('MOVED 3999 127.0.0.1:6381')),
+            parse_moved_response_error(
+                ReplyError('MOVED 3999 127.0.0.1:6381')),
             ('127.0.0.1', 6381)
         )
 
     def test_parse_nodes_info(self):
         self.assertTupleEqual(
-            list(parse_nodes_info(RAW_NODE_INFO_DATA_FAIL, ClusterNodesManager.CLUSTER_NODES_TUPLE))[0],
+            list(parse_nodes_info(RAW_NODE_INFO_DATA_FAIL,
+                                  ClusterNodesManager.CLUSTER_NODES_TUPLE))[0],
             [
-                ('07c37dfeb235213a872192d90877d0cd55635b91', '127.0.0.1', 30004, ('slave', 'fail'), 'e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca', 'connected', ((0, 0), )),
-                ('67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1', '127.0.0.1', 30002, ('master', 'fail?'), '0', 'connected', ((5461, 10922), )),
-                ('292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f', '127.0.0.1', 30003, ('master', ), '0', 'connected', ((10923, 16383), )),
-                ('6ec23923021cf3ffec47632106199cb7f496ce01', '127.0.0.1', 30005, ('slave', ), '67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1', 'connected', ((0, 0), )),
-                ('824fe116063bc5fcf9f4ffd895bc17aee7731ac3', '127.0.0.1', 30006, ('slave', ), '292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f', 'connected', ((0, 0), )),
-                ('e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca', '127.0.0.1', 30001, ('myself', 'master'), '0', 'connected', ((0, 5460), )),
+                ('07c37dfeb235213a872192d90877d0cd55635b91',
+                 '127.0.0.1', 30004, ('slave', 'fail'),
+                 'e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca',
+                 'connected', ((0, 0), )
+                 ),
+                ('67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1',
+                 '127.0.0.1', 30002, ('master', 'fail?'),
+                 '0', 'connected', ((5461, 10922), )
+                 ),
+                ('292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f',
+                 '127.0.0.1', 30003, ('master', ), '0',
+                 'connected', ((10923, 16383), )
+                 ),
+                ('6ec23923021cf3ffec47632106199cb7f496ce01',
+                 '127.0.0.1', 30005, ('slave', ),
+                 '67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1',
+                 'connected', ((0, 0), )
+                 ),
+                ('824fe116063bc5fcf9f4ffd895bc17aee7731ac3',
+                 '127.0.0.1', 30006, ('slave', ),
+                 '292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f',
+                 'connected', ((0, 0), )
+                 ),
+                ('e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca',
+                 '127.0.0.1', 30001, ('myself', 'master'),
+                 '0', 'connected', ((0, 5460), )
+                 ),
             ][0]
         )
 
@@ -65,7 +103,8 @@ class ClusterNodesManagerTest(unittest.TestCase):
     def test_create(self):
         manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         self.assertEqual(len(manager.nodes), 6)
-        self.assertTrue(all(isinstance(node, ClusterNode) for node in manager.nodes))
+        self.assertTrue(all(isinstance(node, ClusterNode)
+                            for node in manager.nodes))
 
     def test_node_count(self):
         manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
@@ -104,7 +143,8 @@ class ClusterNodesManagerTest(unittest.TestCase):
         manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_FAIL)
         self.assertFalse(manager.all_slots_covered)
 
-        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK.replace('16383', '16382'))
+        modified_data = RAW_NODE_INFO_DATA_OK.replace('16383', '16382')
+        manager = ClusterNodesManager.create(modified_data)
         self.assertFalse(manager.all_slots_covered)
 
 
@@ -118,7 +158,8 @@ class RedisClusterTest(BaseTest):
     @run_until_complete
     def test_create_fails(self):
         expected_connections = {
-            port: FakeConnection(self, port, return_value=ProtocolError('Intentional error'))
+            port: FakeConnection(
+                self, port, return_value=ProtocolError('Intentional error'))
             for port in range(self.redis_port, self.redis_port + 6)
         }
         with CreateConnectionMock(self, expected_connections):
@@ -147,11 +188,13 @@ class RedisClusterTest(BaseTest):
     def test_execute(self):
         cluster = yield from self.create_test_cluster()
         expected_connection = FakeConnection(self, self.redis_port)
-        with CreateConnectionMock(self, {self.redis_port: expected_connection}):
+        with CreateConnectionMock(
+                self, {self.redis_port: expected_connection}):
             ok = yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
         self.assertTrue(ok)
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_moved(self):
@@ -159,7 +202,8 @@ class RedisClusterTest(BaseTest):
         expected_connections = {
             self.redis_port: FakeConnection(
                 self, self.redis_port,
-                return_value=ReplyError('MOVED 6000 127.0.0.1:{}'.format(self.redis_port + 1))
+                return_value=ReplyError('MOVED 6000 127.0.0.1:{}'
+                                        .format(self.redis_port + 1))
             ),
             self.redis_port + 1: FakeConnection(self, self.redis_port + 1)
         }
@@ -167,34 +211,43 @@ class RedisClusterTest(BaseTest):
             ok = yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
         self.assertTrue(ok)
-        expected_connections[self.redis_port].execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
-        expected_connections[self.redis_port + 1].execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connections[self.redis_port].execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connections[self.redis_port + 1].execute\
+            .assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_reply_error(self):
         cluster = yield from self.create_test_cluster()
-        expected_connection = FakeConnection(self, self.redis_port, return_value=ReplyError('ERROR'))
-        with CreateConnectionMock(self, {self.redis_port: expected_connection}):
+        expected_connection = FakeConnection(
+            self, self.redis_port, return_value=ReplyError('ERROR'))
+        with CreateConnectionMock(self,
+                                  {self.redis_port: expected_connection}):
             with self.assertRaises(ReplyError):
                 yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_protocol_error(self):
         cluster = yield from self.create_test_cluster()
-        expected_connection = FakeConnection(self, self.redis_port, return_value=ProtocolError('ERROR'))
-        with CreateConnectionMock(self, {self.redis_port: expected_connection}):
+        expected_connection = FakeConnection(
+            self, self.redis_port, return_value=ProtocolError('ERROR'))
+        with CreateConnectionMock(self,
+                                  {self.redis_port: expected_connection}):
             with self.assertRaises(ProtocolError):
                 yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_many(self):
         cluster = yield from self.create_test_cluster()
         expected_connections = {
-            port: FakeConnection(self, port) for port in range(self.redis_port, self.redis_port + 3)
+            port: FakeConnection(self, port)
+            for port in range(self.redis_port, self.redis_port + 3)
         }
 
         with CreateConnectionMock(self, expected_connections):
@@ -202,7 +255,8 @@ class RedisClusterTest(BaseTest):
 
         self.assertEqual(ok, [b'OK'] * 3)
         for connection in expected_connections.values():
-            connection.execute.assert_called_once_with('PING', encoding=unittest.mock.ANY)
+            connection.execute.assert_called_once_with(
+                'PING', encoding=unittest.mock.ANY)
 
 
 @unittest.skipUnless(IS_REDIS_CLUSTER, 'need a running cluster')
@@ -232,54 +286,68 @@ class RedisPoolClusterTest(BaseTest):
     def test_execute(self):
         cluster = yield from self.create_test_pool_cluster()
         expected_connection = FakeConnection(self, self.redis_port)
-        with PoolConnectionMock(self, cluster, {self.redis_port: expected_connection}):
+        with PoolConnectionMock(self, cluster,
+                                {self.redis_port: expected_connection}):
             ok = yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
         self.assertTrue(ok)
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_moved(self):
         cluster = yield from self.create_test_pool_cluster()
         expected_pool_connection = FakeConnection(
             self, self.redis_port,
-            return_value=ReplyError('MOVED 6000 127.0.0.1:{}'.format(self.redis_port + 1))
+            return_value=ReplyError('MOVED 6000 127.0.0.1:{}'
+                                    .format(self.redis_port + 1))
         )
         expected_direct_connection = FakeConnection(self, self.redis_port + 1)
 
-        with PoolConnectionMock(self, cluster, {self.redis_port: expected_pool_connection}):
-            with CreateConnectionMock(self, {self.redis_port + 1: expected_direct_connection}):
+        with PoolConnectionMock(
+                self, cluster, {self.redis_port: expected_pool_connection}):
+            with CreateConnectionMock(
+                    self, {self.redis_port + 1: expected_direct_connection}):
                 ok = yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
         self.assertTrue(ok)
-        expected_pool_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
-        expected_direct_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_pool_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
+        expected_direct_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_reply_error(self):
         cluster = yield from self.create_test_pool_cluster()
-        expected_connection = FakeConnection(self, self.redis_port, return_value=ReplyError('ERROR'))
-        with PoolConnectionMock(self, cluster, {self.redis_port: expected_connection}):
+        expected_connection = FakeConnection(
+            self, self.redis_port, return_value=ReplyError('ERROR'))
+        with PoolConnectionMock(
+                self, cluster, {self.redis_port: expected_connection}):
             with self.assertRaises(ReplyError):
                 yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_with_protocol_error(self):
         cluster = yield from self.create_test_pool_cluster()
-        expected_connection = FakeConnection(self, self.redis_port, return_value=ProtocolError('ERROR'))
-        with PoolConnectionMock(self, cluster, {self.redis_port: expected_connection}):
+        expected_connection = FakeConnection(
+            self, self.redis_port, return_value=ProtocolError('ERROR'))
+        with PoolConnectionMock(
+                self, cluster, {self.redis_port: expected_connection}):
             with self.assertRaises(ProtocolError):
                 yield from cluster.execute('SET', SLOT_ZERO_KEY, 'value')
 
-        expected_connection.execute.assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
+        expected_connection.execute.assert_called_once_with(
+            b'SET', SLOT_ZERO_KEY, 'value')
 
     @run_until_complete
     def test_execute_many(self):
         cluster = yield from self.create_test_pool_cluster()
         expected_connections = {
-            port: FakeConnection(self, port) for port in range(self.redis_port, self.redis_port + 3)
+            port: FakeConnection(self, port)
+            for port in range(self.redis_port, self.redis_port + 3)
         }
 
         with PoolConnectionMock(self, cluster, expected_connections):
@@ -287,7 +355,8 @@ class RedisPoolClusterTest(BaseTest):
 
         self.assertEqual(ok, [b'OK'] * 3)
         for connection in expected_connections.values():
-            connection.execute.assert_called_once_with('PING', encoding=unittest.mock.ANY)
+            connection.execute.assert_called_once_with(
+                'PING', encoding=unittest.mock.ANY)
 
     @run_until_complete
     def test_reload_cluster_pool(self):
@@ -295,4 +364,5 @@ class RedisPoolClusterTest(BaseTest):
         old_pools = list(cluster._cluster_pool.values())
         yield from cluster.reload_cluster_pool()
         new_pools = list(cluster._cluster_pool.values())
-        self.assertTrue({id(pool) for pool in old_pools}.isdisjoint({id(pool) for pool in new_pools}))
+        self.assertTrue({id(pool) for pool in old_pools}
+                        .isdisjoint({id(pool) for pool in new_pools}))

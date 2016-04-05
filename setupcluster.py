@@ -1,5 +1,5 @@
 import argparse
-import os, os.path
+import os
 import sys
 
 from aioredis.cluster import testcluster
@@ -11,11 +11,13 @@ REDIS_COUNT = 6
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Set up a Redis cluster for the unittests.")
+    parser = argparse.ArgumentParser(
+        description="Set up a Redis cluster for the unittests.")
     parser.add_argument(
         '--dir',
         default='redis-cluster',
-        help='Directory for the Redis cluster. Must be empty or nonexistent, unless -f is specified.'
+        help='Directory for the Redis cluster. '
+             'Must be empty or nonexistent, unless -f is specified.'
     )
 
     return parser.parse_args()
@@ -30,6 +32,7 @@ if __name__ == '__main__':
     args = parse_arguments()
     setup_test_cluster(args)
     print(
-        "Cluster has been set up. Use 'python runclustertests.py' to run the tests. "
+        "Cluster has been set up. Use 'python runclustertests.py' "
+        " to run the tests. "
         "To stop the cluster, simply kill the processes."
     )

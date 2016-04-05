@@ -29,6 +29,7 @@ class RedisClusterMixin:
 
         entities = self.get_nodes_entities()
         futures = []
+
         @asyncio.coroutine
         def scan_coroutine(ent, cur=cursor):
             """

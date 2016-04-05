@@ -3,7 +3,9 @@ import asyncio
 import os
 
 from aioredis.util import async_task
-from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER, SLOT_ZERO_KEY
+from ._testutil import (
+    BaseTest, run_until_complete, IS_REDIS_CLUSTER, SLOT_ZERO_KEY
+)
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -161,7 +163,8 @@ class ConnectionTest(BaseTest):
         conn.close()
         task = async_task(conn.wait_closed(), loop=self.loop)
 
-        # Make sure the task is cancelled after it has been started by the loop.
+        # Make sure the task is cancelled
+        # after it has been started by the loop.
         self.loop.call_soon(task.cancel)
 
         yield from conn.wait_closed()

@@ -7,13 +7,14 @@ import subprocess
 import textwrap
 import time
 
+from aioredis.log import logger
+
 REDIS_SERVER_EXEC = 'redis-server'
 REDIS_SLOT_COUNT = 16384
 _MAX_RETRY_ERRORS = 4
 _ATTEMPT_INTERVAL = 0.3
 
 
-from aioredis.log import logger
 __all__ = ['setup_test_cluster']
 
 
@@ -24,15 +25,19 @@ def setup_test_cluster(*args, **kwargs):
 
 
 class TestCluster:
-    """This class allows to create a local Redis cluster for test purposes. It also includes methods to stop and
-    restart nodes to test failover behaviour.
+    """This class allows to create a local Redis cluster for test purposes.
+    It also includes methods to stop and restart nodes to test failover
+    behaviour.
 
     Parameters:
-        - *redis_count* is the number of processes the cluster should contain. The first half of them will be
-        master nodes (rounding upwards).
-        - *start_port*: The cluster will use the ports from start_port to start_port + redis_count.
-        - *directory* is used to store the configuration files of all processes.
-        - *node_timeout*: The cluster node timeout in millliseconds, see http://redis.io/topics/cluster-tutorial.
+        - *redis_count* is the number of processes the cluster should contain.
+        The first half of them will be master nodes (rounding upwards).
+        - *start_port*: The cluster will use the ports from start_port to
+        start_port + redis_count.
+        - *directory* is used to store the configuration files of all
+        processes.
+        - *node_timeout*: The cluster node timeout in millliseconds,
+        see http://redis.io/topics/cluster-tutorial.
 
     """
     def __init__(self, redis_count, start_port, directory, node_timeout=3000):
@@ -64,7 +69,8 @@ class TestCluster:
 
     def restart_redis(self, port):
         if port in self.processes:
-            raise ValueError('Redis process at port {} is still running.'.format(port))
+            raise ValueError('Redis process at port {} is still running.'
+                             .format(port))
 
         self._start_redis(port)
 
@@ -83,11 +89,13 @@ class TestCluster:
             else:
                 self._delete_directory_contents(redis_directory)
 
-            self._write_redis_config_file(os.path.join(redis_directory, 'redis.conf'), port)
+            self._write_redis_config_file(os.path.join(
+                redis_directory, 'redis.conf'), port)
 
     def _start_redis(self, port):
         directory = self._get_redis_directory(port)
-        self.processes[port] = subprocess.Popen([REDIS_SERVER_EXEC, 'redis.conf'], cwd=directory)
+        self.processes[port] = subprocess.Popen(
+            [REDIS_SERVER_EXEC, 'redis.conf'], cwd=directory)
 
     def _configure_cluster(self):
         time.sleep(_ATTEMPT_INTERVAL)  # Give cluster some time to start up
@@ -98,11 +106,13 @@ class TestCluster:
         masters = sockets[:masters_count]
         master_addresses = addresses[:masters_count]
         slaves = sockets[masters_count:]
-        master_node_ids = [self._determine_node_id(master, address) for master, address in zip(masters, addresses)]
+        master_node_ids = [self._determine_node_id(master, address)
+                           for master, address in zip(masters, addresses)]
 
         self._assign_slots(masters, master_addresses)
         self._send_meet_messages_to_all(sockets, addresses)
-        time.sleep(_ATTEMPT_INTERVAL)  # MEET messages need some time to propagate
+        # MEET messages need some time to propagate
+        time.sleep(_ATTEMPT_INTERVAL)
         self._send_replicate_messages(slaves, master_node_ids)
         self._wait_until_cluster_state_ok(sockets)
 
@@ -110,7 +120,8 @@ class TestCluster:
             socket.close()
 
     def _connect_sockets(self, addresses):
-        return self._retry(socket.create_connection, addresses, error_message='Could not connect to Redis.')
+        return self._retry(socket.create_connection, addresses,
+                           error_message='Could not connect to Redis.')
 
     def _determine_node_id(self, socket, address):
         socket.sendall(b'CLUSTER NODES\r\n')
@@ -120,28 +131,44 @@ class TestCluster:
         return node_id
 
     def _assign_slots(self, masters, addresses):
-        slot_boundaries = [math.floor(i * REDIS_SLOT_COUNT / len(masters)) for i in range(len(masters) + 1)]
-        slot_ranges = [range(b1, b2) for b1, b2 in zip(slot_boundaries, slot_boundaries[1:])]
-        for master, slot_range, address in zip(masters, slot_ranges, addresses):
-            logger.debug("Assigning master at {} slots {}-{}".format(address, slot_range.start, slot_range.stop - 1))
+        slot_boundaries = [math.floor(i * REDIS_SLOT_COUNT / len(masters))
+                           for i in range(len(masters) + 1)]
+        slot_ranges = [range(b1, b2)
+                       for b1, b2 in zip(slot_boundaries, slot_boundaries[1:])]
+        for master, slot_range, address in zip(
+                masters, slot_ranges, addresses):
+            logger.debug(
+                "Assigning master at {} slots {}-{}"
+                .format(address, slot_range.start, slot_range.stop - 1)
+            )
             slots = ' '.join(str(slot) for slot in slot_range)
             try:
-                self._send_command_and_expect_ok(master, 'CLUSTER ADDSLOTS {}\r\n'.format(slots))
+                self._send_command_and_expect_ok(
+                    master, 'CLUSTER ADDSLOTS {}\r\n'.format(slots))
             except IOError as e:
-                raise IOError('ADDSLOTS failed. Maybe a cluster is already running? ({}).'.format(str(e)))
+                raise IOError(
+                    "ADDSLOTS failed. Maybe a cluster is already running? "
+                    "({}).".format(str(e))
+                )
 
     def _send_meet_messages_to_all(self, sockets, addresses):
         for i, socket in enumerate(sockets):
             for j, address in enumerate(addresses):
                 if i != j:
-                    self._send_command_and_expect_ok(socket, 'CLUSTER MEET {} {}\r\n'.format(*address))
+                    self._send_command_and_expect_ok(
+                        socket, 'CLUSTER MEET {} {}\r\n'.format(*address))
 
     def _send_replicate_messages(self, slaves, master_node_ids):
         def _send_replicate_message(arg):
             slave, master_node_id = arg
-            self._send_command_and_expect_ok(slave, 'CLUSTER REPLICATE {}\r\n'.format(master_node_id))
+            self._send_command_and_expect_ok(
+                slave, 'CLUSTER REPLICATE {}\r\n'.format(master_node_id))
 
-        self._retry(_send_replicate_message, list(zip(slaves, master_node_ids)), 'Replication failed.')
+        self._retry(
+            _send_replicate_message,
+            list(zip(slaves, master_node_ids)),
+            'Replication failed.'
+        )
 
     def _wait_until_cluster_state_ok(self, sockets):
         def _check_state(socket):
@@ -150,9 +177,15 @@ class TestCluster:
             if 'cluster_state:ok' not in data:
                 raise IOError('Cluster state not ok')
 
-        self._retry(_check_state, sockets, error_message='Cluster state not ok.', max_errors=10)
+        self._retry(
+            _check_state,
+            sockets,
+            error_message='Cluster state not ok.',
+            max_errors=10
+        )
 
-    def _retry(self, method, arguments, error_message, max_errors=_MAX_RETRY_ERRORS, interval=_ATTEMPT_INTERVAL):
+    def _retry(self, method, arguments, error_message,
+               max_errors=_MAX_RETRY_ERRORS, interval=_ATTEMPT_INTERVAL):
         results = [None] * len(arguments)
         successful_indexes = []
         errors = 0
@@ -165,9 +198,16 @@ class TestCluster:
                     except (IOError, ConnectionRefusedError):
                         errors += 1
                         if errors >= max_errors:
-                            raise IOError(error_message + ' Stop retrying after {} errors.'.format(errors))
+                            raise IOError(
+                                error_message +
+                                ' Stop retrying after {} errors.'
+                                .format(errors)
+                            )
                         else:
-                            logger.info(error_message + ' Will retry after {}s.'.format(interval))
+                            logger.info(
+                                error_message + ' Will retry after {}s.'
+                                .format(interval)
+                            )
                             time.sleep(interval)
 
         return results

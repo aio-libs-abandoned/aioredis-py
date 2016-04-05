@@ -1,6 +1,6 @@
 import unittest
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 @unittest.skipIf(REDIS_VERSION < (2, 8, 9),

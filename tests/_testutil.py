@@ -6,7 +6,10 @@ import unittest
 import unittest.mock
 
 from functools import wraps
-from aioredis import create_redis, create_connection, create_pool, create_cluster, create_pool_cluster, Redis
+from aioredis import (
+    create_redis, create_connection, create_pool, create_cluster,
+    create_pool_cluster, Redis
+)
 
 
 REDIS_VERSION = os.environ.get('REDIS_VERSION')
@@ -20,7 +23,8 @@ else:
         REDIS_VERSION = (0, 0, 0)
 
 IS_REDIS_CLUSTER = os.environ.get('REDIS_CLUSTER') == 'true'
-SLOT_ZERO_KEY = 'key:24358' # is mapped to keyslot 0
+SLOT_ZERO_KEY = 'key:24358'  # is mapped to keyslot 0
+
 
 def run_until_complete(fun):
     if not asyncio.iscoroutinefunction(fun):
@@ -115,7 +119,11 @@ class BaseTest(unittest.TestCase):
     @asyncio.coroutine
     def create_test_redis_or_cluster(self, encoding=None):
         if not IS_REDIS_CLUSTER:
-            return self.create_redis(('127.0.0.1', self.redis_port), encoding=encoding, loop=self.loop)
+            return self.create_redis(
+                ('127.0.0.1', self.redis_port),
+                encoding=encoding,
+                loop=self.loop
+            )
         else:
             return self.create_test_cluster(encoding=encoding)
 
@@ -134,7 +142,8 @@ class RedisTest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        self.redis = self.loop.run_until_complete(self.create_test_redis_or_cluster())
+        self.redis = self.loop.run_until_complete(
+            self.create_test_redis_or_cluster())
 
     def tearDown(self):
         del self.redis
@@ -172,7 +181,8 @@ class RedisEncodingTest(BaseTest):
 
     def setUp(self):
         super().setUp()
-        self.redis = self.loop.run_until_complete(self.create_test_redis_or_cluster(encoding='utf-8'))
+        self.redis = self.loop.run_until_complete(
+            self.create_test_redis_or_cluster(encoding='utf-8'))
 
     def tearDown(self):
         del self.redis
@@ -226,7 +236,9 @@ class CreateConnectionMock:
 
     def __exit__(self, *args):
         self.contextManager.__exit__(*args)
-        self.test_case.assertTrue(all(connection.was_used for connection in self.connections.values()))
+        self.test_case.assertTrue(
+            all(connection.was_used
+                for connection in self.connections.values()))
 
 
 class PoolConnectionMock:
@@ -245,18 +257,22 @@ class PoolConnectionMock:
 
         def create_error_future(port):
             future = asyncio.Future(loop=test_case.loop)
-            future.set_exception(AssertionError('No connection expected for port {}.'.format(port)))
+            future.set_exception(AssertionError(
+                'No connection expected for port {}.'.format(port)))
             return future
 
         for pool in cluster.get_nodes_entities():
             port = pool._address[1]
             if port in self.connections:
-                create_future = functools.partial(create_connection_future, port)
+                create_future = functools.partial(
+                    create_connection_future, port)
             else:
                 create_future = functools.partial(create_error_future, port)
 
-            self.contextManagers.append(unittest.mock.patch.object(pool, 'acquire', side_effect=create_future))
-            self.contextManagers.append(unittest.mock.patch.object(pool, 'release'))
+            self.contextManagers.append(unittest.mock.patch.object(
+                pool, 'acquire', side_effect=create_future))
+            self.contextManagers.append(unittest.mock.patch.object(
+                pool, 'release'))
 
     def __enter__(self):
         for manager in self.contextManagers:
@@ -265,4 +281,6 @@ class PoolConnectionMock:
     def __exit__(self, *args):
         for manager in reversed(self.contextManagers):
             manager.__exit__(*args)
-        self.test_case.assertTrue(all(connection.was_used for connection in self.connections.values()))
+        self.test_case.assertTrue(
+            all(connection.was_used
+                for connection in self.connections.values()))

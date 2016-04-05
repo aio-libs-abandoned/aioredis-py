@@ -14,9 +14,13 @@ def main():
     @asyncio.coroutine
     def connect():
         try:
-            return (yield from create_pool_cluster(NODES, loop=loop, encoding='utf8'))
+            return (yield from create_pool_cluster(
+                NODES, loop=loop, encoding='utf8'))
         except RedisClusterError:
-            raise RedisClusterError("Could not connect to cluster. Did you start it with the setupcluster.py script?")
+            raise RedisClusterError(
+                "Could not connect to cluster. "
+                "Did you start it with the setupcluster.py script?"
+            )
 
     @asyncio.coroutine
     def get_key(cluster):

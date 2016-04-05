@@ -15,7 +15,10 @@ def main():
         try:
             return (await create_cluster(NODES, loop=loop, encoding='utf8'))
         except RedisClusterError:
-            raise RedisClusterError("Could not connect to cluster. Did you start it with the setupcluster.py script?")
+            raise RedisClusterError(
+                "Could not connect to cluster. "
+                "Did you start it with the setupcluster.py script?"
+            )
 
     async def get_key(cluster):
         key = 'key1'

@@ -5,7 +5,8 @@ from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
 from aioredis import ReplyError, MultiExecError
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'cluster client does not support transactions yet')
+@unittest.skipIf(IS_REDIS_CLUSTER,
+                 'cluster client does not support transactions yet')
 class TransactionCommandsTest(RedisTest):
 
     @run_until_complete

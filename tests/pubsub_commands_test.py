@@ -3,7 +3,7 @@ import unittest
 import asyncio
 from textwrap import dedent
 
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
 PY_35 = sys.version_info > (3, 5)
@@ -101,7 +101,8 @@ class PubSubCommandsTest(RedisTest):
 
     def _withoutSentinelAutoDiscoveryChannel(self, res):
         SENTINEL_AUTO_DISCOVERY_CHANNEL = b'__sentinel__:hello'
-        return [channel for channel in res if channel != SENTINEL_AUTO_DISCOVERY_CHANNEL]
+        return [channel for channel in res
+                if channel != SENTINEL_AUTO_DISCOVERY_CHANNEL]
 
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'PUBSUB CHANNELS is available since redis>=2.8.0')
@@ -121,7 +122,8 @@ class PubSubCommandsTest(RedisTest):
         yield from sub.subscribe('chan:1')
 
         res = yield from redis.pubsub_channels()
-        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [b'chan:1'])
+        self.assertEqual(
+            self._withoutSentinelAutoDiscoveryChannel(res), [b'chan:1'])
 
         res = yield from redis.pubsub_channels('ch*')
         self.assertEqual(res, [b'chan:1'])

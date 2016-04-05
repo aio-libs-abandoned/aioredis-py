@@ -9,7 +9,10 @@ from aioredis import RedisPool, ReplyError
 PY_35 = sys.version_info >= (3, 5)
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER, 'standard pool does not support clusters, use RedisPoolCluster')
+@unittest.skipIf(
+    IS_REDIS_CLUSTER,
+    'standard pool does not support clusters, use RedisPoolCluster'
+)
 class PoolTest(BaseTest):
 
     def _assert_defaults(self, pool):
