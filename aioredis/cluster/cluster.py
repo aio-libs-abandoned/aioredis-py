@@ -335,14 +335,16 @@ class RedisCluster(RedisClusterMixin):
             commands_factory=self._factory,
             loop=self._loop
         )
-        nodes_raw_resp = yield from conn.cluster_nodes()
-        conn.close()
-        yield from conn.wait_closed()
-        return nodes_raw_resp
+        try:
+            nodes_raw_resp = yield from conn.cluster_nodes()
+            return nodes_raw_resp
+        finally:
+            conn.close()
+            yield from conn.wait_closed()
 
     @asyncio.coroutine
     def fetch_cluster_info(self):
-        logger.info('Loading cluster map from {}...'.format(self._nodes))
+        logger.info('Loading cluster info from {}...'.format(self._nodes))
         tasks = [self._loop.create_task(self._get_raw_cluster_info_from_node(node)) for node in self._nodes]
 
         try:
@@ -350,16 +352,15 @@ class RedisCluster(RedisClusterMixin):
                 try:
                     nodes_raw_response = yield from task
                     self._cluster_manager = ClusterNodesManager.create(nodes_raw_response)
-                    logger.info('Cluster map loaded successfully: %s', nodes_raw_response)
+                    logger.info('Cluster info loaded successfully: %s', nodes_raw_response)
                     return
                 except (ReplyError, ProtocolError, ConnectionError) as exc:
-                    logger.warning('Loading cluster map from a node failed with {}'.format(repr(exc)))
-
+                    logger.warning('Loading cluster info from a node failed with {}'.format(repr(exc)))
         finally:
             for task in tasks:
                 task.cancel()
 
-        raise RedisClusterError('No cluster map could be loaded from any host')
+        raise RedisClusterError('No cluster info could be loaded from any host')
 
     @asyncio.coroutine
     def initialize(self):
@@ -370,11 +371,7 @@ class RedisCluster(RedisClusterMixin):
 
     @asyncio.coroutine
     def clear(self):
-        """
-        Clear pool connections.
-        Close and remove all free connections.
-        """
-        return
+        pass  # All connections are created on demand and destroyed afterwards.
 
     @asyncio.coroutine
     def create_connection(self, address):
