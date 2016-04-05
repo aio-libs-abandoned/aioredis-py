@@ -2,7 +2,9 @@ import unittest
 import asyncio
 import os
 
+from aioredis.util import async_task
 from ._testutil import BaseTest, run_until_complete
+
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -139,6 +141,32 @@ class ConnectionTest(BaseTest):
             yield from conn.execute_pubsub('subscribe', 'channel:1')
         conn._reader = stored_reader
         conn.close()
+
+    @run_until_complete
+    def test_wait_closed(self):
+        address = ('localhost', self.redis_port)
+        conn = yield from self.create_connection(address, loop=self.loop)
+        reader_task = conn._reader_task
+        conn.close()
+        self.assertFalse(reader_task.done())
+        yield from conn.wait_closed()
+        self.assertTrue(reader_task.done())
+
+    @run_until_complete
+    def test_cancel_wait_closed(self):
+        # Regression test: Don't throw error if wait_closed() is cancelled.
+        address = ('localhost', self.redis_port)
+        conn = yield from self.create_connection(address, loop=self.loop)
+        reader_task = conn._reader_task
+        conn.close()
+        task = async_task(conn.wait_closed(), loop=self.loop)
+
+        # Make sure the task is cancelled
+        # after it has been started by the loop.
+        self.loop.call_soon(task.cancel)
+
+        yield from conn.wait_closed()
+        self.assertTrue(reader_task.done())
 
     @run_until_complete
     def test_auth(self):
