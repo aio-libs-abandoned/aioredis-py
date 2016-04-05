@@ -587,7 +587,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.type(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'TODO iscan seems broken')
+    @unittest.skipIf(IS_REDIS_CLUSTER, 'iscan not yet implemented on cluster')
     @unittest.skipUnless(PY_35,
                          'Python 3.5+ required')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),

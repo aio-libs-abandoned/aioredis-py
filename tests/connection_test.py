@@ -217,8 +217,8 @@ class ConnectionTest(BaseTest):
         res = yield from conn.execute('get', key, encoding=None)
         self.assertEqual(res, b'bin-value')
 
+        yield from conn.execute('set', key, 'значение')
         with self.assertRaises(UnicodeDecodeError):
-            yield from conn.execute('set', key, 'значение')
             yield from conn.execute('get', key, encoding='ascii')
 
         conn2 = yield from self.create_connection(

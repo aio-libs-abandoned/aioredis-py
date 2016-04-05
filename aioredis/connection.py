@@ -130,7 +130,7 @@ class RedisConnection:
                     # before response
                     break
                 else:
-                    # Something unexpected happend to the connection
+                    # Something unexpected happened to the connection
                     self._closing = True
                     self._loop.call_soon(self._do_close, exc)
                     if self._in_transaction is not None:

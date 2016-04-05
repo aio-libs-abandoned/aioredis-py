@@ -118,7 +118,7 @@ class RedisClusterTest(BaseTest):
     @run_until_complete
     def test_create_fails(self):
         expected_connections = {
-            port: FakeConnection(self, port, return_value=ProtocolError('ERROR'))
+            port: FakeConnection(self, port, return_value=ProtocolError('Intentional error'))
             for port in range(self.redis_port, self.redis_port + 6)
         }
         with CreateConnectionMock(self, expected_connections):

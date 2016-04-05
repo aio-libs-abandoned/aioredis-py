@@ -180,10 +180,7 @@ class RedisEncodingTest(BaseTest):
 
 
 class FakeConnection:
-    def __init__(self, test_case, port, return_value=None):
-        if return_value is None:
-            # If we used this as default argument, IntelliJ complains about the non-bytes values above.
-            return_value = b'OK'
+    def __init__(self, test_case, port, return_value=b'OK'):
         self.port = port
         self.was_used = False
 
