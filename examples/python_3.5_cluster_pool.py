@@ -1,57 +1,53 @@
 import logging
+
+from aioredis.errors import RedisClusterError
+
 logging.basicConfig(level=logging.INFO)
 
-
-NODES = (
-    ('172.17.0.2', 7000),
-    ('172.17.0.3', 7000),
-    ('172.17.0.4', 7000),
-)
+NODES = [('localhost', port) for port in range(7001, 7007)]
 
 
 def main():
 
     loop = asyncio.get_event_loop()
 
-    async def get_key():
-        cluster = await create_pool_cluster(
-            NODES, loop=loop, encoding='utf8')
+    async def connect():
+        try:
+            return (await create_pool_cluster(NODES, loop=loop, encoding='utf8'))
+        except RedisClusterError:
+            raise RedisClusterError("Could not connect to cluster. Did you start it with the setupcluster.py script?")
+
+    async def get_key(cluster):
         key = 'key1'
         value = 'value1'
         await  cluster.set(key, value)
-        val = await cluster.get(key)
-        assert val == value
-        print("get value {} -> {}".format(key, value))
+        res = await cluster.get(key)
+        assert res == value
+        print("get_key {} -> {}".format(key, res))
         await cluster.clear()  # closing all open connections
 
-    async def get_keys():
-        cluster = await create_pool_cluster(
-            NODES, loop=loop, encoding='utf8')
+    async def get_keys(cluster):
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
         for key in keys:
             await cluster.set(key, value)
-        val = await cluster.keys()
-        assert set(val) == set(keys)
-        print("get value {} -> {}".format(val, value))
+        res = await cluster.keys('*')
+        assert set(res) == set(keys)
+        print("get_keys -> {}".format(res))
         await cluster.clear()  # closing all open connections
 
-    async def flash_all():
-        cluster = await create_pool_cluster(
-            NODES, loop=loop, encoding='utf8')
+    async def flush_all(cluster):
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
         for key in keys:
             await cluster.set(key, value)
         await cluster.flushall()
-        val = await cluster.keys()
-        assert [] == val
-        print("get value {} -> {}".format(val, value))
+        res = await cluster.keys('*')
+        assert [] == res
+        print("get_keys after flushall -> {}".format(res))
         await cluster.clear()  # closing all open connections
 
-    async def scan():
-        cluster = await create_pool_cluster(
-            NODES, loop=loop, encoding='utf8')
+    async def scan(cluster):
         await cluster.flushall()
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
@@ -62,12 +58,13 @@ def main():
             for key in _keys:
                 res.append(key)
         assert set(res) == set(keys)
-        print("get value {} -> {}".format(keys, value))
+        print("scan -> {}".format(res))
         await cluster.clear()  # closing all open connections
 
     try:
-        for cor in (get_key(), get_keys(), flash_all(), scan()):
-            loop.run_until_complete(cor)
+        cluster = loop.run_until_complete(connect())
+        for coroutine in (get_key, get_keys, flush_all, scan):
+            loop.run_until_complete(coroutine(cluster))
     finally:
         loop.close()
 
