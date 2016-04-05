@@ -311,7 +311,7 @@ class RedisConnection:
 
     @asyncio.coroutine
     def wait_closed(self):
-        yield from self._close_waiter
+        yield from asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
     def db(self):
