@@ -161,7 +161,8 @@ class ConnectionTest(BaseTest):
         conn.close()
         task = async_task(conn.wait_closed(), loop=self.loop)
 
-        # Make sure the task is cancelled after it has been started by the loop.
+        # Make sure the task is cancelled
+        # after it has been started by the loop.
         self.loop.call_soon(task.cancel)
 
         yield from conn.wait_closed()
