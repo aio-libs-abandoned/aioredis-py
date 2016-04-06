@@ -364,5 +364,6 @@ class RedisPoolClusterTest(BaseTest):
         old_pools = list(cluster._cluster_pool.values())
         yield from cluster.reload_cluster_pool()
         new_pools = list(cluster._cluster_pool.values())
+        self.assertTrue(len(new_pools) > 0)
         self.assertTrue({id(pool) for pool in old_pools}
                         .isdisjoint({id(pool) for pool in new_pools}))
