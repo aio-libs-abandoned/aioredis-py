@@ -11,6 +11,7 @@ from ..commands import (
 )
 from ..pool import create_pool
 from ..util import (
+    cached_property,
     decode,
     encode_str,
 )
@@ -42,16 +43,6 @@ def parse_moved_response_error(err):
         return host, int(port)
     except IndexError:
         return
-
-
-class cached_property:
-    def __init__(self, func):
-        self.func = func
-
-    def __get__(self, instance, cls=None):
-        name = self.func.__name__
-        result = instance.__dict__[name] = self.func(instance)
-        return result
 
 
 def parse_nodes_info(raw_data, select_func):
@@ -234,6 +225,8 @@ class ClusterNodesManager:
         """
         Figure out what slot based on command and args.
         """
+        if args[0] is None:
+            raise TypeError('key must not be None')
         if str(args[0]) in ['EVAL', 'EVALSHA']:
             return self.determine_eval_slot(*args[1:])
         return self.key_slot(args[0])

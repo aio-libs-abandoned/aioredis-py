@@ -317,42 +317,6 @@ def _set_exception(fut, exception):
         fut.set_exception(exception)
 
 
-def parse_moved_response_error(err):
-    if not err or not err.args or not err.args[0]:
-        return
-    data = err.args[0].strip()
-    if not data.startswith('MOVED'):
-        return
-    try:
-        host, port = data.split()[-1].split(':')
-        return host, int(port)
-    except IndexError:
-        return
-
-
-def parse_nodes_info(raw_data, select_func=None, encoding=None):
-    data = (raw_data.decode('utf8')
-            if encoding is None else raw_data).strip()
-    nodes_info = (node.strip().split() for node in data.split('\n'))
-    for node_info in nodes_info:
-        if len(node_info) == 8:
-            # slave node
-            node_info.append('0')
-        cluster_node_info = \
-            select_func(node_info) if select_func else nodes_info
-        (id_node_info, address_node_info,
-         flags_nodes_info, ranges_node_info) = cluster_node_info
-        ranges_info = tuple(sorted(
-            rng if len(rng) == 2 else rng * 2 for rng in (
-                tuple(map(int, range_info.strip().split('-')))
-                for range_info in ranges_node_info.strip().split()
-            )))
-        flags_info = tuple(str(flag.strip()) for flag in
-                           flags_nodes_info.strip().split(','))
-        host, port = address_node_info.split(':')
-        yield id_node_info, host, int(port), flags_info, ranges_info
-
-
 class cached_property:
     def __init__(self, func):
         self.func = func
