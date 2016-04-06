@@ -1,6 +1,4 @@
-import unittest
-
-from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import BaseTest, run_until_complete
 from aioredis import create_reconnecting_redis
 
 

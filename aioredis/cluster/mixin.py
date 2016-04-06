@@ -1,5 +1,4 @@
 import asyncio
-from ..util import wait_convert, PY_35, _ScanIter
 
 
 class RedisClusterMixin:

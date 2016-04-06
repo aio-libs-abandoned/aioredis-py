@@ -132,11 +132,6 @@ class BaseTest(unittest.TestCase):
         nodes = self.get_cluster_addresses(self.redis_port)
         return self.create_cluster(nodes, loop=self.loop, encoding=encoding)
 
-    @asyncio.coroutine
-    def create_test_connection_for_key(self, key, encoding=None):
-        if IS_REDIS_CLUSTER:
-            node = self.redis.get_node()
-
 
 class RedisTest(BaseTest):
 

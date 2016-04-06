@@ -116,8 +116,8 @@ class TestCluster:
         self._send_replicate_messages(slaves, master_node_ids)
         self._wait_until_cluster_state_ok(sockets)
 
-        for socket in sockets:
-            socket.close()
+        for sock in sockets:
+            sock.close()
 
     def _connect_sockets(self, addresses):
         return self._retry(socket.create_connection, addresses,
@@ -152,11 +152,11 @@ class TestCluster:
                 )
 
     def _send_meet_messages_to_all(self, sockets, addresses):
-        for i, socket in enumerate(sockets):
+        for i, sock in enumerate(sockets):
             for j, address in enumerate(addresses):
                 if i != j:
                     self._send_command_and_expect_ok(
-                        socket, 'CLUSTER MEET {} {}\r\n'.format(*address))
+                        sock, 'CLUSTER MEET {} {}\r\n'.format(*address))
 
     def _send_replicate_messages(self, slaves, master_node_ids):
         def _send_replicate_message(arg):

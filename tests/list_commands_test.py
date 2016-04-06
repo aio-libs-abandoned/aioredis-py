@@ -1,7 +1,6 @@
 import asyncio
-import unittest
 
-from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import RedisTest, run_until_complete
 from aioredis import ReplyError
 
 
