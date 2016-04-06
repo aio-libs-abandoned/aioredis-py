@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 
 verbosity = v = args.verbose and 4 or 0
-finder = TestsFinder(args.testsdir, verbose=args.verbose)
+finder = TestsFinder(args.testsdir, verbose=verbosity)
 
 tests = finder.load_tests()
 result = TestRunner(verbosity=args.verbose, failfast=args.failfast).run(tests)

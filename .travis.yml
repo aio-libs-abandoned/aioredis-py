@@ -83,15 +83,22 @@ script:
 
 # checking examples
 - >
-  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
-    export EXAMPLES=$(find $PWD/examples/ -name "*.py");
-  else
-    export EXAMPLES=$(find $PWD/examples/ -name "*.py" -not -name "*_3.5_*.py");
-  fi;
+  python setupcluster.py
+  export EXAMPLES=$(find $PWD/examples/ -name "*.py");
+
   for example in $EXAMPLES; do
+      if [[ $example == *_3.5._* ]] && python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
+          continue
+      fi
+
+      if [[ $example == *cluster* ]] && [[ $REDIS_TAG == 2.* ]]; then
+          continue
+      fi
+
     echo "Running ${example}";
     python3 ${example} || exit 1;
   done;
+
 
 after_script:
 - coveralls
