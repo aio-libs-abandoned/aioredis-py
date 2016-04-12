@@ -364,6 +364,9 @@ class RedisCluster(RedisClusterMixin):
         finally:
             for task in tasks:
                 task.cancel()
+            # Wait until all tasks have closed their connection
+            yield from asyncio.gather(
+                *tasks, loop=self._loop, return_exceptions=True)
 
         raise RedisClusterError(
             "No cluster info could be loaded from any host")
