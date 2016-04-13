@@ -74,8 +74,8 @@ def main():
 
 if __name__ == '__main__':
     import sys
-    from pathlib import Path
-    root = str(Path(__file__).resolve().parents[1])
+    import os.path
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.append(root)
     import asyncio
     from aioredis import create_cluster

@@ -179,6 +179,7 @@ class GenericCommandsTest(RedisTest):
             yield from self.redis.keys(None)
 
     @run_until_complete
+    @no_cluster_test('Not supported on cluster')
     @unittest.skipUnless(os.environ.get('TRAVIS'),
                          "Configured to run on travis")
     def test_migrate(self):
