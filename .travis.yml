@@ -79,8 +79,13 @@ before_script:
 
 script:
 - flake8 aioredis tests
-- python setupcluster.py
-- python runtests.py --coverage -v --standalone-and-cluster
+->
+  if [ ${REDIS_TAG:0:1} == "3" ]; then
+      python setupcluster.py
+      python runtests.py --coverage -v --standalone-and-cluster
+  else
+      python runtests.py --coverage -v
+  fi
 
 # checking examples
 - >
