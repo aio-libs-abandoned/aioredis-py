@@ -9,7 +9,7 @@ import time
 
 from aioredis.log import logger
 
-REDIS_SERVER_EXEC = 'redis-server'
+REDIS_SERVER_EXEC = os.environ.get('REDIS_SERVER_EXEC') or 'redis-server'
 REDIS_SLOT_COUNT = 16384
 _MAX_RETRY_ERRORS = 4
 _ATTEMPT_INTERVAL = 0.3

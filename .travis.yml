@@ -81,7 +81,7 @@ script:
 - flake8 aioredis tests
 - >
   if [[ $REDIS_TAG == 3.* ]]; then
-      python setupcluster.py
+      REDIS_SERVER_EXEC=$REDIS_BIN/redis-server python setupcluster.py
       python runtests.py --coverage -v --standalone-and-cluster
   else
       python runtests.py --coverage -v
