@@ -32,7 +32,7 @@ if __name__ == '__main__':
     args = parse_arguments()
     setup_test_cluster(args)
     print(
-        "Cluster has been set up. Use 'python runclustertests.py' "
+        "Cluster has been set up. Use 'python runtests.py --cluster' "
         " to run the tests. "
         "To stop the cluster, simply kill the processes."
     )

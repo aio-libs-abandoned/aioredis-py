@@ -4,7 +4,7 @@ import unittest
 from textwrap import dedent
 
 from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+    RedisTest, run_until_complete, REDIS_VERSION, no_cluster_test
 )
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
@@ -332,7 +332,7 @@ class HashCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.hscan(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'ihscan not yet implemented')
+    @no_cluster_test('ihscan not yet implemented')
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'HSCAN is available since redis>=2.8.0')
@@ -395,8 +395,7 @@ class HashCommandsTest(RedisTest):
 
 
 class HashCommandsEncodingTest(RedisEncodingTest):
-    @unittest.skipIf(IS_REDIS_CLUSTER,
-                     'Client does not yet support transactions on clusters')
+    @no_cluster_test('Client does not yet support transactions on clusters')
     @run_until_complete
     def test_hgetall(self):
         TEST_KEY = 'my-key-nx'

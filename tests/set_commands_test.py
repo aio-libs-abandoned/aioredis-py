@@ -3,7 +3,7 @@ import sys
 import unittest
 
 from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+    RedisTest, run_until_complete, REDIS_VERSION, no_cluster_test
 )
 from textwrap import dedent
 
@@ -429,7 +429,7 @@ class SetCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.sscan(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'isscan not yet implemented')
+    @no_cluster_test('isscan not yet implemented')
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SSCAN is available since redis>=2.8.0')

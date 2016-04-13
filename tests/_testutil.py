@@ -6,6 +6,9 @@ import unittest
 import unittest.mock
 
 from functools import wraps
+from unittest.case import SkipTest
+from setupcluster import START_PORT as CLUSTER_START_PORT
+
 from aioredis import (
     create_redis, create_connection, create_pool, create_cluster,
     create_pool_cluster, Redis
@@ -22,7 +25,6 @@ else:
     else:
         REDIS_VERSION = (0, 0, 0)
 
-IS_REDIS_CLUSTER = os.environ.get('REDIS_CLUSTER') == 'true'
 SLOT_ZERO_KEY = 'key:24358'  # is mapped to keyslot 0
 
 
@@ -42,11 +44,16 @@ def run_until_complete(fun):
 class BaseTest(unittest.TestCase):
     """Base test case for unittests.
     """
+    _running_on_cluster = False
 
     def setUp(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None)
-        self.redis_port = int(os.environ.get('REDIS_PORT') or 6379)
+        if not self.running_on_cluster:
+            self.redis_port = int(os.environ.get('REDIS_PORT') or 6379)
+        else:
+            self.redis_port = int(
+                os.environ.get('REDIS_CLUSTER_PORT') or CLUSTER_START_PORT)
         socket = os.environ.get('REDIS_SOCKET')
         self.redis_socket = socket or '/tmp/aioredis.sock'
         self._conns = []
@@ -54,6 +61,13 @@ class BaseTest(unittest.TestCase):
         self._pools = []
         self._clusters = []
         self._pool_clusters = []
+
+    @property
+    def running_on_cluster(self):
+        # The attribute is set by the runtests script. The environment
+        # variable can be used to configure test runners in IDEs.
+        return (self._running_on_cluster or
+                os.environ.get('REDIS_CLUSTER') == 'true')
 
     def tearDown(self):
         waiters = []
@@ -118,7 +132,7 @@ class BaseTest(unittest.TestCase):
 
     @asyncio.coroutine
     def create_test_redis_or_cluster(self, encoding=None):
-        if not IS_REDIS_CLUSTER:
+        if not self.running_on_cluster:
             return self.create_redis(
                 ('127.0.0.1', self.redis_port),
                 encoding=encoding,
@@ -146,7 +160,7 @@ class RedisTest(BaseTest):
 
     @asyncio.coroutine
     def execute(self, command, *args):
-        if not IS_REDIS_CLUSTER:
+        if not self.running_on_cluster:
             return (yield from self.redis.connection.execute(command, *args))
         else:
             address = self.redis.get_node(*args).address
@@ -164,7 +178,7 @@ class RedisTest(BaseTest):
 
     @asyncio.coroutine
     def flushall(self):
-        if not IS_REDIS_CLUSTER:
+        if not self.running_on_cluster:
             ok = yield from self.redis.connection.execute('flushall')
             self.assertEqual(ok, b'OK')
         else:
@@ -279,3 +293,24 @@ class PoolConnectionMock:
         self.test_case.assertTrue(
             all(connection.was_used
                 for connection in self.connections.values()))
+
+
+def _create_cluster_test_decorator(is_cluster_test, skip_reason):
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(test_case):
+            if test_case.running_on_cluster != is_cluster_test:
+                raise SkipTest(skip_reason)
+            else:
+                function(test_case)  # execute test
+
+        return wrapper
+    return decorator
+
+
+def cluster_test(skip_reason='Need a running cluster'):
+    return _create_cluster_test_decorator(True, skip_reason)
+
+
+def no_cluster_test(skip_reason='Not yet implemented'):
+    return _create_cluster_test_decorator(False, skip_reason)

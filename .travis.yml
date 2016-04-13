@@ -79,11 +79,11 @@ before_script:
 
 script:
 - flake8 aioredis tests
-- python runtests.py --coverage -v
+- python setupcluster.py
+- python runtests.py --coverage -v --standalone-and-cluster
 
 # checking examples
 - >
-  python setupcluster.py
   export EXAMPLES=$(find $PWD/examples/ -name "*.py");
 
   for example in $EXAMPLES; do

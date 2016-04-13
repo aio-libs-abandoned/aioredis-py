@@ -11,7 +11,7 @@ from aioredis.cluster.cluster import (
 )
 from aioredis.errors import RedisClusterError
 from ._testutil import (
-    SLOT_ZERO_KEY, run_until_complete, BaseTest, IS_REDIS_CLUSTER,
+    SLOT_ZERO_KEY, run_until_complete, BaseTest, cluster_test,
     CreateConnectionMock, FakeConnection, PoolConnectionMock
 )
 
@@ -148,13 +148,14 @@ class ClusterNodesManagerTest(unittest.TestCase):
         self.assertFalse(manager.all_slots_covered)
 
 
-@unittest.skipUnless(IS_REDIS_CLUSTER, 'need a running cluster')
 class RedisClusterTest(BaseTest):
+    @cluster_test()
     @run_until_complete
     def test_create(self):
         cluster = yield from self.create_test_cluster()
         self.assertIsInstance(cluster, RedisCluster)
 
+    @cluster_test()
     @run_until_complete
     def test_create_fails(self):
         expected_connections = {
@@ -166,6 +167,7 @@ class RedisClusterTest(BaseTest):
             with self.assertRaises(RedisClusterError):
                 yield from self.create_test_cluster()
 
+    @cluster_test()
     @run_until_complete
     def test_counts(self):
         cluster = yield from self.create_test_cluster()
@@ -173,6 +175,7 @@ class RedisClusterTest(BaseTest):
         self.assertEqual(cluster.masters_count(), 3)
         self.assertEqual(cluster.slave_count(), 3)
 
+    @cluster_test()
     @run_until_complete
     def test_get_node(self):
         cluster = yield from self.create_test_cluster()
@@ -184,6 +187,7 @@ class RedisClusterTest(BaseTest):
         node = cluster.get_node(b'key:3', 'more', 'args')
         self.assertEqual(node.address[1], self.redis_port + 2)
 
+    @cluster_test()
     @run_until_complete
     def test_execute(self):
         cluster = yield from self.create_test_cluster()
@@ -196,6 +200,7 @@ class RedisClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_moved(self):
         cluster = yield from self.create_test_cluster()
@@ -216,6 +221,7 @@ class RedisClusterTest(BaseTest):
         expected_connections[self.redis_port + 1].execute\
             .assert_called_once_with(b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_reply_error(self):
         cluster = yield from self.create_test_cluster()
@@ -229,6 +235,7 @@ class RedisClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_protocol_error(self):
         cluster = yield from self.create_test_cluster()
@@ -242,6 +249,7 @@ class RedisClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_many(self):
         cluster = yield from self.create_test_cluster()
@@ -259,18 +267,20 @@ class RedisClusterTest(BaseTest):
                 'PING', encoding=unittest.mock.ANY)
 
 
-@unittest.skipUnless(IS_REDIS_CLUSTER, 'need a running cluster')
 class RedisPoolClusterTest(BaseTest):
     @asyncio.coroutine
     def create_test_pool_cluster(self):
         nodes = self.get_cluster_addresses(self.redis_port)
         return self.create_pool_cluster(nodes, loop=self.loop)
 
+    @cluster_test()
     @run_until_complete
     def test_create(self):
-        cluster = yield from self.create_test_pool_cluster()
+        coro = self.create_test_pool_cluster()
+        cluster = yield from coro
         self.assertIsInstance(cluster, RedisPoolCluster)
 
+    @cluster_test()
     @run_until_complete
     def test_get_pool(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -282,6 +292,7 @@ class RedisPoolClusterTest(BaseTest):
         pool = cluster.get_pool(b'key:3', 'more', 'args')
         self.assertEqual(pool._address[1], self.redis_port + 2)
 
+    @cluster_test()
     @run_until_complete
     def test_execute(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -294,6 +305,7 @@ class RedisPoolClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_moved(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -316,6 +328,7 @@ class RedisPoolClusterTest(BaseTest):
         expected_direct_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_reply_error(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -329,6 +342,7 @@ class RedisPoolClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_with_protocol_error(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -342,6 +356,7 @@ class RedisPoolClusterTest(BaseTest):
         expected_connection.execute.assert_called_once_with(
             b'SET', SLOT_ZERO_KEY, 'value')
 
+    @cluster_test()
     @run_until_complete
     def test_execute_many(self):
         cluster = yield from self.create_test_pool_cluster()
@@ -358,6 +373,7 @@ class RedisPoolClusterTest(BaseTest):
             connection.execute.assert_called_once_with(
                 'PING', encoding=unittest.mock.ANY)
 
+    @cluster_test()
     @run_until_complete
     def test_reload_cluster_pool(self):
         cluster = yield from self.create_test_pool_cluster()

@@ -52,6 +52,14 @@ ARGS.add_argument(
     '-c', '--catch', action="store_true", default=False,
     dest='catchbreak', help='Catch control-C and display results')
 ARGS.add_argument(
+    '--standalone-and-cluster', action="store_true", default=False,
+    dest='standalone_and_cluster',
+    help='Run all tests first against a standalone Redis, then against a '
+    'cluster. Mainly for meaningful coverage reports.')
+ARGS.add_argument(
+    '--cluster', action="store_true", default=False,
+    help='Run tests against a Redis cluster.')
+ARGS.add_argument(
     '--forever', action="store_true", dest='forever', default=False,
     help='run tests forever to catch sporadic errors')
 ARGS.add_argument(
@@ -137,13 +145,13 @@ class TestsFinder:
                 if name.endswith('Test'):
                     self._test_factories.append(getattr(mod, name))
 
-    def load_tests(self):
+    def _load_tests(self, running_on_cluster=False):
         """
         Load test cases from the available test classes and apply
         optional include / exclude filters.
         """
         loader = unittest.TestLoader()
-        suite = unittest.TestSuite()
+        all_tests = []
         for test_factory in self._test_factories:
             tests = loader.loadTestsFromTestCase(test_factory)
             if self._includes:
@@ -156,8 +164,19 @@ class TestsFinder:
                          for test in tests
                          if not any(re.search(pat, test.id())
                                     for pat in self._excludes)]
-            suite.addTests(tests)
-        return suite
+            for test in tests:
+                test._running_on_cluster = running_on_cluster
+
+            all_tests.extend(tests)
+        return all_tests
+
+    def load_tests(self, standalone, cluster):
+        all_tests = []
+        if standalone:
+            all_tests.extend(self._load_tests(False))
+        if cluster:
+            all_tests.extend(self._load_tests(True))
+        return all_tests
 
 
 class TestResult(unittest.TextTestResult):
@@ -229,15 +248,19 @@ def runtests():
     else:
         includes = args.pattern
 
-    v = args.verbose and 4 or 0
+    verbosity = args.verbose and 4 or 0
     failfast = args.failfast
     catchbreak = args.catchbreak
     findleaks = args.findleaks
+    standalone = not args.cluster or args.standalone_and_cluster
+    cluster = args.cluster or args.standalone_and_cluster
     runner_factory = TestRunner if findleaks else unittest.TextTestRunner
 
     if args.coverage:
         cov = coverage.coverage(branch=True,
                                 source=['aioredis'],
+                                # Used to set up the cluster under test.
+                                omit=['aioredis/cluster/testcluster.py']
                                 )
         cov.start()
 
@@ -251,18 +274,21 @@ def runtests():
         logger.setLevel(logging.CRITICAL)
     if catchbreak:
         installHandler()
+
+    def create_and_run_suite():
+        suite = unittest.TestSuite()
+        suite.addTests(finder.load_tests(standalone, cluster))
+        return runner_factory(verbosity=verbosity, failfast=failfast)\
+            .run(suite)
+
     try:
         if args.forever:
             while True:
-                tests = finder.load_tests()
-                result = runner_factory(verbosity=v,
-                                        failfast=failfast).run(tests)
+                result = create_and_run_suite()
                 if not result.wasSuccessful():
                     sys.exit(1)
         else:
-            tests = finder.load_tests()
-            result = runner_factory(verbosity=v,
-                                    failfast=failfast).run(tests)
+            result = create_and_run_suite()
             sys.exit(not result.wasSuccessful())
     finally:
         if args.coverage:

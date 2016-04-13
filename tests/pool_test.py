@@ -3,18 +3,16 @@ import sys
 import unittest
 
 from textwrap import dedent
-from ._testutil import BaseTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import BaseTest, run_until_complete, no_cluster_test
 from aioredis import RedisPool, ReplyError
 
 PY_35 = sys.version_info >= (3, 5)
 
+no_cluster = no_cluster_test(
+    'standard pool does not support clusters, use RedisPoolCluster')
 
-@unittest.skipIf(
-    IS_REDIS_CLUSTER,
-    'standard pool does not support clusters, use RedisPoolCluster'
-)
+
 class PoolTest(BaseTest):
-
     def _assert_defaults(self, pool):
         self.assertIsInstance(pool, RedisPool)
         self.assertEqual(pool.minsize, 10)
@@ -22,11 +20,13 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.size, 10)
         self.assertEqual(pool.freesize, 10)
 
+    @no_cluster
     def test_connect(self):
         pool = self.loop.run_until_complete(self.create_pool(
             ('localhost', self.redis_port), loop=self.loop))
         self._assert_defaults(pool)
 
+    @no_cluster
     def test_global_loop(self):
         asyncio.set_event_loop(self.loop)
 
@@ -34,6 +34,7 @@ class PoolTest(BaseTest):
             ('localhost', self.redis_port)))
         self._assert_defaults(pool)
 
+    @no_cluster
     @run_until_complete
     def test_clear(self):
         pool = yield from self.create_pool(
@@ -43,6 +44,7 @@ class PoolTest(BaseTest):
         yield from pool.clear()
         self.assertEqual(pool.freesize, 0)
 
+    @no_cluster
     @run_until_complete
     def test_no_yield_from(self):
         pool = yield from self.create_pool(
@@ -52,6 +54,7 @@ class PoolTest(BaseTest):
             with pool:
                 pass
 
+    @no_cluster
     @run_until_complete
     def test_simple_command(self):
         pool = yield from self.create_pool(
@@ -66,6 +69,7 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.size, 10)
         self.assertEqual(pool.freesize, 10)
 
+    @no_cluster
     @run_until_complete
     def test_create_new(self):
         pool = yield from self.create_pool(
@@ -85,6 +89,7 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.size, 2)
         self.assertEqual(pool.freesize, 2)
 
+    @no_cluster
     @run_until_complete
     def test_create_constraints(self):
         pool = yield from self.create_pool(
@@ -102,6 +107,7 @@ class PoolTest(BaseTest):
                                             timeout=0.2,
                                             loop=self.loop)
 
+    @no_cluster
     @run_until_complete
     def test_create_no_minsize(self):
         pool = yield from self.create_pool(
@@ -121,6 +127,7 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.size, 1)
         self.assertEqual(pool.freesize, 1)
 
+    @no_cluster
     @run_until_complete
     def test_release_closed(self):
         pool = yield from self.create_pool(
@@ -135,6 +142,7 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.size, 0)
         self.assertEqual(pool.freesize, 0)
 
+    @no_cluster
     @run_until_complete
     def test_release_bad_connection(self):
         pool = yield from self.create_pool(
@@ -151,6 +159,7 @@ class PoolTest(BaseTest):
         other_conn.close()
         yield from other_conn.wait_closed()
 
+    @no_cluster
     @run_until_complete
     def test_select_db(self):
         pool = yield from self.create_pool(
@@ -161,6 +170,7 @@ class PoolTest(BaseTest):
         with (yield from pool) as redis:
             self.assertEqual(redis.db, 1)
 
+    @no_cluster
     @run_until_complete
     def test_change_db(self):
         pool = yield from self.create_pool(
@@ -187,6 +197,7 @@ class PoolTest(BaseTest):
         self.assertEqual(pool.freesize, 0)
         self.assertEqual(pool.db, 1)
 
+    @no_cluster
     @run_until_complete
     def test_change_db_errors(self):
         pool = yield from self.create_pool(
@@ -213,6 +224,7 @@ class PoolTest(BaseTest):
             yield from pool.select(100000)
         self.assertEqual(pool.db, 0)
 
+    @no_cluster
     @run_until_complete
     def test_select_and_create(self):
         # trying to model situation when select and acquire
@@ -237,6 +249,7 @@ class PoolTest(BaseTest):
                     break
         yield from asyncio.wait_for(test(), 1, loop=self.loop)
 
+    @no_cluster
     @run_until_complete
     def test_response_decoding(self):
         pool = yield from self.create_pool(
@@ -250,6 +263,7 @@ class PoolTest(BaseTest):
             res = yield from redis.get('key')
             self.assertEqual(res, 'value')
 
+    @no_cluster
     @run_until_complete
     def test_hgetall_response_decoding(self):
         pool = yield from self.create_pool(
@@ -265,6 +279,7 @@ class PoolTest(BaseTest):
             res = yield from redis.hgetall('key1')
             self.assertEqual(res, {'foo': 'bar', 'baz': 'zap'})
 
+    @no_cluster
     @run_until_complete
     def test_crappy_multiexec(self):
         pool = yield from self.create_pool(
@@ -281,7 +296,7 @@ class PoolTest(BaseTest):
             value = yield from redis.get('abc')
         self.assertEquals(value, 'def')
 
-    # @unittest.expectedFailure
+    @no_cluster
     @run_until_complete
     def test_pool_size_growth(self):
         pool = yield from self.create_pool(
@@ -312,6 +327,7 @@ class PoolTest(BaseTest):
         tasks.append(asyncio.async(task2(), loop=self.loop))
         yield from asyncio.gather(*tasks, loop=self.loop)
 
+    @no_cluster
     @run_until_complete
     def test_pool_with_closed_connections(self):
         pool = yield from self.create_pool(
@@ -327,6 +343,7 @@ class PoolTest(BaseTest):
             self.assertFalse(conn2.closed)
             self.assertIsNot(conn1, conn2)
 
+    @no_cluster
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @run_until_complete
     def test_await(self):
@@ -343,6 +360,7 @@ class PoolTest(BaseTest):
         exec(s, globals(), locals())
         yield from locals()['coro'](self, pool)
 
+    @no_cluster
     @unittest.skipUnless(PY_35, "Python 3.5+ required")
     @run_until_complete
     def test_async_with(self):

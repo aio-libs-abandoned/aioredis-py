@@ -3,7 +3,7 @@ import unittest
 
 from aioredis.util import async_task
 from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+    RedisTest, run_until_complete, REDIS_VERSION, no_cluster_test
 )
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
@@ -644,8 +644,7 @@ class StringCommandsEncodingTest(RedisEncodingTest):
 
         yield from self.redis.delete(TEST_KEY)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER,
-                     'Client does not yet support transactions on clusters')
+    @no_cluster_test('Client does not yet support transactions on clusters')
     @run_until_complete
     def test_setnx(self):
         TEST_KEY = 'my-key-nx'

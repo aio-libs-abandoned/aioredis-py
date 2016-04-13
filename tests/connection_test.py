@@ -4,7 +4,7 @@ import os
 
 from aioredis.util import async_task
 from ._testutil import (
-    BaseTest, run_until_complete, IS_REDIS_CLUSTER, SLOT_ZERO_KEY
+    BaseTest, run_until_complete, no_cluster_test, SLOT_ZERO_KEY
 )
 from aioredis import (
     ConnectionClosedError,
@@ -44,7 +44,7 @@ class ConnectionTest(BaseTest):
         self.assertEqual(conn.db, 0)
         self.assertIs(conn._loop, self.loop)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'SELECT not available on clusters')
+    @no_cluster_test('SELECT not available on clusters')
     @run_until_complete
     def test_select_db(self):
         address = ('localhost', self.redis_port)

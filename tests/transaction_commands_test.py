@@ -1,14 +1,14 @@
 import asyncio
-import unittest
 
-from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import RedisTest, run_until_complete, no_cluster_test
 from aioredis import ReplyError, MultiExecError
 
+no_cluster = no_cluster_test('client does not support transactions yet')
 
-@unittest.skipIf(IS_REDIS_CLUSTER,
-                 'cluster client does not support transactions yet')
+
 class TransactionCommandsTest(RedisTest):
 
+    @no_cluster
     @run_until_complete
     def test_multi_exec(self):
         yield from self.redis.delete('foo', 'bar')
@@ -44,12 +44,14 @@ class TransactionCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from f1
 
+    @no_cluster
     @run_until_complete
     def test_empty(self):
         tr = self.redis.multi_exec()
         res = yield from tr.execute()
         self.assertEqual(res, [])
 
+    @no_cluster
     @run_until_complete
     def test_double_execute(self):
         tr = self.redis.multi_exec()
@@ -59,6 +61,7 @@ class TransactionCommandsTest(RedisTest):
         with self.assertRaises(AssertionError):
             yield from tr.incr('foo')
 
+    @no_cluster
     @run_until_complete
     def test_connection_closed(self):
         tr = self.redis.multi_exec()
@@ -82,6 +85,7 @@ class TransactionCommandsTest(RedisTest):
 
         self.assertTrue(fut3.cancelled())
 
+    @no_cluster
     @run_until_complete
     def test_discard(self):
         yield from self.redis.delete('foo')
@@ -100,6 +104,7 @@ class TransactionCommandsTest(RedisTest):
         res = yield from fut3
         self.assertEqual(res, 1)
 
+    @no_cluster
     @run_until_complete
     def test_exec_error(self):
         tr = self.redis.multi_exec()
@@ -117,6 +122,7 @@ class TransactionCommandsTest(RedisTest):
         with self.assertRaises(ReplyError):
             yield from fut
 
+    @no_cluster
     @run_until_complete
     def test_command_errors(self):
         tr = self.redis.multi_exec()
@@ -126,6 +132,7 @@ class TransactionCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from fut
 
+    @no_cluster
     @run_until_complete
     def test_several_command_errors(self):
         tr = self.redis.multi_exec()
@@ -138,6 +145,7 @@ class TransactionCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from fut2
 
+    @no_cluster
     @run_until_complete
     def test_error_in_connection(self):
         yield from self.redis.set('foo', 1)
@@ -150,6 +158,7 @@ class TransactionCommandsTest(RedisTest):
             yield from fut1
         yield from fut2
 
+    @no_cluster
     @run_until_complete
     def test_watch_unwatch(self):
         res = yield from self.redis.watch('key')
@@ -167,6 +176,7 @@ class TransactionCommandsTest(RedisTest):
         res = yield from self.redis.unwatch()
         self.assertTrue(res)
 
+    @no_cluster
     @run_until_complete
     def test_encoding(self):
         res = yield from self.redis.set('key', 'value')
@@ -187,6 +197,7 @@ class TransactionCommandsTest(RedisTest):
         res = yield from fut3
         self.assertEqual(res, {'foo': 'val1', 'bar': 'val2'})
 
+    @no_cluster
     @run_until_complete
     def test_global_encoding(self):
         redis = yield from self.create_redis(

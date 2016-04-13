@@ -4,13 +4,12 @@ from unittest import mock
 
 from aioredis import ReplyError
 from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+    RedisTest, run_until_complete, REDIS_VERSION, no_cluster_test
 )
 
 
-@unittest.skipIf(IS_REDIS_CLUSTER,
-                 'not clear how to implement these on a cluster')
 class ServerCommandsTest(RedisTest):
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_client_list(self):
         res = yield from self.redis.client_list()
@@ -39,6 +38,7 @@ class ServerCommandsTest(RedisTest):
             expected['id'] = mock.ANY
         self.assertIn(expected, res)
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     @unittest.skipIf(REDIS_VERSION < (2, 9, 50),
                      'CLIENT PAUSE is available since redis>=2.9.50')
@@ -55,6 +55,7 @@ class ServerCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.client_pause(-1)
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_client_getname(self):
         res = yield from self.redis.client_getname()
@@ -67,6 +68,7 @@ class ServerCommandsTest(RedisTest):
         res = yield from self.redis.client_getname(encoding='utf-8')
         self.assertEqual(res, 'TestClient')
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_config_get(self):
         res = yield from self.redis.config_get('port')
@@ -81,11 +83,13 @@ class ServerCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.config_get(b'port')
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_config_rewrite(self):
         with self.assertRaises(ReplyError):
             yield from self.redis.config_rewrite()
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_config_set(self):
         cur_value = yield from self.redis.config_get('slave-read-only')
@@ -101,11 +105,13 @@ class ServerCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.config_set(100, 'databases')
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     @unittest.skip("Not implemented")
     def test_config_resetstat(self):
         pass
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_dbsize(self):
         res = yield from self.redis.dbsize()
@@ -118,11 +124,13 @@ class ServerCommandsTest(RedisTest):
         res = yield from self.redis.dbsize()
         self.assertEqual(res, 1)
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     @unittest.skip("Not implemented")
     def test_info(self):
         pass
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     @unittest.skipIf(REDIS_VERSION < (2, 8, 12),
                      'ROLE is available since redis>=2.8.12')
@@ -134,6 +142,7 @@ class ServerCommandsTest(RedisTest):
             'slaves': [],
             })
 
+    @no_cluster_test('not implemented')
     @run_until_complete
     def test_time(self):
         res = yield from self.redis.time()

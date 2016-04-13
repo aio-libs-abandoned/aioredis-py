@@ -1,8 +1,6 @@
-import unittest
-
 from aioredis import ConnectionClosedError, ReplyError
 
-from ._testutil import RedisTest, run_until_complete, IS_REDIS_CLUSTER
+from ._testutil import RedisTest, run_until_complete, no_cluster_test
 
 
 class ConnectionCommandsTest(RedisTest):
@@ -12,7 +10,7 @@ class ConnectionCommandsTest(RedisTest):
             ('localhost', self.redis_port), db=0, loop=self.loop)
         self.assertEqual(repr(redis), '<Redis <RedisConnection [db:0]>>')
 
-        if not IS_REDIS_CLUSTER:
+        if not self.running_on_cluster:
             redis = yield from self.create_redis(
                 ('localhost', self.redis_port), db=1, loop=self.loop)
             self.assertEqual(repr(redis), '<Redis <RedisConnection [db:1]>>')
@@ -34,12 +32,12 @@ class ConnectionCommandsTest(RedisTest):
     @run_until_complete
     def test_ping(self):
         resp = yield from self.redis.ping()
-        if not IS_REDIS_CLUSTER:
+        if not self.running_on_cluster:
             self.assertEqual(resp, b'PONG')
         else:
             self.assertEqual(resp, [b'PONG'] * 3)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'use cluster.clear instead')
+    @no_cluster_test('use cluster.clear instead')
     @run_until_complete
     def test_quit(self):
         resp = yield from self.redis.quit()
@@ -48,8 +46,7 @@ class ConnectionCommandsTest(RedisTest):
         with self.assertRaises(ConnectionClosedError):
             yield from self.redis.ping()
 
-    @unittest.skipIf(IS_REDIS_CLUSTER,
-                     'select is not available on Redis cluster')
+    @no_cluster_test('select is not available on Redis cluster')
     @run_until_complete
     def test_select(self):
         self.assertEqual(self.redis.db, 0)

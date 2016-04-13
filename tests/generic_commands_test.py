@@ -8,7 +8,8 @@ from textwrap import dedent
 from unittest import mock
 
 from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, IS_REDIS_CLUSTER
+    RedisTest, run_until_complete, REDIS_VERSION, cluster_test,
+    no_cluster_test
 )
 from aioredis import ReplyError
 
@@ -210,7 +211,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
             yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'Move is not available on cluster')
+    @no_cluster_test('Move is not available on cluster')
     @run_until_complete
     def test_move(self):
         yield from self.flushall()
@@ -362,8 +363,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.pttl(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER,
-                     'Would return random key from each node.')
+    @no_cluster_test('Would return random key from each node.')
     @run_until_complete
     def test_randomkey(self):
         yield from self.flushall()
@@ -432,8 +432,7 @@ class GenericCommandsTest(RedisTest):
     def test_restore(self):
         pass
 
-    @unittest.skipIf(IS_REDIS_CLUSTER,
-                     'Scan command behaves differently on cluster')
+    @no_cluster_test('Scan command behaves differently on cluster')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SCAN is available since redis>=2.8.0')
     @run_until_complete
@@ -475,8 +474,7 @@ class GenericCommandsTest(RedisTest):
             test_values.extend(values)
         self.assertEqual(len(test_values), 10)
 
-    @unittest.skipUnless(IS_REDIS_CLUSTER,
-                         'Scan command behaves differently on cluster')
+    @cluster_test('Scan command behaves differently on cluster')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
                      'SCAN is available since redis>=2.8.0')
     @run_until_complete
@@ -523,7 +521,7 @@ class GenericCommandsTest(RedisTest):
         )
         self.assertEqual(res, [b'b', b'a'])
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'BY option not supported on cluster')
+    @no_cluster_test('BY option not supported on cluster')
     @run_until_complete
     def test_sort_by(self):
         yield from self.redis.set('key:1', 10)
@@ -599,7 +597,7 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(TypeError):
             yield from self.redis.type(None)
 
-    @unittest.skipIf(IS_REDIS_CLUSTER, 'iscan not yet implemented on cluster')
+    @no_cluster_test('iscan not yet implemented on cluster')
     @unittest.skipUnless(PY_35,
                          'Python 3.5+ required')
     @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
