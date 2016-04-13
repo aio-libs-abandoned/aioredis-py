@@ -92,7 +92,7 @@ script:
   export EXAMPLES=$(find $PWD/examples/ -name "*.py");
 
   for example in $EXAMPLES; do
-      if [[ $example == *_3.5._* ]] && python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
+      if [[ $example == *_3.5_* ]] && python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
           continue
       fi
 
