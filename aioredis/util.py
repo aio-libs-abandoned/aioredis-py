@@ -55,14 +55,6 @@ def decode(obj, encoding='utf8'):
     return obj
 
 
-def encode(obj, encoding='utf8'):
-    if isinstance(obj, str):
-        return obj.encode(encoding)
-    elif isinstance(obj, (list, tuple)):
-        return [encode(o, encoding) for o in obj]
-    return obj
-
-
 def encode_str(obj, encoding='utf8'):
     if isinstance(obj, str):
         return obj.encode(encoding)
