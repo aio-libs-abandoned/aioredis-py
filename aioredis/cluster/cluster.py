@@ -128,9 +128,6 @@ class ClusterNodesManager:
                 node.slots = masters_slots[node.master]
         self.nodes = nodes
 
-    def __iter__(self):
-        return iter(self.alive_nodes)
-
     def __repr__(self):
         return r' == '.join(repr(node) for node in self.nodes)
 
@@ -198,7 +195,9 @@ class ClusterNodesManager:
     def get_node_by_slot(self, slot):
         for node in self.masters:
             if node.in_range(slot):
-                yield node
+                return node
+        else:
+            return None
 
     def get_random_node(self):
         return random.choice(self.alive_nodes)
@@ -209,27 +208,17 @@ class ClusterNodesManager:
     def get_random_slave_node(self):
         return random.choice(self.slaves)
 
-    def determine_eval_slot(self, *args):
-        """
-        Figure out what slot based on args for 'EVAL'|'EVALSHA' commands.
-        """
-        num_keys = args[1]
-        keys = args[2: 2 + num_keys]
-        slots = {self.key_slot(key) for key in keys}
-        if len(slots) != 1:
-            raise RedisClusterError(
-                'all keys must map to the same key slot')
-        return slots.pop()
-
-    def determine_slot(self, *args):
-        """
-        Figure out what slot based on command and args.
-        """
-        if args[0] is None:
+    def determine_slot(self, *keys):
+        if any(key is None for key in keys):
             raise TypeError('key must not be None')
-        if str(args[0]) in ['EVAL', 'EVALSHA']:
-            return self.determine_eval_slot(*args[1:])
-        return self.key_slot(args[0])
+        if len(keys) == 1:
+            return self.key_slot(keys[0])
+        else:
+            slots = {self.key_slot(key) for key in keys}
+            if len(slots) != 1:
+                raise RedisClusterError(
+                    'all keys must map to the same key slot')
+            return slots.pop()
 
 
 @asyncio.coroutine
@@ -306,10 +295,28 @@ class RedisCluster(RedisClusterMixin):
         self._moved_count = 0
         self._cluster_manager = None
 
-    def get_node(self, *args):
-        slot = self._cluster_manager.determine_slot(*args)
-        for node in self._cluster_manager.get_node_by_slot(slot):
-            return node
+    def _is_eval_command(self, command):
+        if isinstance(command, bytes):
+            command = command.decode('utf-8')
+        return command.lower() in ['eval', 'evalsha']
+
+    def get_node(self, command, *args, **kwargs):
+        if isinstance(command, bytes):
+            command = command.decode('utf-8')
+
+        if self._is_eval_command(command):
+            keys = kwargs.get('keys', [])
+            if not isinstance(keys, (list, tuple)):
+                raise TypeError('keys must be a list / tuple')
+        else:
+            keys = args[:1]
+
+        if len(keys) > 0:
+            slot = self._cluster_manager.determine_slot(*keys)
+            node = self._cluster_manager.get_node_by_slot(slot)
+            if node is not None:
+                return node
+
         return self._cluster_manager.get_random_master_node()
 
     def node_count(self):
@@ -415,7 +422,7 @@ class RedisCluster(RedisClusterMixin):
             self._moved_count += 1
             if self._moved_count >= self.MAX_MOVED_COUNT:
                 yield from self.initialize()
-                node = self.get_node(*args)
+                node = self.get_node(command, *args, **kwargs)
                 address = node.address
             conn = yield from self.create_connection(address)
             to_close.append(conn)
@@ -458,7 +465,7 @@ class RedisCluster(RedisClusterMixin):
         if not args:
             many = True
         if not many:
-            address = self.get_node(*args).address
+            address = self.get_node(command, *args, **kwargs).address
             return (yield from self._execute_node(
                 address, command, *args, **kwargs))
         else:
@@ -530,8 +537,8 @@ class RedisPoolCluster(RedisCluster):
     def all_slots_covered(self):
         return self._cluster_manager.all_slots_covered
 
-    def get_pool(self, *args):
-        node = self.get_node(*args)
+    def get_pool(self, command, *args, **kwargs):
+        node = self.get_node(command, *args, **kwargs)
         return self._cluster_pool[node.id]
 
     @asyncio.coroutine
@@ -558,7 +565,7 @@ class RedisPoolCluster(RedisCluster):
             self._moved_count += 1
             if self._moved_count >= self.MAX_MOVED_COUNT:
                 yield from self.initialize()
-                pool = self.get_pool(*args)
+                pool = self.get_pool(command, *args, **kwargs)
                 with (yield from pool) as conn:
                     return (yield from getattr(conn, cmd)(*args, **kwargs))
             else:
@@ -601,7 +608,7 @@ class RedisPoolCluster(RedisCluster):
         if not args:
             many = True
         if not many:
-            pool = self.get_pool(*args)
+            pool = self.get_pool(command, *args, **kwargs)
             return (yield from self._execute_node(
                 pool, command, *args, **kwargs))
         else:

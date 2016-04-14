@@ -163,7 +163,7 @@ class RedisTest(BaseTest):
         if not self.running_on_cluster:
             return (yield from self.redis.connection.execute(command, *args))
         else:
-            address = self.redis.get_node(*args).address
+            address = self.redis.get_node(command, *args).address
             redis = yield from self.redis.create_connection(address)
             try:
                 return (yield from redis.connection.execute(command, *args))

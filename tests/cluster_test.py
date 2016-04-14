@@ -147,6 +147,19 @@ class ClusterNodesManagerTest(unittest.TestCase):
         manager = ClusterNodesManager.create(modified_data)
         self.assertFalse(manager.all_slots_covered)
 
+    def test_determine_slot(self):
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK)
+        self.assertEqual(manager.determine_slot('key'), 12539)
+
+    def test_determine_slot_multiple(self):
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK)
+        self.assertEqual(manager.determine_slot('{key}:1', '{key}:2'), 12539)
+
+    def test_determine_slot_multiple_different(self):
+        manager = ClusterNodesManager.create(RAW_NODE_INFO_DATA_OK)
+        with self.assertRaises(RedisClusterError):
+            manager.determine_slot('key:1', 'key:2')
+
 
 class RedisClusterTest(BaseTest):
     @cluster_test()
@@ -180,12 +193,24 @@ class RedisClusterTest(BaseTest):
     def test_get_node(self):
         cluster = yield from self.create_test_cluster()
         # Compare script used to setup the test cluster
-        node = cluster.get_node('key:0')
+        node = cluster.get_node('GET', 'key:0')
         self.assertEqual(node.address[1], self.redis_port)
-        node = cluster.get_node(b'key:1')
+        node = cluster.get_node('GET', b'key:1')
         self.assertEqual(node.address[1], self.redis_port + 1)
-        node = cluster.get_node(b'key:3', 'more', 'args')
+        node = cluster.get_node('GET', b'key:3', 'more', 'args')
         self.assertEqual(node.address[1], self.redis_port + 2)
+
+    @cluster_test()
+    @run_until_complete
+    def test_get_node_eval(self):
+        cluster = yield from self.create_test_cluster()
+
+        node = cluster.get_node(
+            'EVAL', keys=['{key}:1', '{key}:2'], args=['more', 'args'])
+        self.assertEqual(node.address[1], self.redis_port + 2)
+
+        with self.assertRaises(RedisClusterError):
+            cluster.get_node('EVAL', keys=['keys', 'in', 'different', 'slots'])
 
     @cluster_test()
     @run_until_complete
@@ -285,11 +310,11 @@ class RedisPoolClusterTest(BaseTest):
     def test_get_pool(self):
         cluster = yield from self.create_test_pool_cluster()
         # Compare the redis_trib.rb script used to setup the test cluster
-        pool = cluster.get_pool('key:0')
+        pool = cluster.get_pool('GET', 'key:0')
         self.assertEqual(pool._address[1], self.redis_port)
-        pool = cluster.get_pool(b'key:1')
+        pool = cluster.get_pool('GET', b'key:1')
         self.assertEqual(pool._address[1], self.redis_port + 1)
-        pool = cluster.get_pool(b'key:3', 'more', 'args')
+        pool = cluster.get_pool('GET', b'key:3', 'more', 'args')
         self.assertEqual(pool._address[1], self.redis_port + 2)
 
     @cluster_test()
