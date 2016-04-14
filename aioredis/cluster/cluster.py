@@ -301,13 +301,10 @@ class RedisCluster(RedisClusterMixin):
         return command.lower() in ['eval', 'evalsha']
 
     def get_node(self, command, *args, **kwargs):
-        if isinstance(command, bytes):
-            command = command.decode('utf-8')
-
         if self._is_eval_command(command):
             keys = kwargs.get('keys', [])
             if not isinstance(keys, (list, tuple)):
-                raise TypeError('keys must be a list / tuple')
+                raise TypeError('keys must be given as list or tuple')
         else:
             keys = args[:1]
 
