@@ -39,7 +39,7 @@ def main():
         for key in keys:
             yield from cluster.set(key, value)
         res = yield from cluster.keys('*')
-        assert set(res) == set(keys)
+        assert set(keys) <= set(res)
         print("get_keys -> {}".format(res))
         yield from cluster.clear()  # closing all open connections
 
@@ -65,7 +65,7 @@ def main():
         res = []
         for _keys in (yield from cluster.scan(match='key*')):
             res.extend(_keys)
-        assert set(res) == set(keys)
+        assert set(keys) <= set(res)
         print("scan -> {}".format(res))
         yield from cluster.clear()  # closing all open connections
 
