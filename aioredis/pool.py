@@ -28,7 +28,11 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      ssl=ssl, loop=loop)
-    yield from pool._fill_free(override_min=False)
+    try:
+        yield from pool._fill_free(override_min=False)
+    except Exception:
+        yield from pool.clear()
+        raise
     return pool
 
 
