@@ -376,3 +376,28 @@ class PoolTest(BaseTest):
         ''')
         exec(s, globals(), locals())
         yield from locals()['coro'](self, pool)
+
+    @run_until_complete
+    def test_clear_if_cancelled_during_startup(self):
+        # Cancel when creating a second connection
+        # and check if the first one is closed.
+
+        from aioredis.connection import create_connection
+        connection = None
+
+        @asyncio.coroutine
+        def create_connection_mock(*args, **kwargs):
+            nonlocal connection
+            if connection is None:
+                connection = yield from create_connection(*args, **kwargs)
+                return connection
+            else:
+                raise asyncio.CancelledError()
+
+        with unittest.mock.patch('aioredis.commands.create_connection',
+                                 side_effect=create_connection_mock):
+            with self.assertRaises(asyncio.CancelledError):
+                yield from self.create_pool(('localhost', self.redis_port),
+                                            minsize=2, loop=self.loop)
+
+        self.assertTrue(connection._closed)
