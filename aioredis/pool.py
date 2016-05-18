@@ -334,3 +334,62 @@ if PY_35:
             finally:
                 self._pool = None
                 self._conn = None
+
+
+class ConnectionPool(RedisPool):
+    """Connections pool.
+    """
+
+    def execute(self, command, *args, **kw):
+        """Executes redis command in a free connection and returns
+        future waiting for result.
+
+        Picks connection from free pool and send command through
+        that connection.
+        If no connection is found, returns coroutine waiting for
+        free connection to execute command.
+        """
+        conn, address = self.get_connection(command, args)
+        if conn is not None:
+            fut = conn.execute(command, *args, **kw)
+            return self._check_result(fut, command, args, kw)
+        else:
+            coro = self._wait_execute(address, command, args, kw)
+            return self._check_result(coro, command, args, kw)
+
+    def get_connection(self, command, args):
+        """Get free connection from pool.
+
+        Returns connection and its address.
+        """
+        # TODO: find a better way to determine if connection is free
+        #       and not havily used.
+        for i in range(self.freesize):
+            conn = self._pool[0]
+            self._pool.rotate(1)
+            if conn.closed:  # or conn._waiters:
+                continue
+            return conn, None
+        return None, None
+
+    @asyncio.coroutine
+    def acquire(self, command, args):
+        """Wait connection available and return it along with its address."""
+        conn = yield from super().acquire()
+        return conn, None
+
+    def _check_result(self, fut, *data):
+        """Hook to check result or catch exception (like MovedError).
+
+        This method can be coroutine.
+        """
+        return fut
+
+    @asyncio.coroutine
+    def _wait_execute(self, address, command, args, kw):
+        """Acquire connection and execute command."""
+        conn, address = yield from self.acquire(command, args)
+        try:
+            return (yield from conn.execute(command, *args, **kw))
+        finally:
+            self.release(conn)
