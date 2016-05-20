@@ -2,7 +2,7 @@ import asyncio
 import functools
 
 from ..errors import RedisError, PipelineError, MultiExecError
-from ..util import wait_ok, async_task
+from ..util import wait_ok, async_task, create_future
 
 
 class TransactionsCommandsMixin:
@@ -89,7 +89,7 @@ class _RedisBuffer:
         self._loop = loop
 
     def execute(self, cmd, *args, **kw):
-        fut = asyncio.Future(loop=self._loop)
+        fut = create_future(loop=self._loop)
         self._pipeline.append((fut, cmd, args, kw))
         return fut
 
@@ -135,7 +135,7 @@ class Pipeline:
                 try:
                     task = async_task(attr(*args, **kw), loop=self._loop)
                 except Exception as exc:
-                    task = asyncio.Future(loop=self._loop)
+                    task = create_future(loop=self._loop)
                     task.set_exception(exc)
                 self._results.append(task)
                 return task

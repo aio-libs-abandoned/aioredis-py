@@ -159,7 +159,7 @@ class Channel:
         if not self._queue.empty():
             return True
         if self._waiter is None:
-            self._waiter = asyncio.Future(loop=self._loop)
+            self._waiter = create_future(loop=self._loop)
         yield from self._waiter
         return self.is_active
 
@@ -306,4 +306,13 @@ def _set_exception(fut, exception):
 if hasattr(asyncio, 'ensure_future'):
     async_task = asyncio.ensure_future
 else:
-    async_task = asyncio.async
+    async_task = asyncio.async  # Deprecated since 3.4.4
+
+
+# create_future is new in version 3.5.2
+if hasattr(asyncio.BaseEventLoop, 'create_future'):
+    def create_future(loop):
+        return loop.create_future()
+else:
+    def create_future(loop):
+        return asyncio.Future(loop=loop)

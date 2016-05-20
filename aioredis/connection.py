@@ -14,7 +14,8 @@ from .util import (
     coerced_keys_dict,
     Channel,
     decode,
-    async_task
+    async_task,
+    create_future,
     )
 from .errors import (
     ConnectionClosedError,
@@ -102,7 +103,7 @@ class RedisConnection:
         self._db = 0
         self._closing = False
         self._closed = False
-        self._close_waiter = asyncio.Future(loop=self._loop)
+        self._close_waiter = create_future(loop=self._loop)
         self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
@@ -241,7 +242,7 @@ class RedisConnection:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        fut = asyncio.Future(loop=self._loop)
+        fut = create_future(loop=self._loop)
         self._writer.write(encode_command(command, *args))
         self._waiters.append((fut, encoding, cb))
         return fut
@@ -264,7 +265,7 @@ class RedisConnection:
         cmd = encode_command(command, *channels)
         res = []
         for ch in channels:
-            fut = asyncio.Future(loop=self._loop)
+            fut = create_future(loop=self._loop)
             res.append(fut)
             self._waiters.append((fut, None, self._update_pubsub))
         self._writer.write(cmd)

@@ -4,6 +4,7 @@ from unittest import mock
 
 from aioredis.commands import MultiExec
 from aioredis.commands import Redis
+from aioredis.util import create_future
 
 
 class MultiExecTest(unittest.TestCase):
@@ -24,7 +25,7 @@ class MultiExecTest(unittest.TestCase):
         self.assertIs(tr._loop, loop)
 
         def make_fut(cmd, *args, **kw):
-            fut = asyncio.Future()
+            fut = create_future(asyncio.get_event_loop())
             if cmd == 'PING':
                 fut.set_result(b'QUEUED')
             elif cmd == 'EXEC':

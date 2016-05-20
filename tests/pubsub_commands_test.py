@@ -3,6 +3,8 @@ import unittest
 import asyncio
 from textwrap import dedent
 
+from aioredis.util import create_future
+
 from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
@@ -26,7 +28,7 @@ class PubSubCommandsTest(RedisTest):
     @run_until_complete
     def test_publish(self):
         out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
+        fut = create_future(loop=self.loop)
         sub = asyncio.async(self._reader('chan:1', out, fut),
                             loop=self.loop)
 
@@ -43,7 +45,7 @@ class PubSubCommandsTest(RedisTest):
     @run_until_complete
     def test_publish_json(self):
         out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
+        fut = create_future(loop=self.loop)
         sub = asyncio.async(self._reader('chan:1', out, fut),
                             loop=self.loop)
 
