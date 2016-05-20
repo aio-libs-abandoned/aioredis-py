@@ -2,6 +2,8 @@ import asyncio
 import json
 import sys
 
+from asyncio.base_events import BaseEventLoop
+
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -310,7 +312,7 @@ else:
 
 
 # create_future is new in version 3.5.2
-if hasattr(asyncio.BaseEventLoop, 'create_future'):
+if hasattr(BaseEventLoop, 'create_future'):
     def create_future(loop):
         return loop.create_future()
 else:
