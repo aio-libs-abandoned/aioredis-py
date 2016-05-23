@@ -9,6 +9,7 @@ from .errors import (
     ProtocolError,
     RedisError,
     ReplyError,
+    ChannelClosedError,
     )
 
 
@@ -19,4 +20,6 @@ __version__ = '0.2.6'
  create_redis, create_reconnecting_redis, Redis,
  create_pool, RedisPool, Channel,
  RedisError, ProtocolError, ReplyError,
- PipelineError, MultiExecError, ConnectionClosedError)
+ PipelineError, MultiExecError, ConnectionClosedError,
+ ChannelClosedError,
+ )
