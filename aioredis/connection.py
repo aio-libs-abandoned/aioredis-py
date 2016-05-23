@@ -21,7 +21,8 @@ from .errors import (
     ConnectionClosedError,
     RedisError,
     ProtocolError,
-    ReplyError
+    ReplyError,
+    WatchVariableError,
     )
 from .log import logger
 
@@ -354,6 +355,12 @@ class RedisConnection:
         recall.popleft()  # ignore first (its _start_transaction)
         if discard:
             return obj
+        assert isinstance(obj, list) or (obj is None and not discard), (
+            "Unexpected MULTI/EXEC result", obj, recall)
+        # TODO: need to be able to re-try transaction
+        if obj is None:
+            err = WatchVariableError("WATCH variable has changed")
+            obj = [err] * len(recall)
         assert len(obj) == len(recall), (
             "Wrong number of result items in mutli-exec", obj, recall)
         res = []

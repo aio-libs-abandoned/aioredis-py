@@ -388,6 +388,11 @@ Exceptions
    Same as :exc:`~.PipelineError` but raised when executing multi_exec
    block.
 
+.. exception:: WatchVariableError
+
+   Raised if watched variable changed (EXEC returns None).
+   Subclass of :exc:`~.MultiExecError`.
+
 .. exception:: ChannelClosedError
 
    Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is

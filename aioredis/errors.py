@@ -4,6 +4,7 @@ __all__ = [
     'ReplyError',
     'PipelineError',
     'MultiExecError',
+    'WatchVariableError',
     'ChannelClosedError',
     'ConnectionClosedError',
     ]
@@ -30,6 +31,10 @@ class PipelineError(ReplyError):
 
 class MultiExecError(PipelineError):
     """Raised if command within MULTI/EXEC block caused error."""
+
+
+class WatchVariableError(MultiExecError):
+    """Raised if watched variable changed (EXEC returns None)."""
 
 
 class ChannelClosedError(RedisError):

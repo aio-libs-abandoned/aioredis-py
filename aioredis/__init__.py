@@ -10,6 +10,7 @@ from .errors import (
     RedisError,
     ReplyError,
     ChannelClosedError,
+    WatchVariableError,
     )
 
 
@@ -21,5 +22,5 @@ __version__ = '0.2.6'
  create_pool, RedisPool, Channel,
  RedisError, ProtocolError, ReplyError,
  PipelineError, MultiExecError, ConnectionClosedError,
- ChannelClosedError,
+ ChannelClosedError, WatchVariableError,
  )

@@ -1,7 +1,7 @@
 import asyncio
 
 from ._testutil import RedisTest, run_until_complete
-from aioredis import ReplyError, MultiExecError
+from aioredis import ReplyError, MultiExecError, WatchVariableError
 
 
 class TransactionCommandsTest(RedisTest):
@@ -206,3 +206,27 @@ class TransactionCommandsTest(RedisTest):
         self.assertEqual(res, 'value')
         res = yield from fut3
         self.assertEqual(res, {'foo': 'val1', 'bar': 'val2'})
+
+    @run_until_complete
+    def test_transaction__watch_error(self):
+        other = yield from self.create_redis(
+            ('localhost', self.redis_port), loop=self.loop)
+
+        ok = yield from self.redis.set('foo', 'bar')
+        self.assertTrue(ok)
+
+        ok = yield from self.redis.watch('foo')
+        self.assertTrue(ok)
+
+        ok = yield from other.set('foo', 'baz')
+        self.assertTrue(ok)
+
+        tr = self.redis.multi_exec()
+        fut1 = tr.set('foo', 'foo')
+        fut2 = tr.get('bar')
+        with self.assertRaises(MultiExecError):
+            yield from tr.execute()
+        with self.assertRaises(WatchVariableError):
+            yield from fut1
+        with self.assertRaises(WatchVariableError):
+            yield from fut2
