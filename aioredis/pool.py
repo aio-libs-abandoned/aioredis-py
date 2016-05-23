@@ -12,7 +12,7 @@ PY_35 = sys.version_info >= (3, 5)
 
 @asyncio.coroutine
 def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
-                minsize=10, maxsize=10, commands_factory=Redis, loop=None):
+                minsize=1, maxsize=10, commands_factory=Redis, loop=None):
     """Creates Redis Pool.
 
     By default it creates pool of commands_factory instances, but it is

@@ -195,7 +195,7 @@ The library provides connections pool. The basic usage is as follows:
 .. _aioredis-create_pool:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
-                          encoding=None, minsize=10, maxsize=10, \
+                          encoding=None, minsize=1, maxsize=10, \
                           commands_factory=Redis, loop=None)
 
    A :ref:`coroutine<coroutine>` that creates Redis connections pool.
@@ -222,7 +222,7 @@ The library provides connections pool. The basic usage is as follows:
    :type encoding: str or None
 
    :param int minsize: Minimum number of free connection to create in pool.
-                       ``10`` by default.
+                       ``1`` by default.
    :param int maxsize: Maximum number of connection to keep in pool.
                        ``10`` by default.
 
@@ -235,6 +235,9 @@ The library provides connections pool. The basic usage is as follows:
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :return: :class:`RedisPool` instance.
+
+   .. versionchanged:: v0.2.7
+      ``minsize`` default value changed from 10 to 1.
 
 
 .. class:: RedisPool

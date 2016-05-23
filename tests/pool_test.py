@@ -13,10 +13,10 @@ class PoolTest(BaseTest):
 
     def _assert_defaults(self, pool):
         self.assertIsInstance(pool, RedisPool)
-        self.assertEqual(pool.minsize, 10)
+        self.assertEqual(pool.minsize, 1)
         self.assertEqual(pool.maxsize, 10)
-        self.assertEqual(pool.size, 10)
-        self.assertEqual(pool.freesize, 10)
+        self.assertEqual(pool.size, 1)
+        self.assertEqual(pool.freesize, 1)
 
     def test_connect(self):
         pool = self.loop.run_until_complete(self.create_pool(
