@@ -118,7 +118,8 @@ Transaction commands
 
       :param bool return_exceptions: Raise or return exceptions.
 
-      :raise aioredis.MultiExecError: raised instead of :exc:`aioredis.PipelineError`
+      :raise aioredis.MultiExecError: Raised instead of :exc:`aioredis.PipelineError`
+      :raise aioredis.WatchVariableError: If watched variable is changed
 
 Scripting commands
 ------------------

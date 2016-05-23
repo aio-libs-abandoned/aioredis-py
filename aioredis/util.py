@@ -103,7 +103,8 @@ class Channel:
     def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
 
-        Raises (TBD) exception if channel is unsubscribed and has no messages.
+        Raises ChannelClosedError exception if channel is unsubscribed
+        and has no messages.
         """
         assert decoder is None or callable(decoder), decoder
         if not self.is_active:

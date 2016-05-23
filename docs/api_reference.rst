@@ -337,9 +337,11 @@ Pub/Sub Channel object
 
       :param callable decoder: If specified used to decode message, ex. :func:`json.loads()`
 
+      :raise aioredis.ChannelClosedError: If channel is unsubscribed and has no more messages.
+
    .. method:: get_json(\*, encoding="utf-*")
 
-      Shortcut to `get(encoding="utf-8", decoder=json.loads)`
+      Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
 
    .. method:: wait_message()
 
@@ -352,6 +354,18 @@ Pub/Sub Channel object
       >>> ch = redis.channels['channel:1']
       >>> while (yield from ch.wait_message()):
       ...     msg = yield from ch.get()
+
+   .. method:: iter()
+
+      Same as :meth:`~.get` method but it is a native coroutine.
+
+      Usage example::
+
+         >>> async for msg in ch.iter():
+         ...     print(msg)
+
+      .. versionadded:: 0.2.5
+         Available for Python 3.5 only
 
 ----
 
