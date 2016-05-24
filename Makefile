@@ -2,6 +2,7 @@
 PYTHON ?= python3
 FLAKE ?= pyflakes
 PEP ?= pep8
+PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 
 .PHONY: all flake doc test cov dist devel
@@ -16,11 +17,13 @@ flake:
 
 test:
 	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
+	# REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
+	$(PYTEST) -v
 
 cov coverage:
 	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
+	# REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
+	$(PYTEST) --cov=aioredis --cov-report=term --cov-report=html
 
 dist:
 	-rm -r build dist aioredis.egg-info

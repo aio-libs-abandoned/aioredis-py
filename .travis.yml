@@ -50,36 +50,19 @@ before_install:
 install:
 - pip install hiredis
 - pip install flake8
-- pip install coverage
+- pip install pytest
+- pip install pytest-coverage
 - pip install coveralls
 - pip install -e .
 
 before_script:
-# main redis instance listening port & socket
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server.pid
-  --unixsocket $REDIS_SOCKET
-  --port $REDIS_PORT_1
-  --save ""
-# second redis instance, yet for migrate command tests
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server-2.pid
-  --port $REDIS_PORT_2
-  --save ""
-- sleep 3
-- $REDIS_BIN/redis-cli -s $REDIS_SOCKET PING
-- $REDIS_BIN/redis-cli -p $REDIS_PORT_2 PING
-- export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
-- echo $REDIS_VERSION
 # running socat
 - socat openssl-listen:6443,cert=/tmp/server.pem,verify=0,fork tcp-connect:localhost:6379 &
-- echo "PING" | socat stdin openssl-connect:localhost:6443,verify=0
+# - echo "PING" | socat stdin openssl-connect:localhost:6443,verify=0
 
 script:
 - flake8 aioredis tests
-- python runtests.py --coverage -v
+- py.test -vs --cov=aioredis
 
 # checking examples
 - >

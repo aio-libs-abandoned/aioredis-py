@@ -1,100 +1,102 @@
-import unittest
-
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
+import pytest
 
 
-@unittest.skipIf(REDIS_VERSION < (2, 8, 9),
-                 'HyperLogLog works only with redis>=2.8.9')
-class HyperLogLogCommandsTest(RedisTest):
+pytestmark = pytest.mark.redis_version(
+    2, 8, 9, reason='HyperLogLog works only with redis>=2.8.9')
 
-    @run_until_complete
-    def test_pfcount(self):
-        key = 'hll_pfcount'
-        other_key = 'some-other-hll'
 
-        # add initial data, cardinality changed so command returns 1
-        is_changed = yield from self.redis.pfadd(key, 'foo', 'bar', 'zap')
-        self.assertEqual(is_changed, 1)
+@pytest.mark.run_loop
+def test_pfcount(redis):
+    key = 'hll_pfcount'
+    other_key = 'some-other-hll'
 
-        # add more data, cardinality not changed so command returns 0
-        is_changed = yield from self.redis.pfadd(key, 'zap', 'zap', 'zap')
-        self.assertEqual(is_changed, 0)
+    # add initial data, cardinality changed so command returns 1
+    is_changed = yield from redis.pfadd(key, 'foo', 'bar', 'zap')
+    assert is_changed == 1
 
-        # add event more data, cardinality not changed so command returns 0
-        is_changed = yield from self.redis.pfadd(key, 'foo', 'bar')
-        self.assertEqual(is_changed, 0)
+    # add more data, cardinality not changed so command returns 0
+    is_changed = yield from redis.pfadd(key, 'zap', 'zap', 'zap')
+    assert is_changed == 0
 
-        # check cardinality of one key
-        cardinality = yield from self.redis.pfcount(key)
-        self.assertEqual(cardinality, 3)
+    # add event more data, cardinality not changed so command returns 0
+    is_changed = yield from redis.pfadd(key, 'foo', 'bar')
+    assert is_changed == 0
 
-        # create new key (variable) for cardinality estimation
-        is_changed = yield from self.redis.pfadd(other_key, 1, 2, 3)
-        self.assertEqual(is_changed, 1)
+    # check cardinality of one key
+    cardinality = yield from redis.pfcount(key)
+    assert cardinality == 3
 
-        # check cardinality of multiple keys
-        cardinality = yield from self.redis.pfcount(key, other_key)
-        self.assertEqual(cardinality, 6)
+    # create new key (variable) for cardinality estimation
+    is_changed = yield from redis.pfadd(other_key, 1, 2, 3)
+    assert is_changed == 1
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfcount(None)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfcount(key, None)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfcount(key, key, None)
+    # check cardinality of multiple keys
+    cardinality = yield from redis.pfcount(key, other_key)
+    assert cardinality == 6
 
-    @run_until_complete
-    def test_pfadd(self):
-        key = 'hll_pfadd'
-        values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
-        # add initial data, cardinality changed so command returns 1
-        is_changed = yield from self.redis.pfadd(key, *values)
-        self.assertEqual(is_changed, 1)
-        # add event more data, cardinality not changed so command returns 0
-        is_changed = yield from self.redis.pfadd(key, 'i', 'o')
-        self.assertEqual(is_changed, 0)
+    with pytest.raises(TypeError):
+        yield from redis.pfcount(None)
+    with pytest.raises(TypeError):
+        yield from redis.pfcount(key, None)
+    with pytest.raises(TypeError):
+        yield from redis.pfcount(key, key, None)
 
-    @run_until_complete
-    def test_pfadd_wrong_input(self):
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfadd(None, 'value')
 
-    @run_until_complete
-    def test_pfmerge(self):
-        key = 'hll_asyncio'
-        key_other = 'hll_aioredis'
+@pytest.mark.run_loop
+def test_pfadd(redis):
+    key = 'hll_pfadd'
+    values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
+    # add initial data, cardinality changed so command returns 1
+    is_changed = yield from redis.pfadd(key, *values)
+    assert is_changed == 1
+    # add event more data, cardinality not changed so command returns 0
+    is_changed = yield from redis.pfadd(key, 'i', 'o')
+    assert is_changed == 0
 
-        key_dest = 'hll_aio'
 
-        values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
-        values_other = ['a', 'i', 'o', 'r', 'e', 'd', 'i', 's']
+@pytest.mark.run_loop
+def test_pfadd_wrong_input(redis):
+    with pytest.raises(TypeError):
+        yield from redis.pfadd(None, 'value')
 
-        data_set = set(values + values_other)
-        cardinality_merged = len(data_set)
 
-        # add initial data, cardinality changed so command returns 1
-        yield from self.redis.pfadd(key, *values)
-        yield from self.redis.pfadd(key_other, *values_other)
+@pytest.mark.run_loop
+def test_pfmerge(redis):
+    key = 'hll_asyncio'
+    key_other = 'hll_aioredis'
 
-        # check cardinality of one key
-        cardinality = yield from self.redis.pfcount(key)
-        self.assertEqual(cardinality, len(set(values_other)))
+    key_dest = 'hll_aio'
 
-        cardinality_other = yield from self.redis.pfcount(key_other)
-        self.assertEqual(cardinality_other, len(set(values_other)))
+    values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
+    values_other = ['a', 'i', 'o', 'r', 'e', 'd', 'i', 's']
 
-        yield from self.redis.pfmerge(key_dest, key, key_other)
-        cardinality_dest = yield from self.redis.pfcount(key_dest)
-        self.assertEqual(cardinality_dest, cardinality_merged)
+    data_set = set(values + values_other)
+    cardinality_merged = len(data_set)
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfmerge(None, key)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfmerge(key_dest, None)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfmerge(key_dest, key, None)
+    # add initial data, cardinality changed so command returns 1
+    yield from redis.pfadd(key, *values)
+    yield from redis.pfadd(key_other, *values_other)
 
-    @run_until_complete
-    def test_pfmerge_wrong_input(self):
-        with self.assertRaises(TypeError):
-            yield from self.redis.pfmerge(None, 'value')
+    # check cardinality of one key
+    cardinality = yield from redis.pfcount(key)
+    assert cardinality == len(set(values_other))
+
+    cardinality_other = yield from redis.pfcount(key_other)
+    assert cardinality_other == len(set(values_other))
+
+    yield from redis.pfmerge(key_dest, key, key_other)
+    cardinality_dest = yield from redis.pfcount(key_dest)
+    assert cardinality_dest == cardinality_merged
+
+    with pytest.raises(TypeError):
+        yield from redis.pfmerge(None, key)
+    with pytest.raises(TypeError):
+        yield from redis.pfmerge(key_dest, None)
+    with pytest.raises(TypeError):
+        yield from redis.pfmerge(key_dest, key, None)
+
+
+@pytest.mark.run_loop
+def test_pfmerge_wrong_input(redis):
+    with pytest.raises(TypeError):
+        yield from redis.pfmerge(None, 'value')
