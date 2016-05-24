@@ -32,12 +32,10 @@ Connection usage is as simple as:
    asyncio.get_event_loop().run_until_complete(connection_example())
 
 
-.. function:: create_connection(address, \*, db=0, password=None, ssl=None,\
-                                encoding=None, loop=None)
+.. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
+                                  encoding=None, loop=None)
 
    Creates Redis connection.
-
-   This is a :ref:`coroutine<coroutine>` function.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -268,25 +266,19 @@ The library provides connections pool. The basic usage is as follows:
 
       Current codec for response decoding (*read-only*).
 
-   .. method:: clear()
+   .. comethod:: clear()
 
       Closes and removes all free connections in the pool.
 
-      This method is a :ref:`coroutine<coroutine>`.
-
-   .. method:: select(db)
+   .. comethod:: select(db)
 
       Changes db index for all free connections in the pool.
 
-      This method is a :ref:`coroutine<coroutine>`.
-
       :param int db: New database index.
 
-   .. method:: acquire()
+   .. comethod:: acquire()
 
       Acquires a connection from *free pool*. Creates new connection if needed.
-
-      This method is a :ref:`coroutine<coroutine>`.
 
    .. method:: release(conn)
 
@@ -298,7 +290,7 @@ The library provides connections pool. The basic usage is as follows:
 
       .. note:: This method is NOT a coroutine.
 
-      :param conn: A RedisCommand instance.
+      :param aioredis.RedisConnection conn: A RedisConnection instance.
 
 
 ----
@@ -329,7 +321,7 @@ Pub/Sub Channel object
       Set to True if there are messages in queue and connection is still
       subscribed to this channel.
 
-   .. method:: get(\*, encoding=None, decoder=None)
+   .. comethod:: get(\*, encoding=None, decoder=None)
 
       Coroutine that waits for and returns a message.
 
@@ -346,7 +338,7 @@ Pub/Sub Channel object
 
       Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
 
-   .. method:: wait_message()
+   .. comethod:: wait_message()
 
       Waits for message to become available in channel.
 
@@ -358,7 +350,9 @@ Pub/Sub Channel object
       >>> while (yield from ch.wait_message()):
       ...     msg = yield from ch.get()
 
-   .. method:: iter()
+   .. comethod:: iter()
+      :async-for:
+      :coroutine:
 
       Same as :meth:`~.get` method but it is a native coroutine.
 
@@ -425,9 +419,9 @@ Commands Interface
 The library provides high-level API implementing simple interface
 to Redis commands.
 
-.. function:: create_redis(address, \*, db=0, password=None, ssl=None,\
-                           encoding=None, commands_factory=Redis,\
-                           loop=None)
+.. cofunction:: create_redis(address, \*, db=0, password=None, ssl=None,\
+                             encoding=None, commands_factory=Redis,\
+                             loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
    interface instance.
@@ -459,7 +453,7 @@ to Redis commands.
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
 
-.. function:: create_reconnecting_redis(address, \*, db=0, password=None,\
+.. cofunction:: create_reconnecting_redis(address, \*, db=0, password=None,\
                            ssl=None, encoding=None, commands_factory=Redis,\
                            loop=None)
 

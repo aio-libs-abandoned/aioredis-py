@@ -33,6 +33,8 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '..'))
 extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
+
+    'sphinxcontrib.asyncio',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

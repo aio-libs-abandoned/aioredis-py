@@ -19,6 +19,24 @@ Generic commands
 .. autoclass:: GenericCommandsMixin
    :members:
 
+Python 3.5 async/await support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. class:: GenericCommandsMixin
+
+   .. comethod:: iscan(\*, match=None, count=None)
+      :async-for:
+
+      Incrementally iterate the keys space using async for.
+
+      Usage example:
+
+      >>> async for key in redis.iscan(match='something*'):
+      ...     print('Matched:', key)
+
+      See also :meth:`GenericCommandsMixin.scan`.
+
+
 Strings commands
 ----------------
 .. autoclass:: StringCommandsMixin
@@ -29,6 +47,23 @@ Hash commands
 
 .. autoclass:: HashCommandsMixin
    :members:
+
+Python 3.5 async/await support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. class:: HashCommandsMixin
+
+   .. comethod:: ihscan(key, \*, match=None, count=None)
+      :async-for:
+
+      Incrementally iterate sorted set items using async for.
+
+      Usage example:
+
+      >>> async for name, val in redis.ihscan(key, match='something*'):
+      ...     print('Matched:', name, '->', val)
+
+      See also :meth:`HashCommandsMixin.hscan()`.
 
 List commands
 -------------
@@ -42,11 +77,45 @@ Set commands
 .. autoclass:: SetCommandsMixin
    :members:
 
+Python 3.5 async/await support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. class:: SetCommandsMixin
+
+   .. comethod:: isscan(key, \*, match=None, count=None)
+      :async-for:
+
+      Incrementally iterate set elements using async for.
+
+      Usage example:
+
+      >>> async for val in redis.isscan(key, match='something*'):
+      ...     print('Matched:', val)
+
+      See also :meth:`SetCommandsMixin.sscan()`.
+
 Sorted Set commands
 -------------------
 
 .. autoclass:: SortedSetCommandsMixin
    :members:
+
+Python 3.5 async/await support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. class:: SortedSetCommandsMixin
+
+   .. comethod:: izscan(key, \*, match=None, count=None)
+      :async-for:
+
+      Incrementally iterate sorted set items using async for.
+
+      Usage example:
+
+      >>> async for val, score in redis.izscan(key, match='something*'):
+      ...     print('Matched:', val, ':', score)
+
+      See also :meth:`SortedSetCommandsMixin.zscan()`.
 
 Server commands
 ---------------
@@ -85,7 +154,7 @@ Transaction commands
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   .. method:: execute(\*, return_exceptions=False)
+   .. comethod:: execute(\*, return_exceptions=False)
 
       Executes all buffered commands and returns result.
 
@@ -110,7 +179,7 @@ Transaction commands
 
    See :class:`~Pipeline` for parameters description.
 
-   .. method:: execute(\*, return_exceptions=False)
+   .. comethod:: execute(\*, return_exceptions=False)
 
       Executes all buffered commands and returns result.
 
