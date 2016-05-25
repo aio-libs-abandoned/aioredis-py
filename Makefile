@@ -16,10 +16,10 @@ flake:
 	$(PEP) aioredis tests examples
 
 test:
-	$(PYTEST) -v
+	$(PYTEST)
 
 cov coverage:
-	$(PYTEST) -v --cov --cov-report=term --cov-report=html
+	$(PYTEST) --cov
 
 dist:
 	-rm -r build dist aioredis.egg-info
