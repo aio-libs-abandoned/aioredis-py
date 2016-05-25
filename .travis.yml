@@ -62,7 +62,7 @@ before_script:
 
 script:
 - flake8 aioredis tests
-- py.test -vs --cov --redis-server=${REDIS_BIN}/redis-server --ssl-cafile=/tmp/certs/test.crt
+- py.test -rsxX --cov --redis-server=${REDIS_BIN}/redis-server --ssl-cafile=/tmp/certs/test.crt
 
 # checking examples
 - >

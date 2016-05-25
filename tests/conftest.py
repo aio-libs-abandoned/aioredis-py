@@ -273,16 +273,16 @@ def pytest_ignore_collect(path, config):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    # Run and parse redis-server --version
-    # TODO: make it use pytest_namespace()
-
     version = _read_server_version(config)
     for item in items:
-        if 'redis_version' not in item.keywords:
-            continue
-        marker = item.keywords['redis_version']
-        if version < marker.kwargs['version']:
-            item.add_marker(pytest.mark.skip(marker.kwargs['reason']))
+        if 'redis_version' in item.keywords:
+            marker = item.keywords['redis_version']
+            if version < marker.kwargs['version']:
+                item.add_marker(pytest.mark.skip(marker.kwargs['reason']))
+        if 'ssl_proxy' in item.fixturenames:
+            item.add_marker(pytest.mark.skipif(
+                "not os.path.exists('/usr/bin/socat')",
+                reason="socat package required (apt-get install socat)"))
 
 
 @contextlib.contextmanager
