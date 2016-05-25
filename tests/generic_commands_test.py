@@ -215,7 +215,6 @@ def test_migrate(redis, create_redis, loop, serverB):
 
 @pytest.mark.run_loop
 def test_move(redis):
-    yield from redis.flushall()
     yield from add(redis, 'my-key', 123)
 
     assert redis.db == 0
@@ -234,7 +233,6 @@ def test_move(redis):
 
 @pytest.mark.run_loop
 def test_object_refcount(redis):
-    yield from redis.flushall()
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_refcount('foo')
@@ -248,7 +246,6 @@ def test_object_refcount(redis):
 
 @pytest.mark.run_loop
 def test_object_encoding(redis, server):
-    yield from redis.flushall()
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_encoding('foo')
@@ -271,7 +268,6 @@ def test_object_encoding(redis, server):
 
 @pytest.mark.run_loop
 def test_object_idletime(redis, loop, server):
-    yield from redis.flushall()
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_idletime('foo')
@@ -376,7 +372,6 @@ def test_pttl(redis, server):
 
 @pytest.mark.run_loop
 def test_randomkey(redis):
-    yield from redis.flushall()
     yield from add(redis, 'key:1', 123)
     yield from add(redis, 'key:2', 123)
     yield from add(redis, 'key:3', 123)

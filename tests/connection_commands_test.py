@@ -17,9 +17,8 @@ def test_repr(create_redis, loop, server):
 @pytest.mark.run_loop
 def test_auth(redis):
     expected_message = "ERR Client sent AUTH, but no password is set"
-    with pytest.raises(ReplyError) as excinfo:
+    with pytest.raises_regex(ReplyError, expected_message):
         yield from redis.auth('')
-    assert excinfo.value.args == (expected_message,)
 
 
 @pytest.mark.run_loop

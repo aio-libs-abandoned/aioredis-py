@@ -391,7 +391,6 @@ def test_incrbyfloat(redis):
 
 @pytest.mark.run_loop
 def test_mget(redis):
-    yield from redis.connection.execute('flushall')
     key1, value1 = b'foo', b'bar'
     key2, value2 = b'baz', b'bzz'
     yield from add(redis, key1, value1)
