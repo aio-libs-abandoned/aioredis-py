@@ -164,7 +164,7 @@ def test_zinterstore(redis):
     assert res == [b'one', 10]
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 9, reason='ZLEXCOUNT is available since redis>=2.8.9')
 @pytest.mark.run_loop
 def test_zlexcount(redis):
@@ -216,7 +216,7 @@ def test_zrange(redis):
         yield from redis.zrange(key, 0, 'last')
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 def test_zrangebylex(redis):
@@ -342,7 +342,7 @@ def test_zrem(redis):
         yield from redis.zrem(None, b'one')
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 9, reason='ZREMRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 def test_zremrangebylex(redis):
@@ -597,8 +597,7 @@ def test_zrevrangebyscore(redis):
         yield from redis.zrevrangebyscore(key, 1, 7, offset=1, count='one')
 
 
-@pytest.mark.redis_version(
-    2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_zscan(redis):
     key = b'key:zscan'
@@ -635,8 +634,7 @@ def test_zscan(redis):
 
 
 @pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.redis_version(
-    2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_izscan(redis):

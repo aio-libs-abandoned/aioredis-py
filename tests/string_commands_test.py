@@ -140,8 +140,7 @@ def test_bitop_not(redis):
         yield from redis.bitop_not(destkey, None)
 
 
-@pytest.mark.redis_version(
-    2, 8, 0, reason='BITPOS is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='BITPOS is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_bitpos(redis):
     key, value = b'key:bitop', b'\xff\xf0\x00'

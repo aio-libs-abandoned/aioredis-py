@@ -4,10 +4,6 @@ import pytest
 from aioredis import ReplyError, MultiExecError, WatchVariableError
 
 
-def assertRaisesRegex(*args):
-    pass
-
-
 @pytest.mark.run_loop
 def test_multi_exec(redis, loop):
     yield from redis.delete('foo', 'bar')
@@ -37,7 +33,7 @@ def test_multi_exec(redis, loop):
 
     tr = redis.multi_exec()
     f1 = tr.incrby('foo', 1.0)
-    with assertRaisesRegex(MultiExecError, "increment must be .* int"):
+    with pytest.raises_regex(MultiExecError, "increment must be .* int"):
         yield from tr.execute()
     with pytest.raises(TypeError):
         yield from f1

@@ -5,14 +5,8 @@ from unittest import mock
 from aioredis import ReplyError
 
 
-def assertRaisesRegex(*args):
-    pass
-
-REDIS_VERSION = None
-
-
 @pytest.mark.run_loop
-def test_client_list(redis):
+def test_client_list(redis, server):
     res = yield from redis.client_list()
     assert isinstance(res, list)
     res = [dict(i._asdict()) for i in res]
@@ -35,14 +29,14 @@ def test_client_list(redis):
         'cmd': 'client',
         'name': '',
         }
-    if REDIS_VERSION >= (2, 8, 12):
+    if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
     assert res == [expected]
 
 
 @pytest.mark.run_loop
-@pytest.mark.redis_version(
-    2, 9, 50, reason='CLIENT PAUSE is available since redis>=2.9.50')
+@pytest.redis_version(
+    2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 def test_client_pause(redis):
     res = yield from redis.client_pause(2000)
     assert res is True
@@ -100,8 +94,7 @@ def test_config_set(redis):
         'slave-read-only', cur_value['slave-read-only'])
     assert res is True
 
-    with assertRaisesRegex(
-            ReplyError, "Unsupported CONFIG parameter"):
+    with pytest.raises_regex(ReplyError, "Unsupported CONFIG parameter"):
         yield from redis.config_set('databases', 100)
     with pytest.raises(TypeError):
         yield from redis.config_set(100, 'databases')
@@ -115,6 +108,11 @@ def test_config_resetstat():
 
 @pytest.mark.run_loop
 def test_dbsize(redis):
+    res = yield from redis.dbsize()
+    assert res == 0
+
+    yield from redis.set('key', 'value')
+
     res = yield from redis.dbsize()
     assert res > 0
 
@@ -133,8 +131,7 @@ def test_info():
 
 
 @pytest.mark.run_loop
-@pytest.mark.redis_version(
-    2, 8, 12, reason='ROLE is available since redis>=2.8.12')
+@pytest.redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
 def test_role(redis):
     res = yield from redis.role()
     assert dict(res._asdict()) == {

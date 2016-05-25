@@ -223,21 +223,21 @@ def test_hmset(redis):
 
     # key and field exists
     test_value = yield from redis.hmset(key, field, b'baz')
-    assert test_value == b'OK'
+    assert test_value is True
 
     result = yield from redis.hexists(key, field)
     assert result == 1
 
     # key and field does not exists
     test_value = yield from redis.hmset(b'not:' + key, field, value)
-    assert test_value == b'OK'
+    assert test_value is True
     result = yield from redis.hexists(b'not:' + key, field)
     assert result == 1
 
     # set multiple
     pairs = [b'foo', b'baz', b'bar', b'paz']
     test_value = yield from redis.hmset(key, *pairs)
-    assert test_value == b'OK'
+    assert test_value is True
     test_value = yield from redis.hmget(key, b'foo', b'bar')
     assert set(test_value) == {b'baz', b'paz'}
 
@@ -307,8 +307,7 @@ def test_hvals(redis):
         yield from redis.hvals(None)
 
 
-@pytest.mark.redis_version(
-    2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_hscan(redis):
     key = b'key:hscan'
@@ -342,8 +341,7 @@ def test_hscan(redis):
 
 
 @pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.redis_version(
-    2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_ihscan(redis):
@@ -404,8 +402,9 @@ def test_ihscan(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_hgetall_2(redis):
+def test_hgetall_enc(create_redis, loop, server):
+    redis = yield from create_redis(
+        ('localhost', server.port), loop=loop, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
     yield from redis._conn.execute('MULTI')
 

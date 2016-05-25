@@ -407,8 +407,7 @@ def test_sunionstore(redis):
         yield from redis.sunionstore(destkey, key1, None)
 
 
-@pytest.mark.redis_version(
-    2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_sscan(redis):
     key = b'key:sscan'
@@ -442,8 +441,7 @@ def test_sscan(redis):
 
 
 @pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.redis_version(
-    2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_isscan(redis):

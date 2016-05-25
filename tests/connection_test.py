@@ -290,14 +290,10 @@ def test_bad_command_in_pubsub(create_connection, loop, server):
     res = yield from conn.execute('subscribe', 'chan:1')
     assert res == [[b'subscribe', b'chan:1', 1]]
 
-    # msg = "Connection in SUBSCRIBE mode"
-    # with .assertRaisesRegex(RedisError, msg):
-    #     yield from conn.execute('select', 1)
-    # with .assertRaisesRegex(RedisError, msg):
-    #     conn.execute('get')
-    with pytest.raises(RedisError):
+    msg = "Connection in SUBSCRIBE mode"
+    with pytest.raises_regex(RedisError, msg):
         yield from conn.execute('select', 1)
-    with pytest.raises(RedisError):
+    with pytest.raises_regex(RedisError, msg):
         conn.execute('get')
 
 

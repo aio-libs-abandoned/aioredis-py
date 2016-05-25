@@ -16,14 +16,10 @@ flake:
 	$(PEP) aioredis tests examples
 
 test:
-	redis-cli FLUSHALL
-	# REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
 	$(PYTEST) -v
 
 cov coverage:
-	redis-cli FLUSHALL
-	# REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
-	$(PYTEST) --cov=aioredis --cov-report=term --cov-report=html
+	$(PYTEST) -v --cov --cov-report=term --cov-report=html
 
 dist:
 	-rm -r build dist aioredis.egg-info
@@ -36,3 +32,18 @@ devel: aioredis.egg-info
 
 aioredis.egg-info:
 	pip install -Ue .
+
+
+CERT_DIR ?= tests/ssl
+
+certificate: $(CERT_DIR)/test.pem $(CERT_DIR)/test.crt
+
+$(CERT_DIR)/test.pem: $(CERT_DIR)/test.crt $(CERT_DIR)/.test.key
+	cat $^ > $@
+
+$(CERT_DIR)/test.crt: $(CERT_DIR)/.test.key
+	openssl req -new -key $< -x509 -out $@ -batch
+
+$(CERT_DIR)/.test.key:
+	mkdir -p $(CERT_DIR)
+	openssl genrsa -out $@ 1024

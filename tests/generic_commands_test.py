@@ -1,7 +1,6 @@
 import asyncio
 import time
 import math
-import os
 import sys
 import pytest
 from textwrap import dedent
@@ -17,14 +16,6 @@ PY_35 = sys.version_info >= (3, 5)
 def add(redis, key, value):
     ok = yield from redis.connection.execute('set', key, value)
     assert ok == b'OK'
-
-
-def assertGreaterEqual(*args):
-    assert False
-
-
-def assertRaisesRegex(*args):
-    pass
 
 
 @pytest.mark.run_loop
@@ -191,38 +182,34 @@ def test_keys(redis):
         yield from redis.keys(None)
 
 
-@pytest.mark.skipif(not os.environ.get('TRAVIS'),
-               reason="Configured to run on travis")
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_migrate(redis, create_redis, loop):
-    port2 = 6380
+def test_migrate(redis, create_redis, loop, serverB):
     yield from add(redis, 'my-key', 123)
 
-    conn2 = yield from create_redis(('localhost', port2),
+    conn2 = yield from create_redis(('localhost', serverB.port),
                                     db=2, loop=loop)
     yield from conn2.delete('my-key')
     assert (yield from redis.exists('my-key')) is True
     assert (yield from conn2.exists('my-key')) is False
 
-    ok = yield from redis.migrate('localhost', port2, 'my-key', 2, 1000)
+    ok = yield from redis.migrate('localhost', serverB.port, 'my-key', 2, 1000)
     assert ok is True
     assert (yield from redis.exists('my-key')) is False
     assert (yield from conn2.exists('my-key')) is True
 
-    with assertRaisesRegex(TypeError, "host .* str"):
+    with pytest.raises_regex(TypeError, "host .* str"):
         yield from redis.migrate(None, 1234, 'key', 1, 23)
-    with assertRaisesRegex(TypeError, "args .* None"):
+    with pytest.raises_regex(TypeError, "args .* None"):
         yield from redis.migrate('host', '1234',  None, 1, 123)
-    with assertRaisesRegex(TypeError, "dest_db .* int"):
+    with pytest.raises_regex(TypeError, "dest_db .* int"):
         yield from redis.migrate('host', 123, 'key', 1.0, 123)
-    with assertRaisesRegex(TypeError, "timeout .* int"):
+    with pytest.raises_regex(TypeError, "timeout .* int"):
         yield from redis.migrate('host', '1234', 'key', 2, None)
-    with assertRaisesRegex(ValueError, "Got empty host"):
+    with pytest.raises_regex(ValueError, "Got empty host"):
         yield from redis.migrate('', '123', 'key', 1, 123)
-    with assertRaisesRegex(ValueError, "dest_db .* greater equal 0"):
+    with pytest.raises_regex(ValueError, "dest_db .* greater equal 0"):
         yield from redis.migrate('host', 6379, 'key', -1, 1000)
-    with assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
+    with pytest.raises_regex(ValueError, "timeout .* greater equal 0"):
         yield from redis.migrate('host', 6379, 'key', 1, -1000)
 
 
@@ -260,14 +247,13 @@ def test_object_refcount(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_object_encoding(redis):
+def test_object_encoding(redis, server):
     yield from redis.flushall()
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_encoding('foo')
 
-    if REDIS_VERSION < (3, 0, 0):
+    if server.version < (3, 0, 0):
         assert res == b'raw'
     else:
         assert res == b'embstr'
@@ -284,15 +270,14 @@ def test_object_encoding(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_object_idletime(redis, loop):
+def test_object_idletime(redis, loop, server):
     yield from redis.flushall()
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_idletime('foo')
     assert res == 0
 
-    if REDIS_VERSION < (2, 8, 0):
+    if server.version < (2, 8, 0):
         # Redis at least 2.6.x requires more time to sleep to incr idletime
         yield from asyncio.sleep(10, loop=loop)
     else:
@@ -360,7 +345,7 @@ def test_pexpireat(redis):
     res = yield from redis.ttl('my-key')
     assert res == 1
     res = yield from redis.pttl('my-key')
-    assert res == 500   # , -2)
+    pytest.assert_almost_equal(res, 500, -2)
 
     with pytest.raises(TypeError):
         yield from redis.pexpireat(None, 1234)
@@ -371,20 +356,19 @@ def test_pexpireat(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_pttl(redis):
+def test_pttl(redis, server):
     yield from add(redis, 'key', 'val')
     res = yield from redis.pttl('key')
     assert res == -1
     res = yield from redis.pttl('non-existent-key')
-    if REDIS_VERSION < (2, 8, 0):
+    if server.version < (2, 8, 0):
         assert res == -1
     else:
         assert res == -2
 
     yield from redis.pexpire('key', 500)
     res = yield from redis.pttl('key')
-    assert res == 500   # , -2)
+    pytest.assert_almost_equal(res, 500, -2)
 
     with pytest.raises(TypeError):
         yield from redis.pttl(None)
@@ -410,7 +394,6 @@ def test_randomkey(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
 def test_rename(redis):
     yield from add(redis, 'foo', 'bar')
     yield from redis.delete('bar')
@@ -418,7 +401,7 @@ def test_rename(redis):
     res = yield from redis.rename('foo', 'bar')
     assert res is True
 
-    with assertRaisesRegex(ReplyError, 'ERR no such key'):
+    with pytest.raises_regex(ReplyError, 'ERR no such key'):
         yield from redis.rename('foo', 'bar')
     with pytest.raises(TypeError):
         yield from redis.rename(None, 'bar')
@@ -427,12 +410,11 @@ def test_rename(redis):
     with pytest.raises(ValueError):
         yield from redis.rename('foo', 'foo')
 
-    with assertRaisesRegex(ReplyError, '.* objects are the same'):
+    with pytest.raises_regex(ReplyError, '.* objects are the same'):
         yield from redis.rename('bar', b'bar')
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
 def test_renamenx(redis):
     yield from redis.delete('foo', 'bar')
     yield from add(redis, 'foo', 123)
@@ -444,7 +426,7 @@ def test_renamenx(redis):
     res = yield from redis.renamenx('foo', 'bar')
     assert res is False
 
-    with assertRaisesRegex(ReplyError, 'ERR no such key'):
+    with pytest.raises_regex(ReplyError, 'ERR no such key'):
         yield from redis.renamenx('baz', 'foo')
     with pytest.raises(TypeError):
         yield from redis.renamenx(None, 'foo')
@@ -453,7 +435,7 @@ def test_renamenx(redis):
     with pytest.raises(ValueError):
         yield from redis.renamenx('foo', 'foo')
 
-    with assertRaisesRegex(ReplyError, '.* objects are the same'):
+    with pytest.raises_regex(ReplyError, '.* objects are the same'):
         yield from redis.renamenx('foo', b'foo')
 
 
@@ -463,10 +445,8 @@ def test_restore():
     pass
 
 
-@pytest.mark.redis_version(
-    2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
-@pytest.mark.xfail
 def test_scan(redis):
     for i in range(1, 11):
         foo_or_bar = 'bar' if i % 3 else 'foo'
@@ -476,7 +456,7 @@ def test_scan(redis):
     cursor, values = yield from redis.scan()
     # values should be *>=* just in case some other tests left
     # test keys
-    assertGreaterEqual(len(values), 10)
+    assert len(values) >= 10
 
     cursor, test_values = b'0', []
     while cursor:
@@ -564,20 +544,19 @@ def test_sort(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.xfail
-def test_ttl(redis):
+def test_ttl(redis, server):
     yield from add(redis, 'key', 'val')
     res = yield from redis.ttl('key')
     assert res == -1
     res = yield from redis.ttl('non-existent-key')
-    if REDIS_VERSION < (2, 8, 0):
+    if server.version < (2, 8, 0):
         assert res == -1
     else:
         assert res == -2
 
     yield from redis.expire('key', 10)
     res = yield from redis.ttl('key')
-    assertGreaterEqual(res, 9)
+    assert res >= 9
 
     with pytest.raises(TypeError):
         yield from redis.ttl(None)
@@ -607,10 +586,9 @@ def test_type(redis):
 
 
 @pytest.mark.skipif(not PY_35, reason='Python 3.5+ required')
-@pytest.mark.redis_version(
-    2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
-@pytest.mark.xfail
+@asyncio.coroutine
 def test_iscan(redis):
     full = set()
     foo = set()
@@ -641,7 +619,7 @@ def test_iscan(redis):
 
     ret = yield from coro(redis.iscan())
 
-    assertGreaterEqual(len(ret), 10)
+    assert len(ret) >= 10
 
     ret = yield from coro(redis.iscan(match='key:scan:*'))
     assert 10 == len(ret)

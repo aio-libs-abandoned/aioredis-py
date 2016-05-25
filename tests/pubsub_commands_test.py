@@ -94,7 +94,7 @@ def test_psubscribe(redis, create_redis, server, loop):
                    ]
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 0, reason='PUBSUB CHANNELS is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_pubsub_channels(create_redis, server, loop):
@@ -123,7 +123,7 @@ def test_pubsub_channels(create_redis, server, loop):
     assert res == []
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 0, reason='PUBSUB NUMSUB is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_pubsub_numsub(create_redis, server, loop):
@@ -158,7 +158,7 @@ def test_pubsub_numsub(create_redis, server, loop):
     assert res == {}
 
 
-@pytest.mark.redis_version(
+@pytest.redis_version(
     2, 8, 0, reason='PUBSUB NUMPAT is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_pubsub_numpat(create_redis, server, loop, redis):
