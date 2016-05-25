@@ -1,12 +1,7 @@
-import sys
 import asyncio
 import pytest
-from textwrap import dedent
 
 from aioredis.util import create_future
-
-
-PY_35 = sys.version_info > (3, 5)
 
 
 @asyncio.coroutine
@@ -249,37 +244,6 @@ def test_channel_get_after_close(create_redis, loop, server):
     yield from pub.publish('chan:1', 'message')
     sub.close()
     yield from tsk
-
-
-@pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_pubsub_channel_iter(create_redis, server, loop):
-    sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
-    pub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
-
-    ch, = yield from sub.subscribe('chan:1')
-
-    s = dedent('''\
-    async def coro(ch):
-        lst = []
-        async for msg in ch.iter():
-            lst.append(msg)
-        return lst
-    ''')
-    lcl = {}
-    exec(s, globals(), lcl)
-    coro = lcl['coro']
-
-    tsk = asyncio.async(coro(ch), loop=loop)
-    yield from pub.publish_json('chan:1', {'Hello': 'World'})
-    yield from pub.publish_json('chan:1', ['message'])
-    yield from asyncio.sleep(0, loop=loop)
-    ch.close()
-    lst = yield from tsk
-    assert lst == [b'{"Hello": "World"}', b'["message"]']
 
 
 @pytest.mark.run_loop

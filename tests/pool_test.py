@@ -1,11 +1,7 @@
 import asyncio
-import sys
 import pytest
 
-from textwrap import dedent
 from aioredis import RedisPool, ReplyError
-
-PY_35 = sys.version_info >= (3, 5)
 
 
 def _assert_defaults(pool):
@@ -337,43 +333,3 @@ def test_pool_with_closed_connections(create_pool, server, loop):
     with (yield from pool) as conn2:
         assert conn2.closed is False
         assert conn1 is not conn2
-
-
-@pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_await(create_pool, server, loop):
-    pool = yield from create_pool(
-        ('localhost', server.port),
-        minsize=10, loop=loop)
-
-    s = dedent('''\
-    async def coro(pool):
-        with await pool as conn:
-            msg = await conn.echo('hello')
-            assert msg == b'hello'
-    ''')
-    lcls = {}
-    exec(s, globals(), lcls)
-    coro = lcls['coro']
-    yield from coro(pool)
-
-
-@pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_async_with(create_pool, loop, server):
-    pool = yield from create_pool(
-        ('localhost', server.port),
-        minsize=10, loop=loop)
-
-    s = dedent('''\
-    async def coro(pool):
-        async with pool.get() as conn:
-            msg = await conn.echo('hello')
-            assert msg == b'hello'
-    ''')
-    lcls = {}
-    exec(s, globals(), lcls)
-    coro = lcls['coro']
-    yield from coro(pool)

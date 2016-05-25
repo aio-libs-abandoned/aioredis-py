@@ -1,15 +1,10 @@
 import asyncio
 import time
 import math
-import sys
 import pytest
-from textwrap import dedent
 from unittest import mock
 
 from aioredis import ReplyError
-
-
-PY_35 = sys.version_info >= (3, 5)
 
 
 @asyncio.coroutine
@@ -578,58 +573,3 @@ def test_type(redis):
 
     with pytest.raises(TypeError):
         yield from redis.type(None)
-
-
-@pytest.mark.skipif(not PY_35, reason='Python 3.5+ required')
-@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_iscan(redis):
-    full = set()
-    foo = set()
-    bar = set()
-    for i in range(1, 11):
-        is_bar = i % 3
-        foo_or_bar = 'bar' if is_bar else 'foo'
-        key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
-        full.add(key)
-        if is_bar:
-            bar.add(key)
-        else:
-            foo.add(key)
-        yield from add(redis, key, i)
-
-    s1 = dedent('''\
-    async def coro(cmd):
-        lst = []
-        async for i in cmd:
-            lst.append(i)
-        return lst
-    ''')
-
-    lcl = {}
-    exec(s1, globals(), lcl)
-
-    coro = lcl['coro']
-
-    ret = yield from coro(redis.iscan())
-
-    assert len(ret) >= 10
-
-    ret = yield from coro(redis.iscan(match='key:scan:*'))
-    assert 10 == len(ret)
-    assert set(ret) == full
-
-    ret = yield from coro(redis.iscan(match='key:scan:foo*'))
-    assert set(ret) == foo
-
-    ret = yield from coro(redis.iscan(match='key:scan:bar*'))
-    assert set(ret) == bar
-
-    # SCAN family functions do not guarantee that the number of
-    # elements returned per call are in a given range. So here
-    # just dummy test, that *count* argument does not break something
-
-    ret = yield from coro(redis.iscan(match='key:scan:*', count=2))
-    assert 10 == len(ret)
-    assert set(ret) == full

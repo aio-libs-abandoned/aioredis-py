@@ -1,10 +1,5 @@
 import asyncio
-import sys
 import pytest
-
-from textwrap import dedent
-
-PY_35 = sys.version_info > (3, 5)
 
 
 @asyncio.coroutine
@@ -438,60 +433,3 @@ def test_sscan(redis):
 
     with pytest.raises(TypeError):
         yield from redis.sscan(None)
-
-
-@pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_isscan(redis):
-    key = b'key:sscan'
-    for k in (yield from redis.keys(key+b'*')):
-        redis.delete(k)
-    for i in range(1, 11):
-        foo_or_bar = 'bar' if i % 3 else 'foo'
-        member = 'member:{}:{}'.format(foo_or_bar, i).encode('utf-8')
-        yield from add(redis, key, member)
-
-    s = dedent('''\
-    async def coro(cmd):
-        lst = []
-        async for i in cmd:
-            lst.append(i)
-        return lst
-    ''')
-    lcl = {}
-    exec(s, globals(), lcl)
-    coro = lcl['coro']
-
-    ret = yield from coro(redis.isscan(key, match=b'member:foo:*'))
-    assert set(ret) == {b'member:foo:3',
-                        b'member:foo:6',
-                        b'member:foo:9'}
-
-    ret = yield from coro(redis.isscan(key, match=b'member:bar:*'))
-    assert set(ret) == {b'member:bar:1',
-                        b'member:bar:2',
-                        b'member:bar:4',
-                        b'member:bar:5',
-                        b'member:bar:7',
-                        b'member:bar:8',
-                        b'member:bar:10'}
-
-    # SCAN family functions do not guarantee that the number (count) of
-    # elements returned per call are in a given range. So here
-    # just dummy test, that *count* argument does not break something
-    ret = yield from coro(redis.isscan(key, count=2))
-    assert set(ret) == {b'member:foo:3',
-                        b'member:foo:6',
-                        b'member:foo:9',
-                        b'member:bar:1',
-                        b'member:bar:2',
-                        b'member:bar:4',
-                        b'member:bar:5',
-                        b'member:bar:7',
-                        b'member:bar:8',
-                        b'member:bar:10'}
-
-    with pytest.raises(TypeError):
-        yield from redis.isscan(None)

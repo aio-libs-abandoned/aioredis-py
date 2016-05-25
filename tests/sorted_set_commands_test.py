@@ -1,11 +1,5 @@
-import asyncio
 import itertools
-import sys
 import pytest
-from textwrap import dedent
-
-
-PY_35 = sys.version_info >= (3, 5)
 
 
 @pytest.mark.run_loop
@@ -631,52 +625,3 @@ def test_zscan(redis):
 
     with pytest.raises(TypeError):
         yield from redis.zscan(None)
-
-
-@pytest.mark.skipif(not PY_35, reason="Python 3.5+ required")
-@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_izscan(redis):
-    key = b'key:zscan'
-    for k in (yield from redis.keys(key+b'*')):
-        redis.delete(k)
-    scores, members = [], []
-
-    for i in range(1, 11):
-        foo_or_bar = 'bar' if i % 3 else 'foo'
-        members.append('zmem:{}:{}'.format(foo_or_bar, i).encode('utf-8'))
-        scores.append(i)
-    pairs = list(itertools.chain(*zip(scores, members)))
-    yield from redis.zadd(key, *pairs)
-    vals = list(zip(members, scores))
-
-    s = dedent('''\
-    async def coro(cmd):
-        lst = []
-        async for i in cmd:
-            lst.append(i)
-        return lst
-    ''')
-    lcl = {}
-    exec(s, globals(), lcl)
-    coro = lcl['coro']
-
-    ret = yield from coro(redis.izscan(key))
-    assert set(ret) == set(vals)
-
-    ret = yield from coro(redis.izscan(key, match=b'zmem:foo:*'))
-    assert set(ret) == set(v for v in vals if b'foo' in v[0])
-
-    ret = yield from coro(redis.izscan(key, match=b'zmem:bar:*'))
-    assert set(ret) == set(v for v in vals if b'bar' in v[0])
-
-    # SCAN family functions do not guarantee that the number (count) of
-    # elements returned per call are in a given range. So here
-    # just dummy test, that *count* argument does not break something
-
-    ret = yield from coro(redis.izscan(key, count=2))
-    assert set(ret) == set(vals)
-
-    with pytest.raises(TypeError):
-        yield from redis.izscan(None)

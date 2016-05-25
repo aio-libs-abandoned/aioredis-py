@@ -61,7 +61,12 @@ before_script:
 - echo $REDIS_VERSION
 
 script:
-- flake8 aioredis tests
+- >
+  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
+    flake8 aioredis tests
+  else
+    flake8 --exclude=py35_* aioredis tests
+  fi;
 - py.test -rsxX --cov --redis-server=${REDIS_BIN}/redis-server --ssl-cafile=/tmp/certs/test.crt
 
 # checking examples

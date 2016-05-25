@@ -204,28 +204,28 @@ def test_decoding(create_connection, loop, server):
     conn = yield from create_connection(
         ('localhost', server.port), encoding='utf-8', loop=loop)
     assert conn.encoding == 'utf-8'
-    res = yield from conn.execute('set', 'key1', 'value')
+    res = yield from conn.execute('set', '{prefix}:key1', 'value')
     assert res == 'OK'
-    res = yield from conn.execute('get', 'key1')
+    res = yield from conn.execute('get', '{prefix}:key1')
     assert res == 'value'
 
-    res = yield from conn.execute('set', 'key1', b'bin-value')
+    res = yield from conn.execute('set', '{prefix}:key1', b'bin-value')
     assert res == 'OK'
-    res = yield from conn.execute('get', 'key1')
+    res = yield from conn.execute('get', '{prefix}:key1')
     assert res == 'bin-value'
 
-    res = yield from conn.execute('get', 'key1', encoding='ascii')
+    res = yield from conn.execute('get', '{prefix}:key1', encoding='ascii')
     assert res == 'bin-value'
-    res = yield from conn.execute('get', 'key1', encoding=None)
+    res = yield from conn.execute('get', '{prefix}:key1', encoding=None)
     assert res == b'bin-value'
 
     with pytest.raises(UnicodeDecodeError):
-        yield from conn.execute('set', 'key1', 'значение')
-        yield from conn.execute('get', 'key1', encoding='ascii')
+        yield from conn.execute('set', '{prefix}:key1', 'значение')
+        yield from conn.execute('get', '{prefix}:key1', encoding='ascii')
 
     conn2 = yield from create_connection(
         ('localhost', server.port), loop=loop)
-    res = yield from conn2.execute('get', 'key1', encoding='utf-8')
+    res = yield from conn2.execute('get', '{prefix}:key1', encoding='utf-8')
     assert res == 'значение'
 
 
