@@ -24,4 +24,9 @@ Glossary
       Redis server replies that start with - (minus) char.
       Usually starts with ``-ERR``.
 
+   pytest
+
+      A mature full-featured Python testing tool.
+      See http://pytest.org/latest/
+
 .. _hiredis: https://github.com/redis/hiredis

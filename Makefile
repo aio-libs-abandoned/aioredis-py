@@ -1,7 +1,6 @@
 
 PYTHON ?= python3
-FLAKE ?= pyflakes
-PEP ?= pep8
+FLAKE ?= flake8
 PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 
@@ -13,7 +12,6 @@ doc:
 
 flake:
 	$(FLAKE) aioredis tests examples
-	$(PEP) aioredis tests examples
 
 test:
 	$(PYTEST)
@@ -27,7 +25,14 @@ dist:
 
 devel: aioredis.egg-info
 	pip install -U pip
-	pip install -U pyflakes pep8 sphinx coverage bumpversion wheel
+	pip install -U \
+		flake8 \
+		sphinx \
+		sphinx_rtd_theme \
+		"pytest>=2.9.1" \
+		pytest-cov \
+		bumpversion \
+		wheel
 	pip install -Ur docs/requirements.txt
 
 aioredis.egg-info:

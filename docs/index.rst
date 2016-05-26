@@ -68,6 +68,7 @@ Contents
    api_reference
    mixins
    examples
+   devel
    releases
    glossary
 
