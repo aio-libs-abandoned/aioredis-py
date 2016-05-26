@@ -130,6 +130,9 @@ def pytest_addoption(parser):
                           " defaults to `%(default)s`")
     parser.addoption('--ssl-cafile', default='tests/ssl/test.crt',
                      help="Path to testing SSL certificate")
+    parser.addoption('--uvloop', default=False,
+                     action='store_true',
+                     help="Run tests with uvloop")
 
 
 def _read_server_version(config):
@@ -278,11 +281,22 @@ def pytest_collection_modifyitems(session, config, items):
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
             if version < marker.kwargs['version']:
-                item.add_marker(pytest.mark.skip(marker.kwargs['reason']))
+                item.add_marker(pytest.mark.skip(
+                    reason=marker.kwargs['reason']))
         if 'ssl_proxy' in item.fixturenames:
             item.add_marker(pytest.mark.skipif(
                 "not os.path.exists('/usr/bin/socat')",
                 reason="socat package required (apt-get install socat)"))
+
+
+def pytest_configure(config):
+    if config.getoption('--uvloop'):
+        try:
+            import uvloop
+        except ImportError:
+            raise RuntimeError(
+                "Can not import uvloop, make sure it is installed")
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 @contextlib.contextmanager
