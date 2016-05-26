@@ -31,7 +31,7 @@ Support for dev Redis server        through low-level API
 Documentation
 -------------
 
-http://aioredis.readthedocs.org/
+http://aioredis.readthedocs.io/
 
 Usage examples
 --------------
