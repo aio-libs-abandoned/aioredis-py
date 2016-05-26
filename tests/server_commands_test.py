@@ -1,138 +1,148 @@
 import time
-import unittest
+import pytest
 from unittest import mock
 
 from aioredis import ReplyError
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
 
 
-class ServerCommandsTest(RedisTest):
+@pytest.mark.run_loop
+def test_client_list(redis, server):
+    res = yield from redis.client_list()
+    assert isinstance(res, list)
+    res = [dict(i._asdict()) for i in res]
+    expected = {
+        'addr': mock.ANY,
+        'fd': mock.ANY,
+        'age': '0',
+        'idle': '0',
+        'flags': 'N',
+        'db': '0',
+        'sub': '0',
+        'psub': '0',
+        'multi': '-1',
+        'qbuf': '0',
+        'qbuf_free': mock.ANY,
+        'obl': '0',
+        'oll': '0',
+        'omem': '0',
+        'events': 'r',
+        'cmd': 'client',
+        'name': '',
+        }
+    if server.version >= (2, 8, 12):
+        expected['id'] = mock.ANY
+    assert res == [expected]
 
-    @run_until_complete
-    def test_client_list(self):
-        res = yield from self.redis.client_list()
-        self.assertIsInstance(res, list)
-        res = [dict(i._asdict()) for i in res]
-        expected = {
-            'addr': mock.ANY,
-            'fd': mock.ANY,
-            'age': '0',
-            'idle': '0',
-            'flags': 'N',
-            'db': '0',
-            'sub': '0',
-            'psub': '0',
-            'multi': '-1',
-            'qbuf': '0',
-            'qbuf_free': mock.ANY,
-            'obl': '0',
-            'oll': '0',
-            'omem': '0',
-            'events': 'r',
-            'cmd': 'client',
-            'name': '',
-            }
-        if REDIS_VERSION >= (2, 8, 12):
-            expected['id'] = mock.ANY
-        self.assertEqual(res, [expected])
 
-    @run_until_complete
-    @unittest.skipIf(REDIS_VERSION < (2, 9, 50),
-                     'CLIENT PAUSE is available since redis>=2.9.50')
-    def test_client_pause(self):
-        res = yield from self.redis.client_pause(2000)
-        self.assertTrue(res)
-        ts = time.time()
-        yield from self.redis.ping()
-        dt = int(time.time() - ts)
-        self.assertEqual(dt, 2)
+@pytest.mark.run_loop
+@pytest.redis_version(
+    2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
+def test_client_pause(redis):
+    res = yield from redis.client_pause(2000)
+    assert res is True
+    ts = time.time()
+    yield from redis.ping()
+    dt = int(time.time() - ts)
+    assert dt == 2
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.client_pause(2.0)
-        with self.assertRaises(ValueError):
-            yield from self.redis.client_pause(-1)
+    with pytest.raises(TypeError):
+        yield from redis.client_pause(2.0)
+    with pytest.raises(ValueError):
+        yield from redis.client_pause(-1)
 
-    @run_until_complete
-    def test_client_getname(self):
-        res = yield from self.redis.client_getname()
-        self.assertIsNone(res)
-        ok = yield from self.redis.client_setname('TestClient')
-        self.assertTrue(ok)
 
-        res = yield from self.redis.client_getname()
-        self.assertEqual(res, b'TestClient')
-        res = yield from self.redis.client_getname(encoding='utf-8')
-        self.assertEqual(res, 'TestClient')
+@pytest.mark.run_loop
+def test_client_getname(redis):
+    res = yield from redis.client_getname()
+    assert res is None
+    ok = yield from redis.client_setname('TestClient')
+    assert ok is True
 
-    @run_until_complete
-    def test_config_get(self):
-        res = yield from self.redis.config_get('port')
-        self.assertEqual(res, {'port': str(self.redis_port)})
+    res = yield from redis.client_getname()
+    assert res == b'TestClient'
+    res = yield from redis.client_getname(encoding='utf-8')
+    assert res == 'TestClient'
 
-        res = yield from self.redis.config_get()
-        self.assertGreater(len(res), 0)
 
-        res = yield from self.redis.config_get('unknown_parameter')
-        self.assertEqual(res, {})
+@pytest.mark.run_loop
+def test_config_get(redis, server):
+    res = yield from redis.config_get('port')
+    assert res == {'port': str(server.port)}
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.config_get(b'port')
+    res = yield from redis.config_get()
+    assert len(res) > 0
 
-    @run_until_complete
-    def test_config_rewrite(self):
-        with self.assertRaises(ReplyError):
-            yield from self.redis.config_rewrite()
+    res = yield from redis.config_get('unknown_parameter')
+    assert res == {}
 
-    @run_until_complete
-    def test_config_set(self):
-        cur_value = yield from self.redis.config_get('slave-read-only')
-        res = yield from self.redis.config_set('slave-read-only', 'no')
-        self.assertTrue(res)
-        res = yield from self.redis.config_set(
-            'slave-read-only', cur_value['slave-read-only'])
-        self.assertTrue(res)
+    with pytest.raises(TypeError):
+        yield from redis.config_get(b'port')
 
-        with self.assertRaisesRegex(
-                ReplyError, "Unsupported CONFIG parameter"):
-            yield from self.redis.config_set('databases', 100)
-        with self.assertRaises(TypeError):
-            yield from self.redis.config_set(100, 'databases')
 
-    @run_until_complete
-    @unittest.skip("Not implemented")
-    def test_config_resetstat(self):
-        pass
+@pytest.mark.run_loop
+def test_config_rewrite(redis):
+    with pytest.raises(ReplyError):
+        yield from redis.config_rewrite()
 
-    @run_until_complete
-    def test_dbsize(self):
-        res = yield from self.redis.dbsize()
-        self.assertGreater(res, 0)
 
-        yield from self.redis.flushdb()
-        res = yield from self.redis.dbsize()
-        self.assertEqual(res, 0)
-        yield from self.redis.set('key', 'value')
-        res = yield from self.redis.dbsize()
-        self.assertEqual(res, 1)
+@pytest.mark.run_loop
+def test_config_set(redis):
+    cur_value = yield from redis.config_get('slave-read-only')
+    res = yield from redis.config_set('slave-read-only', 'no')
+    assert res is True
+    res = yield from redis.config_set(
+        'slave-read-only', cur_value['slave-read-only'])
+    assert res is True
 
-    @run_until_complete
-    @unittest.skip("Not implemented")
-    def test_info(self):
-        pass
+    with pytest.raises_regex(ReplyError, "Unsupported CONFIG parameter"):
+        yield from redis.config_set('databases', 100)
+    with pytest.raises(TypeError):
+        yield from redis.config_set(100, 'databases')
 
-    @run_until_complete
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 12),
-                     'ROLE is available since redis>=2.8.12')
-    def test_role(self):
-        res = yield from self.redis.role()
-        self.assertEqual(dict(res._asdict()), {
-            'role': 'master',
-            'replication_offset': mock.ANY,
-            'slaves': [],
-            })
 
-    @run_until_complete
-    def test_time(self):
-        res = yield from self.redis.time()
-        self.assertIsInstance(res, float)
-        self.assertEqual(int(res), int(time.time()))
+@pytest.mark.run_loop
+@pytest.mark.skip("Not implemented")
+def test_config_resetstat():
+    pass
+
+
+@pytest.mark.run_loop
+def test_dbsize(redis):
+    res = yield from redis.dbsize()
+    assert res == 0
+
+    yield from redis.set('key', 'value')
+
+    res = yield from redis.dbsize()
+    assert res > 0
+
+    yield from redis.flushdb()
+    res = yield from redis.dbsize()
+    assert res == 0
+    yield from redis.set('key', 'value')
+    res = yield from redis.dbsize()
+    assert res == 1
+
+
+@pytest.mark.run_loop
+@pytest.mark.skip("Not implemented")
+def test_info():
+    pass
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
+def test_role(redis):
+    res = yield from redis.role()
+    assert dict(res._asdict()) == {
+        'role': 'master',
+        'replication_offset': mock.ANY,
+        'slaves': [],
+        }
+
+
+@pytest.mark.run_loop
+def test_time(redis):
+    res = yield from redis.time()
+    assert isinstance(res, float)
+    assert int(res) == int(time.time())

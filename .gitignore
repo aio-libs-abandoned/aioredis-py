@@ -60,3 +60,4 @@ docs/_build/
 
 # Vim
 .vim
+tests/ssl

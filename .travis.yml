@@ -14,9 +14,6 @@ python:
 
 env:
   global:
-  - REDIS_PORT_1=6379
-  - REDIS_PORT_2=6380
-  - REDIS_SOCKET=/tmp/aioredis.sock
   - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5"
   matrix:
   - REDIS_TAG=2.6.17
@@ -42,44 +39,35 @@ before_install:
     done;
   fi
 # make certificate for ssl/tls test
-- openssl genrsa -out /tmp/server.key 1024
-- openssl req -new -key /tmp/server.key -x509 -out /tmp/server.crt -batch
-- cat /tmp/server.key /tmp/server.crt > /tmp/server.pem
-- export CERT_FILE=/tmp/server.crt
+- make certificate CERT_DIR=/tmp/certs/
 
 install:
 - pip install hiredis
 - pip install flake8
-- pip install coverage
+- pip install "pytest>=2.9.1"
+- pip install pytest-cov
 - pip install coveralls
 - pip install -e .
 
 before_script:
-# main redis instance listening port & socket
 - >
   $REDIS_BIN/redis-server --daemonize yes
   --pidfile ./redis-server.pid
-  --unixsocket $REDIS_SOCKET
-  --port $REDIS_PORT_1
-  --save ""
-# second redis instance, yet for migrate command tests
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server-2.pid
-  --port $REDIS_PORT_2
+  --unixsocket /tmp/aioredis.sock
+  --port 6379
   --save ""
 - sleep 3
-- $REDIS_BIN/redis-cli -s $REDIS_SOCKET PING
-- $REDIS_BIN/redis-cli -p $REDIS_PORT_2 PING
-- export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
+- export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
 - echo $REDIS_VERSION
-# running socat
-- socat openssl-listen:6443,cert=/tmp/server.pem,verify=0,fork tcp-connect:localhost:6379 &
-- echo "PING" | socat stdin openssl-connect:localhost:6443,verify=0
 
 script:
-- flake8 aioredis tests
-- python runtests.py --coverage -v
+- >
+  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
+    flake8 aioredis tests
+  else
+    flake8 --exclude=py35_* aioredis tests
+  fi;
+- py.test -rsxX --cov --redis-server=${REDIS_BIN}/redis-server --ssl-cafile=/tmp/certs/test.crt
 
 # checking examples
 - >

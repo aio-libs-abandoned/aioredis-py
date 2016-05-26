@@ -1,122 +1,126 @@
+import pytest
 import asyncio
 
-from ._testutil import RedisTest, run_until_complete
 from aioredis import ReplyError
 
 
-class ScriptCommandsTest(RedisTest):
+@pytest.mark.run_loop
+def test_eval(redis):
+    yield from redis.delete('key:eval', 'value:eval')
 
-    @run_until_complete
-    def test_eval(self):
-        yield from self.redis.delete('key:eval', 'value:eval')
+    script = "return 42"
+    res = yield from redis.eval(script)
+    assert res == 42
 
-        script = "return 42"
-        res = yield from self.redis.eval(script)
-        self.assertEqual(res, 42)
+    key, value = b'key:eval', b'value:eval'
+    script = """
+    if redis.call('setnx', KEYS[1], ARGV[1]) == 1
+    then
+        return 'foo'
+    else
+        return 'bar'
+    end
+    """
+    res = yield from redis.eval(script, keys=[key], args=[value])
+    assert res == b'foo'
+    res = yield from redis.eval(script, keys=[key], args=[value])
+    assert res == b'bar'
 
-        key, value = b'key:eval', b'value:eval'
-        script = """
-        if redis.call('setnx', KEYS[1], ARGV[1]) == 1
-        then
-            return 'foo'
-        else
-            return 'bar'
-        end
-        """
-        res = yield from self.redis.eval(script, keys=[key], args=[value])
-        self.assertEqual(res, b'foo')
-        res = yield from self.redis.eval(script, keys=[key], args=[value])
-        self.assertEqual(res, b'bar')
+    script = "return 42"
+    with pytest.raises(TypeError):
+        yield from redis.eval(script, keys='not:list')
 
-        script = "return 42"
-        with self.assertRaises(TypeError):
-            yield from self.redis.eval(script, keys='not:list')
+    with pytest.raises(TypeError):
+        yield from redis.eval(script, keys=['valid', None])
+    with pytest.raises(TypeError):
+        yield from redis.eval(script, args=['valid', None])
+    with pytest.raises(TypeError):
+        yield from redis.eval(None)
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.eval(script, keys=['valid', None])
-        with self.assertRaises(TypeError):
-            yield from self.redis.eval(script, args=['valid', None])
-        with self.assertRaises(TypeError):
-            yield from self.redis.eval(None)
 
-    @run_until_complete
-    def test_evalsha(self):
-        script = b"return 42"
-        sha_hash = yield from self.redis.script_load(script)
-        self.assertEqual(len(sha_hash), 40)
-        res = yield from self.redis.evalsha(sha_hash)
-        self.assertEqual(res, 42)
+@pytest.mark.run_loop
+def test_evalsha(redis):
+    script = b"return 42"
+    sha_hash = yield from redis.script_load(script)
+    assert len(sha_hash) == 40
+    res = yield from redis.evalsha(sha_hash)
+    assert res == 42
 
-        key, arg1, arg2 = b'key:evalsha', b'1', b'2'
-        script = "return {KEYS[1], ARGV[1], ARGV[2]}"
-        sha_hash = yield from self.redis.script_load(script)
-        res = yield from self.redis.evalsha(sha_hash, [key], [arg1, arg2])
-        self.assertEqual(res, [key, arg1, arg2])
+    key, arg1, arg2 = b'key:evalsha', b'1', b'2'
+    script = "return {KEYS[1], ARGV[1], ARGV[2]}"
+    sha_hash = yield from redis.script_load(script)
+    res = yield from redis.evalsha(sha_hash, [key], [arg1, arg2])
+    assert res == [key, arg1, arg2]
 
-        with self.assertRaises(ReplyError):
-            yield from self.redis.evalsha(b'wrong sha hash')
-        with self.assertRaises(TypeError):
-            yield from self.redis.evalsha(sha_hash, keys=['valid', None])
-        with self.assertRaises(TypeError):
-            yield from self.redis.evalsha(sha_hash, args=['valid', None])
-        with self.assertRaises(TypeError):
-            yield from self.redis.evalsha(None)
+    with pytest.raises(ReplyError):
+        yield from redis.evalsha(b'wrong sha hash')
+    with pytest.raises(TypeError):
+        yield from redis.evalsha(sha_hash, keys=['valid', None])
+    with pytest.raises(TypeError):
+        yield from redis.evalsha(sha_hash, args=['valid', None])
+    with pytest.raises(TypeError):
+        yield from redis.evalsha(None)
 
-    @run_until_complete
-    def test_script_exists(self):
-        sha_hash1 = yield from self.redis.script_load(b'return 1')
-        sha_hash2 = yield from self.redis.script_load(b'return 2')
-        self.assertEqual(len(sha_hash1), 40)
-        self.assertEqual(len(sha_hash2), 40)
 
-        res = yield from self.redis.script_exists(sha_hash1, sha_hash1)
-        self.assertEqual(res, [1, 1])
+@pytest.mark.run_loop
+def test_script_exists(redis):
+    sha_hash1 = yield from redis.script_load(b'return 1')
+    sha_hash2 = yield from redis.script_load(b'return 2')
+    assert len(sha_hash1) == 40
+    assert len(sha_hash2) == 40
 
-        no_sha = b'ffffffffffffffffffffffffffffffffffffffff'
-        res = yield from self.redis.script_exists(no_sha)
-        self.assertEqual(res, [0])
+    res = yield from redis.script_exists(sha_hash1, sha_hash1)
+    assert res == [1, 1]
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.script_exists(None)
-        with self.assertRaises(TypeError):
-            yield from self.redis.script_exists('123', None)
+    no_sha = b'ffffffffffffffffffffffffffffffffffffffff'
+    res = yield from redis.script_exists(no_sha)
+    assert res == [0]
 
-    @run_until_complete
-    def test_script_flush(self):
-        sha_hash1 = yield from self.redis.script_load(b'return 1')
-        self.assertEqual(len(sha_hash1), 40)
-        res = yield from self.redis.script_exists(sha_hash1)
-        self.assertEqual(res, [1])
-        res = yield from self.redis.script_flush()
-        self.assertTrue(res)
-        res = yield from self.redis.script_exists(sha_hash1)
-        self.assertEqual(res, [0])
+    with pytest.raises(TypeError):
+        yield from redis.script_exists(None)
+    with pytest.raises(TypeError):
+        yield from redis.script_exists('123', None)
 
-    @run_until_complete
-    def test_script_load(self):
-        sha_hash1 = yield from self.redis.script_load(b'return 1')
-        sha_hash2 = yield from self.redis.script_load(b'return 2')
-        self.assertEqual(len(sha_hash1), 40)
-        self.assertEqual(len(sha_hash2), 40)
-        res = yield from self.redis.script_exists(sha_hash1, sha_hash1)
-        self.assertEqual(res, [1, 1])
 
-    @run_until_complete
-    def test_script_kill(self):
-        script = "while (1) do redis.call('TIME') end"
+@pytest.mark.run_loop
+def test_script_flush(redis):
+    sha_hash1 = yield from redis.script_load(b'return 1')
+    assert len(sha_hash1) == 40
+    res = yield from redis.script_exists(sha_hash1)
+    assert res == [1]
+    res = yield from redis.script_flush()
+    assert res is True
+    res = yield from redis.script_exists(sha_hash1)
+    assert res == [0]
 
-        other_redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
 
-        yield from self.add('key1', 'value')
+@pytest.mark.run_loop
+def test_script_load(redis):
+    sha_hash1 = yield from redis.script_load(b'return 1')
+    sha_hash2 = yield from redis.script_load(b'return 2')
+    assert len(sha_hash1) == 40
+    assert len(sha_hash2) == 40
+    res = yield from redis.script_exists(sha_hash1, sha_hash1)
+    assert res == [1, 1]
 
-        fut = other_redis.eval(script, keys=['non-existent-key'], args=[10])
-        yield from asyncio.sleep(0, loop=self.loop)
-        resp = yield from self.redis.script_kill()
-        self.assertTrue(resp)
 
-        with self.assertRaises(ReplyError):
-            yield from fut
+@pytest.mark.run_loop
+def test_script_kill(create_redis, loop, server, redis):
+    script = "while (1) do redis.call('TIME') end"
 
-        with self.assertRaises(ReplyError):
-            yield from self.redis.script_kill()
+    other_redis = yield from create_redis(
+        ('localhost', server.port), loop=loop)
+
+    ok = yield from redis.set('key1', 'value')
+    assert ok is True
+
+    fut = other_redis.eval(script, keys=['non-existent-key'], args=[10])
+    yield from asyncio.sleep(0, loop=loop)
+    resp = yield from redis.script_kill()
+    assert resp is True
+
+    with pytest.raises(ReplyError):
+        yield from fut
+
+    with pytest.raises(ReplyError):
+        yield from redis.script_kill()

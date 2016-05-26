@@ -2,6 +2,7 @@
 PYTHON ?= python3
 FLAKE ?= pyflakes
 PEP ?= pep8
+PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 
 .PHONY: all flake doc test cov dist devel
@@ -15,12 +16,10 @@ flake:
 	$(PEP) aioredis tests examples
 
 test:
-	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
+	$(PYTEST)
 
 cov coverage:
-	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
+	$(PYTEST) --cov
 
 dist:
 	-rm -r build dist aioredis.egg-info
@@ -33,3 +32,18 @@ devel: aioredis.egg-info
 
 aioredis.egg-info:
 	pip install -Ue .
+
+
+CERT_DIR ?= tests/ssl
+
+certificate: $(CERT_DIR)/test.pem $(CERT_DIR)/test.crt
+
+$(CERT_DIR)/test.pem: $(CERT_DIR)/test.crt $(CERT_DIR)/.test.key
+	cat $^ > $@
+
+$(CERT_DIR)/test.crt: $(CERT_DIR)/.test.key
+	openssl req -new -key $< -x509 -out $@ -batch
+
+$(CERT_DIR)/.test.key:
+	mkdir -p $(CERT_DIR)
+	openssl genrsa -out $@ 1024
