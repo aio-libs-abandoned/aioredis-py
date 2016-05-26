@@ -329,7 +329,7 @@ def test_pexpire(redis, loop):
 @pytest.mark.run_loop
 def test_pexpireat(redis):
     yield from add(redis, 'my-key', 123)
-    now = math.ceil(time.time() * 1000)
+    now = math.ceil((yield from redis.time()) * 1000)
     res = yield from redis.pexpireat('my-key', now + 500)
     assert res is True
 

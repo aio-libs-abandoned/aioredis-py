@@ -198,12 +198,16 @@ class ServerCommandsMixin:
     def time(self):
         """Return current server time."""
         fut = self._conn.execute(b'TIME')
-        return wait_convert(fut, lambda obj: float(b'.'.join(obj)))
+        return wait_convert(fut, to_time)
 
 
 def _split(s):
     k, v = s.split('=')
     return k.replace('-', '_'), v
+
+
+def to_time(obj):
+    return float(obj[0] + b'.' + obj[1].zfill(6))
 
 
 def to_tuples(value):
