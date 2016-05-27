@@ -1,6 +1,32 @@
 Changes
 -------
 
+0.2.7 (2016-05-27)
+^^^^^^^^^^^^^^^^^^
+
+* ``create_pool()`` minsize default value changed to 1;
+
+* Fixed cancellation of wait_closed
+  (see `#118 <https://github.com/aio-libs/aioredis/issues/118>`_);
+
+* Fixed ``time()`` covertion to float
+  (see `#126 <https://github.com/aio-libs/aioredis/issues/126>`_);
+
+* Fixed ``hmset()`` method to return bool instead of ``b'OK'``
+  (see `#126`_);
+
+* Fixed multi/exec + watch issue (changed watch variable was causing
+  ``tr.execute()`` to fail)
+  (see `#121 <https://github.com/aio-libs/aioredis/issues/121>`_);
+
+* Replace ``asyncio.Future`` uses with utility method
+  (get ready to Python 3.5.2 ``loop.create_future()``);
+
+* Tests switched from unittest to pytest (see `#126`_);
+
+* Documentation updates;
+
+
 0.2.6 (2016-03-30)
 ^^^^^^^^^^^^^^^^^^
 
