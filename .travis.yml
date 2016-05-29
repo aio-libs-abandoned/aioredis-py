@@ -33,11 +33,9 @@ before_install:
 - >
   if [ ! -x "$REDIS_BIN/redis-server" ]; then
     # For proper caching we must build all redis versions
-    # for TAG in ${ALL_REDIS_TAGS}; do
-    wget -c https://github.com/antirez/redis/archive/${TAG}.tar.gz -O redis-${TAG}.tar.gz
-    tar -xvf redis-${TAG}.tar.gz
-    make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
-    # done;
+    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
+    tar -xvf redis-${REDIS_TAG}.tar.gz
+    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
   fi
 # make certificate for ssl/tls test
 - make certificate CERT_DIR=/tmp/certs/
