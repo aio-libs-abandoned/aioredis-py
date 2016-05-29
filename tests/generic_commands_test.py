@@ -384,7 +384,7 @@ def test_randomkey(redis):
 
 
 @pytest.mark.run_loop
-def test_rename(redis):
+def test_rename(redis, server):
     yield from add(redis, 'foo', 'bar')
     yield from redis.delete('bar')
 
@@ -400,12 +400,13 @@ def test_rename(redis):
     with pytest.raises(ValueError):
         yield from redis.rename('foo', 'foo')
 
-    with pytest.raises_regex(ReplyError, '.* objects are the same'):
-        yield from redis.rename('bar', b'bar')
+    if server.version < (3, 2):
+        with pytest.raises_regex(ReplyError, '.* objects are the same'):
+            yield from redis.rename('bar', b'bar')
 
 
 @pytest.mark.run_loop
-def test_renamenx(redis):
+def test_renamenx(redis, server):
     yield from redis.delete('foo', 'bar')
     yield from add(redis, 'foo', 123)
 
@@ -425,8 +426,9 @@ def test_renamenx(redis):
     with pytest.raises(ValueError):
         yield from redis.renamenx('foo', 'foo')
 
-    with pytest.raises_regex(ReplyError, '.* objects are the same'):
-        yield from redis.renamenx('foo', b'foo')
+    if server.version < (3, 2):
+        with pytest.raises_regex(ReplyError, '.* objects are the same'):
+            yield from redis.renamenx('foo', b'foo')
 
 
 # @pytest.mark.run_loop
