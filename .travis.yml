@@ -13,8 +13,8 @@ python:
 - "3.5"
 
 env:
-  global:
-  - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0"
+  # global:
+  # - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0"
   matrix:
   - REDIS_TAG=2.6.17
   - REDIS_TAG=2.8.22
@@ -33,11 +33,11 @@ before_install:
 - >
   if [ ! -x "$REDIS_BIN/redis-server" ]; then
     # For proper caching we must build all redis versions
-    for TAG in ${ALL_REDIS_TAGS}; do
-      wget -c https://github.com/antirez/redis/archive/${TAG}.tar.gz -O redis-${TAG}.tar.gz
-      tar -xvf redis-${TAG}.tar.gz
-      make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
-    done;
+    # for TAG in ${ALL_REDIS_TAGS}; do
+    wget -c https://github.com/antirez/redis/archive/${TAG}.tar.gz -O redis-${TAG}.tar.gz
+    tar -xvf redis-${TAG}.tar.gz
+    make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
+    # done;
   fi
 # make certificate for ssl/tls test
 - make certificate CERT_DIR=/tmp/certs/
