@@ -19,7 +19,7 @@ env:
   - REDIS_TAG=2.6.17
   - REDIS_TAG=2.8.22
   - REDIS_TAG=3.0.5
-  - REDIS_TAG=3.2.9
+  - REDIS_TAG=3.2.0
 
 cache:
   directories:
