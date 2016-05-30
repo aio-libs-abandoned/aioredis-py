@@ -347,3 +347,28 @@ def test_hgetall_enc(create_redis, loop, server):
     assert res == 'QUEUED'
 
     yield from redis._conn.execute('EXEC')
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
+def test_hstrlen(redis):
+    ok = yield from redis.hset('myhash', 'str_field', 'some value')
+    assert ok == 1
+    ok = yield from redis.hincrby('myhash', 'uint_field', 1)
+    assert ok == 1
+
+    ok = yield from redis.hincrby('myhash', 'int_field', -1)
+    assert ok == -1
+
+    l = yield from redis.hstrlen('myhash', 'str_field')
+    assert l == 10
+    l = yield from redis.hstrlen('myhash', 'uint_field')
+    assert l == 1
+    l = yield from redis.hstrlen('myhash', 'int_field')
+    assert l == 2
+
+    l = yield from redis.hstrlen('myhash', 'none_field')
+    assert l == 0
+
+    l = yield from redis.hstrlen('none_key', 'none_field')
+    assert l == 0
