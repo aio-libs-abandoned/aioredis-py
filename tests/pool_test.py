@@ -1,7 +1,12 @@
 import asyncio
 import pytest
 
-from aioredis import RedisPool, ReplyError
+from aioredis import (
+    RedisPool,
+    ReplyError,
+    PoolClosedError,
+    ConnectionClosedError,
+    )
 
 
 def _assert_defaults(pool):
@@ -333,3 +338,38 @@ def test_pool_with_closed_connections(create_pool, server, loop):
     with (yield from pool) as conn2:
         assert conn2.closed is False
         assert conn1 is not conn2
+
+
+@pytest.mark.run_loop
+def test_pool_close(create_pool, server, loop):
+    pool = yield from create_pool(
+        ('localhost', server.port), loop=loop)
+
+    assert pool.closed is False
+
+    with (yield from pool) as redis:
+        assert (yield from redis.ping()) == b'PONG'
+
+    pool.close()
+    yield from pool.wait_closed()
+    assert pool.closed is True
+
+    with pytest.raises(PoolClosedError):
+        with (yield from pool) as redis:
+            assert (yield from redis.ping()) == b'PONG'
+
+
+@pytest.mark.run_loop
+def test_pool_close__used(create_pool, server, loop):
+    pool = yield from create_pool(
+        ('localhost', server.port), loop=loop)
+
+    assert pool.closed is False
+
+    with (yield from pool) as redis:
+        pool.close()
+        yield from pool.wait_closed()
+        assert pool.closed is True
+
+        with pytest.raises(ConnectionClosedError):
+            yield from redis.ping()

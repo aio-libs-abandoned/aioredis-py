@@ -11,6 +11,7 @@ from .errors import (
     ReplyError,
     ChannelClosedError,
     WatchVariableError,
+    PoolClosedError,
     )
 
 
@@ -23,4 +24,5 @@ __version__ = '0.2.7'
  RedisError, ProtocolError, ReplyError,
  PipelineError, MultiExecError, ConnectionClosedError,
  ChannelClosedError, WatchVariableError,
+ PoolClosedError,
  )
