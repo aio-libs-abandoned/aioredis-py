@@ -349,8 +349,7 @@ def test_pubsub_messages(create_connection, loop, server):
 
 @pytest.mark.run_loop
 def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
-    sub = yield from create_connection(
-        server.tcp_address, loop=loop)
+    sub = yield from create_connection(server.tcp_address, loop=loop)
 
     res = yield from sub.execute_pubsub('subscribe', 'chan:1')
     ch = sub.pubsub_channels['chan:1']
@@ -403,3 +402,48 @@ def test_execute_pubsub_errors(create_connection, loop, server):
         sub.execute_pubsub(
             'punsubscribe',
             Channel('chan:1', is_pattern=False, loop=loop))
+
+
+@pytest.mark.run_loop
+def test_multi_exec(create_connection, loop, server):
+    conn = yield from create_connection(server.tcp_address, loop=loop)
+
+    ok = yield from conn.execute('set', 'foo', 'bar')
+    assert ok == b'OK'
+
+    ok = yield from conn.execute("MULTI")
+    assert ok == b'OK'
+    queued = yield from conn.execute('getset', 'foo', 'baz')
+    assert queued == b'QUEUED'
+    res = yield from conn.execute("EXEC")
+    assert res == [b'bar']
+
+    ok = yield from conn.execute("MULTI")
+    assert ok == b'OK'
+    queued = yield from conn.execute('getset', 'foo', 'baz')
+    assert queued == b'QUEUED'
+    res = yield from conn.execute("DISCARD")
+    assert res == b'OK'
+
+
+@pytest.mark.run_loop
+def test_multi_exec__enc(create_connection, loop, server):
+    conn = yield from create_connection(
+        server.tcp_address, loop=loop, encoding='utf-8')
+
+    ok = yield from conn.execute('set', 'foo', 'bar')
+    assert ok == 'OK'
+
+    ok = yield from conn.execute("MULTI")
+    assert ok == 'OK'
+    queued = yield from conn.execute('getset', 'foo', 'baz')
+    assert queued == 'QUEUED'
+    res = yield from conn.execute("EXEC")
+    assert res == ['bar']
+
+    ok = yield from conn.execute("MULTI")
+    assert ok == 'OK'
+    queued = yield from conn.execute('getset', 'foo', 'baz')
+    assert queued == 'QUEUED'
+    res = yield from conn.execute("DISCARD")
+    assert res == 'OK'

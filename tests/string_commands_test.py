@@ -647,7 +647,7 @@ def test_strlen(redis):
 
 @pytest.mark.run_loop
 def test_cancel_hang(redis):
-    exists_coro = redis._conn.execute("EXISTS", b"key:test1")
+    exists_coro = redis.execute("EXISTS", b"key:test1")
     exists_coro.cancel()
     exists_check = yield from redis.exists(b"key:test2")
     assert not exists_check
@@ -665,16 +665,3 @@ def test_set_enc(create_redis, loop, server):
         yield from redis.set(None, 'value')
 
     yield from redis.delete(TEST_KEY)
-
-
-@pytest.mark.run_loop
-def test_setnx_enc(create_redis, loop, server):
-    redis = yield from create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
-    TEST_KEY = 'my-key-nx'
-    yield from redis._conn.execute('MULTI')
-    res = yield from redis.setnx(TEST_KEY, 'value')
-    assert res == 'QUEUED'
-
-    ok = yield from redis._conn.execute('DISCARD')
-    assert ok == 'OK'
