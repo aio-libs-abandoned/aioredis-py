@@ -99,12 +99,8 @@ def _closable(loop):
     waiters = []
     while conns:
         conn = conns.pop(0)
-        # XXX: make pool have same close/wait_closed interface
-        if isinstance(conn, (aioredis.RedisConnection, aioredis.Redis)):
-            conn.close()
-            waiters.append(conn.wait_closed())
-        else:
-            waiters.append(conn.clear())
+        conn.close()
+        waiters.append(conn.wait_closed())
     if waiters:
         loop.run_until_complete(asyncio.gather(*waiters, loop=loop))
 

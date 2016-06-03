@@ -7,6 +7,7 @@ __all__ = [
     'WatchVariableError',
     'ChannelClosedError',
     'ConnectionClosedError',
+    'PoolClosedError',
     ]
 
 
@@ -43,5 +44,8 @@ class ChannelClosedError(RedisError):
 
 
 class ConnectionClosedError(RedisError):
-    """Raised if connection to server was closed.
-    """
+    """Raised if connection to server was closed."""
+
+
+class PoolClosedError(RedisError):
+    """Raised if pool is closed."""

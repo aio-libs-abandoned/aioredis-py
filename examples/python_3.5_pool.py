@@ -12,7 +12,8 @@ async def main():
 
     await async_with(pool)
     await with_await(pool)
-    await pool.clear()
+    pool.close()
+    await pool.wait_closed()
 
 
 async def async_with(pool):

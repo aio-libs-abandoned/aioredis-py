@@ -5,6 +5,7 @@ import sys
 from .commands import create_redis, Redis
 from .log import logger
 from .util import async_task
+from .errors import PoolClosedError
 
 
 PY_35 = sys.version_info >= (3, 5)
@@ -52,6 +53,8 @@ class RedisPool:
         self._used = set()
         self._acquiring = 0
         self._cond = asyncio.Condition(loop=loop)
+        self._close_state = asyncio.Event(loop=loop)
+        self._close_waiter = async_task(self._do_close(), loop=loop)
 
     @property
     def minsize(self):
@@ -87,6 +90,37 @@ class RedisPool:
                 waiters.append(conn.wait_closed())
             yield from asyncio.gather(*waiters, loop=self._loop)
 
+    @asyncio.coroutine
+    def _do_close(self):
+        yield from self._close_state.wait()
+        with (yield from self._cond):
+            assert not self._acquiring, self._acquiring
+            waiters = []
+            while self._pool:
+                conn = self._pool.popleft()
+                conn.close()
+                waiters.append(conn.wait_closed())
+            for conn in self._used:
+                conn.close()
+                waiters.append(conn.wait_closed())
+            yield from asyncio.gather(*waiters, loop=self._loop)
+
+    def close(self):
+        """Close all free and in-progress connections and mark pool as closed.
+        """
+        if not self._close_state.is_set():
+            self._close_state.set()
+
+    @property
+    def closed(self):
+        """True if pool is closed."""
+        return self._close_state.is_set()
+
+    @asyncio.coroutine
+    def wait_closed(self):
+        """Wait until pool gets closed."""
+        yield from asyncio.shield(self._close_waiter, loop=self._loop)
+
     @property
     def db(self):
         """Currently selected db index."""
@@ -115,7 +149,11 @@ class RedisPool:
 
         Creates new connection if needed.
         """
+        if self.closed:
+            raise PoolClosedError("Pool is closed")
         with (yield from self._cond):
+            if self.closed:
+                raise PoolClosedError("Pool is closed")
             while True:
                 yield from self._fill_free(override_min=True)
                 if self.freesize:
