@@ -35,7 +35,8 @@ def pubsub():
     finally:
         pool.release(redis)
 
-    yield from pool.clear()    # closing all open connections
+    pool.close()
+    yield from pool.wait_closed()    # closing all open connections
 
 
 def main():

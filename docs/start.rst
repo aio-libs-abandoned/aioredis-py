@@ -20,7 +20,9 @@ and then gather results.
 Simple example show both cases (:download:`get source code<../examples/pipeline.py>`):
 
 .. literalinclude:: ../examples/pipeline.py
-   :lines: 9-25
+   :language: python
+   :lines: 10-24
+   :dedent: 4
 
 .. note::
 
@@ -30,7 +32,9 @@ Simple example show both cases (:download:`get source code<../examples/pipeline.
    (:download:`get source code<../examples/pipeline.py>`):
 
       .. literalinclude:: ../examples/pipeline.py
-         :lines: 25-36
+         :language: python
+         :lines: 26-35
+         :dedent: 4
 
 
 Multi/Exec transactions
@@ -57,9 +61,11 @@ Here is simple example
 (:download:`get source code<../examples/transaction2.py>`):
 
 .. literalinclude:: ../examples/transaction2.py
-   :lines: 9-18
+   :language: python
+   :lines: 10-17
    :linenos:
    :emphasize-lines: 6
+   :dedent: 4
 
 As you can notice ``yield from`` is **only** used at line 6 with ``tr.execute``
 and **not with** ``tr.set(...)`` calls.
@@ -98,7 +104,8 @@ Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
 
 .. literalinclude:: ../examples/pubsub2.py
    :language: python
-   :lines: 7-35
+   :lines: 7-34
+   :dedent: 4
 
 .. warning::
    Using Pub/Sub mode with :class:`~aioredis.Pool` is possible but
@@ -110,6 +117,7 @@ Pub/Sub example (:download:`get source code<../examples/pool_pubsub.py>`):
 .. literalinclude:: ../examples/pool_pubsub.py
    :language: python
    :lines: 14-36
+   :dedent: 4
 
 
 Python 3.5 async/await support
@@ -122,14 +130,16 @@ Python 3.5 async/await support
 
 .. literalinclude:: ../examples/python_3.5_pool.py
    :language: python
-   :lines: 6-8,19-21
+   :lines: 6-8,20-22
+   :dedent: 4
 
 
 It also can be used with ``await``:
 
 .. literalinclude:: ../examples/python_3.5_pool.py
    :language: python
-   :lines: 6-8,25-27
+   :lines: 6-8,26-28
+   :dedent: 4
 
 
 New ``scan``-family commands added with support of :ref:`async for<async for>`
@@ -137,7 +147,8 @@ New ``scan``-family commands added with support of :ref:`async for<async for>`
 
 .. literalinclude:: ../examples/python_3.5_iscan.py
    :language: python
-   :lines: 6-9,29-31,34-36,39-41,44-46
+   :lines: 7-9,29-31,34-36,39-41,44-45
+   :dedent: 4
 
 
 SSL/TLS support
