@@ -39,6 +39,13 @@ class RedisPool:
 
     def __init__(self, address, db=0, password=None, encoding=None,
                  *, minsize, maxsize, commands_factory, ssl=None, loop=None):
+        assert isinstance(minsize, int) and minsize >= 0, (
+            "minsize must be int >= 0", minsize, type(minsize))
+        assert maxsize is not None, "Arbitrary pool size is disallowed."
+        assert isinstance(maxsize, int) and maxsize > 0, (
+            "maxsize must be int > 0", maxsize, type(maxsize))
+        assert minsize <= maxsize, (
+            "Invalid pool min/max sizes", minsize, maxsize)
         if loop is None:
             loop = asyncio.get_event_loop()
         self._address = address

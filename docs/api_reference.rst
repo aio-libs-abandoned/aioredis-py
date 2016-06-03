@@ -221,8 +221,10 @@ The library provides connections pool. The basic usage is as follows:
 
    :param int minsize: Minimum number of free connection to create in pool.
                        ``1`` by default.
+
    :param int maxsize: Maximum number of connection to keep in pool.
                        ``10`` by default.
+                       Must be greater then ``0``. ``None`` is disallowed.
 
    :param commands_factory: A factory to be passed to ``create_redis``
                             call. :class:`Redis` by default.
@@ -236,6 +238,9 @@ The library provides connections pool. The basic usage is as follows:
 
    .. versionchanged:: v0.2.7
       ``minsize`` default value changed from 10 to 1.
+
+   .. versionchanged:: v0.2.8
+      Disallow arbitrary RedisPool maxsize.
 
 
 .. class:: RedisPool

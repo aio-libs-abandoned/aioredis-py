@@ -42,6 +42,26 @@ def test_clear(create_pool, loop, server):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('minsize', [None, -100, 0.0, 100])
+def test_minsize(minsize, create_pool, loop, server):
+
+    with pytest.raises(AssertionError):
+        yield from create_pool(
+            ('localhost', server.port),
+            minsize=minsize, maxsize=10, loop=loop)
+
+
+@pytest.mark.run_loop
+@pytest.mark.parametrize('maxsize', [None, -100, 0.0, 1])
+def test_maxsize(maxsize, create_pool, loop, server):
+
+    with pytest.raises(AssertionError):
+        yield from create_pool(
+            ('localhost', server.port),
+            minsize=2, maxsize=maxsize, loop=loop)
+
+
+@pytest.mark.run_loop
 def test_no_yield_from(create_pool, loop, server):
     pool = yield from create_pool(
         ('localhost', server.port), loop=loop)
