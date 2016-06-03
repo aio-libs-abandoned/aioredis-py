@@ -27,6 +27,6 @@ def test_ssl_pool(create_pool, server, loop, ssl_proxy):
 
     pool = yield from create_pool(
         ('localhost', ssl_port), ssl=ssl_ctx, loop=loop)
-    with (yield from pool) as redis:
-        res = yield from redis.ping()
+    with (yield from pool) as conn:
+        res = yield from conn.execute('PING')
         assert res == b'PONG'

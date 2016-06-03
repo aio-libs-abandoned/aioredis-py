@@ -238,7 +238,8 @@ class ConnectionsPool:
         the connection will be closed and dropped.
         When queue of free connections is full the connection will be dropped.
         """
-        assert conn in self._used, "Invalid connection, maybe from other pool"
+        assert conn in self._used, (
+            "Invalid connection, maybe from other pool", conn)
         self._used.remove(conn)
         if not conn.closed:
             if conn.in_transaction:
@@ -319,13 +320,13 @@ class ConnectionsPool:
 
     def __iter__(self):
         # this method is needed to allow `yield`ing from pool
-        conn = yield from self.acquire()
+        conn, address = yield from self.acquire()
         return _ConnectionContextManager(self, conn)
 
     if PY_35:
         def __await__(self):
             # To make `with await pool` work
-            conn = yield from self.acquire()
+            conn, address = yield from self.acquire()
             return _ConnectionContextManager(self, conn)
 
         def get(self):
@@ -367,7 +368,8 @@ if PY_35:
 
         @asyncio.coroutine
         def __aenter__(self):
-            self._conn = yield from self._pool.acquire()
+            conn, address = yield from self._pool.acquire()
+            self._conn = conn
             return self._conn
 
         @asyncio.coroutine
