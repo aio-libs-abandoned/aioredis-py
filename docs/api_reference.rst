@@ -266,6 +266,12 @@ The library provides connections pool. The basic usage is as follows:
 
       Current codec for response decoding (*read-only*).
 
+   .. attribute:: closed
+
+      ``True`` if pool is closed.
+
+      .. versionadded:: v0.2.8
+
    .. comethod:: clear()
 
       Closes and removes all free connections in the pool.
@@ -291,6 +297,18 @@ The library provides connections pool. The basic usage is as follows:
       .. note:: This method is NOT a coroutine.
 
       :param aioredis.RedisConnection conn: A RedisConnection instance.
+
+   .. method:: close()
+
+      Close all free and in-progress connections and mark pool as closed.
+
+      .. versionadded:: v0.2.8
+
+   .. comethod:: wait_closed()
+
+      Wait until pool gets closed (when all connections are closed).
+
+      .. versionadded:: v0.2.8
 
 
 ----

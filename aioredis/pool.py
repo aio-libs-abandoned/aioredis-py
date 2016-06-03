@@ -106,7 +106,7 @@ class RedisPool:
             yield from asyncio.gather(*waiters, loop=self._loop)
 
     def close(self):
-        """Close all free and in progress connections and mark pool as closed.
+        """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
             self._close_state.set()
