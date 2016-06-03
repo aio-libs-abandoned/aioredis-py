@@ -286,6 +286,8 @@ The library provides connections pool. The basic usage is as follows:
 
       Acquires a connection from *free pool*. Creates new connection if needed.
 
+      :raises aioredis.PoolClosedError: if pool is already closed
+
    .. method:: release(conn)
 
       Returns used connection back into pool.
@@ -426,6 +428,27 @@ Exceptions
 
    Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is
    unsubscribed and messages queue is empty.
+
+.. exception:: PoolClosedError
+
+   Raised from :meth:`aioredis.RedisPool.acquire` when pool is already closed.
+
+
+Exceptions Hierarchy
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: guess
+
+   Exception
+      RedisError
+         ProtocolError
+         ReplyError
+            PipelineError
+               MultiExecError
+                  WatchVariableError
+         ChannelClosedError
+         ConnectionClosedError
+         PoolClosedError
 
 ----
 
