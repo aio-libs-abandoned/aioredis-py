@@ -12,12 +12,12 @@ class GenericCommandsMixin:
 
     def delete(self, key, *keys):
         """Delete a key."""
-        fut = self._conn.execute(b'DEL', key, *keys)
+        fut = self.execute(b'DEL', key, *keys)
         return wait_convert(fut, int)
 
     def dump(self, key):
         """Dump a key."""
-        return self._conn.execute(b'DUMP', key)
+        return self.execute(b'DUMP', key)
 
     def exists(self, key, *keys):
         """Check if key(s) exists.
@@ -25,7 +25,7 @@ class GenericCommandsMixin:
         .. versionchanged:: v0.2.9
            Accept multiple keys; **return** type **changed** from bool to int.
         """
-        return self._conn.execute(b'EXISTS', key, *keys)
+        return self.execute(b'EXISTS', key, *keys)
 
     def expire(self, key, timeout):
         """Set a timeout on key.
@@ -38,9 +38,9 @@ class GenericCommandsMixin:
         if isinstance(timeout, float):
             return self.pexpire(key, int(timeout * 1000))
         if not isinstance(timeout, int):
-            raise TypeError("timeout argument must be int, not {!r}"
-                            .format(timeout))
-        fut = self._conn.execute(b'EXPIRE', key, timeout)
+            raise TypeError(
+                "timeout argument must be int, not {!r}".format(timeout))
+        fut = self.execute(b'EXPIRE', key, timeout)
         return wait_convert(fut, bool)
 
     def expireat(self, key, timestamp):
@@ -56,12 +56,12 @@ class GenericCommandsMixin:
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
-        fut = self._conn.execute(b'EXPIREAT', key, timestamp)
+        fut = self.execute(b'EXPIREAT', key, timestamp)
         return wait_convert(fut, bool)
 
     def keys(self, pattern, *, encoding=_NOTSET):
         """Returns all keys matching pattern."""
-        return self._conn.execute(b'KEYS', pattern, encoding=encoding)
+        return self.execute(b'KEYS', pattern, encoding=encoding)
 
     def migrate(self, host, port, key, dest_db, timeout,
                 copy=False, replace=False):
@@ -84,8 +84,8 @@ class GenericCommandsMixin:
             flags.append(b'COPY')
         if replace:
             flags.append(b'REPLACE')
-        fut = self._conn.execute(b'MIGRATE', host, port,
-                                 key, dest_db, timeout, *flags)
+        fut = self.execute(b'MIGRATE', host, port,
+                                         key, dest_db, timeout, *flags)
         return wait_ok(fut)
 
     def move(self, key, db):
@@ -99,30 +99,30 @@ class GenericCommandsMixin:
         if db < 0:
             raise ValueError("db argument must be not less then 0, {!r}"
                              .format(db))
-        fut = self._conn.execute(b'MOVE', key, db)
+        fut = self.execute(b'MOVE', key, db)
         return wait_convert(fut, bool)
 
     def object_refcount(self, key):
         """Returns the number of references of the value associated
         with the specified key (OBJECT REFCOUNT).
         """
-        return self._conn.execute(b'OBJECT', b'REFCOUNT', key)
+        return self.execute(b'OBJECT', b'REFCOUNT', key)
 
     def object_encoding(self, key):
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
         """
-        return self._conn.execute(b'OBJECT', b'ENCODING', key)
+        return self.execute(b'OBJECT', b'ENCODING', key)
 
     def object_idletime(self, key):
         """Returns the number of seconds since the object is not requested
         by read or write operations (OBJECT IDLETIME).
         """
-        return self._conn.execute(b'OBJECT', b'IDLETIME', key)
+        return self.execute(b'OBJECT', b'IDLETIME', key)
 
     def persist(self, key):
         """Remove the existing timeout on key."""
-        fut = self._conn.execute(b'PERSIST', key)
+        fut = self.execute(b'PERSIST', key)
         return wait_convert(fut, bool)
 
     def pexpire(self, key, timeout):
@@ -133,7 +133,7 @@ class GenericCommandsMixin:
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int, not {!r}"
                             .format(timeout))
-        fut = self._conn.execute(b'PEXPIRE', key, timeout)
+        fut = self.execute(b'PEXPIRE', key, timeout)
         return wait_convert(fut, bool)
 
     def pexpireat(self, key, timestamp):
@@ -144,7 +144,7 @@ class GenericCommandsMixin:
         if not isinstance(timestamp, int):
             raise TypeError("timestamp argument must be int, not {!r}"
                             .format(timestamp))
-        fut = self._conn.execute(b'PEXPIREAT', key, timestamp)
+        fut = self.execute(b'PEXPIREAT', key, timestamp)
         return wait_convert(fut, bool)
 
     def pttl(self, key):
@@ -158,11 +158,11 @@ class GenericCommandsMixin:
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
-        return self._conn.execute(b'PTTL', key)
+        return self.execute(b'PTTL', key)
 
     def randomkey(self, *, encoding=_NOTSET):
         """Return a random key from the currently selected database."""
-        return self._conn.execute(b'RANDOMKEY', encoding=encoding)
+        return self.execute(b'RANDOMKEY', encoding=encoding)
 
     def rename(self, key, newkey):
         """Renames key to newkey.
@@ -171,7 +171,7 @@ class GenericCommandsMixin:
         """
         if key == newkey:
             raise ValueError("key and newkey are the same")
-        fut = self._conn.execute(b'RENAME', key, newkey)
+        fut = self.execute(b'RENAME', key, newkey)
         return wait_ok(fut)
 
     def renamenx(self, key, newkey):
@@ -181,12 +181,12 @@ class GenericCommandsMixin:
         """
         if key == newkey:
             raise ValueError("key and newkey are the same")
-        fut = self._conn.execute(b'RENAMENX', key, newkey)
+        fut = self.execute(b'RENAMENX', key, newkey)
         return wait_convert(fut, bool)
 
     def restore(self, key, ttl, value):
         """Creates a key associated with a value that is obtained via DUMP."""
-        return self._conn.execute(b'RESTORE', key, ttl, value)
+        return self.execute(b'RESTORE', key, ttl, value)
 
     def scan(self, cursor=0, match=None, count=None):
         """Incrementally iterate the keys space.
@@ -206,7 +206,7 @@ class GenericCommandsMixin:
             args += [b'MATCH', match]
         if count is not None:
             args += [b'COUNT', count]
-        fut = self._conn.execute(b'SCAN', cursor, *args)
+        fut = self.execute(b'SCAN', cursor, *args)
         return wait_convert(fut, lambda o: (int(o[0]), o[1]))
 
     if PY_35:
@@ -239,7 +239,7 @@ class GenericCommandsMixin:
             args += [b'ALPHA']
         if store is not None:
             args += [b'STORE', store]
-        return self._conn.execute(b'SORT', key, *args)
+        return self.execute(b'SORT', key, *args)
 
     def ttl(self, key):
         """Returns time-to-live for a key, in seconds.
@@ -251,10 +251,10 @@ class GenericCommandsMixin:
         # TODO: maybe convert negative values to:
         #       -2 to None  - no key
         #       -1 to False - no expire
-        return self._conn.execute(b'TTL', key)
+        return self.execute(b'TTL', key)
 
     def type(self, key):
         """Returns the string representation of the value's type stored at key.
         """
         # NOTE: for non-existent keys TYPE returns b'none'
-        return self._conn.execute(b'TYPE', key)
+        return self.execute(b'TYPE', key)

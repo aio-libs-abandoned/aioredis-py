@@ -32,11 +32,11 @@ class SortedSetCommandsMixin:
         scores = (item for i, item in enumerate(pairs) if i % 2 == 0)
         if any(not isinstance(s, (int, float)) for s in scores):
             raise TypeError("all scores must be int or float")
-        return self._conn.execute(b'ZADD', key, score, member, *pairs)
+        return self.execute(b'ZADD', key, score, member, *pairs)
 
     def zcard(self, key):
         """Get the number of members in a sorted set."""
-        return self._conn.execute(b'ZCARD', key)
+        return self.execute(b'ZCARD', key)
 
     def zcount(self, key, min=float('-inf'), max=float('inf'),
                *, exclude=None):
@@ -52,8 +52,8 @@ class SortedSetCommandsMixin:
             raise TypeError("max argument must be int or float")
         if min > max:
             raise ValueError("min could not be grater then max")
-        return self._conn.execute(b'ZCOUNT', key,
-                                  *_encode_min_max(exclude, min, max))
+        return self.execute(b'ZCOUNT', key,
+                            *_encode_min_max(exclude, min, max))
 
     def zincrby(self, key, increment, member):
         """Increment the score of a member in a sorted set.
@@ -62,7 +62,7 @@ class SortedSetCommandsMixin:
         """
         if not isinstance(increment, (int, float)):
             raise TypeError("increment argument must be int or float")
-        fut = self._conn.execute(b'ZINCRBY', key, increment, member)
+        fut = self.execute(b'ZINCRBY', key, increment, member)
         return wait_convert(fut, int_or_float)
 
     def zinterstore(self, destkey, key, *keys,
@@ -92,7 +92,7 @@ class SortedSetCommandsMixin:
             args.extend(('AGGREGATE', 'MAX'))
         elif aggregate is self.ZSET_AGGREGATE_MIN:
             args.extend(('AGGREGATE', 'MIN'))
-        fut = self._conn.execute(b'ZINTERSTORE', destkey, numkeys, *args)
+        fut = self.execute(b'ZINTERSTORE', destkey, numkeys, *args)
         return fut
 
     def zlexcount(self, key, min=b'-', max=b'+', include_min=True,
@@ -111,7 +111,7 @@ class SortedSetCommandsMixin:
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
             max = (b'[' if include_max else b'(') + max
-        return self._conn.execute(b'ZLEXCOUNT', key, min, max)
+        return self.execute(b'ZLEXCOUNT', key, min, max)
 
     def zrange(self, key, start=0, stop=-1, withscores=False):
         """Return a range of members in a sorted set, by index.
@@ -127,7 +127,7 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        fut = self._conn.execute(b'ZRANGE', key, start, stop, *args)
+        fut = self.execute(b'ZRANGE', key, start, stop, *args)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -163,7 +163,7 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
 
-        return self._conn.execute(b'ZRANGEBYLEX', key, min, max, *args)
+        return self.execute(b'ZRANGEBYLEX', key, min, max, *args)
 
     def zrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                       withscores=False, offset=None, count=None,
@@ -195,18 +195,18 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        fut = self._conn.execute(b'ZRANGEBYSCORE', key, min, max, *args)
+        fut = self.execute(b'ZRANGEBYSCORE', key, min, max, *args)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
     def zrank(self, key, member):
         """Determine the index of a member in a sorted set."""
-        return self._conn.execute(b'ZRANK', key, member)
+        return self.execute(b'ZRANK', key, member)
 
     def zrem(self, key, member, *members):
         """Remove one or more members from a sorted set."""
-        return self._conn.execute(b'ZREM', key, member, *members)
+        return self.execute(b'ZREM', key, member, *members)
 
     def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
                        include_max=True,):
@@ -224,7 +224,7 @@ class SortedSetCommandsMixin:
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
             max = (b'[' if include_max else b'(') + max
-        return self._conn.execute(b'ZREMRANGEBYLEX', key, min, max)
+        return self.execute(b'ZREMRANGEBYLEX', key, min, max)
 
     def zremrangebyrank(self, key, start, stop):
         """Remove all members in a sorted set within the given indexes.
@@ -236,7 +236,7 @@ class SortedSetCommandsMixin:
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
             raise TypeError("stop argument must be int")
-        return self._conn.execute(b'ZREMRANGEBYRANK', key, start, stop)
+        return self.execute(b'ZREMRANGEBYRANK', key, start, stop)
 
     def zremrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                          *, exclude=None):
@@ -250,7 +250,7 @@ class SortedSetCommandsMixin:
             raise TypeError("max argument must be int or float")
 
         min, max = _encode_min_max(exclude, min, max)
-        return self._conn.execute(b'ZREMRANGEBYSCORE', key, min, max)
+        return self.execute(b'ZREMRANGEBYSCORE', key, min, max)
 
     def zrevrange(self, key, start, stop, withscores=False):
         """Return a range of members in a sorted set, by index,
@@ -266,7 +266,7 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        fut = self._conn.execute(b'ZREVRANGE', key, start, stop, *args)
+        fut = self.execute(b'ZREVRANGE', key, start, stop, *args)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -302,7 +302,7 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        fut = self._conn.execute(b'ZREVRANGEBYSCORE', key, max, min, *args)
+        fut = self.execute(b'ZREVRANGEBYSCORE', key, max, min, *args)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -311,11 +311,11 @@ class SortedSetCommandsMixin:
         """Determine the index of a member in a sorted set, with
         scores ordered from high to low.
         """
-        return self._conn.execute(b'ZREVRANK', key, member)
+        return self.execute(b'ZREVRANK', key, member)
 
     def zscore(self, key, member):
         """Get the score associated with the given member in a sorted set."""
-        fut = self._conn.execute(b'ZSCORE', key, member)
+        fut = self.execute(b'ZSCORE', key, member)
         return wait_convert(fut, optional_int_or_float)
 
     def zunionstore(self, destkey, key, *keys,
@@ -341,7 +341,7 @@ class SortedSetCommandsMixin:
             args.extend(('AGGREGATE', 'MAX'))
         elif aggregate is self.ZSET_AGGREGATE_MIN:
             args.extend(('AGGREGATE', 'MIN'))
-        fut = self._conn.execute(b'ZUNIONSTORE', destkey, numkeys, *args)
+        fut = self.execute(b'ZUNIONSTORE', destkey, numkeys, *args)
         return fut
 
     def zscan(self, key, cursor=0, match=None, count=None):
@@ -351,7 +351,7 @@ class SortedSetCommandsMixin:
             args += [b'MATCH', match]
         if count is not None:
             args += [b'COUNT', count]
-        fut = self._conn.execute(b'ZSCAN', key, cursor, *args)
+        fut = self.execute(b'ZSCAN', key, cursor, *args)
 
         def _converter(obj):
             return (int(obj[0]), pairs_int_or_float(obj[1]))
