@@ -70,7 +70,7 @@ def test_simple_command(create_pool, loop, server):
         minsize=10, loop=loop)
 
     with (yield from pool) as conn:
-        msg = yield from conn.echo('hello')
+        msg = yield from conn.execute('echo', 'hello')
         assert msg == b'hello'
         assert pool.size == 10
         assert pool.freesize == 9
@@ -144,9 +144,9 @@ def test_release_closed(create_pool, loop, server):
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with (yield from pool) as redis:
-        redis.close()
-        yield from redis.wait_closed()
+    with (yield from pool) as conn:
+        conn.close()
+        yield from conn.wait_closed()
     assert pool.size == 0
     assert pool.freesize == 0
 
@@ -156,7 +156,8 @@ def test_release_bad_connection(create_pool, create_redis, loop, server):
     pool = yield from create_pool(
         server.tcp_address,
         loop=loop)
-    conn = yield from pool.acquire()
+    conn, address = yield from pool.acquire()
+    assert address == server.tcp_address
     other_conn = yield from create_redis(
         server.tcp_address,
         loop=loop)
@@ -175,8 +176,8 @@ def test_select_db(create_pool, loop, server):
         loop=loop)
 
     yield from pool.select(1)
-    with (yield from pool) as redis:
-        assert redis.db == 1
+    with (yield from pool) as conn:
+        assert conn.db == 1
 
 
 @pytest.mark.run_loop
@@ -188,12 +189,12 @@ def test_change_db(create_pool, loop, server):
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with (yield from pool) as redis:
-        yield from redis.select(1)
+    with (yield from pool) as conn:
+        yield from conn.select(1)
     assert pool.size == 0
     assert pool.freesize == 0
 
-    with (yield from pool) as redis:
+    with (yield from pool):
         assert pool.size == 1
         assert pool.freesize == 0
 
@@ -248,9 +249,9 @@ def test_select_and_create(create_pool, loop, server):
         db = 0
         while True:
             db = (db + 1) & 1
-            _, conn = yield from asyncio.gather(pool.select(db),
-                                                pool.acquire(),
-                                                loop=loop)
+            _, (conn, address) = yield from asyncio.gather(pool.select(db),
+                                                           pool.acquire(),
+                                                           loop=loop)
             assert pool.db == db
             pool.release(conn)
             if conn.db == db:
@@ -265,10 +266,10 @@ def test_response_decoding(create_pool, loop, server):
         encoding='utf-8', loop=loop)
 
     assert pool.encoding == 'utf-8'
-    with (yield from pool) as redis:
-        yield from redis.set('key', 'value')
-    with (yield from pool) as redis:
-        res = yield from redis.get('key')
+    with (yield from pool) as conn:
+        yield from conn.execute('set', 'key', 'value')
+    with (yield from pool) as conn:
+        res = yield from conn.execute('get', 'key')
         assert res == 'value'
 
 
@@ -279,13 +280,13 @@ def test_hgetall_response_decoding(create_pool, loop, server):
         encoding='utf-8', loop=loop)
 
     assert pool.encoding == 'utf-8'
-    with (yield from pool) as redis:
-        yield from redis.delete('key1')
-        yield from redis.hmset('key1', 'foo', 'bar')
-        yield from redis.hmset('key1', 'baz', 'zap')
-    with (yield from pool) as redis:
-        res = yield from redis.hgetall('key1')
-        assert res == {'foo': 'bar', 'baz': 'zap'}
+    with (yield from pool) as conn:
+        yield from conn.execute('del', 'key1')
+        yield from conn.execute('hmset', 'key1', 'foo', 'bar')
+        yield from conn.execute('hmset', 'key1', 'baz', 'zap')
+    with (yield from pool) as conn:
+        res = yield from conn.execute('hgetall', 'key1')
+        assert res == ['foo', 'bar', 'baz', 'zap']
 
 
 @pytest.mark.run_loop
@@ -295,13 +296,13 @@ def test_crappy_multiexec(create_pool, loop, server):
         encoding='utf-8', loop=loop,
         minsize=1, maxsize=1)
 
-    with (yield from pool) as redis:
-        yield from redis.set('abc', 'def')
-        yield from redis.connection.execute('multi')
-        yield from redis.set('abc', 'fgh')
-    assert redis.closed is True
-    with (yield from pool) as redis:
-        value = yield from redis.get('abc')
+    with (yield from pool) as conn:
+        yield from conn.execute('set', 'abc', 'def')
+        yield from conn.execute('multi')
+        yield from conn.execute('set', 'abc', 'fgh')
+    assert conn.closed is True
+    with (yield from pool) as conn:
+        value = yield from conn.execute('get', 'abc')
     assert value == 'def'
 
 
@@ -359,16 +360,16 @@ def test_pool_close(create_pool, server, loop):
 
     assert pool.closed is False
 
-    with (yield from pool) as redis:
-        assert (yield from redis.ping()) == b'PONG'
+    with (yield from pool) as conn:
+        assert (yield from conn.execute('ping')) == b'PONG'
 
     pool.close()
     yield from pool.wait_closed()
     assert pool.closed is True
 
     with pytest.raises(PoolClosedError):
-        with (yield from pool) as redis:
-            assert (yield from redis.ping()) == b'PONG'
+        with (yield from pool) as conn:
+            assert (yield from conn.execute('ping')) == b'PONG'
 
 
 @pytest.mark.run_loop
@@ -378,13 +379,13 @@ def test_pool_close__used(create_pool, server, loop):
 
     assert pool.closed is False
 
-    with (yield from pool) as redis:
+    with (yield from pool) as conn:
         pool.close()
         yield from pool.wait_closed()
         assert pool.closed is True
 
         with pytest.raises(ConnectionClosedError):
-            yield from redis.ping()
+            yield from conn.execute('ping')
 
 
 @pytest.mark.run_loop
