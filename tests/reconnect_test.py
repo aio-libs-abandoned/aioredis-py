@@ -6,7 +6,7 @@ from aioredis import create_reconnecting_redis
 @pytest.mark.run_loop
 def test_recon(server, loop):
     redis = yield from create_reconnecting_redis(
-        ('localhost', server.port), db=1, loop=loop)
+        server.tcp_address, db=1, loop=loop)
     assert repr(redis) == '<Redis <AutoConnector None>>'
     resp = yield from redis.echo('ECHO')
     assert resp == b'ECHO'
@@ -27,7 +27,7 @@ def test_recon(server, loop):
 @pytest.mark.run_loop
 def test_multi_exec(server, loop):
     redis = yield from create_reconnecting_redis(
-        ('localhost', server.port), db=1, loop=loop)
+        server.tcp_address, db=1, loop=loop)
     assert repr(redis) == '<Redis <AutoConnector None>>'
 
     m = redis.multi_exec()

@@ -6,7 +6,7 @@ import asyncio
 @pytest.mark.run_loop
 def test_future_cancellation(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     ts = loop.time()
     fut = conn.execute('BLPOP', 'some-list', 5)

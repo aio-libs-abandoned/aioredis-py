@@ -122,6 +122,10 @@ There is a number of fixtures that can be used to write tests:
 
    Redis client instance.
 
+.. attributes:: pool
+
+   RedisPool instance.
+
 .. attribute:: server
 
    Redis server instance info. Namedtuple with following properties:

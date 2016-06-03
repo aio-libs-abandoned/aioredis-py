@@ -17,9 +17,7 @@ def _assert_defaults(pool):
     assert pool.freesize == 1
 
 
-def test_connect(create_pool, loop, server):
-    pool = loop.run_until_complete(create_pool(
-        ('localhost', server.port), loop=loop))
+def test_connect(pool):
     _assert_defaults(pool)
 
 
@@ -27,14 +25,12 @@ def test_global_loop(create_pool, loop, server):
     asyncio.set_event_loop(loop)
 
     pool = loop.run_until_complete(create_pool(
-        ('localhost', server.port)))
+        server.tcp_address))
     _assert_defaults(pool)
 
 
 @pytest.mark.run_loop
-def test_clear(create_pool, loop, server):
-    pool = yield from create_pool(
-        ('localhost', server.port), loop=loop)
+def test_clear(pool):
     _assert_defaults(pool)
 
     yield from pool.clear()
@@ -47,7 +43,7 @@ def test_minsize(minsize, create_pool, loop, server):
 
     with pytest.raises(AssertionError):
         yield from create_pool(
-            ('localhost', server.port),
+            server.tcp_address,
             minsize=minsize, maxsize=10, loop=loop)
 
 
@@ -57,24 +53,20 @@ def test_maxsize(maxsize, create_pool, loop, server):
 
     with pytest.raises(AssertionError):
         yield from create_pool(
-            ('localhost', server.port),
+            server.tcp_address,
             minsize=2, maxsize=maxsize, loop=loop)
 
 
-@pytest.mark.run_loop
-def test_no_yield_from(create_pool, loop, server):
-    pool = yield from create_pool(
-        ('localhost', server.port), loop=loop)
-
+def test_no_yield_from(pool):
     with pytest.raises(RuntimeError):
         with pool:
-            pass
+            pass    # pragma: no cover
 
 
 @pytest.mark.run_loop
 def test_simple_command(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=10, loop=loop)
 
     with (yield from pool) as conn:
@@ -89,7 +81,7 @@ def test_simple_command(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_create_new(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=1, loop=loop)
     assert pool.size == 1
     assert pool.freesize == 1
@@ -109,7 +101,7 @@ def test_create_new(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_create_constraints(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=1, maxsize=1, loop=loop)
     assert pool.size == 1
     assert pool.freesize == 1
@@ -127,7 +119,7 @@ def test_create_constraints(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_create_no_minsize(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=0, maxsize=1, loop=loop)
     assert pool.size == 0
     assert pool.freesize == 0
@@ -147,7 +139,7 @@ def test_create_no_minsize(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_release_closed(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=1, loop=loop)
     assert pool.size == 1
     assert pool.freesize == 1
@@ -162,11 +154,11 @@ def test_release_closed(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_release_bad_connection(create_pool, create_redis, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop)
     conn = yield from pool.acquire()
     other_conn = yield from create_redis(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop)
     with pytest.raises(AssertionError):
         pool.release(other_conn)
@@ -179,7 +171,7 @@ def test_release_bad_connection(create_pool, create_redis, loop, server):
 @pytest.mark.run_loop
 def test_select_db(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop)
 
     yield from pool.select(1)
@@ -190,7 +182,7 @@ def test_select_db(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_change_db(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=1, db=0,
         loop=loop)
     assert pool.size == 1
@@ -217,7 +209,7 @@ def test_change_db(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_change_db_errors(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=1, db=0,
         loop=loop)
 
@@ -250,7 +242,7 @@ def test_select_and_create(create_pool, loop, server):
     @asyncio.coroutine
     def test():
         pool = yield from create_pool(
-            ('localhost', server.port),
+            server.tcp_address,
             minsize=1, db=0,
             loop=loop)
         db = 0
@@ -269,7 +261,7 @@ def test_select_and_create(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_response_decoding(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         encoding='utf-8', loop=loop)
 
     assert pool.encoding == 'utf-8'
@@ -283,7 +275,7 @@ def test_response_decoding(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_hgetall_response_decoding(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         encoding='utf-8', loop=loop)
 
     assert pool.encoding == 'utf-8'
@@ -299,7 +291,7 @@ def test_hgetall_response_decoding(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_crappy_multiexec(create_pool, loop, server):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         encoding='utf-8', loop=loop,
         minsize=1, maxsize=1)
 
@@ -316,7 +308,7 @@ def test_crappy_multiexec(create_pool, loop, server):
 @pytest.mark.run_loop
 def test_pool_size_growth(create_pool, server, loop):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop,
         minsize=1, maxsize=1)
 
@@ -347,7 +339,7 @@ def test_pool_size_growth(create_pool, server, loop):
 @pytest.mark.run_loop
 def test_pool_with_closed_connections(create_pool, server, loop):
     pool = yield from create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop,
         minsize=1, maxsize=2)
     assert 1 == pool.freesize
@@ -363,7 +355,7 @@ def test_pool_with_closed_connections(create_pool, server, loop):
 @pytest.mark.run_loop
 def test_pool_close(create_pool, server, loop):
     pool = yield from create_pool(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     assert pool.closed is False
 
@@ -382,7 +374,7 @@ def test_pool_close(create_pool, server, loop):
 @pytest.mark.run_loop
 def test_pool_close__used(create_pool, server, loop):
     pool = yield from create_pool(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     assert pool.closed is False
 

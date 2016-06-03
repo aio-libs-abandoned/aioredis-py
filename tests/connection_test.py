@@ -14,12 +14,12 @@ from aioredis import (
 @pytest.mark.run_loop
 def test_connect_tcp(request, create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     assert conn.db == 0
     assert str(conn) == '<RedisConnection [db:0]>'
 
     conn = yield from create_connection(
-        ['localhost', server.port], loop=loop)
+        ['localhost', server.tcp_address.port], loop=loop)
     assert conn.db == 0
     assert str(conn) == '<RedisConnection [db:0]>'
 
@@ -36,14 +36,14 @@ def test_global_loop(create_connection, loop, server):
     asyncio.set_event_loop(loop)
 
     conn = loop.run_until_complete(create_connection(
-        ('localhost', server.port), db=0))
+        server.tcp_address, db=0))
     assert conn.db == 0
     assert conn._loop is loop
 
 
 @pytest.mark.run_loop
 def test_select_db(create_connection, loop, server):
-    address = ('localhost', server.port)
+    address = server.tcp_address
     conn = yield from create_connection(address, loop=loop)
     assert conn.db == 0
 
@@ -75,7 +75,7 @@ def test_select_db(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_protocol_error(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     reader = conn._reader
 
@@ -88,20 +88,20 @@ def test_protocol_error(create_connection, loop, server):
 
 def test_close_connection__tcp(create_connection, loop, server):
     conn = loop.run_until_complete(create_connection(
-        ('localhost', server.port), loop=loop))
+        server.tcp_address, loop=loop))
     conn.close()
     with pytest.raises(ConnectionClosedError):
         loop.run_until_complete(conn.select(1))
 
     conn = loop.run_until_complete(create_connection(
-        ('localhost', server.port), loop=loop))
+        server.tcp_address, loop=loop))
     with pytest.raises(ConnectionClosedError):
         conn.close()
         fut = conn.select(1)
         loop.run_until_complete(fut)
 
     conn = loop.run_until_complete(create_connection(
-        ('localhost', server.port), loop=loop))
+        server.tcp_address, loop=loop))
     conn.close()
     with pytest.raises(ConnectionClosedError):
         conn.execute_pubsub('subscribe', 'channel:1')
@@ -124,7 +124,7 @@ def test_close_connection__socket(create_connection, loop, server):
 
 @pytest.mark.run_loop
 def test_closed_connection_with_none_reader(create_connection, loop, server):
-    address = ('localhost', server.port)
+    address = server.tcp_address
     conn = yield from create_connection(address, loop=loop)
     stored_reader = conn._reader
     conn._reader = None
@@ -144,7 +144,7 @@ def test_closed_connection_with_none_reader(create_connection, loop, server):
 
 @pytest.mark.run_loop
 def test_wait_closed(create_connection, loop, server):
-    address = ('localhost', server.port)
+    address = server.tcp_address
     conn = yield from create_connection(address, loop=loop)
     reader_task = conn._reader_task
     conn.close()
@@ -156,7 +156,7 @@ def test_wait_closed(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_cancel_wait_closed(create_connection, loop, server):
     # Regression test: Don't throw error if wait_closed() is cancelled.
-    address = ('localhost', server.port)
+    address = server.tcp_address
     conn = yield from create_connection(address, loop=loop)
     reader_task = conn._reader_task
     conn.close()
@@ -173,13 +173,13 @@ def test_cancel_wait_closed(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_auth(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     res = yield from conn.execute('CONFIG', 'SET', 'requirepass', 'pass')
     assert res == b'OK'
 
     conn2 = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     with pytest.raises(ReplyError):
         yield from conn2.select(1)
@@ -190,7 +190,7 @@ def test_auth(create_connection, loop, server):
     assert res is True
 
     conn3 = yield from create_connection(
-        ('localhost', server.port), password='pass', loop=loop)
+        server.tcp_address, password='pass', loop=loop)
 
     res = yield from conn3.select(1)
     assert res is True
@@ -202,7 +202,7 @@ def test_auth(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_decoding(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), encoding='utf-8', loop=loop)
+        server.tcp_address, encoding='utf-8', loop=loop)
     assert conn.encoding == 'utf-8'
     res = yield from conn.execute('set', '{prefix}:key1', 'value')
     assert res == 'OK'
@@ -224,7 +224,7 @@ def test_decoding(create_connection, loop, server):
         yield from conn.execute('get', '{prefix}:key1', encoding='ascii')
 
     conn2 = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     res = yield from conn2.execute('get', '{prefix}:key1', encoding='utf-8')
     assert res == 'значение'
 
@@ -232,7 +232,7 @@ def test_decoding(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_execute_exceptions(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     with pytest.raises(TypeError):
         yield from conn.execute(None)
     with pytest.raises(TypeError):
@@ -245,7 +245,7 @@ def test_execute_exceptions(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_subscribe_unsubscribe(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     assert conn.in_pubsub == 0
 
@@ -276,7 +276,7 @@ def test_subscribe_unsubscribe(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_psubscribe_punsubscribe(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     res = yield from conn.execute('psubscribe', 'chan:*')
     assert res == [[b'psubscribe', b'chan:*', 1]]
     assert conn.in_pubsub == 1
@@ -285,7 +285,7 @@ def test_psubscribe_punsubscribe(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_bad_command_in_pubsub(create_connection, loop, server):
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     res = yield from conn.execute('subscribe', 'chan:1')
     assert res == [[b'subscribe', b'chan:1', 1]]
@@ -300,9 +300,9 @@ def test_bad_command_in_pubsub(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_pubsub_messages(create_connection, loop, server):
     sub = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     pub = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     res = yield from sub.execute('subscribe', 'chan:1')
     assert res == [[b'subscribe', b'chan:1', 1]]
 
@@ -337,7 +337,7 @@ def test_pubsub_messages(create_connection, loop, server):
 @pytest.mark.run_loop
 def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
     sub = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     res = yield from sub.execute('subscribe', 'chan:1')
     assert res == [[b'subscribe', b'chan:1', 1]]

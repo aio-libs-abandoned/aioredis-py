@@ -67,7 +67,7 @@ def test_client_getname(redis):
 @pytest.mark.run_loop
 def test_config_get(redis, server):
     res = yield from redis.config_get('port')
-    assert res == {'port': str(server.port)}
+    assert res == {'port': str(server.tcp_address.port)}
 
     res = yield from redis.config_get()
     assert len(res) > 0

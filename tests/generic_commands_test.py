@@ -181,13 +181,14 @@ def test_keys(redis):
 def test_migrate(redis, create_redis, loop, serverB):
     yield from add(redis, 'my-key', 123)
 
-    conn2 = yield from create_redis(('localhost', serverB.port),
+    conn2 = yield from create_redis(serverB.tcp_address,
                                     db=2, loop=loop)
     yield from conn2.delete('my-key')
     assert (yield from redis.exists('my-key')) is True
     assert (yield from conn2.exists('my-key')) is False
 
-    ok = yield from redis.migrate('localhost', serverB.port, 'my-key', 2, 1000)
+    ok = yield from redis.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 2, 1000)
     assert ok is True
     assert (yield from redis.exists('my-key')) is False
     assert (yield from conn2.exists('my-key')) is True

@@ -6,11 +6,11 @@ from aioredis import ConnectionClosedError, ReplyError
 @pytest.mark.run_loop
 def test_repr(create_redis, loop, server):
     redis = yield from create_redis(
-        ('localhost', server.port), db=1, loop=loop)
+        server.tcp_address, db=1, loop=loop)
     assert repr(redis) == '<Redis <RedisConnection [db:1]>>'
 
     redis = yield from create_redis(
-        ('localhost', server.port), db=0, loop=loop)
+        server.tcp_address, db=0, loop=loop)
     assert repr(redis) == '<Redis <RedisConnection [db:0]>>'
 
 
@@ -58,7 +58,7 @@ def test_select(redis):
 @pytest.mark.run_loop
 def test_encoding(create_redis, loop, server):
     redis = yield from create_redis(
-        ('localhost', server.port),
+        server.tcp_address,
         db=1, encoding='utf-8',
         loop=loop)
     assert redis.encoding == 'utf-8'

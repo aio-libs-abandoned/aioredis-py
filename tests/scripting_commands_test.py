@@ -109,7 +109,7 @@ def test_script_kill(create_redis, loop, server, redis):
     script = "while (1) do redis.call('TIME') end"
 
     other_redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     ok = yield from redis.set('key1', 'value')
     assert ok is True

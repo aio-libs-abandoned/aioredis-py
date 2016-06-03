@@ -339,7 +339,7 @@ def test_hscan(redis):
 @pytest.mark.run_loop
 def test_hgetall_enc(create_redis, loop, server):
     redis = yield from create_redis(
-        ('localhost', server.port), loop=loop, encoding='utf-8')
+        server.tcp_address, loop=loop, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
     yield from redis._conn.execute('MULTI')
 

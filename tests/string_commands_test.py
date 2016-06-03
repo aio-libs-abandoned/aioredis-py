@@ -656,7 +656,7 @@ def test_cancel_hang(redis):
 @pytest.mark.run_loop
 def test_set_enc(create_redis, loop, server):
     redis = yield from create_redis(
-        ('localhost', server.port), loop=loop, encoding='utf-8')
+        server.tcp_address, loop=loop, encoding='utf-8')
     TEST_KEY = 'my-key'
     ok = yield from redis.set(TEST_KEY, 'value')
     assert ok is True
@@ -670,7 +670,7 @@ def test_set_enc(create_redis, loop, server):
 @pytest.mark.run_loop
 def test_setnx_enc(create_redis, loop, server):
     redis = yield from create_redis(
-        ('localhost', server.port), loop=loop, encoding='utf-8')
+        server.tcp_address, loop=loop, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
     yield from redis._conn.execute('MULTI')
     res = yield from redis.setnx(TEST_KEY, 'value')

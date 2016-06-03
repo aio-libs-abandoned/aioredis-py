@@ -82,10 +82,18 @@ def create_pool(_closable):
 
 
 @pytest.fixture
+def pool(create_pool, server, loop):
+    """Returns RedisPool instance."""
+    pool = loop.run_until_complete(
+        create_pool(server.tcp_address, loop=loop))
+    return pool
+
+
+@pytest.fixture
 def redis(create_redis, server, loop):
     """Returns Redis client instance."""
     redis = loop.run_until_complete(
-        create_redis(('localhost', server.port), loop=loop))
+        create_redis(server.tcp_address, loop=loop))
     loop.run_until_complete(redis.flushall())
     return redis
 
@@ -147,7 +155,9 @@ def _read_server_version(config):
 @pytest.yield_fixture(scope='session')
 def start_server(request, unused_port):
 
-    RedisServer = namedtuple('RedisServer', 'name port unixsocket version')
+    TCPAddress = namedtuple('TCPAddress', 'host port')
+    RedisServer = namedtuple(
+        'RedisServer', 'name tcp_address unixsocket version')
     processes = []
     servers = {}
 
@@ -158,6 +168,7 @@ def start_server(request, unused_port):
             return servers[name]
 
         port = unused_port()
+        tcp_address = TCPAddress('localhost', port)
         unixsocket = '/tmp/redis.{}.sock'.format(port)
 
         proc = subprocess.Popen([request.config.getoption('--redis-server'),
@@ -171,7 +182,7 @@ def start_server(request, unused_port):
         while b'The server is now ready to accept connections ' not in log:
             log = proc.stdout.readline()
 
-        info = RedisServer(name, port, unixsocket, version)
+        info = RedisServer(name, tcp_address, unixsocket, version)
         servers.setdefault(name, info)
         return info
 

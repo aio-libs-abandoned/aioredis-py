@@ -4,10 +4,8 @@ import pytest
 
 @pytest.mark.run_loop
 async def test_pubsub_channel_iter(create_redis, server, loop):
-    sub = await create_redis(
-        ('localhost', server.port), loop=loop)
-    pub = await create_redis(
-        ('localhost', server.port), loop=loop)
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
 
     ch, = await sub.subscribe('chan:1')
 

@@ -47,7 +47,7 @@ def test_blpop_blocking_features(redis, create_redis, loop, server):
     value = b'blpop:value:2'
 
     other_redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     # create blocking task in separate connection
     consumer = other_redis.blpop(key1, key2)
@@ -104,7 +104,7 @@ def test_brpop_blocking_features(redis, create_redis, server, loop):
     value = b'brpop:value:2'
 
     other_redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     # create blocking task in separate connection
     consumer_task = other_redis.brpop(key1, key2)
 
@@ -169,7 +169,7 @@ def test_brpoplpush_blocking_features(redis, create_redis, server, loop):
     value = b'brpoplpush:value:2'
     destkey = b'destkey:brpoplpush:2'
     other_redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     # create blocking task
     consumer_task = other_redis.brpoplpush(source, destkey)
     producer_task = asyncio.Task(

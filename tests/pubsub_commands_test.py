@@ -19,7 +19,7 @@ def test_publish(create_connection, redis, server, loop):
     out = asyncio.Queue(loop=loop)
     fut = create_future(loop=loop)
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     sub = asyncio.async(_reader('chan:1', out, fut, conn), loop=loop)
 
     yield from fut
@@ -35,7 +35,7 @@ def test_publish_json(create_connection, redis, server, loop):
     out = asyncio.Queue(loop=loop)
     fut = create_future(loop=loop)
     conn = yield from create_connection(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     sub = asyncio.async(_reader('chan:1', out, fut, conn),
                         loop=loop)
 
@@ -77,7 +77,7 @@ def test_psubscribe(redis, create_redis, server, loop):
     assert res == [pat1, pat2]
 
     pub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     yield from pub.publish_json('chan:123', {"Hello": "World"})
     res = yield from pat2.get_json()
     assert res == (b'chan:123', {"Hello": "World"})
@@ -94,7 +94,7 @@ def test_psubscribe(redis, create_redis, server, loop):
 @pytest.mark.run_loop
 def test_pubsub_channels(create_redis, server, loop):
     redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     res = yield from redis.pubsub_channels()
     assert res == []
 
@@ -102,7 +102,7 @@ def test_pubsub_channels(create_redis, server, loop):
     assert res == []
 
     sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     yield from sub.subscribe('chan:1')
 
     res = yield from redis.pubsub_channels()
@@ -123,7 +123,7 @@ def test_pubsub_channels(create_redis, server, loop):
 @pytest.mark.run_loop
 def test_pubsub_numsub(create_redis, server, loop):
     redis = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     res = yield from redis.pubsub_numsub()
     assert res == {}
 
@@ -131,7 +131,7 @@ def test_pubsub_numsub(create_redis, server, loop):
     assert res == {b'chan:1': 0}
 
     sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     yield from sub.subscribe('chan:1')
 
     res = yield from redis.pubsub_numsub()
@@ -158,7 +158,7 @@ def test_pubsub_numsub(create_redis, server, loop):
 @pytest.mark.run_loop
 def test_pubsub_numpat(create_redis, server, loop, redis):
     sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     res = yield from redis.pubsub_numpat()
     assert res == 0
@@ -226,9 +226,9 @@ def test_close_cancelled_pubsub_channel(redis, loop):
 @pytest.mark.run_loop
 def test_channel_get_after_close(create_redis, loop, server):
     sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     pub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     ch, = yield from sub.subscribe('chan:1')
 
     @asyncio.coroutine
@@ -249,9 +249,9 @@ def test_channel_get_after_close(create_redis, loop, server):
 @pytest.mark.run_loop
 def test_subscribe_concurrency(create_redis, server, loop):
     sub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
     pub = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     res = yield from asyncio.gather(
         sub.subscribe('channel:0'),

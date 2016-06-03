@@ -195,7 +195,7 @@ def test_encoding(redis):
 @pytest.mark.run_loop
 def test_global_encoding(redis, create_redis, server, loop):
     redis = yield from create_redis(
-        ('localhost', server.port),
+        server.tcp_address,
         loop=loop, encoding='utf-8')
     res = yield from redis.set('key', 'value')
     assert res is True
@@ -219,7 +219,7 @@ def test_global_encoding(redis, create_redis, server, loop):
 @pytest.mark.run_loop
 def test_transaction__watch_error(redis, create_redis, server, loop):
     other = yield from create_redis(
-        ('localhost', server.port), loop=loop)
+        server.tcp_address, loop=loop)
 
     ok = yield from redis.set('foo', 'bar')
     assert ok is True

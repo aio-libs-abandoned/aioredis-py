@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.run_loop
 async def test_await(create_pool, server, loop):
     pool = await create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=10, loop=loop)
 
     with await pool as conn:
@@ -15,7 +15,7 @@ async def test_await(create_pool, server, loop):
 @pytest.mark.run_loop
 async def test_async_with(create_pool, server, loop):
     pool = await create_pool(
-        ('localhost', server.port),
+        server.tcp_address,
         minsize=10, loop=loop)
 
     async with pool.get() as conn:
