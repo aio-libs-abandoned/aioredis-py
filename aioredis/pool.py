@@ -73,6 +73,11 @@ class ConnectionsPool:
         self._close_state = asyncio.Event(loop=loop)
         self._close_waiter = async_task(self._do_close(), loop=loop)
 
+    def __repr__(self):
+        return '<{} [db:{}, size:[{}:{}], free:{}]>'.format(
+            self.__class__.__name__, self.db,
+            self.minsize, self.maxsize, self.freesize)
+
     @property
     def minsize(self):
         """Minimum pool size."""
@@ -181,6 +186,11 @@ class ConnectionsPool:
             return conn, None
         return None, None
 
+    @asyncio.coroutine
+    def get_atomic_connection(self):    # XXX: drop this
+        conn, addr = (yield from self.acquire())
+        return conn
+
     def _check_result(self, fut, *data):
         """Hook to check result or catch exception (like MovedError).
 
@@ -203,14 +213,23 @@ class ConnectionsPool:
 
         All previously acquired connections will be closed when released.
         """
+        res = True
         with (yield from self._cond):
             for i in range(self.freesize):
-                yield from self._pool[i].select(db)
+                res = res and (yield from self._pool[i].select(db))
             else:
                 self._db = db
+        return res
 
     @asyncio.coroutine
-    def acquire(self):
+    def auth(self, password):
+        self._password = password
+        with (yield from self._cond):
+            for i in range(self.freesize):
+                yield from self._pool[i].auth(password)
+
+    @asyncio.coroutine
+    def acquire(self, command=None, args=()):
         """Acquires a connection from free pool.
 
         Creates new connection if needed.
