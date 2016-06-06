@@ -35,6 +35,36 @@ def test_client_list(redis, server):
 
 
 @pytest.mark.run_loop
+def test_client_list__unixsocket(create_redis, loop, server):
+    redis = yield from create_redis(server.unixsocket, loop=loop)
+    res = yield from redis.client_list()
+    assert len(res) == 1
+    info = dict(res[0]._asdict())
+    expected = {
+        'addr': '{}:0'.format(server.unixsocket),
+        'fd': mock.ANY,
+        'age': '0',
+        'idle': '0',
+        'flags': 'U',   # Conneted via unix socket
+        'db': '0',
+        'sub': '0',
+        'psub': '0',
+        'multi': '-1',
+        'qbuf': '0',
+        'qbuf_free': mock.ANY,
+        'obl': '0',
+        'oll': '0',
+        'omem': '0',
+        'events': 'r',
+        'cmd': 'client',
+        'name': '',
+        }
+    if server.version >= (2, 8, 12):
+        expected['id'] = mock.ANY
+    assert info == expected
+
+
+@pytest.mark.run_loop
 @pytest.redis_version(
     2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 def test_client_pause(redis):
