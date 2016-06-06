@@ -65,6 +65,12 @@ Connection usage is as simple as:
 
    Redis connection interface.
 
+   .. attribute:: address
+
+      Redis server address; either host-port tuple or unix socket str (*read-only*).
+
+      .. versionadded:: v0.2.8
+
    .. attribute:: db
 
       Current database index (*read-only*).
