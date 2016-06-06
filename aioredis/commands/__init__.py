@@ -1,6 +1,7 @@
 import asyncio
 
 from aioredis.connection import create_connection
+from aioredis.pool import create_pool
 from aioredis.util import _NOTSET
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
@@ -23,33 +24,33 @@ __all__ = [
 ]
 
 
-class AutoConnector(object):
-    closed = False
-
-    def __init__(self, *conn_args, **conn_kwargs):
-        self._conn_args = conn_args
-        self._conn_kwargs = conn_kwargs
-        self._conn = None
-        self._loop = conn_kwargs.get('loop')
-        self._lock = asyncio.Lock(loop=self._loop)
-
-    def __repr__(self):
-        return '<AutoConnector {!r}>'.format(self._conn)
-
-    @asyncio.coroutine
-    def execute(self, *args, **kwargs):
-        conn = yield from self.get_atomic_connection()
-        return (yield from conn.execute(*args, **kwargs))
-
-    @asyncio.coroutine
-    def get_atomic_connection(self):
-        if self._conn is None or self._conn.closed:
-            with (yield from self._lock):
-                if self._conn is None or self._conn.closed:
-                    conn = yield from create_connection(
-                        *self._conn_args, **self._conn_kwargs)
-                    self._conn = conn
-        return self._conn
+# class AutoConnector(object):
+#     closed = False
+#
+#     def __init__(self, *conn_args, **conn_kwargs):
+#         self._conn_args = conn_args
+#         self._conn_kwargs = conn_kwargs
+#         self._conn = None
+#         self._loop = conn_kwargs.get('loop')
+#         self._lock = asyncio.Lock(loop=self._loop)
+#
+#     def __repr__(self):
+#         return '<AutoConnector {!r}>'.format(self._conn)
+#
+#     @asyncio.coroutine
+#     def execute(self, *args, **kwargs):
+#         conn = yield from self.get_atomic_connection()
+#         return (yield from conn.execute(*args, **kwargs))
+#
+#     @asyncio.coroutine
+#     def get_atomic_connection(self):
+#         if self._conn is None or self._conn.closed:
+#             with (yield from self._lock):
+#                 if self._conn is None or self._conn.closed:
+#                     conn = yield from create_connection(
+#                         *self._conn_args, **self._conn_kwargs)
+#                     self._conn = conn
+#         return self._conn
 
 
 class Redis(GenericCommandsMixin, StringCommandsMixin,
@@ -93,7 +94,9 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     @property
     def connection(self):
-        """:class:`aioredis.RedisConnection` instance."""
+        """Either :class:`aioredis.RedisConnection`,
+        or :class:`aioredis.ConnectionsPool` instance.
+        """
         return self._pool_or_conn
 
     @property
@@ -124,6 +127,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     def quit(self):
         """Close the connection."""
+        # TODO: warn when using pool
         return self.execute('QUIT')
 
     def select(self, db):
@@ -151,20 +155,37 @@ def create_redis(address, *, db=None, password=None, ssl=None,
 
 
 @asyncio.coroutine
-def create_reconnecting_redis(address, *, db=None, password=None, ssl=None,
-                              encoding=None, commands_factory=Redis,
-                              loop=None):
+def create_redis_pool(address, *, db=0, password=None, ssl=None,
+                      encoding=None, commands_factory=Redis,
+                      loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    # Note: this is not coroutine, but we may make it such. We may start
-    # a first connection in it, or just resolve DNS. So let's keep it
-    # coroutine for forward compatibility
-    conn = AutoConnector(address,
-                         db=db, password=password, ssl=ssl,
-                         encoding=encoding, loop=loop)
-    return commands_factory(conn)
+    pool = yield from create_pool(address, db=db,
+                                  password=password,
+                                  ssl=ssl,
+                                  encoding=encoding,
+                                  loop=loop)
+    return commands_factory(pool)
+
+
+create_reconnecting_redis = create_redis_pool
+# @asyncio.coroutine
+# def create_reconnecting_redis(address, *, db=None, password=None, ssl=None,
+#                               encoding=None, commands_factory=Redis,
+#                               loop=None):
+#     """Creates high-level Redis interface.
+#
+#     This function is a coroutine.
+#     """
+#     # Note: this is not coroutine, but we may make it such. We may start
+#     # a first connection in it, or just resolve DNS. So let's keep it
+#     # coroutine for forward compatibility
+#     conn = AutoConnector(address,
+#                          db=db, password=password, ssl=ssl,
+#                          encoding=encoding, loop=loop)
+#     return commands_factory(conn)
 
 
 # make pyflakes happy

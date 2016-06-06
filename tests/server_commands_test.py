@@ -11,6 +11,7 @@ from aioredis import ReplyError
 def test_client_list(redis, server):
     res = yield from redis.client_list()
     assert isinstance(res, list)
+    assert len(res) == 1
     res = [dict(i._asdict()) for i in res]
     expected = {
         'addr': mock.ANY,
