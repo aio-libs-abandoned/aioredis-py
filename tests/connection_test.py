@@ -16,13 +16,17 @@ def test_connect_tcp(request, create_connection, loop, server):
     conn = yield from create_connection(
         server.tcp_address, loop=loop)
     assert conn.db == 0
-    assert conn.address == ('127.0.0.1', server.tcp_address.port)
+    assert isinstance(conn.address, tuple)
+    assert conn.address[0] in ('127.0.0.1', '::1')
+    assert conn.address[1] == server.tcp_address.port
     assert str(conn) == '<RedisConnection [db:0]>'
 
     conn = yield from create_connection(
         ['localhost', server.tcp_address.port], loop=loop)
     assert conn.db == 0
-    assert conn.address == ('127.0.0.1', server.tcp_address.port)
+    assert isinstance(conn.address, tuple)
+    assert conn.address[0] in ('127.0.0.1', '::1')
+    assert conn.address[1] == server.tcp_address.port
     assert str(conn) == '<RedisConnection [db:0]>'
 
 

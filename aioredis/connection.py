@@ -70,14 +70,15 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        address = tuple(address)
+            address = sock.getpeername()
+        address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
         reader, writer = yield from asyncio.open_unix_connection(
             address, ssl=ssl, loop=loop)
         sock = writer.transport.get_extra_info('socket')
-    if sock is not None:
-        address = sock.getpeername()
+        if sock is not None:
+            address = sock.getpeername()
     conn = RedisConnection(reader, writer, encoding=encoding,
                            address=address, loop=loop)
 
