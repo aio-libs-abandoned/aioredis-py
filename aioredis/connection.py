@@ -70,11 +70,16 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        address = tuple(address)
     else:
         logger.debug("Creating unix connection to %r", address)
         reader, writer = yield from asyncio.open_unix_connection(
             address, ssl=ssl, loop=loop)
-    conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
+        sock = writer.transport.get_extra_info('socket')
+    if sock is not None:
+        address = sock.getpeername()
+    conn = RedisConnection(reader, writer, encoding=encoding,
+                           address=address, loop=loop)
 
     try:
         if password is not None:
@@ -91,11 +96,12 @@ def create_connection(address, *, db=None, password=None, ssl=None,
 class RedisConnection:
     """Redis connection."""
 
-    def __init__(self, reader, writer, *, encoding=None, loop=None):
+    def __init__(self, reader, writer, *, address, encoding=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._reader = reader
         self._writer = writer
+        self._address = address
         self._loop = loop
         self._waiters = deque()
         self._parser = hiredis.Reader(protocolError=ProtocolError,
@@ -324,6 +330,11 @@ class RedisConnection:
     def encoding(self):
         """Current set codec or None."""
         return self._encoding
+
+    @property
+    def address(self):
+        """Redis server address, either host-port tuple or str."""
+        return self._address
 
     def select(self, db):
         """Change the selected database for the current connection."""
