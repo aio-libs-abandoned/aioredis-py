@@ -67,7 +67,8 @@ Connection usage is as simple as:
 
    .. attribute:: address
 
-      Redis server address; either host-port tuple or unix socket str (*read-only*).
+      Redis server address; either IP-port tuple or unix socket str (*read-only*).
+      IP is either IPv4 or IPv6 depending on resolved host part in initial address.
 
       .. versionadded:: v0.2.8
 
