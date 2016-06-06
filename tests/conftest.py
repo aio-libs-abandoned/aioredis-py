@@ -58,13 +58,16 @@ def create_connection(_closable):
     return f
 
 
-@pytest.fixture
-def create_redis(_closable, loop):
+@pytest.fixture(params=['single', 'pool'])
+def create_redis(_closable, loop, request):
     """Wrapper around aioredis.create_redis."""
 
     @asyncio.coroutine
     def f(*args, **kw):
-        redis = yield from aioredis.create_redis(*args, **kw)
+        if request.param == 'single':
+            redis = yield from aioredis.create_redis(*args, **kw)
+        else:
+            redis = yield from aioredis.create_redis_pool(*args, **kw)
         _closable(redis)
         return redis
     return f
