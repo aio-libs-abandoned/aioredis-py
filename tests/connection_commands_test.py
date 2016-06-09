@@ -2,17 +2,24 @@ import pytest
 import sys
 
 from aioredis import ConnectionClosedError, ReplyError
+from aioredis.pool import ConnectionsPool
 
 
 @pytest.mark.run_loop
 def test_repr(create_redis, loop, server):
     redis = yield from create_redis(
         server.tcp_address, db=1, loop=loop)
-    assert repr(redis) == '<Redis <RedisConnection [db:1]>>'
+    assert repr(redis) in {
+        '<Redis <RedisConnection [db:1]>>',
+        '<Redis <ConnectionsPool [db:1, size:[1:10], free:1]>>',
+        }
 
     redis = yield from create_redis(
         server.tcp_address, db=0, loop=loop)
-    assert repr(redis) == '<Redis <RedisConnection [db:0]>>'
+    assert repr(redis) in {
+        '<Redis <RedisConnection [db:0]>>',
+        '<Redis <ConnectionsPool [db:0, size:[1:10], free:1]>>',
+        }
 
 
 @pytest.mark.run_loop
@@ -44,8 +51,9 @@ def test_quit(redis):
     resp = yield from redis.quit()
     assert resp == b'OK'
 
-    with pytest.raises(ConnectionClosedError):
-        yield from redis.ping()
+    if not isinstance(redis._pool_or_conn, ConnectionsPool):
+        with pytest.raises(ConnectionClosedError):
+            yield from redis.ping()
 
 
 @pytest.mark.run_loop
