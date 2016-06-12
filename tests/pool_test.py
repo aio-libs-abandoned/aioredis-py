@@ -156,8 +156,9 @@ def test_release_bad_connection(create_pool, create_redis, loop, server):
     pool = yield from create_pool(
         server.tcp_address,
         loop=loop)
-    conn, address = yield from pool.acquire()
-    assert address == server.tcp_address
+    conn = yield from pool.acquire()
+    assert conn.address[0] in ('127.0.0.1', '::1')
+    assert conn.address[1] == server.tcp_address.port
     other_conn = yield from create_redis(
         server.tcp_address,
         loop=loop)
@@ -249,9 +250,9 @@ def test_select_and_create(create_pool, loop, server):
         db = 0
         while True:
             db = (db + 1) & 1
-            _, (conn, address) = yield from asyncio.gather(pool.select(db),
-                                                           pool.acquire(),
-                                                           loop=loop)
+            _, conn = yield from asyncio.gather(pool.select(db),
+                                                pool.acquire(),
+                                                loop=loop)
             assert pool.db == db
             pool.release(conn)
             if conn.db == db:
