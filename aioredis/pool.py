@@ -2,8 +2,9 @@ import asyncio
 import collections
 import sys
 import warnings
+import types
 
-from .connection import create_connection
+from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
 from .util import async_task, _NOTSET
 from .errors import PoolClosedError
@@ -72,6 +73,7 @@ class ConnectionsPool:
         self._cond = asyncio.Condition(loop=loop)
         self._close_state = asyncio.Event(loop=loop)
         self._close_waiter = async_task(self._do_close(), loop=loop)
+        self._pubsub_conn = None
 
     def __repr__(self):
         return '<{} [db:{}, size:[{}:{}], free:{}]>'.format(
@@ -163,32 +165,55 @@ class ConnectionsPool:
         If no connection is found, returns coroutine waiting for
         free connection to execute command.
         """
-        conn = self.get_connection(command, args)
+        conn, address = self.get_connection(command, args)
         if conn is not None:
             fut = conn.execute(command, *args, **kw)
             return self._check_result(fut, command, args, kw)
         else:
-            coro = self._wait_execute(conn.address, command, args, kw)
+            coro = self._wait_execute(address, command, args, kw)
             return self._check_result(coro, command, args, kw)
 
-    def get_connection(self, command, args):
+    def execute_pubsub(self, command, *channels):
+        """Executes Redis (p)subscribe/(p)unsubscribe commands.
+
+        ConnectionsPool creates new separate connection for pubsub
+        and uses it until explicitly closed or disconnected.
+
+        There is no auto-reconnect for this PUB/SUB connection.
+
+        Returns asyncio.gather coroutine waiting for all channels/patterns
+        to receive answers.
+        """
+        conn, address = self.get_connection(command)
+        if conn is not None:
+            return conn.execute_pubsub(command, *channels)
+        else:
+            return self._wait_execute_pubsub(address, command, channels, {})
+        pass
+
+    def get_connection(self, command, args=()):
         """Get free connection from pool.
 
         Returns connection.
         """
         # TODO: find a better way to determine if connection is free
         #       and not havily used.
+        command = command.upper().strip()
+        is_pubsub = command in _PUBSUB_COMMANDS
+        if is_pubsub and self._pubsub_conn:
+            if not self._pubsub_conn.closed:
+                return self._pubsub_conn, self._pubsub_conn.address
+            self._pubsub_conn = None
         for i in range(self.freesize):
             conn = self._pool[0]
             self._pool.rotate(1)
             if conn.closed:  # or conn._waiters:
                 continue
-            return conn
-        return None
-
-    @asyncio.coroutine
-    def get_atomic_connection(self):    # XXX: drop this
-        return (yield from self.acquire())
+            if is_pubsub:
+                self._pubsub_conn = conn
+                self._used.add(conn)
+            return conn, conn.address
+        return None, self._address  # figure out
 
     def _check_result(self, fut, *data):
         """Hook to check result or catch exception (like MovedError).
@@ -205,6 +230,21 @@ class ConnectionsPool:
             return (yield from conn.execute(command, *args, **kw))
         finally:
             self.release(conn)
+
+    @asyncio.coroutine
+    def _wait_execute_pubsub(self, address, command, args, kw):
+        if self.closed:
+            raise PoolClosedError("Pool is closed")
+        assert self._pubsub_conn is None or self._pubsub_conn.closed, (
+            "Expected no or closed connection", self._pubsub_conn)
+        with (yield from self._cond):
+            if self.closed:
+                raise PoolClosedError("Pool is closed")
+            if self._pubsub_conn is None or self._pubsub_conn.closed:
+                conn = yield from self._create_new_connection(address)
+                self._pubsub_conn = conn
+            conn = self._pubsub_conn
+            return (yield from conn.execute_pubsub(command, *args, **kw))
 
     @asyncio.coroutine
     def select(self, db):
@@ -226,6 +266,24 @@ class ConnectionsPool:
         with (yield from self._cond):
             for i in range(self.freesize):
                 yield from self._pool[i].auth(password)
+
+    @property
+    def in_pubsub(self):
+        if self._pubsub_conn and not self._pubsub_conn.closed:
+            return self._pubsub_conn.in_pubsub
+        return 0
+
+    @property
+    def pubsub_channels(self):
+        if self._pubsub_conn and not self._pubsub_conn.closed:
+            return self._pubsub_conn.pubsub_channels
+        return types.MappingProxyType({})
+
+    @property
+    def pubsub_patterns(self):
+        if self._pubsub_conn and not self._pubsub_conn.closed:
+            return self._pubsub_conn.pubsub_patterns
+        return types.MappingProxyType({})
 
     @asyncio.coroutine
     def acquire(self, command=None, args=()):
