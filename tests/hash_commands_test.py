@@ -264,6 +264,9 @@ def test_hmset(redis):
     with pytest.raises(TypeError):
         yield from redis.hmset(None, *pairs)
 
+    with pytest.raises(TypeError):
+        yield from redis.hmset(key)
+
 
 @pytest.mark.run_loop
 def test_hset(redis):
