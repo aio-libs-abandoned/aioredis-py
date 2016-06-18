@@ -1,3 +1,7 @@
+import collections
+import functools
+import operator
+
 from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET, PY_35
 
 if PY_35:
@@ -50,12 +54,32 @@ class HashCommandsMixin:
         return self._conn.execute(b'HMGET', key, field, *fields,
                                   encoding=encoding)
 
-    # TODO: replace args with dict_or_pairs
-    def hmset(self, key, field, value, *pairs):
+    def hmset(self, key, *dicts_or_pairs, **kwpairs):
         """Set multiple hash fields to multiple values."""
-        if len(pairs) % 2 != 0:
-            raise TypeError("length of pairs must be even number")
-        return wait_ok(self._conn.execute(b'HMSET', key, field, value, *pairs))
+        acc = collections.OrderedDict()  # 'a' != b'a'
+        for i in dicts_or_pairs:
+            if isinstance(i, dict):
+                acc.update(i.items())
+            else:
+                acc.clear()
+                pairs = dicts_or_pairs
+                break
+        else:
+            pairs = ()
+
+        if not acc and not pairs and not kwpairs:
+            raise TypeError(
+                "length of dicts_or_pairs or kwpairs must be > 0")
+        elif len(pairs) % 2 != 0:
+            raise TypeError("length of dicts_or_pairs must be even number")
+
+        if kwpairs:
+            acc.update(kwpairs)
+
+        if acc:
+            pairs += functools.reduce(operator.add, acc.items())
+
+        return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
 
     def hset(self, key, field, value):
         """Set the string value of a hash field."""
