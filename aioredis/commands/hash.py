@@ -56,28 +56,34 @@ class HashCommandsMixin:
 
     def hmset(self, key, *dicts_or_pairs, **kwpairs):
         """Set multiple hash fields to multiple values."""
-        acc = collections.OrderedDict()  # 'a' != b'a'
+        if not dicts_or_pairs and not kwpairs:
+            raise TypeError(
+                "length of dicts_or_pairs or kwpairs must be > 0")
+
+        acc = None
         for i in dicts_or_pairs:
             if isinstance(i, dict):
-                acc.update(i.items())
+                if acc is None:
+                    # key: '1' != b'1' != 1
+                    acc = collections.OrderedDict()
+                acc.update(i)
             else:
-                acc.clear()
+                acc = None
                 pairs = dicts_or_pairs
                 break
         else:
             pairs = ()
 
-        if not acc and not pairs and not kwpairs:
-            raise TypeError(
-                "length of dicts_or_pairs or kwpairs must be > 0")
-        elif len(pairs) % 2 != 0:
+        if pairs and len(pairs) % 2 != 0:
             raise TypeError("length of dicts_or_pairs must be even number")
 
-        if kwpairs:
+        if kwpairs and not acc:
+            acc = kwpairs
+        elif kwpairs:
             acc.update(kwpairs)
 
         if acc:
-            pairs += functools.reduce(operator.add, acc.items())
+            pairs = functools.reduce(operator.add, acc.items(), pairs)
 
         return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
 
