@@ -189,7 +189,6 @@ class ConnectionsPool:
             return conn.execute_pubsub(command, *channels)
         else:
             return self._wait_execute_pubsub(address, command, channels, {})
-        pass
 
     def get_connection(self, command, args=()):
         """Get free connection from pool.

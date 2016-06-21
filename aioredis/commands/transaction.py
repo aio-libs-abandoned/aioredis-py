@@ -161,7 +161,7 @@ class Pipeline:
 
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
-        conn = yield from self._conn.get_atomic_connection()
+        conn = self._conn
         yield from asyncio.gather(*self._send_pipeline(conn),
                                   loop=self._loop,
                                   return_exceptions=True)
@@ -242,7 +242,7 @@ class MultiExec(Pipeline):
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
         self._waiters = waiters = []
-        conn = yield from self._conn.get_atomic_connection()
+        conn = self._conn
         multi = conn.execute('MULTI')
         coros = list(self._send_pipeline(conn))
         exec_ = conn.execute('EXEC')
