@@ -54,14 +54,14 @@ class HashCommandsMixin:
         return self._conn.execute(b'HMGET', key, field, *fields,
                                   encoding=encoding)
 
-    def hmset(self, key, *dicts_or_pairs, **kwpairs):
+    def hmset(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values."""
-        if not dicts_or_pairs and not kwpairs:
+        if not args and not kwargs:
             raise TypeError(
-                "length of dicts_or_pairs or kwpairs must be > 0")
+                "length of args or kwargs must be > 0")
 
         acc = None
-        for i in dicts_or_pairs:
+        for i in args:
             if isinstance(i, dict):
                 if acc is None:
                     # key: '1' != b'1' != 1
@@ -69,7 +69,7 @@ class HashCommandsMixin:
                 acc.update(i)
             else:
                 acc = None
-                pairs = dicts_or_pairs
+                pairs = args
                 break
         else:
             pairs = ()
@@ -77,10 +77,10 @@ class HashCommandsMixin:
         if pairs and len(pairs) % 2 != 0:
             raise TypeError("length of dicts_or_pairs must be even number")
 
-        if kwpairs and not acc:
-            acc = kwpairs
-        elif kwpairs:
-            acc.update(kwpairs)
+        if kwargs and not acc:
+            acc = kwargs
+        elif kwargs:
+            acc.update(kwargs)
 
         if acc:
             pairs = functools.reduce(operator.add, acc.items(), pairs)
