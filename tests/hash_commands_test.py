@@ -259,7 +259,7 @@ def test_hmset(redis):
     assert test_value == b'kw'
 
     with pytest.raises(TypeError):
-        yield from redis.hset(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)
+        yield from redis.hmset(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)
 
     with pytest.raises(TypeError):
         yield from redis.hmset(key, b'foo', b'bar', b'baz')
