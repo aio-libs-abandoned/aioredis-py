@@ -67,6 +67,8 @@ class HashCommandsMixin:
                     # key: '1' != b'1' != 1
                     acc = collections.OrderedDict()
                 acc.update(i)
+            elif acc is not None:
+                raise TypeError("not supported mixed type of args")
             else:
                 acc = None
                 pairs = args
