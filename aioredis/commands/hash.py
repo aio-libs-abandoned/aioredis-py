@@ -76,7 +76,7 @@ class HashCommandsMixin:
             raise TypeError("not supported mixed type of args")
 
         elif len(args) % 2 != 0:
-            raise TypeError("length of dicts_or_pairs must be even number")
+            raise TypeError("length of args must be even number")
 
         else:
             pairs = args
