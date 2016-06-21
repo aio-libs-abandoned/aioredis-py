@@ -56,36 +56,30 @@ class HashCommandsMixin:
 
     def hmset(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values."""
-        if not args and not kwargs:
-            raise TypeError(
-                "length of args or kwargs must be > 0")
+        if args:
+            is_dict = tuple(map(lambda x: isinstance(x, dict), args))
+        elif not kwargs:
+            raise TypeError("length of args or kwargs must be > 0")
 
-        acc = None
-        for i in args:
-            if isinstance(i, dict):
-                if acc is None:
-                    # key: '1' != b'1' != 1
-                    acc = collections.OrderedDict()
+        if not args:
+            pairs = functools.reduce(operator.add, kwargs.items())
+
+        elif all(is_dict):
+            acc = collections.OrderedDict()
+            for i in args:
                 acc.update(i)
-            elif acc is not None:
-                raise TypeError("not supported mixed type of args")
-            else:
-                acc = None
-                pairs = args
-                break
-        else:
-            pairs = ()
+            if kwargs:
+                acc.update(kwargs)
+            pairs = functools.reduce(operator.add, acc.items())
 
-        if pairs and len(pairs) % 2 != 0:
+        elif any(is_dict):
+            raise TypeError("not supported mixed type of args")
+
+        elif len(args) % 2 != 0:
             raise TypeError("length of dicts_or_pairs must be even number")
 
-        if kwargs and not acc:
-            acc = kwargs
-        elif kwargs:
-            acc.update(kwargs)
-
-        if acc:
-            pairs = functools.reduce(operator.add, acc.items(), pairs)
+        else:
+            pairs = args
 
         return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
 
