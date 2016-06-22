@@ -1,8 +1,11 @@
-import collections
-import functools
-import operator
-
-from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET, PY_35
+from aioredis.util import (
+    wait_ok,
+    wait_convert,
+    wait_make_dict,
+    make_pairs,
+    _NOTSET,
+    PY_35,
+    )
 
 if PY_35:
     from aioredis.util import _ScanIterPairs
@@ -56,38 +59,7 @@ class HashCommandsMixin:
 
     def hmset(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values."""
-        if len(args) == 1 and isinstance(args[0], dict):
-            is_dict = True
-        elif args:
-            is_dict = tuple(map(lambda x: isinstance(x, dict), args))
-        elif not kwargs:
-            raise TypeError("length of args or kwargs must be > 0")
-
-        if not args:
-            pairs = functools.reduce(operator.add, kwargs.items())
-
-        elif is_dict is True:
-            pairs = functools.reduce(operator.add, args[0].items())
-            if kwargs:
-                pairs = functools.reduce(operator.add, kwargs.items(), pairs)
-
-        elif all(is_dict):
-            acc = collections.OrderedDict()
-            for i in args:
-                acc.update(i)
-            if kwargs:
-                acc.update(kwargs)
-            pairs = functools.reduce(operator.add, acc.items())
-
-        elif any(is_dict):
-            raise TypeError("not supported mixed type of args")
-
-        elif len(args) % 2 != 0:
-            raise TypeError("length of args must be even number")
-
-        else:
-            pairs = args
-
+        pairs = make_pairs(*args, **kwargs)
         return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
 
     def hset(self, key, field, value):
