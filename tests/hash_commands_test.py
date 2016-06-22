@@ -258,6 +258,12 @@ def test_hmset(redis):
     test_value = yield from redis.hmget(key, b'foo', b'bar')
     assert set(test_value) == {b'kw1', b'kw2'}
 
+    # pair & kwdict
+    test_value = yield from redis.hmset(key, b'foo', 'pairs', foo=b'kw1')
+    assert test_value is True
+    test_value = yield from redis.hget(key, b'foo')
+    assert test_value == b'kw1'
+
     # dict & kwdict
     d1 = {b'foo': b'dict'}
     test_value = yield from redis.hmset(key, d1, foo=b'kw')
