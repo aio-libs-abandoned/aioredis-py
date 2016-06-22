@@ -365,8 +365,6 @@ def test_hvals(redis):
 @pytest.mark.run_loop
 def test_hscan(redis):
     key = b'key:hscan'
-    for k in (yield from redis.keys(key+b'*')):
-        redis.delete(k)
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
     for i in range(1, 11):
         foo_or_bar = 'bar' if i % 3 else 'foo'

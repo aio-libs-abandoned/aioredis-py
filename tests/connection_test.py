@@ -106,10 +106,11 @@ def test_close_connection__tcp(create_connection, loop, server):
 
     conn = loop.run_until_complete(create_connection(
         server.tcp_address, loop=loop))
+    conn.close()
+    fut = None
     with pytest.raises(ConnectionClosedError):
-        conn.close()
         fut = conn.select(1)
-        loop.run_until_complete(fut)
+    assert fut is None
 
     conn = loop.run_until_complete(create_connection(
         server.tcp_address, loop=loop))
