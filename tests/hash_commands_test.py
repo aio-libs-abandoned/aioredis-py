@@ -244,14 +244,6 @@ def test_hmset(redis):
     test_value = yield from redis.hget(key, b'foo')
     assert test_value == b'one dict'
 
-    # dicts
-    d1 = {b'foo': b'dicts1'}
-    d2 = {b'bar': b'dicts2'}
-    test_value = yield from redis.hmset(key, d1, d2)
-    assert test_value is True
-    test_value = yield from redis.hmget(key, b'foo', b'bar')
-    assert set(test_value) == {b'dicts1', b'dicts2'}
-
     # kwdict
     test_value = yield from redis.hmset(key, foo=b'kw1', bar=b'kw2')
     assert test_value is True
@@ -270,14 +262,6 @@ def test_hmset(redis):
     assert test_value is True
     test_value = yield from redis.hget(key, b'foo')
     assert test_value == b'kw'
-
-    # dicts & kwdict
-    d1 = {b'foo': b'dicts1'}
-    d2 = {b'bar': b'dicts2'}
-    test_value = yield from redis.hmset(key, d1, d2, foo=b'kw')
-    assert test_value is True
-    test_value = yield from redis.hmget(key, b'foo', b'bar')
-    assert set(test_value) == {b'dicts2', b'kw'}
 
     with pytest.raises(TypeError):
         yield from redis.hmset(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)

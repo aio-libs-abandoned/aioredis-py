@@ -1,5 +1,4 @@
 import asyncio
-import collections
 import functools
 import json
 import operator
@@ -324,32 +323,15 @@ else:
         return asyncio.Future(loop=loop)
 
 
+make_flat = functools.partial(functools.reduce, operator.add)
+
+
 def make_pairs(*args, **kwargs):
-    if len(args) == 1 and isinstance(args[0], dict):
-        is_dict = True
-    elif args:
-        is_dict = tuple(map(lambda x: isinstance(x, dict), args))
-    elif not kwargs:
+    if not args and not kwargs:
         raise TypeError("length of args or kwargs must be > 0")
 
-    make_flat = functools.partial(functools.reduce, operator.add)
-
-    if not args:
-        return make_flat(kwargs.items())
-
-    elif is_dict is True:
+    elif len(args) == 1 and isinstance(args[0], dict):
         pairs = make_flat(args[0].items())
-
-    elif all(is_dict):
-        acc = collections.OrderedDict()
-        for i in args:
-            acc.update(i)
-        if kwargs:
-            acc.update(kwargs)
-        return make_flat(acc.items())
-
-    elif any(is_dict):
-        raise TypeError("not supported mixed type of args")
 
     elif len(args) % 2 != 0:
         raise TypeError("length of args must be even number")
@@ -359,4 +341,6 @@ def make_pairs(*args, **kwargs):
 
     if kwargs:
         pairs = make_flat(kwargs.items(), pairs)
+
     return pairs
+
