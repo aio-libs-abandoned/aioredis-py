@@ -56,13 +56,20 @@ class HashCommandsMixin:
 
     def hmset(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values."""
-        if args:
+        if len(args) == 1 and isinstance(args[0], dict):
+            is_dict = True
+        elif args:
             is_dict = tuple(map(lambda x: isinstance(x, dict), args))
         elif not kwargs:
             raise TypeError("length of args or kwargs must be > 0")
 
         if not args:
             pairs = functools.reduce(operator.add, kwargs.items())
+
+        elif is_dict is True:
+            pairs = functools.reduce(operator.add, args[0].items())
+            if kwargs:
+                pairs = functools.reduce(operator.add, kwargs.items(), pairs)
 
         elif all(is_dict):
             acc = collections.OrderedDict()
