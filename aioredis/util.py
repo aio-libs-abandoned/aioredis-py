@@ -1,8 +1,7 @@
 import asyncio
-import functools
 import json
-import operator
 import sys
+from itertools import chain
 
 from asyncio.base_events import BaseEventLoop
 
@@ -323,15 +322,12 @@ else:
         return asyncio.Future(loop=loop)
 
 
-make_flat = functools.partial(functools.reduce, operator.add)
-
-
 def make_pairs(*args, **kwargs):
     if not args and not kwargs:
         raise TypeError("length of args or kwargs must be > 0")
 
     elif len(args) == 1 and isinstance(args[0], dict):
-        pairs = make_flat(args[0].items())
+        pairs = chain.from_iterable(args[0].items())
 
     elif len(args) % 2 != 0:
         raise TypeError("length of args must be even number")
@@ -340,7 +336,6 @@ def make_pairs(*args, **kwargs):
         pairs = args
 
     if kwargs:
-        pairs = make_flat(kwargs.items(), pairs)
+        pairs = chain(pairs, chain.from_iterable(kwargs.items()))
 
-    return pairs
-
+    return tuple(pairs)
