@@ -19,19 +19,21 @@ async def pubsub():
             if msg == STOPWORD:
                 return
 
-    with await pool as redis:
-        channel, = await redis.subscribe('channel:1')
+    with await pool as conn:
+        await conn.execute_pubsub('subscribe', 'channel:1')
+        channel = conn.pubsub_channels['channel:1']
         await reader(channel)  # wait for reader to complete
-        await redis.unsubscribe('channel:1')
+        await conn.execute_pubsub('unsubscribe', 'channel:1')
 
-    # Explicit redis usage
-    redis = await pool.acquire()
+    # Explicit connection usage
+    conn = await pool.acquire()
     try:
-        channel, = await redis.subscribe('channel:1')
+        await conn.execute_pubsub('subscribe', 'channel:1')
+        channel = conn.pubsub_channels['channel:1']
         await reader(channel)  # wait for reader to complete
-        await redis.unsubscribe('channel:1')
+        await conn.execute_pubsub('unsubscribe', 'channel:1')
     finally:
-        pool.release(redis)
+        pool.release(conn)
 
     pool.close()
     await pool.wait_closed()    # closing all open connections

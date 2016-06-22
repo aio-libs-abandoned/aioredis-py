@@ -27,7 +27,8 @@ RedisPool = ConnectionsPool
 # make pyflakes happy
 (create_connection, RedisConnection,
  create_redis, create_reconnecting_redis, Redis,
- create_pool, RedisPool, ConnectionsPool, Channel,
+ create_redis_pool, create_pool,
+ RedisPool, ConnectionsPool, Channel,
  RedisError, ProtocolError, ReplyError,
  PipelineError, MultiExecError, ConnectionClosedError,
  ChannelClosedError, WatchVariableError,
