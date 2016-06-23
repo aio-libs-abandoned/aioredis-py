@@ -237,35 +237,6 @@ def test_hmset(redis):
     test_value = yield from redis.hmget(key, b'foo', b'bar')
     assert set(test_value) == {b'baz', b'paz'}
 
-    # dict
-    d1 = {b'foo': b'one dict'}
-    test_value = yield from redis.hmset(key, d1)
-    assert test_value is True
-    test_value = yield from redis.hget(key, b'foo')
-    assert test_value == b'one dict'
-
-    # kwdict
-    test_value = yield from redis.hmset(key, foo=b'kw1', bar=b'kw2')
-    assert test_value is True
-    test_value = yield from redis.hmget(key, b'foo', b'bar')
-    assert set(test_value) == {b'kw1', b'kw2'}
-
-    # pair & kwdict
-    test_value = yield from redis.hmset(key, b'foo', 'pairs', foo=b'kw1')
-    assert test_value is True
-    test_value = yield from redis.hget(key, b'foo')
-    assert test_value == b'kw1'
-
-    # dict & kwdict
-    d1 = {b'foo': b'dict'}
-    test_value = yield from redis.hmset(key, d1, foo=b'kw')
-    assert test_value is True
-    test_value = yield from redis.hget(key, b'foo')
-    assert test_value == b'kw'
-
-    with pytest.raises(TypeError):
-        yield from redis.hmset(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)
-
     with pytest.raises(TypeError):
         yield from redis.hmset(key, b'foo', b'bar', b'baz')
 
@@ -273,7 +244,62 @@ def test_hmset(redis):
         yield from redis.hmset(None, *pairs)
 
     with pytest.raises(TypeError):
+        yield from redis.hmset(key, {'foo': 'bar'}, {'baz': 'bad'})
+
+    with pytest.raises(TypeError):
         yield from redis.hmset(key)
+
+
+@pytest.mark.run_loop
+def test_hmset_dict(redis):
+    key = 'key:hmset'
+
+    # dict
+    d1 = {b'foo': b'one dict'}
+    test_value = yield from redis.hmset_dict(key, d1)
+    assert test_value is True
+    test_value = yield from redis.hget(key, b'foo')
+    assert test_value == b'one dict'
+
+    # kwdict
+    test_value = yield from redis.hmset_dict(key, foo=b'kw1', bar=b'kw2')
+    assert test_value is True
+    test_value = yield from redis.hmget(key, b'foo', b'bar')
+    assert set(test_value) == {b'kw1', b'kw2'}
+
+    # dict & kwdict
+    d1 = {b'foo': b'dict'}
+    test_value = yield from redis.hmset_dict(key, d1, foo=b'kw')
+    assert test_value is True
+    test_value = yield from redis.hget(key, b'foo')
+    assert test_value == b'kw'
+
+    # allow empty dict with kwargs
+    test_value = yield from redis.hmset_dict(key, {}, foo='kw')
+    assert test_value is True
+    test_value = yield from redis.hget(key, 'foo')
+    assert test_value == b'kw'
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key)
+
+    with pytest.raises(ValueError):
+        yield from redis.hmset_dict(key, {})
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key, ('foo', 'pairs'))
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key, b'foo', 'pairs')
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key, b'foo', 'pairs', foo=b'kw1')
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key, {'a': 1}, {'b': 2})
+
+    with pytest.raises(TypeError):
+        yield from redis.hmset_dict(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)
 
 
 @pytest.mark.run_loop

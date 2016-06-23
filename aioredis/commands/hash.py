@@ -1,8 +1,9 @@
+from itertools import chain
+
 from aioredis.util import (
     wait_ok,
     wait_convert,
     wait_make_dict,
-    make_pairs,
     _NOTSET,
     PY_35,
     )
@@ -57,10 +58,52 @@ class HashCommandsMixin:
         return self._conn.execute(b'HMGET', key, field, *fields,
                                   encoding=encoding)
 
-    def hmset(self, key, *args, **kwargs):
+    def hmset(self, key, field, value, *pairs):
         """Set multiple hash fields to multiple values."""
-        pairs = make_pairs(*args, **kwargs)
-        return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
+        if len(pairs) % 2 != 0:
+            raise TypeError("length of pairs must be event number")
+        return wait_ok(self._conn.execute(b'HMSET', key, field, value, *pairs))
+
+    def hmset_dict(self, key, *args, **kwargs):
+        """Set multiple hash fields to multiple values.
+
+        dict can be passed as first positional argument:
+
+        >>> yield from redis.hmset_dict(
+        ...     'key', {'field1': 'value1', 'field2': 'value2'})
+
+        or keyword arguments can be used:
+
+        >>> yield from redis.hmset(
+        ...     'key', field1='value1', field2='value2')
+
+        or dict argument can be mixed with kwargs:
+
+        >>> yield from redis.hmset(
+        ...     'key', {'field1': 'value1'}, field2='value2')
+
+        .. note:: ``dict`` and ``kwargs`` not get mixed into single dictionary,
+           if both specified and both have same key(s) -- ``kwargs`` will win:
+
+           >>> yield from redis.hmset('key', {'foo': 'bar'}, foo='baz')
+           >>> yield from redis.hget('key', 'foo', encoding='utf-8')
+           'baz'
+
+        """
+        if not args and not kwargs:
+            raise TypeError("args or kwargs must be specified")
+        pairs = ()
+        if len(args) > 1:
+            raise TypeError("single positional argument allowed")
+        elif len(args) == 1:
+            if not isinstance(args[0], dict):
+                raise TypeError("args[0] must be dict")
+            elif not args[0] and not kwargs:
+                raise ValueError("args[0] is empty dict")
+            pairs = chain.from_iterable(args[0].items())
+        kwargs_pairs = chain.from_iterable(kwargs.items())
+        return wait_ok(self._conn.execute(
+            b'HMSET', key, *chain(pairs, kwargs_pairs)))
 
     def hset(self, key, field, value):
         """Set the string value of a hash field."""
