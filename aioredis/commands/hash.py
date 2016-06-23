@@ -74,18 +74,18 @@ class HashCommandsMixin:
 
         or keyword arguments can be used:
 
-        >>> yield from redis.hmset(
+        >>> yield from redis.hmset_dict(
         ...     'key', field1='value1', field2='value2')
 
         or dict argument can be mixed with kwargs:
 
-        >>> yield from redis.hmset(
+        >>> yield from redis.hmset_dict(
         ...     'key', {'field1': 'value1'}, field2='value2')
 
         .. note:: ``dict`` and ``kwargs`` not get mixed into single dictionary,
            if both specified and both have same key(s) -- ``kwargs`` will win:
 
-           >>> yield from redis.hmset('key', {'foo': 'bar'}, foo='baz')
+           >>> yield from redis.hmset_dict('key', {'foo': 'bar'}, foo='baz')
            >>> yield from redis.hget('key', 'foo', encoding='utf-8')
            'baz'
 
