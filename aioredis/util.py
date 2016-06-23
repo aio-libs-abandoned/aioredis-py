@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+from itertools import chain
 
 from asyncio.base_events import BaseEventLoop
 
@@ -319,3 +320,22 @@ if hasattr(BaseEventLoop, 'create_future'):
 else:
     def create_future(loop):
         return asyncio.Future(loop=loop)
+
+
+def make_pairs(*args, **kwargs):
+    if not args and not kwargs:
+        raise TypeError("length of args or kwargs must be > 0")
+
+    elif len(args) == 1 and isinstance(args[0], dict):
+        pairs = chain.from_iterable(args[0].items())
+
+    elif len(args) % 2 != 0:
+        raise TypeError("length of args must be even number")
+
+    else:
+        pairs = args
+
+    if kwargs:
+        pairs = chain(pairs, chain.from_iterable(kwargs.items()))
+
+    return tuple(pairs)

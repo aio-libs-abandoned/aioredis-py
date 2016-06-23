@@ -1,4 +1,11 @@
-from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET, PY_35
+from aioredis.util import (
+    wait_ok,
+    wait_convert,
+    wait_make_dict,
+    make_pairs,
+    _NOTSET,
+    PY_35,
+    )
 
 if PY_35:
     from aioredis.util import _ScanIterPairs
@@ -50,12 +57,10 @@ class HashCommandsMixin:
         return self._conn.execute(b'HMGET', key, field, *fields,
                                   encoding=encoding)
 
-    # TODO: replace args with dict_or_pairs
-    def hmset(self, key, field, value, *pairs):
+    def hmset(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values."""
-        if len(pairs) % 2 != 0:
-            raise TypeError("length of pairs must be even number")
-        return wait_ok(self._conn.execute(b'HMSET', key, field, value, *pairs))
+        pairs = make_pairs(*args, **kwargs)
+        return wait_ok(self._conn.execute(b'HMSET', key, *pairs))
 
     def hset(self, key, field, value):
         """Set the string value of a hash field."""
