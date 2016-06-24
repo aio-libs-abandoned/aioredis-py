@@ -29,4 +29,9 @@ Glossary
       A mature full-featured Python testing tool.
       See http://pytest.org/latest/
 
+   uvloop
+
+      Is an ultra fast implementation of asyncio event loop on top of libuv.
+      See https://github.com/MagicStack/uvloop
+
 .. _hiredis: https://github.com/redis/hiredis

@@ -1,11 +1,13 @@
 .. highlight:: bash
 
+.. _github: https://github.com/aio-libs/aioredis
+
 Contributing
 ============
 
 To start contributing you must read all the following.
 
-First you must fork/clone repo from github::
+First you must fork/clone repo from `github`_::
 
    $ git clone git@github.com:aio-libs/aioredis.git
 
@@ -47,6 +49,9 @@ You can run tests in any of the following ways::
    $ py.test --cov
 
 
+SSL tests
+~~~~~~~~~
+
 Running SSL tests requires following additional programs to be installed:
 
 * ``openssl`` -- to generate test key and certificate;
@@ -58,6 +63,25 @@ To install these on Ubuntu and generate test key & certificate run::
    $ sudo apt-get install socat openssl
    $ make certificate
 
+Different Redis server versions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To run tests against different redises use ``--redis-server`` command line
+option::
+
+   $ py.test --redis-server=/path/to/custom/redis-server
+
+UVLoop
+~~~~~~
+
+To run tests with :term:`uvloop`::
+
+   $ pip install uvloop
+   $ py.test --uvloop
+
+.. note:: Until Python 3.5.2 EventLoop has no ``create_future`` method
+   so aioredis won't benefit from uvloop's futures.
+
 
 Writing tests
 -------------
@@ -67,7 +91,7 @@ Writing tests
 Tests are located under ``/tests`` directory.
 
 Pure Python 3.5 tests (ie the ones using async/await syntax) must be
-prefixed with ``py35_``, for intance see::
+prefixed with ``py35_``, for instance see::
 
    tests/py35_generic_commands_tests.py
    tests/py35_pool_test.py
@@ -122,7 +146,7 @@ There is a number of fixtures that can be used to write tests:
 
    Redis client instance.
 
-.. attributes:: pool
+.. attribute:: pool
 
    RedisPool instance.
 
