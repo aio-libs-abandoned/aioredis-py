@@ -54,6 +54,9 @@ def decode(obj, encoding):
         return obj.decode(encoding)
     elif isinstance(obj, list):
         return [decode(o, encoding) for o in obj]
+    elif isinstance(obj, dict):
+        return {decode(k, encoding): decode(v, encoding)
+                for k, v in obj.items()}
     return obj
 
 
