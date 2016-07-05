@@ -1,2 +1,2 @@
 sphinxcontrib-asyncio
-
+sphinxcontrib-spelling

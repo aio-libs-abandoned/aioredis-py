@@ -35,7 +35,16 @@ extensions = [
     'sphinx.ext.autodoc',
 
     'sphinxcontrib.asyncio',
+    'sphinxcontrib.spelling',
 ]
+
+spelling_lang = 'en_US'
+spelling_word_list_filename = 'spelling_wordlist.txt'
+spelling_ignore_pypi_package_names = False
+spelling_ignore_wiki_words = False
+spelling_ignore_acronyms = False
+spelling_ignore_python_builtins = False
+spelling_ignore_importable_modules = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

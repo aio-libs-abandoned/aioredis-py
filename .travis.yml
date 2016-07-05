@@ -4,6 +4,9 @@ addons:
   apt:
     packages:
     - socat
+    - enchant
+    - aspell
+    - aspell-en
 
 language: python
 
@@ -46,6 +49,9 @@ install:
 - pip install "pytest>=2.9.1"
 - pip install pytest-cov
 - pip install coveralls
+- pip install sphinx
+- pip install pyenchant
+- pip install -r docs/requirements.txt
 - pip install -e .
 
 before_script:
@@ -60,6 +66,7 @@ before_script:
 - echo $REDIS_VERSION
 
 script:
+- make -C docs spelling
 - >
   if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
     flake8 aioredis tests
