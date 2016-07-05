@@ -9,7 +9,7 @@ Changes
 * Fixed cancellation of wait_closed
   (see `#118 <https://github.com/aio-libs/aioredis/issues/118>`_);
 
-* Fixed ``time()`` covertion to float
+* Fixed ``time()`` convertion to float
   (see `#126 <https://github.com/aio-libs/aioredis/issues/126>`_);
 
 * Fixed ``hmset()`` method to return bool instead of ``b'OK'``

@@ -168,7 +168,7 @@ class SortedSetCommandsMixin:
     def zrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                       withscores=False, offset=None, count=None,
                       *, exclude=None):
-        """Return a range of memebers in a sorted set, by score.
+        """Return a range of members in a sorted set, by score.
 
         :raises TypeError: if min or max is not float or int
         :raises TypeError: if both offset and count are not specified

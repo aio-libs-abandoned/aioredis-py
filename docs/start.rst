@@ -86,7 +86,7 @@ Pub/Sub mode
 
 :mod:`aioredis` provides support for Redis Publish/Subscribe messaging.
 
-To switch connection to subcribe mode you must execute ``subscribe`` command
+To switch connection to subscribe mode you must execute ``subscribe`` command
 by yield'ing from :meth:`~PubSubCommandsMixin.subscribe` it returns a list of
 :class:`~aioredis.Channel` objects representing subscribed channels.
 

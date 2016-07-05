@@ -27,7 +27,7 @@ class GenericCommandsMixin:
     def expire(self, key, timeout):
         """Set a timeout on key.
 
-        if timeout is float it will be multiplyed by 1000
+        if timeout is float it will be multiplied by 1000
         coerced to int and passed to `pexpire` method.
 
         Otherwise raises TypeError if timeout argument is not int.
@@ -43,7 +43,7 @@ class GenericCommandsMixin:
     def expireat(self, key, timestamp):
         """Set expire timestamp on key.
 
-        if timeout is float it will be multiplyed by 1000
+        if timeout is float it will be multiplied by 1000
         coerced to int and passed to `pexpire` method.
 
         Otherwise raises TypeError if timestamp argument is not int.

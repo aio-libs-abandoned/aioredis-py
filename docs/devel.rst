@@ -90,7 +90,7 @@ Writing tests
 
 Tests are located under ``/tests`` directory.
 
-Pure Python 3.5 tests (ie the ones using async/await syntax) must be
+Pure Python 3.5 tests (ie the ones using ``async``/``await`` syntax) must be
 prefixed with ``py35_``, for instance see::
 
    tests/py35_generic_commands_tests.py
@@ -161,14 +161,14 @@ There is a number of fixtures that can be used to write tests:
          Bind port.
 
       unixsocket
-         Bind unixscoket path.
+         Bind unixsocket path.
 
       version
          Redis server version tuple.
 
 .. attribute:: serverB
 
-   Second pre-defined Redis server instance info.
+   Second predefined Redis server instance info.
 
 .. function:: start_server(name)
 
