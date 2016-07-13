@@ -1,2 +1,3 @@
 sphinxcontrib-asyncio
 sphinxcontrib-spelling
+pyenchant

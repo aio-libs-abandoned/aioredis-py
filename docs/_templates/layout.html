@@ -1,0 +1,23 @@
+{% extends "!layout.html" %}
+
+{% block sidebartitle %}
+
+  {{ super() }}
+
+  {% if github_user and github_repo %}
+    {% set travis_url = "https://travis-ci.org/{}/{}".format(github_user, github_repo) %}
+    <br/>
+    <div>
+      <iframe src="https://ghbtns.com/github-btn.html?user={{ github_user }}&repo={{ github_repo }}&type=star&count=true&size=large"
+        frameborder="0" scrolling="0" width="160px" height="30px"></iframe>
+    </div>
+    <br/>
+    <div>
+      <a href="{{ travis_url }}">
+        <img src="{{ travis_url }}.svg?branch=v{{ release }}"
+          style="width: 90px; height: 20px; padding: 0; border-radius: 0;"/>
+      </a>
+    </div>
+  {% endif %}
+
+{% endblock %}
