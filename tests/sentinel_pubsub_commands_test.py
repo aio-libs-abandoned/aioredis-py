@@ -1,171 +1,184 @@
-import os
-import unittest
 import asyncio
+import pytest
+from unittest import mock
 
-from ._testutil import RedisSentinelTest, run_until_complete, REDIS_VERSION
+master_name = 'XXX'
+redis_sentinel = mock.Mock()
+get_master_connection = mock.Mock()
+create_connection = mock.Mock()
 
 
-@unittest.skipUnless(os.environ.get('SENTINEL'),
-                     "Configured to run on travis")
-class PubSubCommandsTest(RedisSentinelTest):
+@asyncio.coroutine
+def _reader(channel, output, waiter, conn=None, loop=None):
+    if conn is None:
+        master = yield from redis_sentinel.discover_master(
+            master_name)
+        conn = yield from create_connection(
+            master, loop=loop)
+    yield from conn.execute('subscribe', channel)
+    ch = conn.pubsub_channels[channel]
+    waiter.set_result(conn)
+    while (yield from ch.wait_message()):
+        msg = yield from ch.get()
+        yield from output.put(msg)
 
-    @asyncio.coroutine
-    def _reader(self, channel, output, waiter, conn=None):
-        if conn is None:
-            master = yield from self.redis_sentinel.discover_master(
-                self.master_name)
-            conn = yield from self.create_connection(
-                master, loop=self.loop)
-        yield from conn.execute('subscribe', channel)
-        ch = conn.pubsub_channels[channel]
-        waiter.set_result(conn)
-        while (yield from ch.wait_message()):
-            msg = yield from ch.get()
-            yield from output.put(msg)
 
-    @run_until_complete
-    def test_publish(self):
-        out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
-        sub = asyncio.async(self._reader('chan:1', out, fut),
-                            loop=self.loop)
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.mark.run_loop
+def test_publish(loop):
+    out = asyncio.Queue(loop=loop)
+    fut = asyncio.Future(loop=loop)
+    sub = asyncio.async(_reader('chan:1', out, fut, loop=loop),
+                        loop=loop)
 
-        redis = yield from self.get_master_connection()
+    redis = yield from get_master_connection()
 
-        yield from fut
-        yield from redis.publish('chan:1', 'Hello')
-        msg = yield from out.get()
-        self.assertEqual(msg, b'Hello')
+    yield from fut
+    yield from redis.publish('chan:1', 'Hello')
+    msg = yield from out.get()
+    assert msg == b'Hello'
 
-        sub.cancel()
+    sub.cancel()
 
-    @run_until_complete
-    def test_publish_json(self):
-        out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
-        sub = asyncio.async(self._reader('chan:1', out, fut),
-                            loop=self.loop)
 
-        redis = yield from self.get_master_connection()
-        yield from fut
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.mark.run_loop
+def test_publish_json(loop):
+    out = asyncio.Queue(loop=loop)
+    fut = asyncio.Future(loop=loop)
+    sub = asyncio.async(_reader('chan:1', out, fut, loop=loop),
+                        loop=loop)
 
-        res = yield from redis.publish_json('chan:1', {"Hello": "world"})
-        self.assertEqual(res, 1)    # recievers
+    redis = yield from get_master_connection()
+    yield from fut
 
-        msg = yield from out.get()
-        self.assertEqual(msg, b'{"Hello": "world"}')
-        sub.cancel()
+    res = yield from redis.publish_json('chan:1', {"Hello": "world"})
+    assert res == 1    # recievers
 
-    @run_until_complete
-    def test_subscribe(self):
-        sub = yield from self.get_master_connection()
-        res = yield from sub.subscribe('chan:1', 'chan:2')
-        self.assertEqual(sub.in_pubsub, 2)
+    msg = yield from out.get()
+    assert msg == b'{"Hello": "world"}'
+    sub.cancel()
 
-        ch1 = sub.channels['chan:1']
-        ch2 = sub.channels['chan:2']
 
-        self.assertEqual(res, [ch1, ch2])
-        self.assertFalse(ch1.is_pattern)
-        self.assertFalse(ch2.is_pattern)
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.mark.run_loop
+def test_subscribe():
+    sub = yield from get_master_connection()
+    res = yield from sub.subscribe('chan:1', 'chan:2')
+    assert sub.in_pubsub == 2
 
-        res = yield from sub.unsubscribe('chan:1', 'chan:2')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 1],
-                               [b'unsubscribe', b'chan:2', 0]])
+    ch1 = sub.channels['chan:1']
+    ch2 = sub.channels['chan:2']
 
-    @run_until_complete
-    def test_psubscribe(self):
-        sub = yield from self.get_master_connection()
-        res = yield from sub.psubscribe('patt:*', 'chan:*')
-        self.assertEqual(sub.in_pubsub, 2)
+    assert res == [ch1, ch2]
+    assert ch1.is_pattern is False
+    assert ch2.is_pattern is False
 
-        pat1 = sub.patterns['patt:*']
-        pat2 = sub.patterns['chan:*']
-        self.assertEqual(res, [pat1, pat2])
+    res = yield from sub.unsubscribe('chan:1', 'chan:2')
+    assert res == [[b'unsubscribe', b'chan:1', 1],
+                   [b'unsubscribe', b'chan:2', 0]]
 
-        pub = yield from self.get_master_connection()
-        yield from pub.publish_json('chan:123', {"Hello": "World"})
-        res = yield from pat2.get_json()
-        self.assertEqual(res, (b'chan:123', {"Hello": "World"}))
 
-        res = yield from sub.punsubscribe('patt:*', 'patt:*', 'chan:*')
-        self.assertEqual(res, [[b'punsubscribe', b'patt:*', 1],
-                               [b'punsubscribe', b'patt:*', 1],
-                               [b'punsubscribe', b'chan:*', 0],
-                               ])
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.mark.run_loop
+def test_psubscribe():
+    sub = yield from get_master_connection()
+    res = yield from sub.psubscribe('patt:*', 'chan:*')
+    assert sub.in_pubsub == 2
 
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB CHANNELS is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_channels(self):
-        redis = yield from self.get_master_connection()
-        res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [b'__sentinel__:hello'])
+    pat1 = sub.patterns['patt:*']
+    pat2 = sub.patterns['chan:*']
+    assert res == [pat1, pat2]
 
-        res = yield from redis.pubsub_channels('chan:*')
-        self.assertEqual(res, [])
+    pub = yield from get_master_connection()
+    yield from pub.publish_json('chan:123', {"Hello": "World"})
+    res = yield from pat2.get_json()
+    assert res == (b'chan:123', {"Hello": "World"})
 
-        sub = yield from self.get_master_connection()
-        yield from sub.subscribe('chan:1')
+    res = yield from sub.punsubscribe('patt:*', 'patt:*', 'chan:*')
+    assert res == [[b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'chan:*', 0],
+                   ]
 
-        res = yield from redis.pubsub_channels()
-        self.assertEqual(set(res), {b'__sentinel__:hello', b'chan:1'})
 
-        res = yield from redis.pubsub_channels('ch*')
-        self.assertEqual(res, [b'chan:1'])
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB CHANNELS is available since redis>=2.8.0')
+@pytest.mark.run_loop
+def test_pubsub_channels():
+    redis = yield from get_master_connection()
+    res = yield from redis.pubsub_channels()
+    assert res == [b'__sentinel__:hello']
 
-        yield from sub.unsubscribe('chan:1')
-        yield from sub.psubscribe('chan:*')
+    res = yield from redis.pubsub_channels('chan:*')
+    assert res == []
 
-        res = yield from redis.pubsub_channels()
-        self.assertEqual(res, [b'__sentinel__:hello'])
+    sub = yield from get_master_connection()
+    yield from sub.subscribe('chan:1')
 
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB NUMSUB is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_numsub(self):
-        redis = yield from self.get_master_connection()
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
+    res = yield from redis.pubsub_channels()
+    assert set(res) == {b'__sentinel__:hello', b'chan:1'}
 
-        res = yield from redis.pubsub_numsub('chan:1')
-        self.assertEqual(res, {b'chan:1': 0})
+    res = yield from redis.pubsub_channels('ch*')
+    assert res == [b'chan:1']
 
-        sub = yield from self.get_master_connection()
-        yield from sub.subscribe('chan:1')
+    yield from sub.unsubscribe('chan:1')
+    yield from sub.psubscribe('chan:*')
 
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
+    res = yield from redis.pubsub_channels()
+    assert res == [b'__sentinel__:hello']
 
-        res = yield from redis.pubsub_numsub('chan:1')
-        self.assertEqual(res, {b'chan:1': 1})
 
-        res = yield from redis.pubsub_numsub('chan:2')
-        self.assertEqual(res, {b'chan:2': 0})
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB NUMSUB is available since redis>=2.8.0')
+@pytest.mark.run_loop
+def test_pubsub_numsub():
+    redis = yield from get_master_connection()
+    res = yield from redis.pubsub_numsub()
+    assert res == {}
 
-        res = yield from redis.pubsub_numsub('chan:1', 'chan:2')
-        self.assertEqual(res, {b'chan:1': 1, b'chan:2': 0})
+    res = yield from redis.pubsub_numsub('chan:1')
+    assert res == {b'chan:1': 0}
 
-        yield from sub.unsubscribe('chan:1')
-        yield from sub.psubscribe('chan:*')
+    sub = yield from get_master_connection()
+    yield from sub.subscribe('chan:1')
 
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
+    res = yield from redis.pubsub_numsub()
+    assert res == {}
 
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB NUMPAT is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_numpat(self):
-        redis = yield from self.get_master_connection()
-        sub = yield from self.get_master_connection()
+    res = yield from redis.pubsub_numsub('chan:1')
+    assert res == {b'chan:1': 1}
 
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 0)
+    res = yield from redis.pubsub_numsub('chan:2')
+    assert res == {b'chan:2': 0}
 
-        yield from sub.subscribe('chan:1')
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 0)
+    res = yield from redis.pubsub_numsub('chan:1', 'chan:2')
+    assert res == {b'chan:1': 1, b'chan:2': 0}
 
-        yield from sub.psubscribe('chan:*')
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 1)
+    yield from sub.unsubscribe('chan:1')
+    yield from sub.psubscribe('chan:*')
+
+    res = yield from redis.pubsub_numsub()
+    assert res == {}
+
+
+@pytest.mark.xfail(reason="Not ported to pytest")
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB NUMPAT is available since redis>=2.8.0')
+@pytest.mark.run_loop
+def test_pubsub_numpat():
+    redis = yield from get_master_connection()
+    sub = yield from get_master_connection()
+
+    res = yield from redis.pubsub_numpat()
+    assert res == 0
+
+    yield from sub.subscribe('chan:1')
+    res = yield from redis.pubsub_numpat()
+    assert res == 0
+
+    yield from sub.psubscribe('chan:*')
+    res = yield from redis.pubsub_numpat()
+    assert res == 1
