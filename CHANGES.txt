@@ -1,6 +1,37 @@
 Changes
 -------
 
+0.2.8 (2016-07-22)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Add ``hmset_dict`` command
+  (see `#130 <https://github.com/aio-libs/aioredis/issues/130>`_);
+
+* Add ``RedisConnection.address`` property;
+
+* RedisPool ``minsize``/``maxsize`` must not be ``None``;
+
+* Implement ``close()``/``wait_closed()``/``closed`` interface for pool
+  (see `#128 <https://github.com/aio-libs/aioredis/issues/128>`_);
+
+**FIX**:
+
+* Add test for ``hstrlen``;
+
+* Test fixes
+
+**MISC**:
+
+* Enable Redis 3.2.0 on Travis;
+
+* Add spell checking when building docs
+  (see `#132 <https://github.com/aio-libs/aioredis/issues/132>`_);
+
+* Documentation updated;
+
+
 0.2.7 (2016-05-27)
 ^^^^^^^^^^^^^^^^^^
 
