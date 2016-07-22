@@ -61,7 +61,7 @@ class HashCommandsMixin:
     def hmset(self, key, field, value, *pairs):
         """Set multiple hash fields to multiple values."""
         if len(pairs) % 2 != 0:
-            raise TypeError("length of pairs must be event number")
+            raise TypeError("length of pairs must be even number")
         return wait_ok(self._conn.execute(b'HMSET', key, field, value, *pairs))
 
     def hmset_dict(self, key, *args, **kwargs):

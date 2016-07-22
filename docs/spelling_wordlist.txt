@@ -21,6 +21,7 @@ coroutines
 dataset
 decrement
 dev
+dict
 downloadable
 EventLoop
 favour
