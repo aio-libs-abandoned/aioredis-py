@@ -14,7 +14,7 @@ PY_35 = sys.version_info >= (3, 5)
 
 
 @asyncio.coroutine
-def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
+def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET, loop=None):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
@@ -49,7 +49,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
 class ConnectionsPool:
     """Redis connections pool."""
 
-    def __init__(self, address, db=0, password=None, encoding=None,
+    def __init__(self, address, db=None, password=None, encoding=None,
                  *, minsize, maxsize, ssl=None, loop=None):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0", minsize, type(minsize))
@@ -149,7 +149,7 @@ class ConnectionsPool:
     @property
     def db(self):
         """Currently selected db index."""
-        return self._db
+        return self._db or 0
 
     @property
     def encoding(self):

@@ -132,7 +132,7 @@ def create_redis(address, *, db=None, password=None, ssl=None,
 
 
 @asyncio.coroutine
-def create_redis_pool(address, *, db=0, password=None, ssl=None,
+def create_redis_pool(address, *, db=None, password=None, ssl=None,
                       encoding=None, commands_factory=Redis,
                       minsize=1, maxsize=10,
                       loop=None):
