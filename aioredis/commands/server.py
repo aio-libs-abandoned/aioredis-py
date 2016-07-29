@@ -255,7 +255,7 @@ MasterSlaveInfo = namedtuple('MasterSlaveInfo', 'ip port ack_offset')
 SlaveInfo = namedtuple('SlaveInfo',
                        'role master_ip master_port state received')
 
-SentinelInfo = namedtuple('SentinelInfo', 'masters')
+SentinelInfo = namedtuple('SentinelInfo', 'role masters')
 
 
 def parse_role(role):
