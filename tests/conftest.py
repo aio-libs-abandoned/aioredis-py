@@ -215,6 +215,11 @@ def start_sentinel(_proc, request, unused_port, start_server):
 
     version = _read_server_version(request.config)
 
+    def timeout(t):
+        end = time.time() + t
+        while time.time() <= end:
+            yield True
+
     def maker(name, *masters):
         key = (name,) + masters
         if key in sentinels:
@@ -237,9 +242,12 @@ def start_sentinel(_proc, request, unused_port, start_server):
                      config,
                      '--sentinel',
                      stdout=subprocess.PIPE)
-        log = b''
-        while b'Sentinel runid is ' not in log:
+        for _ in timeout(3):
             log = proc.stdout.readline()
+            if b'# +monitor master ' in log:
+                break
+        else:
+            raise RuntimeError("Could not start Sentinel")
 
         info = RedisServer(name, tcp_address, unixsocket, version)
         sentinels.setdefault(key, info)
