@@ -1,7 +1,7 @@
 import asyncio
 import functools
 
-from ..pool import ConnectionsPool
+from ..abc import AbcPool
 from ..errors import RedisError, PipelineError, MultiExecError
 from ..util import wait_ok, async_task, create_future
 
@@ -162,7 +162,7 @@ class Pipeline:
 
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
-        if isinstance(self._pool_or_conn, ConnectionsPool):
+        if isinstance(self._pool_or_conn, AbcPool):
             with (yield from self._pool_or_conn) as conn:
                 yield from asyncio.gather(*self._send_pipeline(conn),
                                           loop=self._loop,
@@ -249,7 +249,7 @@ class MultiExec(Pipeline):
     @asyncio.coroutine
     def _do_execute(self, *, return_exceptions=False):
         self._waiters = waiters = []
-        is_pool = isinstance(self._pool_or_conn, ConnectionsPool)
+        is_pool = isinstance(self._pool_or_conn, AbcPool)
         if is_pool:
             conn = yield from self._pool_or_conn.acquire()
         else:

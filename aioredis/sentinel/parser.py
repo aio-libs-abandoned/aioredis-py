@@ -19,6 +19,8 @@ SENTINEL_STATE_TYPES = {
     'num-slaves': int,
     'o-down-time': int,
     'pending-commands': int,
+    'link-pending-commands': int,
+    'link-refcount': int,
     'parallel-syncs': int,
     'port': int,
     'quorum': int,

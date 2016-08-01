@@ -8,6 +8,7 @@ from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
 from .util import async_task, _NOTSET
 from .errors import PoolClosedError
+from .abc import AbcPool
 
 
 PY_35 = sys.version_info >= (3, 5)
@@ -46,7 +47,7 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
     return pool
 
 
-class ConnectionsPool:
+class ConnectionsPool(AbcPool):
     """Redis connections pool."""
 
     def __init__(self, address, db=None, password=None, encoding=None,
@@ -100,6 +101,10 @@ class ConnectionsPool:
         """Current number of free connections."""
         return len(self._pool)
 
+    @property
+    def address(self):
+        return self._address
+
     @asyncio.coroutine
     def clear(self):
         """Clear pool connections.
@@ -107,12 +112,16 @@ class ConnectionsPool:
         Close and remove all free connections.
         """
         with (yield from self._cond):
-            waiters = []
-            while self._pool:
-                conn = self._pool.popleft()
-                conn.close()
-                waiters.append(conn.wait_closed())
-            yield from asyncio.gather(*waiters, loop=self._loop)
+            yield from self._do_clear()
+
+    @asyncio.coroutine
+    def _do_clear(self):
+        waiters = []
+        while self._pool:
+            conn = self._pool.popleft()
+            conn.close()
+            waiters.append(conn.wait_closed())
+        yield from asyncio.gather(*waiters, loop=self._loop)
 
     @asyncio.coroutine
     def _do_close(self):
@@ -128,7 +137,8 @@ class ConnectionsPool:
                 conn.close()
                 waiters.append(conn.wait_closed())
             yield from asyncio.gather(*waiters, loop=self._loop)
-            logger.debug("Closed %d connections", len(waiters))
+            # TODO: close _pubsub_conn connection
+            logger.debug("Closed %d connection(s)", len(waiters))
 
     def close(self):
         """Close all free and in-progress connections and mark pool as closed.

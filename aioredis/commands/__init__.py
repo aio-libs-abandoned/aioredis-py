@@ -16,7 +16,6 @@ from .server import ServerCommandsMixin
 from .pubsub import PubSubCommandsMixin
 from .cluster import ClusterCommandsMixin
 from .geo import GeoCommandsMixin, GeoPoint, GeoMember
-from .sentinel import SentinelCommandsMixin
 
 __all__ = [
     'create_redis',
@@ -35,8 +34,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             SortedSetCommandsMixin, ListCommandsMixin,
             ScriptingCommandsMixin, ServerCommandsMixin,
             PubSubCommandsMixin, ClusterCommandsMixin,
-            GeoCommandsMixin,
-            SentinelCommandsMixin):
+            GeoCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
@@ -53,10 +51,12 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._pool_or_conn.execute(command, *args, **kwargs)
 
     def close(self):
+        """Close client connections."""
         self._pool_or_conn.close()
 
     @asyncio.coroutine
     def wait_closed(self):
+        """Coroutine waiting until underlying connections are closed."""
         yield from self._pool_or_conn.wait_closed()
 
     @property
@@ -75,6 +75,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         or :class:`aioredis.ConnectionsPool` instance.
         """
         return self._pool_or_conn
+
+    @property
+    def address(self):
+        """Redis connection address (if applicable)."""
+        return self._pool_or_conn.address
 
     @property
     def in_transaction(self):
