@@ -116,6 +116,7 @@ class RedisPool:
                 conn.close()
                 waiters.append(conn.wait_closed())
             yield from asyncio.gather(*waiters, loop=self._loop)
+            logger.debug("Closed %d connections", len(waiters))
 
     def close(self):
         """Close all free and in-progress connections and mark pool as closed.
