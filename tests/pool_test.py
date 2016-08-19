@@ -398,18 +398,9 @@ def test_pool_check_closed_when_exception(create_pool, server, loop):
             logging.Handler.__init__(self)
             self.has_closed_msg = False
 
-        def shouldFlush(self, record):
-            return True
-
         def emit(self, record):
             if re.match("Closed [0-9]+ connections", record.getMessage()):
                 self.has_closed_msg = True
-
-        def flush(self):
-            pass
-
-        def close(self):
-            pass
 
     handler = TrackExceptionRecord()
     logger = logging.getLogger('aioredis')
