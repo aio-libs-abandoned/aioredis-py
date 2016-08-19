@@ -391,8 +391,6 @@ def test_pool_close__used(create_pool, server, loop):
 
 @pytest.mark.run_loop
 def test_pool_check_closed_when_exception(create_pool, server, loop):
-    exception = False
-
     class TrackExceptionRecord(logging.Handler):
         def __init__(self):
             logging.Handler.__init__(self)
@@ -407,12 +405,8 @@ def test_pool_check_closed_when_exception(create_pool, server, loop):
     logger.setLevel(logging.DEBUG)
     logger.addHandler(handler)
 
-    try:
+    with pytest.raises(Exception):
         yield from create_pool(address=('127.3.2.1', 9999), loop=loop)
-    except:
-        exception = True
-
-    assert exception is True
 
     yield from asyncio.sleep(0, result=None, loop=loop)
     assert handler.has_closed_msg is True
