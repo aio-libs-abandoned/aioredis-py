@@ -61,6 +61,7 @@ mixin
 mixins
 multi
 namedtuple
+namespace
 newkey
 NODELAY
 ofcourse
