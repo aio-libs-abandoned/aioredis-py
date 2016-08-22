@@ -185,3 +185,48 @@ There is a number of fixtures that can be used to write tests:
    :param int unsecure_port: Redis server instance port
    :return: secure_port and ssl_context pair
    :rtype: tuple
+
+
+Helpers
+~~~~~~~
+
+:mod:`aioredis` also updates :term:`pytest`'s namespace with several helpers.
+
+.. function:: pytest.redis_version(\*version, reason)
+
+   Marks test with minimum redis version to run.
+
+   Example:
+
+   .. code-block:: python
+
+      @pytest.redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
+      def test_hstrlen(redis):
+          pass
+
+
+.. function:: pytest.logs(logger, level=None)
+
+   Adopted version of :meth:`unittest.TestCase.assertEqual`,
+   see it for details.
+
+   Example:
+
+   .. code-block:: python
+
+      def test_logs(create_connection, server):
+          with pytest.logs('aioredis', 'DEBUG') as cm:
+              conn yield from create_connection(server.tcp_address)
+          assert cm.output[0].startswith(
+            'DEBUG:aioredis:Creating tcp connection')
+
+
+.. function:: pytest.assert_almost_equal(first, second, places=None, \
+                                         msg=None, delta=None)
+
+   Adopted version of :meth:`unittest.TestCase.assertAlmostEqual`.
+
+
+.. function:: pytest.raises_regex(exc_type, message)
+
+   Adopted version of :meth:`unittest.TestCase.assertRaisesRegex`.
