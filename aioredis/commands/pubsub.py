@@ -23,7 +23,7 @@ class PubSubCommandsMixin:
         subscribe to specified channels.
 
         Returns :func:`asyncio.gather()` coroutine which when done will return
-        a list of subscribed channels.
+        a list of :class:`~aioredis.Channel` objects.
         """
         conn = self._conn
         return wait_return_channels(
@@ -39,7 +39,8 @@ class PubSubCommandsMixin:
         subscribe to specified patterns.
 
         Returns :func:`asyncio.gather()` coroutine which when done will return
-        a list of subscribed patterns.
+        a list of subscribed :class:`~aioredis.Channel` objects with
+        ``is_pattern`` property set to ``True``.
         """
         conn = self._conn
         return wait_return_channels(
