@@ -8,6 +8,7 @@ import contextlib
 import os
 import ssl
 import time
+import unittest.case
 
 from collections import namedtuple
 
@@ -316,6 +317,23 @@ def raises_regex(exc_type, message):
         .format(message, str(exc_info.value)))
 
 
+def logs(logger, level=None):
+    """Catches logs for given logger and level.
+
+    See unittest.TestCase.assertLogs for details.
+    """
+    return _AssertLogsContext(None, logger, level)
+
+
+class _AssertLogsContext(unittest.case._AssertLogsContext):
+    """Standard unittest's _AssertLogsContext context manager
+    adopted to raise pytest failure.
+    """
+
+    def _raiseFailure(self, standardMsg):
+        pytest.fail(standardMsg)
+
+
 def redis_version(*version, reason):
     assert 1 < len(version) <= 3, version
     assert all(isinstance(v, int) for v in version), version
@@ -335,4 +353,5 @@ def pytest_namespace():
         'raises_regex': raises_regex,
         'assert_almost_equal': assert_almost_equal,
         'redis_version': redis_version,
+        'logs': logs,
         }

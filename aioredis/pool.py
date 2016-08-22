@@ -33,6 +33,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
         yield from pool._fill_free(override_min=False)
     except Exception as ex:
         pool.close()
+        yield from pool.wait_closed()
         raise
 
     return pool
