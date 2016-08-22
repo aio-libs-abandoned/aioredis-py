@@ -29,7 +29,12 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
                      ssl=ssl, loop=loop)
-    yield from pool._fill_free(override_min=False)
+    try:
+        yield from pool._fill_free(override_min=False)
+    except Exception as ex:
+        pool.close()
+        raise
+
     return pool
 
 
@@ -111,6 +116,7 @@ class RedisPool:
                 conn.close()
                 waiters.append(conn.wait_closed())
             yield from asyncio.gather(*waiters, loop=self._loop)
+            logger.debug("Closed %d connections", len(waiters))
 
     def close(self):
         """Close all free and in-progress connections and mark pool as closed.

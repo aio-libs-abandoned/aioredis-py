@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import pytest
+import re
 
 from aioredis import (
     RedisPool,
@@ -385,3 +387,28 @@ def test_pool_close__used(create_pool, server, loop):
 
         with pytest.raises(ConnectionClosedError):
             yield from redis.ping()
+
+
+@pytest.mark.run_loop
+def test_pool_check_closed_when_exception(create_pool, server, loop):
+    class TrackExceptionRecord(logging.Handler):
+        def __init__(self):
+            logging.Handler.__init__(self)
+            self.has_closed_msg = False
+
+        def emit(self, record):
+            if re.match("Closed [0-9]+ connections", record.getMessage()):
+                self.has_closed_msg = True
+
+    handler = TrackExceptionRecord()
+    logger = logging.getLogger('aioredis')
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+
+    with pytest.raises(Exception):
+        yield from create_pool(address=('127.3.2.1', 9999), loop=loop)
+
+    yield from asyncio.sleep(0, result=None, loop=loop)
+    assert handler.has_closed_msg is True
+
+    logger.removeHandler(handler)
