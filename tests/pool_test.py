@@ -388,6 +388,7 @@ def test_pool_close__used(create_pool, server, loop):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(2, 8, 0, reason="maxclients config setting")
 def test_pool_check_closed_when_exception(create_pool, create_redis,
                                           start_server, loop):
     server = start_server('server-small')

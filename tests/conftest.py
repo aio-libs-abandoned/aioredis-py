@@ -325,13 +325,17 @@ def logs(logger, level=None):
     return _AssertLogsContext(None, logger, level)
 
 
-class _AssertLogsContext(unittest.case._AssertLogsContext):
-    """Standard unittest's _AssertLogsContext context manager
-    adopted to raise pytest failure.
-    """
+if sys.version_info > (3, 3):
+    class _AssertLogsContext(unittest.case._AssertLogsContext):
+        """Standard unittest's _AssertLogsContext context manager
+        adopted to raise pytest failure.
+        """
 
-    def _raiseFailure(self, standardMsg):
-        pytest.fail(standardMsg)
+        def _raiseFailure(self, standardMsg):
+            pytest.fail(standardMsg)
+else:
+    def _AssertLogsContext(self, test, logger, level):
+        raise NotImplementedError("Available since Python3.4")
 
 
 def redis_version(*version, reason):
