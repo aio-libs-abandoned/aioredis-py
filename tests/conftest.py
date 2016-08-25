@@ -325,7 +325,7 @@ def logs(logger, level=None):
     return _AssertLogsContext(None, logger, level)
 
 
-if sys.version_info > (3, 3):
+if sys.version_info >= (3, 4):
     class _AssertLogsContext(unittest.case._AssertLogsContext):
         """Standard unittest's _AssertLogsContext context manager
         adopted to raise pytest failure.
