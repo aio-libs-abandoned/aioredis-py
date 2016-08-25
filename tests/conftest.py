@@ -334,7 +334,7 @@ if sys.version_info >= (3, 4):
         def _raiseFailure(self, standardMsg):
             pytest.fail(standardMsg)
 else:
-    def _AssertLogsContext(self, test, logger, level):
+    def _AssertLogsContext(test, logger, level):
         raise NotImplementedError("Available since Python3.4")
 
 
