@@ -8,7 +8,7 @@ import contextlib
 import os
 import ssl
 import time
-import unittest.case
+import logging
 
 from collections import namedtuple
 
@@ -322,20 +322,72 @@ def logs(logger, level=None):
 
     See unittest.TestCase.assertLogs for details.
     """
-    return _AssertLogsContext(None, logger, level)
+    return _AssertLogsContext(logger, level)
 
 
-if sys.version_info >= (3, 4):
-    class _AssertLogsContext(unittest.case._AssertLogsContext):
-        """Standard unittest's _AssertLogsContext context manager
-        adopted to raise pytest failure.
-        """
+_LoggingWatcher = namedtuple("_LoggingWatcher", ["records", "output"])
 
-        def _raiseFailure(self, standardMsg):
-            pytest.fail(standardMsg)
-else:
-    def _AssertLogsContext(test, logger, level):
-        raise NotImplementedError("Available since Python3.4")
+
+class _CapturingHandler(logging.Handler):
+    """
+    A logging handler capturing all (raw and formatted) logging output.
+    """
+
+    def __init__(self):
+        logging.Handler.__init__(self)
+        self.watcher = _LoggingWatcher([], [])
+
+    def flush(self):
+        pass
+
+    def emit(self, record):
+        self.watcher.records.append(record)
+        msg = self.format(record)
+        self.watcher.output.append(msg)
+
+
+class _AssertLogsContext:
+    """Standard unittest's _AssertLogsContext context manager
+    adopted to raise pytest failure.
+    """
+    LOGGING_FORMAT = "%(levelname)s:%(name)s:%(message)s"
+
+    def __init__(self, logger_name, level):
+        self.logger_name = logger_name
+        if level:
+            self.level = logging._nameToLevel.get(level, level)
+        else:
+            self.level = logging.INFO
+        self.msg = None
+
+    def __enter__(self):
+        if isinstance(self.logger_name, logging.Logger):
+            logger = self.logger = self.logger_name
+        else:
+            logger = self.logger = logging.getLogger(self.logger_name)
+        formatter = logging.Formatter(self.LOGGING_FORMAT)
+        handler = _CapturingHandler()
+        handler.setFormatter(formatter)
+        self.watcher = handler.watcher
+        self.old_handlers = logger.handlers[:]
+        self.old_level = logger.level
+        self.old_propagate = logger.propagate
+        logger.handlers = [handler]
+        logger.setLevel(self.level)
+        logger.propagate = False
+        return handler.watcher
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.logger.handlers = self.old_handlers
+        self.logger.propagate = self.old_propagate
+        self.logger.setLevel(self.old_level)
+        if exc_type is not None:
+            # let unexpected exceptions pass through
+            return False
+        if len(self.watcher.records) == 0:
+            pytest.fail(
+                "no logs of level {} or higher triggered on {}"
+                .format(logging.getLevelName(self.level), self.logger.name))
 
 
 def redis_version(*version, reason):
