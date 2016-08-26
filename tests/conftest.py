@@ -355,7 +355,7 @@ class _AssertLogsContext:
     def __init__(self, logger_name, level):
         self.logger_name = logger_name
         if level:
-            self.level = logging._nameToLevel.get(level, level)
+            self.level = level
         else:
             self.level = logging.INFO
         self.msg = None
