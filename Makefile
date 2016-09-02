@@ -4,11 +4,15 @@ FLAKE ?= flake8
 PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 
-.PHONY: all flake doc test cov dist devel
+.PHONY: all flake doc man-doc spelling test cov dist devel clean
 all: aioredis.egg-info flake doc cov
 
-doc:
+doc: spelling
 	make -C docs html
+man-doc: spelling
+	make -C docs man
+spelling:
+	make -C docs spelling
 
 flake:
 	$(FLAKE) aioredis tests examples
@@ -19,9 +23,12 @@ test:
 cov coverage:
 	$(PYTEST) --cov
 
-dist:
-	-rm -r build dist aioredis.egg-info
+dist: clean man-doc
 	$(PYTHON) setup.py sdist bdist_wheel
+
+clean:
+	-rm -r docs/_build
+	-rm -r build dist aioredis.egg-info
 
 devel: aioredis.egg-info
 	pip install -U pip
