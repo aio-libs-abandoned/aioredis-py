@@ -227,7 +227,7 @@ class RedisPool:
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1
-                # connection may be closed at yeild point
+                # connection may be closed at yield point
                 self._drop_closed()
         if self.freesize:
             return
@@ -239,7 +239,7 @@ class RedisPool:
                     self._pool.append(conn)
                 finally:
                     self._acquiring -= 1
-                    # connection may be closed at yeild point
+                    # connection may be closed at yield point
                     self._drop_closed()
 
     def _create_new_connection(self):
