@@ -3,6 +3,7 @@ import pytest
 from unittest import mock
 
 from aioredis import ReplyError
+from aioredis.commands.server import ServerCommandsMixin
 
 
 @pytest.mark.run_loop
@@ -155,9 +156,27 @@ def test_dbsize(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.skip("Not implemented")
-def test_info():
-    pass
+def test_info(redis):
+    res = yield from redis.info()
+    assert isinstance(res, dict)
+
+    res = yield from redis.info('all')
+    assert isinstance(res, dict)
+
+    with pytest.raises(TypeError):
+        yield from redis.info(1)
+
+    with pytest.raises(ValueError):
+        yield from redis.info('')
+
+
+@pytest.mark.run_loop
+@pytest.mark.parametrize('section', ServerCommandsMixin.INFO_SECTIONS)
+@pytest.redis_version(3, 0, 0, reason='cluster section exists since redis>=3')
+def test_info_sections(section, redis):
+    res = yield from redis.info(section)
+    assert isinstance(res, dict)
+    assert list(res.keys()) == [section]
 
 
 @pytest.mark.run_loop

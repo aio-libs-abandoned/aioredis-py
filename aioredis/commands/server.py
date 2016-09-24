@@ -12,6 +12,19 @@ class ServerCommandsMixin:
 
     SHUTDOWN_SAVE = 'SHUTDOWN_SAVE'
     SHUTDOWN_NOSAVE = 'SHUTDOWN_NOSAVE'
+    INFO_SECTIONS = [
+        'server',
+        'clients',
+        'memory',
+        'persistence',
+        'stats',
+        'replication',
+        'cpu',
+        'commandstats',
+        'cluster',
+        'keyspace',
+    ]
+    INFO_ARGS = INFO_SECTIONS + ['default', 'all']
 
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""
@@ -112,9 +125,21 @@ class ServerCommandsMixin:
         fut = self._conn.execute('FLUSHDB')
         return wait_ok(fut)
 
-    def info(self, section):
-        """Get information and statistics about the server."""
-        # TODO: check section
+    def info(self, section='default'):
+        """Get information and statistics about the server.
+
+        If called without argument will return default set of sections.
+        For available sections, see http://redis.io/commands/INFO
+
+        :raises TypeError: if section is not string
+        :raises ValueError: if section is invalid
+
+        """
+        if not isinstance(section, str):
+            raise TypeError("section must be str")
+        section = section.lower()
+        if section not in self.INFO_ARGS:
+            raise ValueError("invalid section")
         fut = self._conn.execute(b'INFO', section, encoding='utf-8')
         return wait_convert(fut, parse_info)
 
