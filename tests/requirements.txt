@@ -1,4 +1,4 @@
 hiredis
 flake8
 pytest
-pytest-cov
+pytest-cov==2.3.1
