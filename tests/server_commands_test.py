@@ -155,9 +155,15 @@ def test_dbsize(redis):
 
 
 @pytest.mark.run_loop
-@pytest.mark.skip("Not implemented")
-def test_info():
-    pass
+def test_info(redis):
+    res = yield from redis.info()
+    assert isinstance(res, dict)
+
+    res = yield from redis.info('all')
+    assert isinstance(res, dict)
+
+    with pytest.raises(ValueError):
+        yield from redis.info('')
 
 
 @pytest.mark.run_loop

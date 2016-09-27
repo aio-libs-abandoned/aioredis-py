@@ -112,9 +112,17 @@ class ServerCommandsMixin:
         fut = self._conn.execute('FLUSHDB')
         return wait_ok(fut)
 
-    def info(self, section):
-        """Get information and statistics about the server."""
-        # TODO: check section
+    def info(self, section='default'):
+        """Get information and statistics about the server.
+
+        If called without argument will return default set of sections.
+        For available sections, see http://redis.io/commands/INFO
+
+        :raises ValueError: if section is invalid
+
+        """
+        if not section:
+            raise ValueError("invalid section")
         fut = self._conn.execute(b'INFO', section, encoding='utf-8')
         return wait_convert(fut, parse_info)
 
