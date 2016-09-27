@@ -219,8 +219,7 @@ def to_time(obj):
 
 
 def to_tuples(value):
-    lines = iter(value.splitlines(False))
-    line = next(lines)
+    line, *lines = value.splitlines(False)
     line = list(map(_split, line.split(' ')))
     ClientInfo = namedtuple('ClientInfo', ' '.join(k for k, v in line))
     # TODO: parse flags and other known fields
@@ -233,8 +232,8 @@ def to_tuples(value):
 def parse_info(info):
     res = {}
     for block in info.split('\r\n\r\n'):
-        block = iter(block.strip().splitlines())
-        section = next(block)[2:].lower()
+        section, *block = block.strip().splitlines()
+        section = section[2:].lower()
         res[section] = tmp = {}
         for line in block:
             key, value = line.split(':')
