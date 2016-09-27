@@ -201,13 +201,22 @@ The library provides connections pool. The basic usage is as follows:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
                           encoding=None, minsize=1, maxsize=10, \
-                          commands_factory=Redis, loop=None)
+                          commands_factory=_NOTSET, loop=None)
 
    A :ref:`coroutine<coroutine>` that creates Redis connections pool.
 
-   By default it creates pool of *commands_factory* instances, but it is
+   By default it creates pool of :class:`Redis` instances, but it is
    also possible to create plain connections pool by passing
    ``lambda conn: conn`` as *commands_factory*.
+
+   .. versionchanged:: v0.2.7
+      ``minsize`` default value changed from 10 to 1.
+
+   .. versionchanged:: v0.2.8
+      Disallow arbitrary RedisPool maxsize.
+
+   .. deprecated:: v0.2.9
+      *commands_factory* argument is deprecated and will be removed in *v0.3*.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -235,6 +244,7 @@ The library provides connections pool. The basic usage is as follows:
 
    :param commands_factory: A factory to be passed to ``create_redis``
                             call. :class:`Redis` by default.
+                            **Deprecated** since v0.2.8
    :type commands_factory: callable
 
    :param loop: An optional *event loop* instance
@@ -242,12 +252,6 @@ The library provides connections pool. The basic usage is as follows:
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :return: :class:`RedisPool` instance.
-
-   .. versionchanged:: v0.2.7
-      ``minsize`` default value changed from 10 to 1.
-
-   .. versionchanged:: v0.2.8
-      Disallow arbitrary RedisPool maxsize.
 
 
 .. class:: RedisPool

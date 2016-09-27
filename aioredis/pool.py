@@ -1,10 +1,11 @@
 import asyncio
 import collections
 import sys
+import warnings
 
 from .commands import create_redis, Redis
 from .log import logger
-from .util import async_task
+from .util import async_task, _NOTSET
 from .errors import PoolClosedError
 
 
@@ -13,17 +14,25 @@ PY_35 = sys.version_info >= (3, 5)
 
 @asyncio.coroutine
 def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
-                minsize=1, maxsize=10, commands_factory=Redis, loop=None):
+                minsize=1, maxsize=10, commands_factory=_NOTSET, loop=None):
     """Creates Redis Pool.
 
-    By default it creates pool of commands_factory instances, but it is
+    By default it creates pool of Redis instances, but it is
     also possible to create pool of plain connections by passing
     ``lambda conn: conn`` as commands_factory.
+
+    *commands_factory* parameter is deprecated since v0.2.9
 
     All arguments are the same as for create_connection.
 
     Returns RedisPool instance.
     """
+    if commands_factory is not _NOTSET:
+        warnings.warn(
+            "commands_factory argument is deprecated and will be removed!",
+            warnings.DeprecationWarning)
+    else:
+        commands_factory = Redis
 
     pool = RedisPool(address, db, password, encoding,
                      minsize=minsize, maxsize=maxsize,
