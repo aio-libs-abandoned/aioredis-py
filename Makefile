@@ -33,13 +33,11 @@ clean:
 devel: aioredis.egg-info
 	pip install -U pip
 	pip install -U \
-		flake8 \
 		sphinx \
 		sphinx_rtd_theme \
-		"pytest>=2.9.1" \
-		pytest-cov \
 		bumpversion \
 		wheel
+	pip install -Ur tests/requirements.txt
 	pip install -Ur docs/requirements.txt
 
 aioredis.egg-info:
