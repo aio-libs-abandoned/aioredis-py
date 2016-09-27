@@ -1,3 +1,4 @@
+hiredis
 flake8
 pytest
 pytest-cov
