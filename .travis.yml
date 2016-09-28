@@ -46,7 +46,7 @@ before_install:
 install:
 - pip install hiredis
 - pip install sphinx
-- pip install coveralls
+- pip install codecov
 - pip install -r tests/requirements.txt
 - pip install -r docs/requirements.txt
 - pip install -e .
@@ -85,4 +85,4 @@ script:
   done;
 
 after_script:
-- coveralls
+- codecov
