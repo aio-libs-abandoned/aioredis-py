@@ -48,17 +48,41 @@ def test_dump(redis):
 
 
 @pytest.mark.run_loop
-def test_exists(redis):
+def test_exists(redis, server):
     yield from add(redis, 'my-key', 123)
 
     res = yield from redis.exists('my-key')
-    assert res is True
+    assert isinstance(res, int)
+    assert res == 1
 
     res = yield from redis.exists('non-existent-key')
-    assert res is False
+    assert isinstance(res, int)
+    assert res == 0
 
     with pytest.raises(TypeError):
         yield from redis.exists(None)
+    if server.version < (3, 0, 3):
+        with pytest.raises(ReplyError):
+            yield from redis.exists('key-1', 'key-2')
+
+
+@pytest.redis_version(
+    3, 0, 3, reason='Multi-key EXISTS available since redis>=2.8.0')
+@pytest.mark.run_loop
+def test_exists_multiple(redis):
+    yield from add(redis, 'my-key', 123)
+
+    res = yield from redis.exists('my-key', 'other-key')
+    assert isinstance(res, int)
+    assert res == 1
+
+    res = yield from redis.exists('my-key', 'my-key')
+    assert isinstance(res, int)
+    assert res == 2
+
+    res = yield from redis.exists('foo', 'bar')
+    assert isinstance(res, int)
+    assert res == 0
 
 
 @pytest.mark.run_loop
@@ -73,7 +97,7 @@ def test_expire(redis):
 
     yield from redis.expire('my-key', -1)
     res = yield from redis.exists('my-key')
-    assert res is False
+    assert not res
 
     res = yield from redis.expire('other-key', 1000)
     assert res is False
@@ -128,7 +152,7 @@ def test_expireat(redis):
     assert res is True
 
     res = yield from redis.exists('my-key')
-    assert res is False
+    assert not res
 
     yield from add(redis, 'my-key', 123)
 
@@ -136,7 +160,7 @@ def test_expireat(redis):
     assert res is True
 
     res = yield from redis.exists('my-key')
-    assert res is False
+    assert not res
 
     yield from add(redis, 'my-key', 123)
     res = yield from redis.expireat('my-key', time.time() + 10)
@@ -184,14 +208,14 @@ def test_migrate(redis, create_redis, loop, serverB):
     conn2 = yield from create_redis(serverB.tcp_address,
                                     db=2, loop=loop)
     yield from conn2.delete('my-key')
-    assert (yield from redis.exists('my-key')) is True
-    assert (yield from conn2.exists('my-key')) is False
+    assert (yield from redis.exists('my-key'))
+    assert not (yield from conn2.exists('my-key'))
 
     ok = yield from redis.migrate(
         'localhost', serverB.tcp_address.port, 'my-key', 2, 1000)
     assert ok is True
-    assert (yield from redis.exists('my-key')) is False
-    assert (yield from conn2.exists('my-key')) is True
+    assert not (yield from redis.exists('my-key'))
+    assert (yield from conn2.exists('my-key'))
 
     with pytest.raises_regex(TypeError, "host .* str"):
         yield from redis.migrate(None, 1234, 'key', 1, 23)
@@ -319,7 +343,7 @@ def test_pexpire(redis, loop):
     yield from asyncio.sleep(.002, loop=loop)
 
     res = yield from redis.exists('my-key')
-    assert res is False
+    assert not res
 
     with pytest.raises(TypeError):
         yield from redis.pexpire(None, 0)

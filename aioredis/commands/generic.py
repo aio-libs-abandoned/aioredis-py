@@ -19,10 +19,13 @@ class GenericCommandsMixin:
         """Dump a key."""
         return self._conn.execute(b'DUMP', key)
 
-    def exists(self, key):
-        """Check if key exists."""
-        fut = self._conn.execute(b'EXISTS', key)
-        return wait_convert(fut, bool)
+    def exists(self, key, *keys):
+        """Check if key(s) exists.
+
+        .. versionchanged:: v0.2.9
+           Accept multiple keys; **return** type **changed** from bool to int.
+        """
+        return self._conn.execute(b'EXISTS', key, *keys)
 
     def expire(self, key, timeout):
         """Set a timeout on key.
