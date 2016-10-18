@@ -650,7 +650,7 @@ def test_cancel_hang(redis):
     exists_coro = redis._conn.execute("EXISTS", b"key:test1")
     exists_coro.cancel()
     exists_check = yield from redis.exists(b"key:test2")
-    assert exists_check is False
+    assert not exists_check
 
 
 @pytest.mark.run_loop

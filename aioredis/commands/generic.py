@@ -25,7 +25,7 @@ class GenericCommandsMixin:
         .. versionchanged:: v0.2.9
            Accept multiple keys; **return** type **changed** from bool to int.
         """
-        return self._conn.execute(b'EXISTS', key)
+        return self._conn.execute(b'EXISTS', key, *keys)
 
     def expire(self, key, timeout):
         """Set a timeout on key.
