@@ -1,6 +1,32 @@
 Changes
 -------
 
+0.2.9 (2016-10-24)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Allow multiple keys in ``EXISTS`` command
+  (see `#156 <https://github.com/aio-libs/aioredis/issues/156>`_
+  and `#157 <https://github.com/aio-libs/aioredis/issues/157>`_);
+
+**FIX**:
+
+* Close RedisPool when connection to Redis failed
+  (see `#136 <https://github.com/aio-libs/aioredis/issues/136>`_);
+
+* Add simple ``INFO`` command argument validation
+  (see `#140 <https://github.com/aio-libs/aioredis/issues/140>`_);
+
+* Remove invalid uses of ``next()``
+
+**MISC**:
+
+* Update devel.rst docs; update Pub/Sub Channel docs (cross-refs);
+
+* Update MANIFEST.in to include docs, examples and tests in source bundle;
+
+
 0.2.8 (2016-07-22)
 ^^^^^^^^^^^^^^^^^^
 

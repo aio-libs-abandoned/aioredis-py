@@ -21,6 +21,7 @@ coroutines
 dataset
 decrement
 dev
+devel
 dict
 downloadable
 EventLoop
@@ -81,6 +82,7 @@ REFCOUNT
 repo
 rpop
 rpoplpush
+rst
 runnable
 SHA
 smembers
