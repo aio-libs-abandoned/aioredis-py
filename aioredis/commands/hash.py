@@ -101,7 +101,7 @@ class HashCommandsMixin:
                 raise ValueError("args[0] is empty dict")
             pairs = chain.from_iterable(args[0].items())
         kwargs_pairs = chain.from_iterable(kwargs.items())
-        return wait_ok(self._conn.execute(
+        return wait_ok(self.execute(
             b'HMSET', key, *chain(pairs, kwargs_pairs)))
 
     def hset(self, key, field, value):
