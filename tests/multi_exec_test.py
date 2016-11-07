@@ -7,7 +7,9 @@ from aioredis.util import create_future
 
 
 def test_global_loop():
-    conn = mock.Mock()
+    conn = mock.Mock(spec=(
+        'get_atomic_connection execute closed _transaction_error'
+        .split()))
     # Needs to return yourself in get_atomic_connection()
     conn.get_atomic_connection.side_effect = \
         asyncio.coroutine(lambda: conn)
