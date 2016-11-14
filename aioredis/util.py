@@ -57,6 +57,29 @@ def decode(obj, encoding):
     return obj
 
 
+def extract_names(channels, is_pattern_command=False):
+    """Extract channel / pattern names from arguments to execute_pubsub call.
+
+    Yields either argument itself or channel name if argument
+    is instance of Channel.
+    Raises ValueError if pattern Channel is passed to subscribe/unsubscribe
+    command and vice-versa.
+    """
+    for channel in channels:
+        if isinstance(channel, Channel):
+            if is_pattern_command and not channel.is_pattern:
+                raise ValueError(
+                    "p(un)subscribe command expects pattern channel, got {!r}"
+                    .format(channel))
+            elif not is_pattern_command and channel.is_pattern:
+                raise ValueError(
+                    "(un)subscribe command expects exact channel, got {!r}"
+                    .format(channel))
+            yield channel.name
+        else:
+            yield channel
+
+
 class Channel:
     """Wrapper around asyncio.Queue."""
     __slots__ = ('_queue', '_name',

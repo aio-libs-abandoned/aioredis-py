@@ -16,6 +16,7 @@ from .util import (
     decode,
     async_task,
     create_future,
+    extract_names,
     )
 from .errors import (
     ConnectionClosedError,
@@ -270,11 +271,12 @@ class RedisConnection:
             raise TypeError("args must not contain None")
         if not len(channels):
             raise ValueError("No channels/patterns supplied")
-        cmd = encode_command(command, *channels)
+        cmd = encode_command(command, *extract_names(channels, command))
         res = []
         for ch in channels:
             fut = create_future(loop=self._loop)
             res.append(fut)
+            # TODO: make _update_pubsub partial with `ch`
             self._waiters.append((fut, None, self._update_pubsub))
         self._writer.write(cmd)
         return asyncio.gather(*res, loop=self._loop)
