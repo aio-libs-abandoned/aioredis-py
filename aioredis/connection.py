@@ -16,7 +16,6 @@ from .util import (
     decode,
     async_task,
     create_future,
-    extract_names,
     )
 from .errors import (
     ConnectionClosedError,
@@ -183,27 +182,21 @@ class RedisConnection:
             if self._in_transaction is not None:
                 self._in_transaction.append((encoding, cb))
 
-    def _process_pubsub(self, obj, *, _process_waiters=True):
+    def _process_pubsub(self, obj, *, process_waiters=True):
         """Processes pubsub messages."""
         kind, *pattern, chan, data = obj
         if kind in (b'subscribe', b'unsubscribe'):
-            if _process_waiters and self._in_pubsub and self._waiters:
+            if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
-            if kind == b'subscribe' and chan not in self._pubsub_channels:
-                self._pubsub_channels[chan] = Channel(chan, is_pattern=False,
-                                                      loop=self._loop)
-            elif kind == b'unsubscribe':
+            if kind == b'unsubscribe':
                 ch = self._pubsub_channels.pop(chan, None)
                 if ch:
                     ch.close()
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
-            if _process_waiters and self._in_pubsub and self._waiters:
+            if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
-            if kind == b'psubscribe' and chan not in self._pubsub_patterns:
-                self._pubsub_patterns[chan] = Channel(chan, is_pattern=True,
-                                                      loop=self._loop)
-            elif kind == b'punsubscribe':
+            if kind == b'punsubscribe':
                 ch = self._pubsub_patterns.pop(chan, None)
                 if ch:
                     ch.close()
@@ -270,14 +263,21 @@ class RedisConnection:
         if None in set(channels):
             raise TypeError("args must not contain None")
         if not len(channels):
-            raise ValueError("No channels/patterns supplied")
-        cmd = encode_command(command, *extract_names(channels, command))
+            raise TypeError("No channels/patterns supplied")
+        is_pattern = len(command) in (10, 12)
+        mkchannel = partial(Channel, is_pattern=is_pattern, loop=self._loop)
+        channels = [ch if isinstance(ch, Channel) else mkchannel(ch)
+                    for ch in channels]
+        if not all(ch.is_pattern == is_pattern for ch in channels):
+            raise ValueError("Not all channels {} match command {}"
+                             .format(channels, command))
+        cmd = encode_command(command, *(ch.name for ch in channels))
         res = []
         for ch in channels:
             fut = create_future(loop=self._loop)
             res.append(fut)
-            # TODO: make _update_pubsub partial with `ch`
-            self._waiters.append((fut, None, self._update_pubsub))
+            cb = partial(self._update_pubsub, ch=ch)
+            self._waiters.append((fut, None, cb))
         self._writer.write(cmd)
         return asyncio.gather(*res, loop=self._loop)
 
@@ -391,11 +391,15 @@ class RedisConnection:
             res.append(o)
         return res
 
-    def _update_pubsub(self, obj):
-        *head, subscriptions = obj
+    def _update_pubsub(self, obj, *, ch):
+        kind, *pattern, channel, subscriptions = obj
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
+        if kind == b'subscribe' and channel not in self._pubsub_channels:
+            self._pubsub_channels[channel] = ch
+        elif kind == b'psubscribe' and channel not in self._pubsub_patterns:
+            self._pubsub_patterns[channel] = ch
         if not was_in_pubsub:
-            self._process_pubsub(obj, _process_waiters=False)
+            self._process_pubsub(obj, process_waiters=False)
         return obj
 
     @property
