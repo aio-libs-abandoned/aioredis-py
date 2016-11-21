@@ -72,7 +72,8 @@ class Channel:
         self._waiter = None
 
     def __repr__(self):
-        return "<Channel name:{!r}, is_pattern:{}, qsize:{}>".format(
+        return "<{} name:{!r}, is_pattern:{}, qsize:{}>".format(
+            self.__class__.__name__,
             self._name, self._is_pattern, self._queue.qsize())
 
     @property
