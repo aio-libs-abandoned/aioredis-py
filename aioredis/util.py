@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+import uuid
 
 from asyncio.base_events import BaseEventLoop
 
@@ -11,7 +12,6 @@ PY_35 = sys.version_info >= (3, 5)
 
 _NOTSET = object()
 
-
 # NOTE: never put here anything else;
 #       just this basic types
 _converters = {
@@ -20,7 +20,7 @@ _converters = {
     str: lambda val: val.encode('utf-8'),
     int: lambda val: str(val).encode('utf-8'),
     float: lambda val: str(val).encode('utf-8'),
-    }
+}
 
 
 def _bytes_len(sized):
@@ -55,6 +55,62 @@ def decode(obj, encoding):
     elif isinstance(obj, list):
         return [decode(o, encoding) for o in obj]
     return obj
+
+
+class Queue:
+
+    def __init__(self, connection, key=uuid.uuid4().hex, max_size=0, timeout=None):
+        self._conn = connection
+        self._key = key
+        self._max_size = max_size
+        self._timeout = timeout
+
+    @property
+    def key(self):
+        return self._key
+
+    @property
+    def max_size(self):
+        return self._max_size
+
+    @asyncio.coroutine
+    def qsize(self):
+        return (yield from self._conn.llen(self._key))
+
+    @asyncio.coroutine
+    def empty(self):
+        return (yield from self.qsize()) == 0
+
+    @asyncio.coroutine
+    def full(self):
+        if self._max_size != 0:
+            return (yield from self.qsize()) >= self._max_size
+        return False
+
+    @asyncio.coroutine
+    def get(self, timeout=None):
+        query_timeout = timeout if timeout else self._timeout
+        item = yield from self._conn.blpop(self._key, timeout=query_timeout)
+        return item
+
+    @asyncio.coroutine
+    def get_nowait(self):
+        item = yield from self._conn.lpop(self._key)
+        return item
+
+    @asyncio.coroutine
+    def put(self, data):
+        if not (yield from self.full()):
+            yield from self._conn.rpush(self._key, data)
+            return True
+        return False
+
+    @asyncio.coroutine
+    def put_nowait(self, data):
+        if not (yield from self.full()):
+            asyncio.ensure_future(self._conn.rpush(self._key, data))
+            return True
+        return False
 
 
 class Channel:
@@ -215,7 +271,6 @@ def wait_make_dict(fut):
 
 
 class coerced_keys_dict(dict):
-
     def __getitem__(self, other):
         if not isinstance(other, bytes):
             other = _converters[type(other)](other)
@@ -240,6 +295,7 @@ if PY_35:
         def __aiter__(self):
             return self
 
+
     class _ScanIter(_BaseScanIter):
 
         @asyncio.coroutine
@@ -251,6 +307,7 @@ if PY_35:
             else:
                 ret = self._ret.pop(0)
                 return ret
+
 
     class _ScanIterPairs(_BaseScanIter):
 
@@ -264,6 +321,7 @@ if PY_35:
             else:
                 ret = self._ret.pop(0)
                 return ret
+
 
     class _ChannelIter:
 
@@ -281,10 +339,10 @@ if PY_35:
         @asyncio.coroutine
         def __anext__(self):
             if not self._ch.is_active:
-                raise StopAsyncIteration    # noqa
+                raise StopAsyncIteration  # noqa
             msg = yield from self._ch.get(*self._args, **self._kw)
             if msg is None:
-                raise StopAsyncIteration    # noqa
+                raise StopAsyncIteration  # noqa
             return msg
 
 
