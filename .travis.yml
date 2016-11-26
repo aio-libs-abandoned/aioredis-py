@@ -17,13 +17,8 @@ python:
 - "3.6-dev"
 
 env:
-  # global:
-  # - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0"
-  matrix:
-  - REDIS_TAG=2.6.17
-  - REDIS_TAG=2.8.22
-  - REDIS_TAG=3.0.5
-  - REDIS_TAG=3.2.0
+  global:
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0" CERT_DIR=/tmp/certs
 
 cache:
   directories:
@@ -31,18 +26,6 @@ cache:
   - $HOME/.cache/pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
-
-before_install:
-- export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
-- >
-  if [ ! -x "$REDIS_BIN/redis-server" ]; then
-    # For proper caching we must build all redis versions
-    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
-    tar -xvf redis-${REDIS_TAG}.tar.gz
-    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
-  fi
-# make certificate for ssl/tls test
-- make certificate CERT_DIR=/tmp/certs/
 
 install:
 - pip install hiredis
@@ -53,37 +36,24 @@ install:
 - pip install -e .
 
 before_script:
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server.pid
-  --unixsocket /tmp/aioredis.sock
-  --port 6379
-  --save ""
-- sleep 3
-- export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
-- echo $REDIS_VERSION
+# - >
+#   $REDIS_BIN/redis-server --daemonize yes
+#   --pidfile ./redis-server.pid
+#   --unixsocket /tmp/aioredis.sock
+#   --port 6379
+#   --save ""
+# - sleep 3
+# - export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
+# - echo $REDIS_VERSION
+# make certificate for ssl/tls test and build Redises
+- make certificate
+- make ci-build-redis
 
 script:
-- make -C docs spelling
-- >
-  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
-    flake8 aioredis tests
-  else
-    flake8 --exclude=py35_* aioredis tests
-  fi;
-- py.test -rsxX --cov --redis-server=${REDIS_BIN}/redis-server --ssl-cafile=/tmp/certs/test.crt
-
-# checking examples
-- >
-  if python -c "import sys; sys.exit(sys.version_info < (3, 5))"; then
-    export EXAMPLES=$(find $PWD/examples/ -name "*.py");
-  else
-    export EXAMPLES=$(find $PWD/examples/ -name "*.py" -not -name "*_3.5_*.py");
-  fi;
-  for example in $EXAMPLES; do
-    echo "Running ${example}";
-    python3 ${example} || exit 1;
-  done;
+- make spelling
+- make flake
+- make ci-test INSTALL_DIR=$HOME/redis
+- make examples
 
 after_script:
 - codecov

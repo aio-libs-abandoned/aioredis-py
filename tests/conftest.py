@@ -130,7 +130,8 @@ def serverB(start_server):
 
 
 def pytest_addoption(parser):
-    parser.addoption('--redis-server', default='/usr/bin/redis-server',
+    parser.addoption('--redis-server', default=[],
+                     action="append",
                      help="Path to redis-server executable,"
                           " defaults to `%(default)s`")
     parser.addoption('--ssl-cafile', default='tests/ssl/test.crt',
@@ -140,8 +141,8 @@ def pytest_addoption(parser):
                      help="Run tests with uvloop")
 
 
-def _read_server_version(config):
-    args = [config.getoption('--redis-server'), '--version']
+def _read_server_version(redis_bin):
+    args = [redis_bin, '--version']
     with subprocess.Popen(args, stdout=subprocess.PIPE) as proc:
         version = proc.stdout.readline().decode('utf-8')
     for part in version.split():
@@ -153,7 +154,10 @@ def _read_server_version(config):
     return tuple(map(int, part[2:].split('.')))
 
 
-@pytest.yield_fixture(scope='session')
+REDIS_SERVERS = []
+
+
+@pytest.yield_fixture(scope='session', params=REDIS_SERVERS)
 def start_server(request, unused_port):
 
     TCPAddress = namedtuple('TCPAddress', 'host port')
@@ -162,7 +166,7 @@ def start_server(request, unused_port):
     processes = []
     servers = {}
 
-    version = _read_server_version(request.config)
+    version = _read_server_version(request.param)
 
     def maker(name):
         if name in servers:
@@ -172,7 +176,7 @@ def start_server(request, unused_port):
         tcp_address = TCPAddress('localhost', port)
         unixsocket = '/tmp/redis.{}.sock'.format(port)
 
-        proc = subprocess.Popen([request.config.getoption('--redis-server'),
+        proc = subprocess.Popen([request.param,
                                  '--daemonize', 'no',
                                  '--save', '""',
                                  '--port', str(port),
@@ -284,10 +288,13 @@ def pytest_ignore_collect(path, config):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    version = _read_server_version(config)
+    versions = {srv: _read_server_version(srv)
+                for srv in REDIS_SERVERS}
     for item in items:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
+            version = [v for k, v in versions.items()
+                       if k in item.keywords][0]
             if version < marker.kwargs['version']:
                 item.add_marker(pytest.mark.skip(
                     reason=marker.kwargs['reason']))
@@ -298,6 +305,8 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 def pytest_configure(config):
+    bins = config.getoption('--redis-server')[:]
+    REDIS_SERVERS[:] = bins or ['/usr/bin/redis-server']
     if config.getoption('--uvloop'):
         try:
             import uvloop
