@@ -109,7 +109,7 @@ ci-test: $(REDIS_TARGETS)
 	@echo "Tests run"
 	py.test -rsxX --cov \
 		--ssl-cafile=$(CERT_DIR)/test.crt \
-		$(foreach T,$(REDIS_TARGETS),--redis-server=$T)
+		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 	$(call travis_end,tests)
 
 ci-build-redis: $(REDIS_TARGETS)

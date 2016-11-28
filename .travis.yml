@@ -20,6 +20,11 @@ env:
   global:
   - REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0" CERT_DIR=/tmp/certs
 
+matrix:
+  include:
+    python: 3.6-dev
+    env: TEST_ARGS=--uvloop
+
 cache:
   directories:
   - $HOME/redis
@@ -34,17 +39,12 @@ install:
 - pip install -r tests/requirements.txt
 - pip install -r docs/requirements.txt
 - pip install -e .
+- >
+  if [ "$TEST_ARGS" = "--uvloop" ]; then
+    pip install uvloop
+  fi
 
 before_script:
-# - >
-#   $REDIS_BIN/redis-server --daemonize yes
-#   --pidfile ./redis-server.pid
-#   --unixsocket /tmp/aioredis.sock
-#   --port 6379
-#   --save ""
-# - sleep 3
-# - export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
-# - echo $REDIS_VERSION
 # make certificate for ssl/tls test and build Redises
 - make certificate
 - make ci-build-redis
