@@ -130,6 +130,15 @@ Connection usage is as simple as:
       Method to execute Pub/Sub commands.
       The method is not a coroutine itself but returns a :func:`asyncio.gather()`
       coroutine.
+      Method also accept :class:`aioredis.Channel` instances as command
+      arguments::
+
+         >>> ch1 = Channel('A', is_pattern=False, loop=loop)
+         >>> await conn.execute_pubsub('subscribe', ch1)
+         [[b'subscribe', b'A', 1]]
+
+      .. versionchanged:: v0.3
+         The method accept :class:`aioredis.Channel` instances.
 
       :param command: One of the following Pub/Sub commands:
                       ``subscribe``, ``unsubscribe``,
