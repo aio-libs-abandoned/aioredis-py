@@ -22,7 +22,10 @@ env:
 
 matrix:
   include:
-    python: 3.6-dev
+  - python: 3.6-dev
+    env: TEST_ARGS=--uvloop
+  allow_failures:
+  - python: 3.6-dev
     env: TEST_ARGS=--uvloop
 
 cache:
