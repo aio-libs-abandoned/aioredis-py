@@ -8,6 +8,7 @@ from aioredis import (
     ProtocolError,
     RedisError,
     ReplyError,
+    Channel,
     )
 
 
@@ -346,22 +347,54 @@ def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
     sub = yield from create_connection(
         server.tcp_address, loop=loop)
 
-    res = yield from sub.execute('subscribe', 'chan:1')
+    res = yield from sub.execute_pubsub('subscribe', 'chan:1')
+    ch = sub.pubsub_channels['chan:1']
     assert res == [[b'subscribe', b'chan:1', 1]]
-    res = yield from sub.execute('subscribe', b'chan:1')
+    res = yield from sub.execute_pubsub('subscribe', b'chan:1')
     assert res == [[b'subscribe', b'chan:1', 1]]
+    assert ch is sub.pubsub_channels['chan:1']
+    res = yield from sub.execute_pubsub('subscribe', ch)
+    assert res == [[b'subscribe', b'chan:1', 1]]
+    assert ch is sub.pubsub_channels['chan:1']
 
-    res = yield from sub.execute('unsubscribe', 'chan:1')
+    res = yield from sub.execute_pubsub('unsubscribe', 'chan:1')
     assert res == [[b'unsubscribe', b'chan:1', 0]]
-    res = yield from sub.execute('unsubscribe', 'chan:1')
+    res = yield from sub.execute_pubsub('unsubscribe', 'chan:1')
     assert res == [[b'unsubscribe', b'chan:1', 0]]
 
-    res = yield from sub.execute('psubscribe', 'chan:*')
+    res = yield from sub.execute_pubsub('psubscribe', 'chan:*')
     assert res == [[b'psubscribe', b'chan:*', 1]]
-    res = yield from sub.execute('psubscribe', 'chan:*')
+    res = yield from sub.execute_pubsub('psubscribe', 'chan:*')
     assert res == [[b'psubscribe', b'chan:*', 1]]
 
-    res = yield from sub.execute('punsubscribe', 'chan:*')
+    res = yield from sub.execute_pubsub('punsubscribe', 'chan:*')
     assert res == [[b'punsubscribe', b'chan:*', 0]]
-    res = yield from sub.execute('punsubscribe', 'chan:*')
+    res = yield from sub.execute_pubsub('punsubscribe', 'chan:*')
     assert res == [[b'punsubscribe', b'chan:*', 0]]
+
+
+@pytest.mark.run_loop
+def test_execute_pubsub_errors(create_connection, loop, server):
+    sub = yield from create_connection(
+        server.tcp_address, loop=loop)
+
+    with pytest.raises(TypeError):
+        sub.execute_pubsub('subscribe', "chan:1", None)
+    with pytest.raises(TypeError):
+        sub.execute_pubsub('subscribe')
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'subscribe',
+            Channel('chan:1', is_pattern=True, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'unsubscribe',
+            Channel('chan:1', is_pattern=True, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'psubscribe',
+            Channel('chan:1', is_pattern=False, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'punsubscribe',
+            Channel('chan:1', is_pattern=False, loop=loop))

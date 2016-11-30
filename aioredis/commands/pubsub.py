@@ -22,6 +22,8 @@ class PubSubCommandsMixin:
         """Switch connection to Pub/Sub mode and
         subscribe to specified channels.
 
+        Arguments can be instances of :class:`~aioredis.Channel`.
+
         Returns :func:`asyncio.gather()` coroutine which when done will return
         a list of :class:`~aioredis.Channel` objects.
         """
@@ -31,12 +33,17 @@ class PubSubCommandsMixin:
             conn.pubsub_channels)
 
     def unsubscribe(self, channel, *channels):
-        """Unsubscribe from specific channels."""
+        """Unsubscribe from specific channels.
+
+        Arguments can be instances of :class:`~aioredis.Channel`.
+        """
         return self._conn.execute_pubsub(b'UNSUBSCRIBE', channel, *channels)
 
     def psubscribe(self, pattern, *patterns):
         """Switch connection to Pub/Sub mode and
         subscribe to specified patterns.
+
+        Arguments can be instances of :class:`~aioredis.Channel`.
 
         Returns :func:`asyncio.gather()` coroutine which when done will return
         a list of subscribed :class:`~aioredis.Channel` objects with
@@ -48,7 +55,10 @@ class PubSubCommandsMixin:
             conn.pubsub_patterns)
 
     def punsubscribe(self, pattern, *patterns):
-        """Unsubscribe from specific patterns."""
+        """Unsubscribe from specific patterns.
+
+        Arguments can be instances of :class:`~aioredis.Channel`.
+        """
         return self._conn.execute_pubsub(b'PUNSUBSCRIBE', pattern, *patterns)
 
     def pubsub_channels(self, pattern=None):

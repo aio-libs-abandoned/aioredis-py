@@ -65,14 +65,15 @@ class Channel:
 
     def __init__(self, name, is_pattern, loop=None):
         self._queue = asyncio.Queue(loop=loop)
-        self._name = name
+        self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
         self._loop = loop
         self._closed = False
         self._waiter = None
 
     def __repr__(self):
-        return "<Channel name:{}, is_pattern:{}, qsize:{}>".format(
+        return "<{} name:{!r}, is_pattern:{}, qsize:{}>".format(
+            self.__class__.__name__,
             self._name, self._is_pattern, self._queue.qsize())
 
     @property
