@@ -28,7 +28,7 @@ flake:
 	if $(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 5))"; then \
 		$(FLAKE) aioredis tests examples; \
 	else \
-		$(FLAKE) --exclude=py35_*,*_3.5_* aioredis tests examples; \
+		$(FLAKE) --exclude=py35_* aioredis tests examples/py34; \
 	fi;
 	$(call travis_end,flake)
 
@@ -62,7 +62,7 @@ aioredis.egg-info:
 ifeq ($(shell python -c "import sys; print(sys.version_info < (3,5))"), "True")
 EXAMPLES = $(shell find examples -name "*.py")
 else
-EXAMPLES = $(shell find examples -name "*.py" -not -name "*_3.5_*.py")
+EXAMPLES = $(shell find examples/py34 -name "*.py")
 endif
 
 ifdef TRAVIS
