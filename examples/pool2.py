@@ -23,7 +23,9 @@ async def async_with(pool):
 
 
 async def with_await(pool):
-    with (await pool) as conn:
+    # This is exactly the same as:
+    #   with (yield from pool) as conn:
+    with await pool as conn:
         value = await conn.get('my-key')
         print('raw value:', value)
 

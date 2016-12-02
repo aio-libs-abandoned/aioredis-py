@@ -5,16 +5,16 @@ import aioredis
 def main():
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def go():
-        redis = yield from aioredis.create_redis(
+    async def go():
+        redis = await aioredis.create_redis(
             ('localhost', 6379))
-        yield from redis.set('my-key', 'value')
-        val = yield from redis.get('my-key')
+        await redis.set('my-key', 'value')
+        val = await redis.get('my-key')
         print(val)
 
-        # optinally closing underlying connection
+        # gracefully closing underlying connection
         redis.close()
+        await redis.wait_closed()
     loop.run_until_complete(go())
 
 

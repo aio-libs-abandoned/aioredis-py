@@ -1,4 +1,4 @@
-.. highlight:: python
+.. highlight:: python3
 .. module:: aioredis.commands
 
 Getting started
@@ -11,17 +11,16 @@ Commands Pipelining
 Commands pipelining is built-in.
 
 Every command is sent to transport at-once
-(ofcourse if no TypeErrors/ValueErrors were raised)
+(ofcourse if no ``TypeError``/``ValueError`` was raised)
 
-When you making a call with ``yield from`` you will be waiting result,
-but if you want to make several calls simply collect futures of those calls
+When you making a call with ``await`` / ``yield from`` you will be waiting result,
 and then gather results.
 
 Simple example show both cases (:download:`get source code<../examples/pipeline.py>`):
 
 .. literalinclude:: ../examples/pipeline.py
-   :language: python
-   :lines: 10-24
+   :language: python3
+   :lines: 8-22
    :dedent: 4
 
 .. note::
@@ -32,8 +31,8 @@ Simple example show both cases (:download:`get source code<../examples/pipeline.
    (:download:`get source code<../examples/pipeline.py>`):
 
       .. literalinclude:: ../examples/pipeline.py
-         :language: python
-         :lines: 26-35
+         :language: python3
+         :lines: 23-31
          :dedent: 4
 
 
@@ -61,24 +60,24 @@ Here is simple example
 (:download:`get source code<../examples/transaction2.py>`):
 
 .. literalinclude:: ../examples/transaction2.py
-   :language: python
-   :lines: 10-17
+   :language: python3
+   :lines: 9-15
    :linenos:
-   :emphasize-lines: 6
+   :emphasize-lines: 5
    :dedent: 4
 
-As you can notice ``yield from`` is **only** used at line 6 with ``tr.execute``
+As you can notice ``await`` is **only** used at line 5 with ``tr.execute``
 and **not with** ``tr.set(...)`` calls.
 
 .. warning::
 
-   It is very important not to ``yield from`` buffered command
+   It is very important not to ``await`` buffered command
    (ie ``tr.set('foo', '123')``) as it will block forever.
 
    The following code will block forever::
 
       tr = redis.multi_exec()
-      yield from tr.incr('foo')   # that's all. we've stuck!
+      await tr.incr('foo')   # that's all. we've stuck!
 
 
 Pub/Sub mode
@@ -103,8 +102,8 @@ or :meth:`~aioredis.Channel.get_json` coroutines.
 Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
 
 .. literalinclude:: ../examples/pubsub2.py
-   :language: python
-   :lines: 7-34
+   :language: python3
+   :lines: 6-31
    :dedent: 4
 
 .. warning::
@@ -115,38 +114,38 @@ Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
 Pub/Sub example (:download:`get source code<../examples/pool_pubsub.py>`):
 
 .. literalinclude:: ../examples/pool_pubsub.py
-   :language: python
-   :lines: 14-36
+   :language: python3
+   :lines: 13-35
    :dedent: 4
 
 
-Python 3.5 async/await support
-------------------------------
+Python 3.5 ``async with`` / ``async for`` support
+-------------------------------------------------
 
 :mod:`aioredis` is compatible with :pep:`492`.
 
 :class:`~aioredis.Pool` can be used with :ref:`async with<async with>`
-(:download:`get source code<../examples/python_3.5_pool.py>`):
+(:download:`get source code<../examples/pool2.py>`):
 
-.. literalinclude:: ../examples/python_3.5_pool.py
-   :language: python
-   :lines: 6-8,20-22
+.. literalinclude:: ../examples/pool2.py
+   :language: python3
+   :lines: 7-8,20-22
    :dedent: 4
 
 
 It also can be used with ``await``:
 
-.. literalinclude:: ../examples/python_3.5_pool.py
-   :language: python
-   :lines: 6-8,26-28
+.. literalinclude:: ../examples/pool2.py
+   :language: python3
+   :lines: 7-8,26-30
    :dedent: 4
 
 
 New ``scan``-family commands added with support of :ref:`async for<async for>`
-(:download:`get source code<../examples/python_3.5_iscan.py>`):
+(:download:`get source code<../examples/iscan.py>`):
 
-.. literalinclude:: ../examples/python_3.5_iscan.py
-   :language: python
+.. literalinclude:: ../examples/iscan.py
+   :language: python3
    :lines: 7-9,29-31,34-36,39-41,44-45
    :dedent: 4
 

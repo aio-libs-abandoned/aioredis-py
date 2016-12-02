@@ -5,15 +5,16 @@ import aioredis
 def main():
     loop = asyncio.get_event_loop()
 
-    async def go():
-        conn = await aioredis.create_connection(
+    @asyncio.coroutine
+    def go():
+        conn = yield from aioredis.create_connection(
             ('localhost', 6379), encoding='utf-8')
 
-        ok = await conn.execute('set', 'my-key', 'some value')
+        ok = yield from conn.execute('set', 'my-key', 'some value')
         assert ok == 'OK', ok
 
-        str_value = await conn.execute('get', 'my-key')
-        raw_value = await conn.execute('get', 'my-key', encoding=None)
+        str_value = yield from conn.execute('get', 'my-key')
+        raw_value = yield from conn.execute('get', 'my-key', encoding=None)
         assert str_value == 'some value'
         assert raw_value == b'some value'
 

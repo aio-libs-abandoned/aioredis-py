@@ -16,11 +16,11 @@ class TransactionsCommandsMixin:
     >>> result_future1 = tr.incr('foo')
     >>> result_future2 = tr.incr('bar')
     >>> try:
-    ...     result = yield from tr.execute()
+    ...     result = await tr.execute()
     ... except MultiExecError:
     ...     pass    # check what happened
-    >>> result1 = yield from result_future1
-    >>> result2 = yield from result_future2
+    >>> result1 = await result_future1
+    >>> result2 = await result_future2
     >>> assert result == [result1, result2]
     """
 
@@ -41,12 +41,12 @@ class TransactionsCommandsMixin:
         Usage:
 
         >>> tr = redis.multi_exec()
-        >>> fut1 = tr.incr('foo')   # NO `yield from` as it will block forever!
+        >>> fut1 = tr.incr('foo')   # NO `await` as it will block forever!
         >>> fut2 = tr.incr('bar')
-        >>> result = yield from tr.execute()
+        >>> result = await tr.execute()
         >>> result
         [1, 1]
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         """
         return MultiExec(self._conn, self.__class__,
@@ -61,19 +61,19 @@ class TransactionsCommandsMixin:
         Example:
 
         >>> pipe = redis.pipeline()
-        >>> fut1 = pipe.incr('foo') # NO `yield from` as it will block forever!
+        >>> fut1 = pipe.incr('foo') # NO `await` as it will block forever!
         >>> fut2 = pipe.incr('bar')
-        >>> result = yield from pipe.execute()
+        >>> result = await pipe.execute()
         >>> result
         [1, 1]
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         >>> #
         >>> # The same can be done without pipeline:
         >>> #
         >>> fut1 = redis.incr('foo')    # the 'INCRY foo' command already sent
         >>> fut2 = redis.incr('bar')
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [2, 2]
         """
         return Pipeline(self._conn, self.__class__,
@@ -104,11 +104,11 @@ class Pipeline:
     >>> pipe = redis.pipeline()
     >>> fut1 = pipe.incr('foo')
     >>> fut2 = pipe.incr('bar')
-    >>> yield from pipe.execute()
+    >>> await pipe.execute()
     [1, 1]
-    >>> yield from fut1
+    >>> await fut1
     1
-    >>> yield from fut2
+    >>> await fut2
     1
     """
     error_class = PipelineError
@@ -211,18 +211,18 @@ class MultiExec(Pipeline):
     >>> f1 = tr.incr('foo')
     >>> f2 = tr.incr('bar')
     >>> # A)
-    >>> yield from tr.execute()
-    >>> res1 = yield from f1
-    >>> res2 = yield from f2
+    >>> await tr.execute()
+    >>> res1 = await f1
+    >>> res2 = await f2
     >>> # or B)
-    >>> res1, res2 = yield from tr.execute()
+    >>> res1, res2 = await tr.execute()
 
     and ofcourse try/except:
 
     >>> tr = redis.multi_exec()
     >>> f1 = tr.incr('1') # won't raise any exception (why?)
     >>> try:
-    ...     res = yield from tr.execute()
+    ...     res = await tr.execute()
     ... except RedisError:
     ...     pass
     >>> assert f1.done()
@@ -231,10 +231,10 @@ class MultiExec(Pipeline):
     >>> tr = redis.multi_exec()
     >>> wait_ok_coro = tr.mset('1')
     >>> try:
-    ...     ok1 = yield from tr.execute()
+    ...     ok1 = await tr.execute()
     ... except RedisError:
     ...     pass # handle it
-    >>> ok2 = yield from wait_ok_coro
+    >>> ok2 = await wait_ok_coro
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
     error_class = MultiExecError

@@ -1,6 +1,7 @@
 :mod:`aioredis` --- API Reference
 =================================
 
+.. highlight:: python3
 .. module:: aioredis
 
 
@@ -20,16 +21,18 @@ Connection usage is as simple as:
    import asyncio
    import aioredis
 
-   @asyncio.coroutine
-   def connection_example():
-       conn = yield from aioredis.create_connection(
+   async def connect_tcp():
+       conn = await aioredis.create_connection(
            ('localhost', 6379))
-       # connecting to socket
-       # conn = yiled from aioredis.create_connection(
-       #     '/path/to/redis/socket')
-       val = yield from conn.execute('GET', 'my-key')
+       val = await conn.execute('GET', 'my-key')
 
-   asyncio.get_event_loop().run_until_complete(connection_example())
+   async def connect_unixsocket():
+       conn = await aioredis.create_connection(
+           '/path/to/redis/socket')
+       val = await conn.execute('GET', 'my-key')
+
+   asyncio.get_event_loop().run_until_complete(connect_tcp())
+   asyncio.get_event_loop().run_until_complete(connect_unixsocket())
 
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
@@ -82,11 +85,11 @@ Connection usage is as simple as:
 
    .. attribute:: closed
 
-      Set to True if connection is closed (*read-only*).
+      Set to ``True`` if connection is closed (*read-only*).
 
    .. attribute:: in_transaction
 
-      Set to True when MULTI command was issued (*read-only*).
+      Set to ``True`` when MULTI command was issued (*read-only*).
 
    .. attribute:: pubsub_channels
 
@@ -138,7 +141,7 @@ Connection usage is as simple as:
          [[b'subscribe', b'A', 1]]
 
       .. versionchanged:: v0.3
-         The method accept :class:`aioredis.Channel` instances.
+         The method accept :class:`~aioredis.Channel` instances.
 
       :param command: One of the following Pub/Sub commands:
                       ``subscribe``, ``unsubscribe``,
@@ -151,7 +154,7 @@ Connection usage is as simple as:
 
       :return: Returns a list of subscribe/unsubscribe messages, ex:
 
-               >>> yield from conn.execute_pubsub('subscribe', 'A', 'B')
+               >>> await conn.execute_pubsub('subscribe', 'A', 'B')
                [[b'subscribe', b'A', 1], [b'subscribe', b'B', 2]]
 
 
@@ -199,11 +202,10 @@ The library provides connections pool. The basic usage is as follows:
    import asyncio
    import aioredis
 
-   @asyncio.coroutine
    def test_pool():
-       pool = yield from aioredis.create_pool(('localhost', 6379))
-       with (yield from pool) as redis:
-           val = yield from redis.get('my-key')
+       pool = await aioredis.create_pool(('localhost', 6379))
+       with await pool as redis:
+           val = await redis.get('my-key')
 
 
 .. _aioredis-create_pool:
@@ -379,7 +381,7 @@ Pub/Sub Channel object
 
       :raise aioredis.ChannelClosedError: If channel is unsubscribed and has no more messages.
 
-   .. method:: get_json(\*, encoding="utf-*")
+   .. method:: get_json(\*, encoding="utf-8")
 
       Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
 
@@ -392,8 +394,8 @@ Pub/Sub Channel object
       Main idea is to use it in loops:
 
       >>> ch = redis.channels['channel:1']
-      >>> while (yield from ch.wait_message()):
-      ...     msg = yield from ch.get()
+      >>> while await ch.wait_message():
+      ...     msg = await ch.get()
 
    .. comethod:: iter()
       :async-for:
