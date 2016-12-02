@@ -5,28 +5,26 @@ import aioredis
 def main():
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def reader(ch):
-        while (yield from ch.wait_message()):
-            msg = yield from ch.get_json()
+    async def reader(ch):
+        while (await ch.wait_message()):
+            msg = await ch.get_json()
             print("Got Message:", msg)
 
-    @asyncio.coroutine
-    def go():
-        pub = yield from aioredis.create_redis(
+    async def go():
+        pub = await aioredis.create_redis(
             ('localhost', 6379))
-        sub = yield from aioredis.create_redis(
+        sub = await aioredis.create_redis(
             ('localhost', 6379))
-        res = yield from sub.subscribe('chan:1')
+        res = await sub.subscribe('chan:1')
         ch1 = res[0]
 
-        tsk = asyncio.async(reader(ch1))
+        tsk = asyncio.ensure_future(reader(ch1))
 
-        res = yield from pub.publish_json('chan:1', ["Hello", "world"])
+        res = await pub.publish_json('chan:1', ["Hello", "world"])
         assert res == 1
 
-        yield from sub.unsubscribe('chan:1')
-        yield from tsk
+        await sub.unsubscribe('chan:1')
+        await tsk
         sub.close()
         pub.close()
 

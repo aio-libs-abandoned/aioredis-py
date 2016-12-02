@@ -45,12 +45,11 @@ Simple low-level interface:
 
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def go():
-        conn = yield from aioredis.create_connection(
+    async def go():
+        conn = await aioredis.create_connection(
             ('localhost', 6379), loop=loop)
-        yield from conn.execute('set', 'my-key', 'value')
-        val = yield from conn.execute('get', 'my-key')
+        await conn.execute('set', 'my-key', 'value')
+        val = await conn.execute('get', 'my-key')
         print(val)
         conn.close()
     loop.run_until_complete(go())
@@ -65,12 +64,11 @@ Simple high-level interface:
 
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def go():
-        redis = yield from aioredis.create_redis(
+    async def go():
+        redis = await aioredis.create_redis(
             ('localhost', 6379), loop=loop)
-        yield from redis.set('my-key', 'value')
-        val = yield from redis.get('my-key')
+        await redis.set('my-key', 'value')
+        val = await redis.get('my-key')
         print(val)
         redis.close()
     loop.run_until_complete(go())
@@ -85,16 +83,17 @@ Connections pool:
 
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
     def go():
-        pool = yield from aioredis.create_pool(
+        pool = await aioredis.create_pool(
             ('localhost', 6379),
             minsize=5, maxsize=10,
             loop=loop)
-        with (yield from pool) as redis:    # high-level redis API instance
-            yield from redis.set('my-key', 'value')
-            print((yield from redis.get('my-key')))
-        yield from pool.clear()    # closing all open connections
+        with await pool as redis:    # high-level redis API instance
+            await redis.set('my-key', 'value')
+            print(await redis.get('my-key'))
+        # graceful shutdown
+        pool.close()
+        await pool.wait_closed()
 
     loop.run_until_complete(go())
 

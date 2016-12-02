@@ -196,7 +196,7 @@ class GenericCommandsMixin:
         >>> match = 'something*'
         >>> cur = b'0'
         >>> while cur:
-        ...     cur, keys = yield from redis.scan(cur, match=match)
+        ...     cur, keys = await redis.scan(cur, match=match)
         ...     for key in keys:
         ...         print('Matched:', key)
 

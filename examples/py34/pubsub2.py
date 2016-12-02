@@ -2,51 +2,54 @@ import asyncio
 import aioredis
 
 
-async def pubsub():
-    sub = await aioredis.create_redis(
+@asyncio.coroutine
+def pubsub():
+    sub = yield from aioredis.create_redis(
          ('localhost', 6379))
 
-    ch1, ch2 = await sub.subscribe('channel:1', 'channel:2')
+    ch1, ch2 = yield from sub.subscribe('channel:1', 'channel:2')
     assert isinstance(ch1, aioredis.Channel)
     assert isinstance(ch2, aioredis.Channel)
 
-    async def async_reader(channel):
-        while await channel.wait_message():
-            msg = await channel.get(encoding='utf-8')
+    @asyncio.coroutine
+    def async_reader(channel):
+        while (yield from channel.wait_message()):
+            msg = yield from channel.get(encoding='utf-8')
             # ... process message ...
             print("message in {}: {}".format(channel.name, msg))
 
-    tsk1 = asyncio.ensure_future(async_reader(ch1))
+    tsk1 = asyncio.async(async_reader(ch1))
 
     # Or alternatively:
 
-    async def async_reader2(channel):
+    @asyncio.coroutine
+    def async_reader2(channel):
         while True:
-            msg = await channel.get(encoding='utf-8')
+            msg = yield from channel.get(encoding='utf-8')
             if msg is None:
                 break
             # ... process message ...
             print("message in {}: {}".format(channel.name, msg))
 
-    tsk2 = asyncio.ensure_future(async_reader2(ch2))
+    tsk2 = asyncio.async(async_reader2(ch2))
 
     # Publish messages and terminate
-    pub = await aioredis.create_redis(
+    pub = yield from aioredis.create_redis(
         ('localhost', 6379))
     while True:
-        channels = await pub.pubsub_channels()
+        channels = yield from pub.pubsub_channels()
         if len(channels) == 2:
             break
 
     for msg in ("Hello", ",", "world!"):
         for ch in ('channel:1', 'channel:2'):
-            await pub.publish(ch, msg)
+            yield from pub.publish(ch, msg)
     pub.close()
     sub.close()
-    await asyncio.sleep(0)
-    await pub.wait_closed()
-    await sub.wait_closed()
-    await asyncio.gather(tsk1, tsk2)
+    yield from asyncio.sleep(0)
+    yield from pub.wait_closed()
+    yield from sub.wait_closed()
+    yield from asyncio.gather(tsk1, tsk2)
 
 
 if __name__ == '__main__':
