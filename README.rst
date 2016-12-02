@@ -52,6 +52,7 @@ Simple low-level interface:
         val = await conn.execute('get', 'my-key')
         print(val)
         conn.close()
+        await conn.wait_closed()
     loop.run_until_complete(go())
     # will print 'value'
 
@@ -71,6 +72,7 @@ Simple high-level interface:
         val = await redis.get('my-key')
         print(val)
         redis.close()
+        await redis.wait_closed()
     loop.run_until_complete(go())
     # will print 'value'
 
@@ -83,7 +85,7 @@ Connections pool:
 
     loop = asyncio.get_event_loop()
 
-    def go():
+    async def go():
         pool = await aioredis.create_pool(
             ('localhost', 6379),
             minsize=5, maxsize=10,
