@@ -18,12 +18,18 @@ python:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0" CERT_DIR=/tmp/certs
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0" CERT_DIR=/tmp/certs INSTALL_DIR=$HOME/redis
 
 matrix:
   include:
-  - python: 3.6-dev
-    env: TEST_ARGS=--uvloop
+  - python: "3.3"
+    env: TESTS="flake examples"
+  - python: "3.4"
+    env: TESTS="flake examples"
+  - python: "3.5"
+    env: TESTS="flake examples spelling"
+  - python: "3.6-dev"
+    env: TESTS="flake examples" TEST_ARGS=--uvloop
   allow_failures:
   - env: TEST_ARGS=--uvloop
 
@@ -52,10 +58,8 @@ before_script:
 - make ci-build-redis
 
 script:
-- make spelling
-- make flake
-- make ci-test INSTALL_DIR=$HOME/redis
-- make examples
+- make ci-test
+- make $TESTS
 
 after_script:
 - codecov
