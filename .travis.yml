@@ -10,12 +10,6 @@ addons:
 
 language: python
 
-python:
-- "3.3"
-- "3.4"
-- "3.5"
-- "3.6-dev"
-
 env:
   global:
   - REDIS_TAGS="2.6.17 2.8.22 3.0.5 3.2.0" CERT_DIR=/tmp/certs INSTALL_DIR=$HOME/redis
