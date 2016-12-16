@@ -21,19 +21,23 @@ def pubsub():
             if msg == STOPWORD:
                 return
 
-    with (yield from pool) as redis:
-        channel, = yield from redis.subscribe('channel:1')
+    with (yield from pool) as conn:
+        raw_result = yield from conn.execute_pubsub('subscribe', 'channel:1')
+        print('raw result:', raw_result)
+        channel = conn.pubsub_channels['channel:1']
         yield from reader(channel)  # wait for reader to complete
-        yield from redis.unsubscribe('channel:1')
+        yield from conn.execute_pubsub('unsubscribe', 'channel:1')
 
-    # Explicit redis usage
-    redis = yield from pool.acquire()
+    # Explicit connection usage
+    conn = yield from pool.acquire()
     try:
-        channel, = yield from redis.subscribe('channel:1')
+        raw_result = yield from conn.execute_pubsub('subscribe', 'channel:1')
+        print('raw result:', raw_result)
+        channel = conn.pubsub_channels['channel:1']
         yield from reader(channel)  # wait for reader to complete
-        yield from redis.unsubscribe('channel:1')
+        yield from conn.execute_pubsub('unsubscribe', 'channel:1')
     finally:
-        pool.release(redis)
+        pool.release(conn)
 
     pool.close()
     yield from pool.wait_closed()    # closing all open connections
