@@ -308,11 +308,7 @@ def pytest_collection_modifyitems(session, config, items):
     for item in items:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
-            kw = item.keywords
-            version = [v for k, v in versions.items()
-                       if k in kw or k.replace('\\', '\\\\') in kw]
-            assert version, ("No version found", versions, item.keywords)
-            version = version[0]
+            version = versions[item.callspec.getparam('start_server')]
             if version < marker.kwargs['version']:
                 item.add_marker(pytest.mark.skip(
                     reason=marker.kwargs['reason']))
