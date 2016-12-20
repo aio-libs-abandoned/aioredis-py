@@ -27,10 +27,10 @@ matrix:
   allow_failures:
   - env: TESTS="flake examples" TEST_ARGS=--uvloop
 
-cache:
-  directories:
-  - $HOME/redis
-  - $HOME/.cache/pip
+cache: pip
+#   directories:
+#   - $HOME/redis
+#   - $HOME/.cache/pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
 
@@ -48,8 +48,7 @@ install:
 
 before_script:
 # make certificate for ssl/tls test and build Redises
-- make certificate
-- make ci-build-redis
+- make -j certificate ci-build-redis
 
 script:
 - make ci-test

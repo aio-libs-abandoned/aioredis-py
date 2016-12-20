@@ -115,11 +115,9 @@ ci-test: $(REDIS_TARGETS)
 ci-build-redis: $(REDIS_TARGETS)
 
 $(INSTALL_DIR)/%/redis-server: $(BUILD_DIR)/redis-%.tar.gz
-	$(call travis_start,build_redis_$*)
 	@echo "Building Redis v$*"
 	cd $(BUILD_DIR) && tar -xzvf redis-$*.tar.gz
 	make -j -C $(BUILD_DIR)/redis-$* INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install
-	$(call travis_end,build_redis_$*)
 
 $(BUILD_DIR)/redis-%.tar.gz:
 	mkdir -p $(BUILD_DIR)
