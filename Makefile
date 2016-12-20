@@ -2,7 +2,7 @@ PYTHON ?= python3
 FLAKE ?= flake8
 PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.5 3.2.0
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2
 
 BUILD_DIR ?= build
 INSTALL_DIR ?= $(BUILD_DIR)

@@ -25,7 +25,7 @@ Pub/Sub support                     Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
 Tested python versions              `3.3, 3.4, 3.5 <travis_>`_
-Tested for Redis server             `2.6, 2.8, 3.0 <travis_>`_
+Tested for Redis server             `2.6, 2.8, 3.0, 3.2 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
