@@ -253,10 +253,19 @@ def test_subscribe_concurrency(create_redis, server, loop):
     pub = yield from create_redis(
         server.tcp_address, loop=loop)
 
+    @asyncio.coroutine
+    def subscribe(*args):
+        return (yield from sub.subscribe(*args))
+
+    @asyncio.coroutine
+    def publish(*args):
+        yield from asyncio.sleep(0, loop=loop)
+        return (yield from pub.publish(*args))
+
     res = yield from asyncio.gather(
-        sub.subscribe('channel:0'),
-        pub.publish('channel:0', 'Hello'),
-        sub.subscribe('channel:1'),
+        subscribe('channel:0'),
+        publish('channel:0', 'Hello'),
+        subscribe('channel:1'),
         loop=loop)
     (ch1,), subs, (ch2,) = res
 
