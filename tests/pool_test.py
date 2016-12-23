@@ -408,3 +408,44 @@ def test_pool_check_closed_when_exception(create_pool, create_redis,
         " to ('localhost', {})".format(server.tcp_address.port))
     assert cm.output[:2] == [connect_msg, connect_msg]
     assert cm.output[-1] == "DEBUG:aioredis:Closed 1 connections"
+
+
+@pytest.mark.run_loop
+def test_pool_get_connection(create_pool, server, loop):
+    pool = yield from create_pool(server.tcp_address, minsize=1, maxsize=2,
+                                  loop=loop)
+    res = yield from pool.execute("set", "key", "val")
+    assert res == b'OK'
+
+    res = yield from pool.execute_pubsub("subscribe", "channel:1")
+    assert res == [[b"subscribe", b"channel:1", 1]]
+
+    res = yield from pool.execute("getset", "key", "value")
+    assert res == b'val'
+
+    res = yield from pool.execute_pubsub("subscribe", "channel:2")
+    assert res == [[b"subscribe", b"channel:2", 2]]
+
+    res = yield from pool.execute("get", "key")
+    assert res == b'value'
+
+
+@pytest.mark.run_loop
+def test_pool_get_connection_with_pipelining(create_pool, server, loop):
+    pool = yield from create_pool(server.tcp_address, minsize=1, maxsize=2,
+                                  loop=loop)
+    fut1 = pool.execute('set', 'key', 'val')
+    fut2 = pool.execute_pubsub("subscribe", "channel:1")
+    fut3 = pool.execute('getset', 'key', 'next')
+    fut4 = pool.execute_pubsub("subscribe", "channel:2")
+    fut5 = pool.execute('get', 'key')
+    res = yield from fut1
+    assert res == b'OK'
+    res = yield from fut2
+    assert res == [[b"subscribe", b"channel:1", 1]]
+    res = yield from fut3
+    assert res == b'val'
+    res = yield from fut4
+    assert res == [[b"subscribe", b"channel:2", 2]]
+    res = yield from fut5
+    assert res == b'next'

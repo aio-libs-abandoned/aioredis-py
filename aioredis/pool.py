@@ -176,8 +176,10 @@ class ConnectionsPool:
     def execute_pubsub(self, command, *channels):
         """Executes Redis (p)subscribe/(p)unsubscribe commands.
 
-        ConnectionsPool creates new separate connection for pubsub
-        and uses it until explicitly closed or disconnected.
+        ConnectionsPool picks separate connection for pub/sub
+        and uses it until explicitly closed or disconnected
+        (unsubscribing from all channels/patterns will leave connection
+         locked for pub/sub use).
 
         There is no auto-reconnect for this PUB/SUB connection.
 
@@ -206,10 +208,13 @@ class ConnectionsPool:
         for i in range(self.freesize):
             conn = self._pool[0]
             self._pool.rotate(1)
-            if conn.closed:  # or conn._waiters:
+            if conn.closed:  # or conn._waiters: (eg: busy connection)
+                continue
+            if conn.in_pubsub:
                 continue
             if is_pubsub:
                 self._pubsub_conn = conn
+                self._pool.remove(conn)
                 self._used.add(conn)
             return conn, conn.address
         return None, self._address  # figure out
