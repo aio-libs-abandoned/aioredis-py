@@ -1,7 +1,7 @@
 from .connection import RedisConnection, create_connection
 from .commands import Redis, create_redis, create_reconnecting_redis
 from .pool import RedisPool, create_pool
-from .util import Channel
+from .pubsub import Channel
 from .errors import (
     ConnectionClosedError,
     MultiExecError,

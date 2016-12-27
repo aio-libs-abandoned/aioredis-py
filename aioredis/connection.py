@@ -12,7 +12,6 @@ from .util import (
     _set_result,
     _set_exception,
     coerced_keys_dict,
-    Channel,
     decode,
     async_task,
     create_future,
@@ -24,6 +23,7 @@ from .errors import (
     ReplyError,
     WatchVariableError,
     )
+from .pubsub import Channel
 from .log import logger
 
 
