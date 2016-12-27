@@ -1,12 +1,22 @@
 import asyncio
 import json
 import sys
+import weakref
 
 from .util import create_future, _converters
 from .errors import ChannelClosedError
 
+__all__ = [
+    "Channel",
+    "EndOfStream",
+    "Listener",
+]
 
 PY_35 = sys.version_info >= (3, 5)
+
+
+# End of pubsub messages stream marker.
+EndOfStream = object()
 
 
 class Channel:
@@ -164,3 +174,102 @@ if PY_35:
             if msg is None:
                 raise StopAsyncIteration    # noqa
             return msg
+
+
+class Listener:
+    """Multi-producers, single-consumer Pub/Sub queue.
+
+    Can be used in cases where a single consumer task
+    must read messages from several different channels
+    (where pattern subscriptions may not work well).
+
+    Example use case:
+
+    >>> mpsc = Listener(loop=loop)
+    >>> async def reader(mpsc):
+    ...     async for channel, msg in mpsc.iter():
+    ...         assert isinstance(channel, Channel)
+    ...         print("Got {!r} in channel {!r}".format(msg, channel))
+    >>> asyncio.ensure_future(reader(mpsc))
+    >>> redis.subscribe(mpsc.channel('channel:1'),
+    ...                 mpsc.channel('channel:3'))
+    ...                 mpsc.channel('channel:5'))
+    >>> redis.psubscribe(mpsc.pattern('hello'))
+    >>> # publishing 'Hello world' into 'hello-channel'
+    >>> # will print this message:
+    Got b'Hello world' in channel b'hello-channel'
+    """
+
+    __slots__ = ('_queue', '_refs', '_loop')
+
+    def __init__(self, maxsize=None, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        self._queue = asyncio.Queue(loop=loop)
+        self._refs = weakref.WeakSet()
+        self._loop = loop
+
+    def channel(self, name):
+        """Create channel."""
+        # TODO keep dict of channels:
+        # * to be able to tell if listener still active.
+        # * maybe this should be controlled in some other way,
+        #       eg listener will close all channels?
+        #       channels can be disconnected elsewhere
+        #       so the listener may stuck waiting for closed channels
+        #   we can store weakrefs to channels so we can
+        #   test if channel is still subscribed
+        ch = _Sender(self._queue, name,
+                     is_pattern=False,
+                     loop=self._loop)
+        self._refs.add(ch)
+        return ch
+
+    def pattern(self, pattern):
+        """Create pattern channel."""
+        ch = _Sender(self._queue, pattern,
+                     is_pattern=True,
+                     loop=self._loop)
+        self._refs.add(ch)
+        return ch
+
+    @asyncio.coroutine
+    def get(self, *, encoding=None, decoder=None):
+        raise NotImplementedError
+
+    @asyncio.coroutine
+    def wait_message(self):
+        raise NotImplementedError
+
+    @property
+    def is_active(self):
+        """Returns True if listener has any active subscription."""
+        # TODO: check queue is not empty
+        return (len(self._refs) and
+                any(ch.is_active for ch in self._refs))
+
+
+class _Sender(Channel):
+    """Write-Only Channel.
+
+    Does not allow direct `.get()` calls.
+    """
+    __slots__ = ('__weakref__',)
+
+    def __init__(self, queue, name, is_pattern, *, loop):
+        self._queue = queue
+        self._name = _converters[type(name)](name)
+        self._is_pattern = is_pattern
+        self._loop = loop
+        self._closed = False
+        self._waiter = None
+
+    @asyncio.coroutine
+    def get(self, *, encoding=None, decoder=None):
+        # TODO: impossible to use `get`
+        #       'cause there can only be single consumer
+        #       raise exception;
+        raise RuntimeError("MPSC channel does not allow direct get")
+
+    def put_nowait(self, data):
+        super().put_nowait((self, data))
