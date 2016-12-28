@@ -373,6 +373,9 @@ class _Sender(AbcChannel):
         self._receiver._put_nowait(data, sender=self)
 
     def close(self):
+        # TODO: close() is exclusive so we can not share same _Sender
+        # between different connections.
+        # This needs to be fixed.
         if self._closed:
             return
         self._closed = True
