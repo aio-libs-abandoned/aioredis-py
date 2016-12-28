@@ -255,7 +255,7 @@ def test_select_and_create(create_pool, loop, server):
             pool.release(conn)
             if conn.db == db:
                 break
-    yield from asyncio.wait_for(test(), 1, loop=loop)
+    yield from asyncio.wait_for(test(), 3, loop=loop)
 
 
 @pytest.mark.run_loop

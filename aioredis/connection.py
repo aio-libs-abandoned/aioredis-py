@@ -12,7 +12,6 @@ from .util import (
     _set_result,
     _set_exception,
     coerced_keys_dict,
-    Channel,
     decode,
     async_task,
     create_future,
@@ -24,6 +23,8 @@ from .errors import (
     ReplyError,
     WatchVariableError,
     )
+from .pubsub import Channel
+from .abc import AbcChannel
 from .log import logger
 
 
@@ -266,7 +267,7 @@ class RedisConnection:
             raise TypeError("No channels/patterns supplied")
         is_pattern = len(command) in (10, 12)
         mkchannel = partial(Channel, is_pattern=is_pattern, loop=self._loop)
-        channels = [ch if isinstance(ch, Channel) else mkchannel(ch)
+        channels = [ch if isinstance(ch, AbcChannel) else mkchannel(ch)
                     for ch in channels]
         if not all(ch.is_pattern == is_pattern for ch in channels):
             raise ValueError("Not all channels {} match command {}"
