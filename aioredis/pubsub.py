@@ -1,8 +1,9 @@
 import asyncio
 import json
 import sys
-import weakref
+import types
 
+from .abc import AbcChannel
 from .util import create_future, _converters
 from .errors import ChannelClosedError
 
@@ -19,11 +20,12 @@ PY_35 = sys.version_info >= (3, 5)
 EndOfStream = object()
 
 
-class Channel:
+class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
-    __slots__ = ('_queue', '_name',
-                 '_closed', '_waiter',
-                 '_is_pattern', '_loop')
+    # doesn't make much sense with inheritance
+    # __slots__ = ('_queue', '_name',
+    #              '_closed', '_waiter',
+    #              '_is_pattern', '_loop')
 
     def __init__(self, name, is_pattern, loop=None):
         self._queue = asyncio.Queue(loop=loop)
@@ -129,7 +131,7 @@ class Channel:
         yield from self._waiter
         return self.is_active
 
-    # internale methods
+    # internal methods
 
     def put_nowait(self, data):
         self._queue.put_nowait(data)
