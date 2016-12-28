@@ -14,6 +14,7 @@ except ImportError:
 __all__ = [
     'AbcConnection',
     'AbcPool',
+    'AbcChannel',
 ]
 
 
@@ -104,3 +105,53 @@ class AbcPool(AbcConnection):
     @abc.abstractmethod
     def address(self):
         """Connection address or None."""
+
+
+class AbcChannel(ABC):
+    """Abstract Pub/Sub Channel interface."""
+
+    @property
+    @abc.abstractmethod
+    def name(self):
+        """Encoded channel name or pattern."""
+
+    @property
+    @abc.abstractmethod
+    def is_pattern(self):
+        """Boolean flag indicating if channel is pattern channel."""
+
+    @property
+    @abc.abstractmethod
+    def is_active(self):
+        """Flag indicating that channel has unreceived messages
+        and not marked as closed."""
+
+    @asyncio.coroutine
+    @abc.abstractmethod
+    def get(self):
+        """Wait and return new message.
+
+        Will raise ChannelClosedError if channel is not active.
+        """
+
+    # wait_message is not required; details of implementation
+    # @abc.abstractmethod
+    # def wait_message(self):
+    #     pass
+
+    @abc.abstractmethod
+    def put_nowait(self, data):
+        """Send data to channel.
+
+        Called by RedisConnection when new message received.
+        For pattern subscriptions data will be a tuple of
+        channel name and message itself.
+        """
+
+    @abc.abstractmethod
+    def close(self):
+        """Marks Channel as closed, no more messages will be sent to it.
+
+        Called by RedisConnection when channel is unsubscribed
+        or connection is closed.
+        """
