@@ -183,7 +183,8 @@ class Listener:
 
     Can be used in cases where a single consumer task
     must read messages from several different channels
-    (where pattern subscriptions may not work well).
+    (where pattern subscriptions may not work well
+    or channels can be added/removed dynamically).
 
     Example use case:
 
@@ -193,47 +194,60 @@ class Listener:
     ...         assert isinstance(channel, Channel)
     ...         print("Got {!r} in channel {!r}".format(msg, channel))
     >>> asyncio.ensure_future(reader(mpsc))
-    >>> redis.subscribe(mpsc.channel('channel:1'),
-    ...                 mpsc.channel('channel:3'))
-    ...                 mpsc.channel('channel:5'))
-    >>> redis.psubscribe(mpsc.pattern('hello'))
+    >>> await redis.subscribe(mpsc.channel('channel:1'),
+    ...                       mpsc.channel('channel:3'))
+    ...                       mpsc.channel('channel:5'))
+    >>> await redis.psubscribe(mpsc.pattern('hello'))
     >>> # publishing 'Hello world' into 'hello-channel'
     >>> # will print this message:
     Got b'Hello world' in channel b'hello-channel'
+    >>> # when all is done:
+    >>> await redis.unsubscribe('channel:1', 'channel:3', 'channel:5')
+    >>> await redis.punsubscribe('hello')
+    >>> mpsc.stop()
     """
-
-    __slots__ = ('_queue', '_refs', '_loop')
 
     def __init__(self, maxsize=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._queue = asyncio.Queue(loop=loop)
-        self._refs = weakref.WeakSet()
+        self._refs = {}
+        self._waiter = None
+        self._running = True
         self._loop = loop
 
     def channel(self, name):
         """Create channel."""
-        # TODO keep dict of channels:
-        # * to be able to tell if listener still active.
-        # * maybe this should be controlled in some other way,
-        #       eg listener will close all channels?
-        #       channels can be disconnected elsewhere
-        #       so the listener may stuck waiting for closed channels
-        #   we can store weakrefs to channels so we can
-        #   test if channel is still subscribed
-        ch = _Sender(self._queue, name,
-                     is_pattern=False,
-                     loop=self._loop)
-        self._refs.add(ch)
-        return ch
+        enc_name = _converters[type(name)](name)
+        if (enc_name, False) not in self._refs:
+            ch = _Sender(self, enc_name,
+                         is_pattern=False,
+                         loop=self._loop)
+            self._refs[(enc_name, False)] = ch
+            return ch
+        return self._refs[(enc_name, False)]
 
     def pattern(self, pattern):
         """Create pattern channel."""
-        ch = _Sender(self._queue, pattern,
-                     is_pattern=True,
-                     loop=self._loop)
-        self._refs.add(ch)
-        return ch
+        enc_pattern = _converters[type(pattern)](pattern)
+        if (enc_pattern, True) not in self._refs:
+            ch = _Sender(self, enc_pattern,
+                         is_pattern=True,
+                         loop=self._loop)
+            self._refs[(enc_pattern, True)] = ch
+        return self._refs[(enc_pattern, True)]
+
+    @property
+    def channels(self):
+        return types.MappingProxyType({
+            ch.name: ch for ch in self._refs.values()
+            if not ch.is_pattern})
+
+    @property
+    def patterns(self):
+        return types.MappingProxyType({
+            ch.name: ch for ch in self._refs.values()
+            if ch.is_pattern})
 
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
@@ -241,37 +255,72 @@ class Listener:
 
     @asyncio.coroutine
     def wait_message(self):
+        """Blocks until new message appear."""
+        if not self.is_active:
+            return False
         raise NotImplementedError
 
     @property
     def is_active(self):
         """Returns True if listener has any active subscription."""
-        # TODO: check queue is not empty
-        return (len(self._refs) and
-                any(ch.is_active for ch in self._refs))
+        if not self._queue.empty():
+            return True
+        return any(ch.is_active for ch in self._refs.values())
+
+    def stop(self):
+        """Stop receiving messages.
+
+        All new messages after this call will be ignored,
+        so you must call unsubscribe before stopping this listener.
+        """
+        self._running = False
+
+    def _put_nowait(self, data, *, sender):
+        if not self._running:
+            # TODO: log warning
+            return
+        self._queue.put_nowait((sender, data))
+
+    def _close(self, sender):
+        self._refs.pop((sender.name, sender.is_pattern))
 
 
-class _Sender(Channel):
+class _Sender(AbcChannel):
     """Write-Only Channel.
 
     Does not allow direct `.get()` calls.
     """
-    __slots__ = ('__weakref__',)
 
-    def __init__(self, queue, name, is_pattern, *, loop):
-        self._queue = queue
+    def __init__(self, receiver, name, is_pattern, *, loop):
+        self._receiver = receiver
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
         self._loop = loop
         self._closed = False
-        self._waiter = None
+
+    @property
+    def name(self):
+        """Encoded channel name or pattern."""
+        return self._name
+
+    @property
+    def is_pattern(self):
+        """Set to True if channel is subscribed to pattern."""
+        return self._is_pattern
+
+    @property
+    def is_active(self):
+        return not self._closed
 
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
-        # TODO: impossible to use `get`
-        #       'cause there can only be single consumer
-        #       raise exception;
-        raise RuntimeError("MPSC channel does not allow direct get")
+        raise RuntimeError("MPSC channel does not allow direct get() calls")
 
     def put_nowait(self, data):
-        super().put_nowait((self, data))
+        self._receiver._put_nowait(data, sender=self)
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        self._receiver._close(self)

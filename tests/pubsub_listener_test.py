@@ -1,8 +1,7 @@
 import pytest
 import asyncio
-import gc
 
-from aioredis import Channel
+from aioredis.abc import AbcChannel
 from aioredis.pubsub import Listener
 
 
@@ -11,24 +10,22 @@ def test_make_channel(loop):
     assert not mpsc.is_active
 
     ch_a = mpsc.channel("channel:1")
-    assert isinstance(ch_a, Channel)
+    assert isinstance(ch_a, AbcChannel)
     assert mpsc.is_active
 
     ch_b = mpsc.channel('channel:1')
-    assert ch_a is not ch_b
+    assert ch_a is ch_b
     assert ch_a.name == ch_b.name
     assert ch_a.is_pattern == ch_b.is_pattern
     assert mpsc.is_active
 
     # remember id; drop refs to objects and create new one;
-    oid = id(ch_a)
-    del ch_a
-    del ch_b
-    gc.collect()
+    ch_a.close()
+    assert not ch_a.is_active
 
     assert not mpsc.is_active
     ch = mpsc.channel("channel:1")
-    assert id(ch) != oid
+    assert ch is not ch_a
 
 
 @pytest.mark.run_loop
