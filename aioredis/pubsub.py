@@ -6,6 +6,7 @@ import types
 from .abc import AbcChannel
 from .util import create_future, _converters
 from .errors import ChannelClosedError
+from .log import logger
 
 __all__ = [
     "Channel",
@@ -205,9 +206,10 @@ class Listener:
     >>> await redis.unsubscribe('channel:1', 'channel:3', 'channel:5')
     >>> await redis.punsubscribe('hello')
     >>> mpsc.stop()
+    >>> # any message received after stop() will be ignored.
     """
 
-    def __init__(self, maxsize=None, loop=None):
+    def __init__(self, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._queue = asyncio.Queue(loop=loop)
@@ -215,6 +217,10 @@ class Listener:
         self._waiter = None
         self._running = True
         self._loop = loop
+
+    def __repr__(self):
+        return ('<Listener is_active:{}, senders:{}, qsize:{}>'
+                .format(self.is_active, len(self._refs), self._queue.qsize()))
 
     def channel(self, name):
         """Create channel."""
@@ -239,33 +245,65 @@ class Listener:
 
     @property
     def channels(self):
+        """Read-only channels dict."""
         return types.MappingProxyType({
             ch.name: ch for ch in self._refs.values()
             if not ch.is_pattern})
 
     @property
     def patterns(self):
+        """Read-only patterns dict."""
         return types.MappingProxyType({
             ch.name: ch for ch in self._refs.values()
             if ch.is_pattern})
 
     @asyncio.coroutine
     def get(self, *, encoding=None, decoder=None):
-        raise NotImplementedError
+        """Wait for and return pub/sub message from one of channels.
+
+        Return value is either:
+        * tuple of two elements: channel & message;
+        * tuple of three elemens: pattern channel, (target channel & message);
+        * or None in case Listener is stopped.
+
+        Raises ChannelClosedError if listener is stopped and all mesesages
+        has been received.
+        """
+        assert decoder is None or callable(decoder), decoder
+        if not self.is_active:
+            if not self._running:
+                raise ChannelClosedError()
+            return
+        ch, msg = yield from self._queue.get()
+        if ch.is_pattern:
+            dest_ch, msg = msg
+        if encoding is not None:
+            msg = msg.decode(encoding)
+        if decoder is not None:
+            msg = decoder(msg)
+        if ch.is_pattern:
+            return ch, dest_ch, msg
+        return ch, msg
 
     @asyncio.coroutine
     def wait_message(self):
         """Blocks until new message appear."""
-        if not self.is_active:
+        if not self._queue.empty():
+            return True
+        if not self._running:
             return False
-        raise NotImplementedError
+        if self._waiter is None:
+            self._waiter = create_future(loop=self._loop)
+        yield from self._waiter
+        return self.is_active
 
     @property
     def is_active(self):
         """Returns True if listener has any active subscription."""
         if not self._queue.empty():
             return True
-        return any(ch.is_active for ch in self._refs.values())
+        return (self._running and
+                any(ch.is_active for ch in self._refs.values()))
 
     def stop(self):
         """Stop receiving messages.
@@ -275,11 +313,21 @@ class Listener:
         """
         self._running = False
 
+    # internal methods
+
     def _put_nowait(self, data, *, sender):
         if not self._running:
-            # TODO: log warning
+            logger.warning("Pub/Sub listener message after stop: %r, %r",
+                           sender, data)
             return
         self._queue.put_nowait((sender, data))
+        if self._waiter is not None:
+            fut, self._waiter = self._waiter, None
+            if fut.done():
+                assert fut.cancelled(), (
+                    "Waiting future is in wrong state", self, fut)
+                return
+            fut.set_result(None)
 
     def _close(self, sender):
         self._refs.pop((sender.name, sender.is_pattern))
@@ -297,6 +345,11 @@ class _Sender(AbcChannel):
         self._is_pattern = is_pattern
         self._loop = loop
         self._closed = False
+
+    def __repr__(self):
+        return "<{} name:{!r}, is_pattern:{}, receiver:{!r}>".format(
+            self.__class__.__name__,
+            self._name, self._is_pattern, self._receiver)
 
     @property
     def name(self):
