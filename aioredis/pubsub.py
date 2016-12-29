@@ -282,7 +282,7 @@ class Listener:
         if decoder is not None:
             msg = decoder(msg)
         if ch.is_pattern:
-            return ch, dest_ch, msg
+            return ch, (dest_ch, msg)
         return ch, msg
 
     @asyncio.coroutine
