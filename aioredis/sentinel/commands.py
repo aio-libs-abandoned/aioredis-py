@@ -1,14 +1,8 @@
 import asyncio
 
-from ..util import wait_ok
+from ..util import wait_ok, wait_convert
 from ..commands import Redis
 from .pool import create_sentinel_pool
-from .parser import (
-    parse_sentinel_masters,
-    parse_sentinel_get_master,
-    parse_sentinel_master,
-    parse_sentinel_slaves_and_sentinels,
-    )
 
 
 @asyncio.coroutine
@@ -29,19 +23,7 @@ class RedisSentinel:
     """Redis Sentinel client."""
 
     def __init__(self, pool):
-        # What I need in here -- special Pool controlling Sentinels
         self._pool = pool
-        #
-        # Add dict of pools:
-        #   master -> pool;
-        #
-        # Need a way to know when any connection gets closed
-        # to be able to reconnect and rediscover redis nodes.
-        #
-        # 'connection closed' message must be propagated to
-        # Sentinel manager and nodes discovery must be started again;
-        #
-        # two ways: either use pool subclass or add signals.
 
     def close(self):
         """Close client connections."""
@@ -57,47 +39,54 @@ class RedisSentinel:
         """True if connection is closed."""
         return self._pool.closed
 
-    def get_master(self, name):
+    def master_for(self, name):
         """Returns Redis client to master Redis server."""
-        return Redis(self._pool.get_master(name))
+        # TODO: make class configurable
+        return Redis(self._pool.master_for(name))
 
-    def get_slave(self, name):
+    def slave_for(self, name):
         """Returns Redis client to slave Redis server."""
-        return Redis(self._pool.get_slave(name))
+        # TODO: make class configurable
+        return Redis(self._pool.slave_for(name))
 
     def execute(self, command, *args, **kwargs):
+        """Execute Sentinel command.
+
+        It will be prefixed with SENTINEL automatically.
+        """
         return self._pool.execute(
             b'SENTINEL', command, *args, **kwargs)
 
     def ping(self):
-        """Send PING command to Sentinel instance(s)."""  # instances?
+        """Send PING command to Sentinel instance(s)."""
+        # TODO: add kwargs allowing to pick sentinel to send command to.
         return (yield from self._pool.execute(b'PING'))
 
     def master(self, name):
         """Returns a dictionary containing the specified masters state."""
         fut = self.execute(b'MASTER', name, encoding='utf-8')
-        return parse_sentinel_master(fut)
+        return wait_convert(fut, parse_sentinel_master)
 
     def master_address(self, name):
         """Returns a (host, port) pair for the given ``name``."""
         fut = self.execute(b'get-master-addr-by-name', name, encoding='utf-8')
-        return parse_sentinel_get_master(fut)
+        return wait_convert(fut, lambda addr: (addr[0], int(addr[1])))
 
     def masters(self):
         """Returns a list of dictionaries containing each master's state."""
-        masters = self.execute(b'MASTERS', encoding='utf-8')
-        # TODO: process masters
-        return parse_sentinel_masters(masters)
+        fut = self.execute(b'MASTERS', encoding='utf-8')
+        # TODO: process masters: we can adjust internal state
+        return wait_convert(fut, parse_sentinel_masters)
 
     def slaves(self, name):
         """Returns a list of slaves for ``name``"""
         fut = self.execute(b'SLAVES', name, encoding='utf-8')
-        return parse_sentinel_slaves_and_sentinels(fut)
+        return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def sentinels(self, name):
         """Returns a list of sentinels for ``name``"""
         fut = self.execute(b'SENTINELS', name, encoding='utf-8')
-        return parse_sentinel_slaves_and_sentinels(fut)
+        return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def monitor(self, name, ip, port, quorum):
         """Add a new master to Sentinel to be monitored"""
@@ -111,10 +100,13 @@ class RedisSentinel:
 
     def set(self, name, option, value):
         """Set Sentinel monitoring parameters for a given master"""
-        return self.execute(b"SET", name, option, value)
+        fut = self.execute(b"SET", name, option, value)
+        return wait_ok(fut)
 
     def failover(self, name):
         """Force a failover of a named master."""
+        fut = self.execute(b'FAILOVER', name)
+        return wait_ok(fut)
 
     def check_quorum(self, name):
         """
@@ -123,3 +115,65 @@ class RedisSentinel:
         and the majority needed to authorize the failover.
         """
         return self.execute(b'CKQUORUM', name)
+
+
+SENTINEL_STATE_TYPES = {
+    'can-failover-its-master': int,
+    'config-epoch': int,
+    'down-after-milliseconds': int,
+    'failover-timeout': int,
+    'info-refresh': int,
+    'last-hello-message': int,
+    'last-ok-ping-reply': int,
+    'last-ping-reply': int,
+    'last-ping-sent': int,
+    'master-link-down-time': int,
+    'master-port': int,
+    'num-other-sentinels': int,
+    'num-slaves': int,
+    'o-down-time': int,
+    'pending-commands': int,
+    'link-pending-commands': int,
+    'link-refcount': int,
+    'parallel-syncs': int,
+    'port': int,
+    'quorum': int,
+    'role-reported-time': int,
+    's-down-time': int,
+    'slave-priority': int,
+    'slave-repl-offset': int,
+    'voted-leader-epoch': int,
+    'flags': lambda s: frozenset(s.split(',')),  # TODO: make flags enum?
+}
+
+
+def pairs_to_dict_typed(response, type_info):
+    it = iter(response)
+    result = {}
+    for key, value in zip(it, it):
+        if key in type_info:
+            try:
+                value = type_info[key](value)
+            except (TypeError, ValueError):
+                # if for some reason the value can't be coerced, just use
+                # the string value
+                pass
+        result[key] = value
+    return result
+
+
+def parse_sentinel_masters(response):
+    result = {}
+    for item in response:
+        state = pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
+        result[state['name']] = state
+    return result
+
+
+def parse_sentinel_slaves_and_sentinels(response):
+    return [pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
+            for item in response]
+
+
+def parse_sentinel_master(response):
+    return pairs_to_dict_typed(response, SENTINEL_STATE_TYPES)

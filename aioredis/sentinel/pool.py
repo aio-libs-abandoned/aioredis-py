@@ -1,38 +1,28 @@
-# Implement Sentinel connections pool.
-#
-# It must provide methods for getting client pools (to master/slave)
-# and control them.
-#
-# MasterConnectionsPool:
-#   will keep a link to sentinel/parent pool
-#   on connection close -- must trigger sentinel to
-#       rediscover and reconnect all redises;
-
-# NOTE: need some benchmarks to test python code/abstractions speed;
-
-# TODO:
-#   1. Generalize Pool API (BaseConnectionsPool?);
-#   2. Generalize Connection API (BaseConnection?);
-#   3. Use Pool in ConnectionsPool;
-#   4. Make MastersPool (reference to sentinels);
-#   5. Measure python abstractions overhead (isinstance/getattr/etc)
-
 import asyncio
+import contextlib
+
 from concurrent.futures import ALL_COMPLETED
+from async_timeout import timeout as async_timeout
 
 from ..log import sentinel_logger
-from ..util import async_task, Channel
+from ..util import async_task
+from ..pubsub import Receiver
 from ..pool import create_pool, ConnectionsPool
+from ..errors import MasterNotFoundError, SlaveNotFoundError
 
 
+# Address marker for discovery
 _NON_DISCOVERED = object()
+
+_logger = sentinel_logger.getChild('monitor')
 
 
 @asyncio.coroutine
 def create_sentinel_pool(sentinels, *, db=None, password=None,
                          encoding=None, minsize=1, maxsize=10,
-                         ssl=None, loop=None):
+                         ssl=None, timeout=0.2, loop=None):
     """Create SentinelPool."""
+    # FIXME: revise default timeout value
     assert isinstance(sentinels, (list, tuple)), sentinels
     if loop is None:
         loop = asyncio.get_event_loop()
@@ -43,80 +33,31 @@ def create_sentinel_pool(sentinels, *, db=None, password=None,
                         encoding=encoding,
                         minsize=minsize,
                         maxsize=maxsize,
+                        timeout=timeout,
                         loop=loop)
     yield from pool.discover()
     return pool
 
 
-class ManagedPool(ConnectionsPool):
+class SentinelPool:
+    """Sentinel connections pool.
 
-    def __init__(self, sentinel, service, is_master,
-                 db=None, password=None, encoding=None,
-                 *, minsize, maxsize, ssl=None, loop=None):
-        super().__init__(_NON_DISCOVERED,
-                         db=db, password=password, encoding=encoding,
-                         minsize=minsize, maxsize=maxsize, ssl=ssl, loop=loop)
-        assert self._address is _NON_DISCOVERED
-        self._sentinel = sentinel
-        self._service = service
-        self._is_master = is_master
-
-    @property
-    def address(self):
-        if self._address is _NON_DISCOVERED:
-            return
-        return self._address
-
-    @asyncio.coroutine
-    def _create_new_connection(self, address):
-        if address is _NON_DISCOVERED:
-            # cache service address
-            if self._is_master:
-                cmd = b'GET-MASTER-ADDR-BY-NAME'
-            else:
-                cmd = b'SLAVES'
-            yield from self._do_clear()
-            host, port = yield from self._sentinel.execute(
-                b'SENTINEL', cmd, self._service)
-            address = host, int(port)
-            self._address = address
-            sentinel_logger.debug("Discoverred new address %r for %s",
-                                  address, self._service)
-        return (yield from super()._create_new_connection(address))
-
-    def _drop_closed(self):
-        diff = len(self._pool)
-        super()._drop_closed()
-        diff = diff - len(self._pool)
-        if diff:
-            # if closed connections in pool: reset addr; notify sentinel
-            sentinel_logger.debug(
-                "Dropped %d closed connnection(s); must rediscover", diff)
-            self._sentinel._rediscover(self._service)
-
-    def release(self, conn):
-        was_closed = conn.closed
-        super().release(conn)
-        # if connection was closed in use and not by release()
-        if was_closed:
-            sentinel_logger.debug(
-                "Released closed connection; must rediscover")
-            self._sentinel._rediscover(self._service)
-
-    def need_rediscover(self):
-        self._address = _NON_DISCOVERED
-
-
-class SentinelPool:  # TODO: implement AbcPool?
+    Holds connection pools to known and discovered (TBD) Sentinels
+    as well as services' connections.
+    """
 
     def __init__(self, sentinels, *, db=None, password=None, ssl=None,
-                 encoding=None, minsize, maxsize, loop=None):
-        # TODO: add redis init parameters (db, auth, pool size)
+                 encoding=None, minsize, maxsize, timeout, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
+        # TODO: add connection/discover timeouts;
+        #       and what to do if no master is found:
+        #       (raise error or try forever or try until timeout)
+
         # XXX: _sentinels is unordered
         self._sentinels = set(sentinels)
         self._loop = loop
+        self._timeout = timeout
         self._pools = []     # list of sentinel pools
         self._masters = {}
         self._slaves = {}
@@ -128,8 +69,42 @@ class SentinelPool:  # TODO: implement AbcPool?
         self._redis_maxsize = maxsize
         self._close_state = asyncio.Event(loop=loop)
         self._close_waiter = async_task(self._do_close(), loop=loop)
+        self._monitor = monitor = Receiver(loop=loop)
 
-    def get_master(self, service):
+        @asyncio.coroutine
+        def echo_events():
+            try:
+                while (yield from monitor.wait_message()):
+                    ch, (ev, data) = yield from monitor.get(encoding='utf-8')
+                    ev = ev.decode('utf-8')
+                    _logger.debug("%s: %s", ev, data)
+                    if ev in ('+odown',):
+                        typ, name, *tail = data.split(' ')
+                        if typ == 'master':
+                            self._need_rediscover(name)
+                # TODO: parse messages;
+                #   watch +new-epoch which signals `failover in progres`
+                #   freeze reconnection
+                #   wait / discover new master (find proper way)
+                #   unfreeze reconnection
+                #
+                #   discover master in default way
+                #       get-master-addr...
+                #       connnect
+                #       role
+                #       etc...
+            except asyncio.CancelledError:
+                pass
+        self._monitor_task = async_task(echo_events(), loop=loop)
+
+    @property
+    def discover_timeout(self):
+        """Timeout (seconds) for Redis/Sentinel command calls during
+        master/slave address discovery.
+        """
+        return self._timeout
+
+    def master_for(self, service):
         """Returns wrapper to master's pool for requested service."""
         # TODO: make it coroutine and connect minsize connections
         if service not in self._masters:
@@ -144,7 +119,7 @@ class SentinelPool:  # TODO: implement AbcPool?
                 loop=self._loop)
         return self._masters[service]
 
-    def get_slave(self, service):
+    def slave_for(self, service):
         """Returns wrapper to slave's pool for requested service."""
         # TODO: make it coroutine and connect minsize connections
         if service not in self._slaves:
@@ -162,86 +137,11 @@ class SentinelPool:  # TODO: implement AbcPool?
     def execute(self, command, *args, **kwargs):
         """Execute sentinel command."""
         # TODO: choose pool
-        #   kwargs can be used to control which sentinel to communicate to
+        #   kwargs can be used to control which sentinel to use
         for pool in self._pools:
             return pool.execute(command, *args, **kwargs)
         # how to handle errors and pick other pool?
         #   is the only way to make it coroutine?
-
-    def create_sentinel_pool(self, address):
-        """Create connections pool to Sentinel instance."""
-        # We create connections pool to sentinel with 2 connections maximum
-        #   one for control commands and one for pub/sub.
-        # We use pool for reconnections
-        # TODO: configure sentinel's pool
-        return create_pool(address, minsize=1, maxsize=2,
-                           encoding='utf-8', loop=self._loop)
-
-    @asyncio.coroutine
-    def discover(self, timeout=0.2):    # TODO: better name?
-        """Discover sentinels and all monitored services within given timeout.
-
-        If no sentinels discovered within timeout: TimeoutError is raised.
-        If some sentinels were discovered but not all — it is ok.
-        If not all monitored services (masters/slaves) discovered
-        (or connections established) — it is ok.
-        TBD: what if some sentinels/services unreachable;
-        """
-        # TODO: check not closed
-        # TODO: discovery must be done with some customizable timeout.
-        tasks = []
-
-        for addr in self._sentinels:    # iterate over unordered set
-            tasks.append(self._connect_sentinel(addr, timeout))
-        done, pending = yield from asyncio.wait(tasks, loop=self._loop,
-                                                return_when=ALL_COMPLETED)
-        assert not pending, ("Expected all tasks to complete", done, pending)
-        pools = []
-
-        for task in done:
-            result = task.result()
-            if isinstance(result, Exception):
-                pass    # FIXME
-            else:
-                pools.append(result)
-        if not pools:
-            raise Exception("Could not connect to any sentinel")
-        pools, self._pools[:] = self._pools[:], pools
-        # TODO: close current connections
-        for pool in pools:
-            pool.close()
-            yield from pool.wait_closed()
-
-    @asyncio.coroutine
-    def _connect_sentinel(self, address, timeout):
-        """Try to connect to specified Sentinel returning either
-        connections pool or exception.
-        """
-        try:
-            pool = yield from asyncio.wait_for(
-                self.create_sentinel_pool(address),
-                timeout=timeout, loop=self._loop)
-
-            ch = Channel('*', is_pattern=True, loop=self._loop)
-            yield from pool.execute_pubsub('psubscribe', ch)
-
-            @asyncio.coroutine
-            def echo_events(ch):
-                while (yield from ch.wait_message()):
-                    msg = yield from ch.get(encoding='utf-8')
-                    sentinel_logger.debug("Notification: %s", msg)
-            asyncio.ensure_future(echo_events(ch), loop=self._loop)
-
-            return pool
-        except asyncio.TimeoutError as err:
-            sentinel_logger.debug(
-                "Failed to connect to Sentinel(%r) within %ss timeout",
-                address, timeout)
-            return err
-        except Exception as err:
-            sentinel_logger.debug(
-                "Error connecting to Sentinel(%r): %r", address, err)
-            return err
 
     @property
     def closed(self):
@@ -258,6 +158,9 @@ class SentinelPool:  # TODO: implement AbcPool?
         yield from self._close_state.wait()
         # TODO: lock
         tasks = []
+        task, self._monitor_task = self._monitor_task, None
+        task.cancel()
+        tasks.append(task)
         while self._pools:
             pool = self._pools.pop(0)
             pool.close()
@@ -277,10 +180,282 @@ class SentinelPool:  # TODO: implement AbcPool?
         """Wait until pool gets closed."""
         yield from asyncio.shield(self._close_waiter, loop=self._loop)
 
-    def _rediscover(self, service):
-        sentinel_logger.debug(
-            "Must redisover services; service %s disconnected", service)
+    @asyncio.coroutine
+    def discover(self, timeout=0.2):    # TODO: better name?
+        """Discover sentinels and all monitored services within given timeout.
+
+        If no sentinels discovered within timeout: TimeoutError is raised.
+        If some sentinels were discovered but not all — it is ok.
+        If not all monitored services (masters/slaves) discovered
+        (or connections established) — it is ok.
+        TBD: what if some sentinels/services unreachable;
+        """
+        # TODO: check not closed
+        # TODO: discovery must be done with some customizable timeout.
+        tasks = []
+        pools = []
+        for addr in self._sentinels:    # iterate over unordered set
+            tasks.append(self._connect_sentinel(addr, timeout, pools))
+        done, pending = yield from asyncio.wait(tasks, loop=self._loop,
+                                                return_when=ALL_COMPLETED)
+        assert not pending, ("Expected all tasks to complete", done, pending)
+
+        for task in done:
+            result = task.result()
+            if isinstance(result, Exception):
+                continue    # FIXME
+        if not pools:
+            raise Exception("Could not connect to any sentinel")
+        pools, self._pools[:] = self._pools[:], pools
+        # TODO: close current connections
+        for pool in pools:
+            pool.close()
+            yield from pool.wait_closed()
+
+        # TODO: discover peer sentinels
+        for pool in self._pools:
+            yield from pool.execute_pubsub(
+                b'psubscribe', self._monitor.pattern('*'))
+
+    @asyncio.coroutine
+    def _connect_sentinel(self, address, timeout, pools):
+        """Try to connect to specified Sentinel returning either
+        connections pool or exception.
+        """
+        try:
+            with async_timeout(timeout, loop=self._loop):
+                pool = yield from create_pool(
+                    address, minsize=1, maxsize=2,
+                    encoding='utf-8', loop=self._loop)
+            pools.append(pool)
+            return pool
+        except asyncio.TimeoutError as err:
+            sentinel_logger.debug(
+                "Failed to connect to Sentinel(%r) within %ss timeout",
+                address, timeout)
+            return err
+        except Exception as err:
+            sentinel_logger.debug(
+                "Error connecting to Sentinel(%r): %r", address, err)
+            return err
+
+    @asyncio.coroutine
+    def discover_master(self, service, timeout):
+        """Perform Master discovery for specified service."""
+        # TODO: get lock
+        idle_timeout = timeout
+        # FIXME: single timeout used 4 times;
+        #   meaning discovery can take up to:
+        #   3 * timeout * (sentinels count)
+        #
+        #   having one global timeout also can leed to
+        #   a problem when not all sentinels are checked.
+
+        # use a copy, cause pools can change
+        pools = self._pools[:]
+        for sentinel in pools:
+            try:
+                with async_timeout(timeout, loop=self._loop):
+                    address = yield from self._get_masters_address(
+                        sentinel, service)
+
+                pool = self._masters[service]
+                with async_timeout(timeout, loop=self._loop), \
+                        contextlib.ExitStack() as stack:
+                    conn = yield from pool._create_new_connection(address)
+                    stack.callback(conn.close)
+                    yield from self._verify_service_role(conn, 'master')
+                    stack.pop_all()
+
+                return conn
+            except asyncio.CancelledError:
+                # we must correctly handle CancelledError(s):
+                #   application may be stopped or function can be cancelled
+                #   by outer timeout, so we must stop the look up.
+                raise
+            except asyncio.TimeoutError:
+                continue
+            except DiscoverError as err:
+                sentinel_logger.debug("DiscoverError(%r, %s): %r",
+                                      sentinel, service, err)
+                yield from asyncio.sleep(idle_timeout, loop=self._loop)
+                continue
+            except Exception:
+                # TODO: clear (drop) connections to schedule reconnect
+                yield from asyncio.sleep(idle_timeout, loop=self._loop)
+                continue
+        else:
+            raise MasterNotFoundError("No master found for {}".format(service))
+
+    @asyncio.coroutine
+    def discover_slave(self, service, timeout, **kwargs):
+        """Perform Slave discovery for specified service."""
+        # TODO: use kwargs to change how slaves are picked up
+        #   (eg: round-robin, priority, random, etc)
+        idle_timeout = timeout
+        pools = self._pools[:]
+        for sentinel in pools:
+            try:
+                with async_timeout(timeout, loop=self._loop):
+                    address = yield from self._get_slave_address(
+                        sentinel, service)  # add **kwargs
+                pool = self._slaves[service]
+                with async_timeout(timeout, loop=self._loop), \
+                        contextlib.ExitStack() as stack:
+                    conn = yield from pool._create_new_connection(address)
+                    stack.callback(conn.close)
+                    yield from self._verify_service_role(conn, 'slave')
+                    stack.pop_all()
+                return conn
+            except asyncio.CancelledError:
+                raise
+            except asyncio.TimeoutError:
+                continue
+            except DiscoverError:
+                yield from asyncio.sleep(idle_timeout, loop=self._loop)
+                continue
+            except Exception:
+                yield from asyncio.sleep(idle_timeout, loop=self._loop)
+                continue
+        raise SlaveNotFoundError("No slave found for {}".format(service))
+
+    @asyncio.coroutine
+    def _get_masters_address(self, sentinel, service):
+        # NOTE: we don't use `get-master-addr-by-name`
+        #   as it can provide stale data so we repeat
+        #   after redis-py and check service flags.
+        state = yield from sentinel.execute(b'sentinel', b'master',
+                                            service, encoding='utf-8')
+        if not state:
+            raise UnknownService()
+        state = make_dict(state)
+        address = state['ip'], int(state['port'])
+        flags = set(state['flags'].split(','))
+        if {'s_down', 'o_down', 'disconnected'} & flags:
+            raise BadState(state)
+        return address
+
+    @asyncio.coroutine
+    def _get_slave_address(self, sentinel, service):
+        # Find and return single slave address
+        slaves = yield from sentinel.execute(b'sentinel', b'slaves',
+                                             service, encoding='utf-8')
+        if not slaves:
+            raise UnknownService()
+        for state in map(make_dict, slaves):
+            address = state['ip'], int(state['port'])
+            flags = set(state['flags'].split(','))
+            if {'s_down', 'o_down', 'disconnected'} & flags:
+                continue
+            return address
+        else:
+            raise BadState(state)   # XXX: only last state
+
+    @asyncio.coroutine
+    def _verify_service_role(self, conn, role):
+        res = yield from conn.execute(b'role', encoding='utf-8')
+        if res[0] != role:
+            raise RoleMismatch(res)
+
+    def _need_rediscover(self, service):
+        sentinel_logger.debug("Must redisover service %s", service)
         for service, pool in self._masters.items():
             pool.need_rediscover()
         for service, pool in self._slaves.items():
             pool.need_rediscover()
+
+
+class ManagedPool(ConnectionsPool):
+
+    def __init__(self, sentinel, service, is_master,
+                 db=None, password=None, encoding=None,
+                 *, minsize, maxsize, ssl=None, loop=None):
+        super().__init__(_NON_DISCOVERED,
+                         db=db, password=password, encoding=encoding,
+                         minsize=minsize, maxsize=maxsize, ssl=ssl, loop=loop)
+        assert self._address is _NON_DISCOVERED
+        self._sentinel = sentinel
+        self._service = service
+        self._is_master = is_master
+        self._discover_timeout = .2
+
+    @property
+    def address(self):
+        if self._address is _NON_DISCOVERED:
+            return
+        return self._address
+
+    def get_connection(self, command, args=()):
+        if self._address is _NON_DISCOVERED:
+            return None, _NON_DISCOVERED
+        return super().get_connection(command, args)
+
+    @asyncio.coroutine
+    def _create_new_connection(self, address):
+        if address is _NON_DISCOVERED:
+            # Perform service discovery.
+            # Returns Connection or raises error if no service can be found.
+            yield from self._do_clear()  # make `clear` blocking
+
+            if self._is_master:
+                conn = yield from self._sentinel.discover_master(
+                    self._service, timeout=self._sentinel.discover_timeout)
+            else:
+                conn = yield from self._sentinel.discover_slave(
+                    self._service, timeout=self._sentinel.discover_timeout)
+            self._address = conn.address
+            sentinel_logger.debug("Discoverred new address %r for %s",
+                                  conn.address, self._service)
+            return conn
+        return (yield from super()._create_new_connection(address))
+
+    def _drop_closed(self):
+        diff = len(self._pool)
+        super()._drop_closed()
+        diff -= len(self._pool)
+        if diff:
+            # closed connections were in pool:
+            #   * reset address;
+            #   * notify sentinel pool
+            sentinel_logger.debug(
+                "Dropped %d closed connnection(s); must rediscover", diff)
+            self._sentinel._need_rediscover(self._service)
+
+    @asyncio.coroutine
+    def acquire(self, command=None, args=()):
+        if self._address is _NON_DISCOVERED:
+            yield from self.clear()
+        return (yield from super().acquire(command, args))
+
+    def release(self, conn):
+        was_closed = conn.closed
+        super().release(conn)
+        # if connection was closed while used and not by release()
+        if was_closed:
+            sentinel_logger.debug(
+                "Released closed connection; must rediscover")
+            self._sentinel._need_rediscover(self._service)
+
+    def need_rediscover(self):
+        self._address = _NON_DISCOVERED
+
+
+def make_dict(plain_list):
+    it = iter(plain_list)
+    return dict(zip(it, it))
+
+
+class DiscoverError(Exception):
+    """Internal errors for masters/slaves discovery."""
+
+
+class BadState(DiscoverError):
+    """Bad master's / slave's state read from sentinel."""
+
+
+class UnknownService(DiscoverError):
+    """Service is not monitored by specific sentinel."""
+
+
+class RoleMismatch(DiscoverError):
+    """Service reported to have other Role."""

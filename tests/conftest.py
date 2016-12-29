@@ -322,7 +322,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             yield True
         raise RuntimeError("Redis startup timeout expired")
 
-    def maker(name, *masters):
+    def maker(name, *masters, quorum=1):
         key = (name,) + masters
         if key in sentinels:
             return sentinels[key]
@@ -339,7 +339,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             write('loglevel debug')
             for master in masters:
                 write('sentinel monitor', master.name,
-                      '127.0.0.1', master.tcp_address.port, '1')
+                      '127.0.0.1', master.tcp_address.port, quorum)
                 write('sentinel down-after-milliseconds', master.name, '3000')
                 write('sentinel failover-timeout', master.name, '3000')
 

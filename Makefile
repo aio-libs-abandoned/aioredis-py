@@ -124,14 +124,14 @@ $(BUILD_DIR)/redis-%.tar.gz:
 	wget -c https://github.com/antirez/redis/archive/$*.tar.gz \
 		-O $(BUILD_DIR)/redis-$*.tar.gz
 
-ifdef TRAVIS
-
-define travis_start
-	@echo "travis_fold:start:$1"
-endef
-
-define travis_end
-	@echo "travis_fold:end:$1"
-endef
-
-endif
+# ifdef TRAVIS
+#
+# define travis_start
+# 	@echo "travis_fold:start:$1"
+# endef
+#
+# define travis_end
+# 	@echo "travis_fold:end:$1"
+# endef
+#
+# endif
