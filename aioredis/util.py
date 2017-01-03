@@ -73,6 +73,14 @@ def wait_convert(fut, type_):
 
 
 @asyncio.coroutine
+def wait_convert_with_opts(fut, type_, **opts):
+    result = yield from fut
+    if result in (b'QUEUED', 'QUEUED'):
+        return result
+    return type_(result, **opts)
+
+
+@asyncio.coroutine
 def wait_make_dict(fut):
     res = yield from fut
     if res in (b'QUEUED', 'QUEUED'):
