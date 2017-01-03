@@ -89,11 +89,31 @@ def test_georadius(redis):
     assert res == 2
 
     res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', encoding='utf-8'
+    )
+    assert res == [
+        ['Palermo'], ['Catania']
+    ]
+
+    res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', count=1, encoding='utf-8'
+    )
+    assert res == [
+        ['Catania']
+    ]
+
+    res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', sort_dir='DESC', encoding='utf-8'
+    )
+    assert res == [
+        ['Palermo'], ['Catania']
+    ]
+
+    res = yield from redis.georadius(
         'geodata', 15, 37, 200, 'km', with_dist=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 190.4424],
-        ['Catania', 56.4413]
+        ['Palermo', 190.4424], ['Catania', 56.4413]
     ]
 
     res = yield from redis.georadius(
@@ -119,6 +139,49 @@ def test_georadius(redis):
             [15.087267458438873, 37.50266842333162]
         ]
     ]
+
+    res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km',
+        with_coord=True, with_hash=True, encoding='utf-8'
+    )
+    assert res == [
+        ['Palermo', 3479099956230698, [13.361389338970184, 38.1155563954963]],
+        ['Catania', 3479447370796909, [15.087267458438873, 37.50266842333162]]
+    ]
+
+    res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km',
+        with_coord=True, encoding='utf-8'
+    )
+    assert res == [
+        ['Palermo', [13.361389338970184, 38.1155563954963]],
+        ['Catania', [15.087267458438873, 37.50266842333162]]
+    ]
+
+    res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', count=1, sort_dir='DESC',
+        with_hash=True, encoding='utf-8'
+    )
+    assert res == [
+        ['Palermo', 3479099956230698]
+    ]
+
+    with pytest.raises(TypeError):
+        res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'k', encoding='utf-8'
+    )
+    with pytest.raises(TypeError):
+        res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', count=1.3, encoding='utf-8'
+    )
+    with pytest.raises(TypeError):
+        res = yield from redis.georadius(
+        'geodata', 15, 37, '200', 'km', encoding='utf-8'
+    )
+    with pytest.raises(ValueError):
+        res = yield from redis.georadius(
+        'geodata', 15, 37, 200, 'km', sort_dir='DESV', encoding='utf-8'
+    )
 
 
 @pytest.mark.run_loop

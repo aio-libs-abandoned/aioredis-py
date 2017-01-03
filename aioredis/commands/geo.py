@@ -40,7 +40,7 @@ class GeoCommandsMixin:
 
     def georadius(self, key, longitude, latitude, radius, unit='m',
                   with_coord=False, with_dist=False, with_hash=False,
-                  count=None, sort=None, encoding=_NOTSET):
+                  count=None, sort_dir=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a point
 
@@ -48,25 +48,9 @@ class GeoCommandsMixin:
         :raises TypeError: count is not float or int
         :raises ValueError: if sort not equal ASC or DESC
         """
-        args = []
-
-        if with_coord:
-            args.append('WITHCOORD')
-        if with_dist:
-            args.append('WITHDIST')
-        if with_hash:
-            args.append('WITHHASH')
-
-        if not isinstance(radius, (int, float)):
-            raise TypeError("radius argument must be int or float")
-        if count:
-            if not isinstance(count, int):
-                raise TypeError("count argument must be int")
-            args.append(count)
-        if sort:
-            if sort in ['ASC', 'DESC']:
-                raise TypeError("sort argument must be euqal ASC or DESC")
-            args.append(sort)
+        args = validate_georadius_options(
+            radius, unit, count, sort_dir, with_coord, with_dist, with_hash
+        )
 
         fut = self._conn.execute(
             b'GEORADIUS', key, longitude, latitude, radius,
@@ -79,7 +63,7 @@ class GeoCommandsMixin:
 
     def georadiusbymember(self, key, member, radius, unit='m',
                           with_coord=False, with_dist=False, with_hash=False,
-                          count=None, sort=None, encoding=_NOTSET):
+                          count=None, sort_dir=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a member
 
@@ -87,25 +71,10 @@ class GeoCommandsMixin:
         :raises TypeError: count is not float or int
         :raises ValueError: if sort not equal ASC or DESC
         """
-        args = []
-
-        if with_coord:
-            args.append('WITHCOORD')
-        if with_dist:
-            args.append('WITHDIST')
-        if with_hash:
-            args.append('WITHHASH')
-
-        if not isinstance(radius, (int, float)):
-            raise TypeError("radius argument must be int or float")
-        if count:
-            if not isinstance(count, int):
-                raise TypeError("count argument must be int")
-            args.append(count)
-        if sort:
-            if sort in ['ASC', 'DESC']:
-                raise TypeError("sort argument must be euqal ASC or DESC")
-            args.append(sort)
+        args = validate_georadius_options(
+            radius, unit, count, sort_dir, with_coord, with_dist, with_hash
+        )
+        
 
         fut = self._conn.execute(
             b'GEORADIUSBYMEMBER', key, member, radius,
@@ -117,6 +86,32 @@ class GeoCommandsMixin:
         )
 
 
+def validate_georadius_options(radius, unit, count, sort_dir,
+                               with_coord, with_dist, with_hash):
+    args = []
+
+    if with_coord:
+        args.append(b'WITHCOORD')
+    if with_dist:
+        args.append(b'WITHDIST')
+    if with_hash:
+        args.append(b'WITHHASH')
+
+    if unit not in ['m', 'km', 'mi', 'ft']:
+        raise TypeError("unit argument must be 'm' or 'km' or 'mi' or 'ft'")
+    if not isinstance(radius, (int, float)):
+        raise TypeError("radius argument must be int or float")
+    if count:
+        if not isinstance(count, int):
+            raise TypeError("count argument must be int")
+        args += [b'COUNT', count]
+    if sort_dir:
+        if sort_dir not in ['ASC', 'DESC']:
+            raise ValueError("sort_dir argument must be euqal 'ASC' or 'DESC'")
+        args.append(sort_dir)
+    return args
+
+
 def pairs_float(value):
     return [[float(val[0]), float(val[1])] for val in value]
 
@@ -125,29 +120,36 @@ def geo_data_row(value, with_dist, with_coord, with_hash):
     res_rows = []
     for row in value:
         res = []
-
-        res.append(row[0])
+        
         if with_dist and with_coord and with_hash:
+            res.append(row[0])
             res.append(float(row[1]))
             res.append(int(row[2]))
 
             res.append([float(row[3][0]), float(row[3][1])])
         elif with_dist and with_coord:
+            res.append(row[0])
             res.append(float(row[1]))
             res.append([float(row[2][0]), float(row[2][1])])
         elif with_dist and with_hash:
+            res.append(row[0])
             res.append(float(row[1]))
             res.append(int(row[2]))
         elif with_hash and with_coord:
+            res.append(row[0])
             res.append(int(row[1]))
             res.append([float(row[2][0]), float(row[2][1])])
         elif with_dist:
+            res.append(row[0])
             res.append(float(row[1]))
         elif with_hash:
+            res.append(row[0])
             res.append(int(row[1]))
         elif with_coord:
+            res.append(row[0])
             res.append([float(row[1][0]), float(row[1][1])])
-
+        else:
+            res.append(row)
         res_rows.append(res)
 
     return res_rows
