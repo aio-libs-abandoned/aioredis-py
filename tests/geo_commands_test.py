@@ -107,7 +107,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', sort_dir='ASC', encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', sort='ASC', encoding='utf-8'
     )
     assert res == [
         GeoMember(member='Catania', dist=None, coord=None, hash=None),
@@ -115,7 +115,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', with_dist=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', dist=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(member='Palermo', dist=190.4424, coord=None, hash=None),
@@ -123,8 +123,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km',
-        with_dist=True, with_coord=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', dist=True, coord=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -142,8 +141,8 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km',
-        with_dist=True, with_coord=True, with_hash=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', dist=True, coord=True, 
+        hash=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -161,8 +160,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km',
-        with_coord=True, with_hash=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', coord=True, hash=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -180,8 +178,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km',
-        with_coord=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', coord=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -199,8 +196,8 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', count=1, sort_dir='DESC',
-        with_hash=True, encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', count=1, sort='DESC',
+        hash=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -222,7 +219,7 @@ def test_georadius(redis):
         )
     with pytest.raises(ValueError):
         res = yield from redis.georadius(
-            'geodata', 15, 37, 200, 'km', sort_dir='DESV', encoding='utf-8'
+            'geodata', 15, 37, 200, 'km', sort='DESV', encoding='utf-8'
         )
 
 
@@ -238,7 +235,7 @@ def test_georadiusbymember(redis):
     assert res == 2
 
     res = yield from redis.georadiusbymember(
-        'geodata', 'Palermo', 200, 'km', with_dist=True, encoding='utf-8'
+        'geodata', 'Palermo', 200, 'km', dist=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(member='Palermo', dist=0.0, coord=None, hash=None),
@@ -247,7 +244,7 @@ def test_georadiusbymember(redis):
 
     res = yield from redis.georadiusbymember(
         'geodata', 'Palermo', 200, 'km',
-        with_dist=True, with_coord=True, encoding='utf-8'
+        dist=True, coord=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
@@ -262,7 +259,7 @@ def test_georadiusbymember(redis):
 
     res = yield from redis.georadiusbymember(
         'geodata', 'Palermo', 200, 'km',
-        with_dist=True, with_coord=True, with_hash=True, encoding='utf-8'
+        dist=True, coord=True, hash=True, encoding='utf-8'
     )
     assert res == [
         GeoMember(
