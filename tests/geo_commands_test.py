@@ -141,7 +141,7 @@ def test_georadius(redis):
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', dist=True, coord=True, 
+        'geodata', 15, 37, 200, 'km', dist=True, coord=True,
         hash=True, encoding='utf-8'
     )
     assert res == [

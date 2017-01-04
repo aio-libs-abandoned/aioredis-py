@@ -41,7 +41,7 @@ class GeoCommandsMixin:
         return wait_convert(fut, float)
 
     def georadius(self, key, longitude, latitude, radius, unit='m',
-                  dist=False, hash=False, coord=False, 
+                  dist=False, hash=False, coord=False,
                   count=None, sort=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a point
@@ -65,7 +65,7 @@ class GeoCommandsMixin:
         )
 
     def georadiusbymember(self, key, member, radius, unit='m',
-                          dist=False, hash=False, coord=False, 
+                          dist=False, hash=False, coord=False,
                           count=None, sort=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a member
