@@ -65,19 +65,11 @@ def wait_ok(fut):
 
 
 @asyncio.coroutine
-def wait_convert(fut, type_):
+def wait_convert(fut, type_, **kwargs):
     result = yield from fut
     if result in (b'QUEUED', 'QUEUED'):
         return result
-    return type_(result)
-
-
-@asyncio.coroutine
-def wait_convert_with_opts(fut, type_, **opts):
-    result = yield from fut
-    if result in (b'QUEUED', 'QUEUED'):
-        return result
-    return type_(result, **opts)
+    return type_(result, **kwargs)
 
 
 @asyncio.coroutine

@@ -1,5 +1,7 @@
 import pytest
 
+from aioredis.commands.geo import GeoCoord, GeoMember
+
 
 @pytest.mark.run_loop
 @pytest.redis_version(
@@ -68,12 +70,14 @@ def test_geopos(redis):
     assert res == 2
 
     res = yield from redis.geopos('geodata', 'Palermo')
-    assert res == [[13.36138933897018433, 38.11555639549629859]]
+    assert res == [
+        GeoCoord(longitude=13.36138933897018433, latitude=38.11555639549629859)
+    ]
 
     res = yield from redis.geopos('geodata', 'Catania', 'Palermo')
     assert res == [
-        [15.087267458438873, 37.50266842333162],
-        [13.36138933897018433, 38.11555639549629859]
+        GeoCoord(longitude=15.087267458438873, latitude=37.50266842333162),
+        GeoCoord(longitude=13.36138933897018433, latitude=38.11555639549629859)
     ]
 
 
@@ -83,8 +87,7 @@ def test_geopos(redis):
 def test_georadius(redis):
     res = yield from redis.geoadd(
         'geodata',
-        13.361389, 38.115556,
-        'Palermo', 15.087269, 37.502669, 'Catania'
+        13.361389, 38.115556, 'Palermo', 15.087269, 37.502669, 'Catania'
     )
     assert res == 2
 
@@ -92,28 +95,31 @@ def test_georadius(redis):
         'geodata', 15, 37, 200, 'km', encoding='utf-8'
     )
     assert res == [
-        ['Palermo'], ['Catania']
+        GeoMember(member='Palermo', dist=None, coord=None, hash=None),
+        GeoMember(member='Catania', dist=None, coord=None, hash=None)
     ]
 
     res = yield from redis.georadius(
         'geodata', 15, 37, 200, 'km', count=1, encoding='utf-8'
     )
     assert res == [
-        ['Catania']
+        GeoMember(member='Catania', dist=None, coord=None, hash=None)
     ]
 
     res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', sort_dir='DESC', encoding='utf-8'
+        'geodata', 15, 37, 200, 'km', sort_dir='ASC', encoding='utf-8'
     )
     assert res == [
-        ['Palermo'], ['Catania']
+        GeoMember(member='Catania', dist=None, coord=None, hash=None),
+        GeoMember(member='Palermo', dist=None, coord=None, hash=None)
     ]
 
     res = yield from redis.georadius(
         'geodata', 15, 37, 200, 'km', with_dist=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 190.4424], ['Catania', 56.4413]
+        GeoMember(member='Palermo', dist=190.4424, coord=None, hash=None),
+        GeoMember(member='Catania', dist=56.4413, coord=None, hash=None)
     ]
 
     res = yield from redis.georadius(
@@ -121,8 +127,18 @@ def test_georadius(redis):
         with_dist=True, with_coord=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 190.4424, [13.361389338970184, 38.1155563954963]],
-        ['Catania', 56.4413, [15.087267458438873, 37.50266842333162]]
+        GeoMember(
+            member='Palermo', dist=190.4424, hash=None,
+            coord=GeoCoord(
+                longitude=13.36138933897018433, latitude=38.11555639549629859
+            )
+        ),
+        GeoMember(
+            member='Catania', dist=56.4413, hash=None,
+            coord=GeoCoord(
+                longitude=15.087267458438873, latitude=37.50266842333162
+            ),
+        )
     ]
 
     res = yield from redis.georadius(
@@ -130,14 +146,18 @@ def test_georadius(redis):
         with_dist=True, with_coord=True, with_hash=True, encoding='utf-8'
     )
     assert res == [
-        [
-            'Palermo', 190.4424, 3479099956230698,
-            [13.361389338970184, 38.1155563954963]
-        ],
-        [
-            'Catania', 56.4413, 3479447370796909,
-            [15.087267458438873, 37.50266842333162]
-        ]
+        GeoMember(
+            member='Palermo', dist=190.4424, hash=3479099956230698,
+            coord=GeoCoord(
+                longitude=13.36138933897018433, latitude=38.11555639549629859
+            )
+        ),
+        GeoMember(
+            member='Catania', dist=56.4413, hash=3479447370796909,
+            coord=GeoCoord(
+                longitude=15.087267458438873, latitude=37.50266842333162
+            ),
+        )
     ]
 
     res = yield from redis.georadius(
@@ -145,8 +165,18 @@ def test_georadius(redis):
         with_coord=True, with_hash=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 3479099956230698, [13.361389338970184, 38.1155563954963]],
-        ['Catania', 3479447370796909, [15.087267458438873, 37.50266842333162]]
+        GeoMember(
+            member='Palermo', dist=None, hash=3479099956230698,
+            coord=GeoCoord(
+                longitude=13.36138933897018433, latitude=38.11555639549629859
+            )
+        ),
+        GeoMember(
+            member='Catania', dist=None, hash=3479447370796909,
+            coord=GeoCoord(
+                longitude=15.087267458438873, latitude=37.50266842333162
+            ),
+        )
     ]
 
     res = yield from redis.georadius(
@@ -154,8 +184,18 @@ def test_georadius(redis):
         with_coord=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', [13.361389338970184, 38.1155563954963]],
-        ['Catania', [15.087267458438873, 37.50266842333162]]
+        GeoMember(
+            member='Palermo', dist=None, hash=None,
+            coord=GeoCoord(
+                longitude=13.36138933897018433, latitude=38.11555639549629859
+            )
+        ),
+        GeoMember(
+            member='Catania', dist=None, hash=None,
+            coord=GeoCoord(
+                longitude=15.087267458438873, latitude=37.50266842333162
+            ),
+        )
     ]
 
     res = yield from redis.georadius(
@@ -163,25 +203,27 @@ def test_georadius(redis):
         with_hash=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 3479099956230698]
+        GeoMember(
+            member='Palermo', dist=None, hash=3479099956230698, coord=None
+        )
     ]
 
     with pytest.raises(TypeError):
         res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'k', encoding='utf-8'
-    )
+            'geodata', 15, 37, 200, 'km', count=1.3, encoding='utf-8'
+        )
     with pytest.raises(TypeError):
         res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', count=1.3, encoding='utf-8'
-    )
-    with pytest.raises(TypeError):
-        res = yield from redis.georadius(
-        'geodata', 15, 37, '200', 'km', encoding='utf-8'
-    )
+            'geodata', 15, 37, '200', 'km', encoding='utf-8'
+        )
     with pytest.raises(ValueError):
         res = yield from redis.georadius(
-        'geodata', 15, 37, 200, 'km', sort_dir='DESV', encoding='utf-8'
-    )
+            'geodata', 15, 37, 200, 'k', encoding='utf-8'
+        )
+    with pytest.raises(ValueError):
+        res = yield from redis.georadius(
+            'geodata', 15, 37, 200, 'km', sort_dir='DESV', encoding='utf-8'
+        )
 
 
 @pytest.mark.run_loop
@@ -199,8 +241,8 @@ def test_georadiusbymember(redis):
         'geodata', 'Palermo', 200, 'km', with_dist=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 0.0],
-        ['Catania', 166.2742]
+        GeoMember(member='Palermo', dist=0.0, coord=None, hash=None),
+        GeoMember(member='Catania', dist=166.2742, coord=None, hash=None)
     ]
 
     res = yield from redis.georadiusbymember(
@@ -208,8 +250,14 @@ def test_georadiusbymember(redis):
         with_dist=True, with_coord=True, encoding='utf-8'
     )
     assert res == [
-        ['Palermo', 0.0, [13.361389338970184, 38.1155563954963]],
-        ['Catania', 166.2742, [15.087267458438873, 37.50266842333162]]
+        GeoMember(
+            member='Palermo', dist=0.0, hash=None,
+            coord=GeoCoord(13.361389338970184, 38.1155563954963)
+        ),
+        GeoMember(
+            member='Catania', dist=166.2742, hash=None,
+            coord=GeoCoord(15.087267458438873, 37.50266842333162)
+        )
     ]
 
     res = yield from redis.georadiusbymember(
@@ -217,12 +265,12 @@ def test_georadiusbymember(redis):
         with_dist=True, with_coord=True, with_hash=True, encoding='utf-8'
     )
     assert res == [
-        [
-            'Palermo', 0.0, 3479099956230698,
-            [13.361389338970184, 38.1155563954963]
-        ],
-        [
-            'Catania', 166.2742, 3479447370796909,
-            [15.087267458438873, 37.50266842333162]
-        ]
+        GeoMember(
+            member='Palermo', dist=0.0, hash=3479099956230698,
+            coord=GeoCoord(13.361389338970184, 38.1155563954963)
+        ),
+        GeoMember(
+            member='Catania', dist=166.2742, hash=3479447370796909,
+            coord=GeoCoord(15.087267458438873, 37.50266842333162)
+        )
     ]
