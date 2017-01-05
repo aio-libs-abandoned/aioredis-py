@@ -38,7 +38,7 @@ class GeoCommandsMixin:
         """Returns the distance between two members of a geospatial index
         """
         fut = self._conn.execute(b'GEODIST', key, member1, member2, unit)
-        return wait_convert(fut, float)
+        return wait_convert(fut, make_geodist)
 
     def georadius(self, key, longitude, latitude, radius, unit='m',
                   with_dist=False, with_hash=False, with_coord=False,
@@ -115,12 +115,20 @@ def validate_georadius_options(radius, unit, with_dist, with_hash, with_coord,
     return args
 
 
-def make_geo_coord(value):
-    return GeoCoord(*map(float, value))
+def make_geocoord(value):
+    if isinstance(value, list):
+        return GeoCoord(*map(float, value))
+    return value
+
+
+def make_geodist(value):
+    if value:
+        return float(value)
+    return value
 
 
 def make_geopos(value):
-    return [make_geo_coord(val) for val in value]
+    return [make_geocoord(val) for val in value]
 
 
 def make_geomember(value, with_dist, with_coord, with_hash):
