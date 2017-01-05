@@ -41,18 +41,18 @@ class GeoCommandsMixin:
         return wait_convert(fut, float)
 
     def georadius(self, key, longitude, latitude, radius, unit='m',
-                  dist=False, hash=False, coord=False,
+                  with_dist=False, with_hash=False, with_coord=False,
                   count=None, sort=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a point
 
         :raises TypeError: radius is not float or int
-        :raises TypeError: count is not float or int
+        :raises TypeError: count is not int
         :raises ValueError: if unit not equal 'm' or 'km' or 'mi' or 'ft'
         :raises ValueError: if sort not equal 'ASC' or 'DESC'
         """
         args = validate_georadius_options(
-            radius, unit, coord, dist, hash, count, sort
+            radius, unit, with_dist, with_hash, with_coord, count, sort
         )
 
         fut = self._conn.execute(
@@ -61,22 +61,22 @@ class GeoCommandsMixin:
         )
         return wait_convert(
             fut, make_geomember,
-            with_dist=dist, with_hash=hash, with_coord=coord
+            with_dist=with_dist, with_hash=with_hash, with_coord=with_coord
         )
 
     def georadiusbymember(self, key, member, radius, unit='m',
-                          dist=False, hash=False, coord=False,
+                          with_dist=False, with_hash=False, with_coord=False,
                           count=None, sort=None, encoding=_NOTSET):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a member
 
         :raises TypeError: radius is not float or int
-        :raises TypeError: count is not float or int
+        :raises TypeError: count is not int
         :raises ValueError: if unit not equal 'm' or 'km' or 'mi' or 'ft'
         :raises ValueError: if sort not equal 'ASC' or 'DESC'
         """
         args = validate_georadius_options(
-            radius, unit, coord, dist, hash, count, sort
+            radius, unit, with_dist, with_hash, with_coord, count, sort
         )
 
         fut = self._conn.execute(
@@ -85,19 +85,20 @@ class GeoCommandsMixin:
         )
         return wait_convert(
             fut, make_geomember,
-            with_dist=dist, with_hash=hash, with_coord=coord
+            with_dist=with_dist, with_hash=with_hash, with_coord=with_coord
         )
 
 
-def validate_georadius_options(radius, unit, coord, dist, hash, count, sort):
+def validate_georadius_options(radius, unit, with_dist, with_hash, with_coord,
+                               count, sort):
     args = []
 
-    if coord:
-        args.append(b'WITHCOORD')
-    if dist:
+    if with_dist:
         args.append(b'WITHDIST')
-    if hash:
+    if with_hash:
         args.append(b'WITHHASH')
+    if with_coord:
+        args.append(b'WITHCOORD')
 
     if unit not in ['m', 'km', 'mi', 'ft']:
         raise ValueError("unit argument must be 'm' or 'km' or 'mi' or 'ft'")
@@ -126,8 +127,7 @@ def make_geomember(value, with_dist, with_coord, with_hash):
     res_rows = []
 
     for row in value:
-        name = row
-        dist = hash = coord = None
+        name = dist = hash = coord = None
 
         if isinstance(row, list):
             name = row.pop(0)
@@ -138,6 +138,8 @@ def make_geomember(value, with_dist, with_coord, with_hash):
             if with_coord:
                 coord = GeoCoord(*map(float, row.pop(0)))
 
-        res_rows.append(GeoMember(name, dist, hash, coord))
+            res_rows.append(GeoMember(name, dist, hash, coord))
+        else:
+            res_rows.append(row)
 
     return res_rows
