@@ -14,9 +14,13 @@ from .scripting import ScriptingCommandsMixin
 from .server import ServerCommandsMixin
 from .pubsub import PubSubCommandsMixin
 from .cluster import ClusterCommandsMixin
-from .geo import GeoCommandsMixin
+from .geo import GeoCommandsMixin, GeoPoint, GeoMember
 
-__all__ = ['create_redis', 'Redis', 'Pipeline', 'MultiExec']
+__all__ = [
+    'create_redis', 'Redis',
+    'Pipeline', 'MultiExec',
+    'GeoPoint', 'GeoMember',
+]
 
 
 class AutoConnector(object):

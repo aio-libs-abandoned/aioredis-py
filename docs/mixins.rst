@@ -37,6 +37,17 @@ Python 3.5 async/await support
       See also :meth:`GenericCommandsMixin.scan`.
 
 
+Geo commands
+------------
+
+.. autoclass:: GeoCommandsMixin
+   :members:
+
+.. TODO Document GeoPoint & GeoMember
+.. autoclass:: GeoPoint
+
+.. autoclass:: GeoMember
+
 Strings commands
 ----------------
 .. autoclass:: StringCommandsMixin

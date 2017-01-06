@@ -1,6 +1,7 @@
 aioredis
 api
 APIs
+ASC
 async
 asyncio
 AutoConnector
@@ -20,12 +21,15 @@ coroutine
 coroutines
 dataset
 decrement
+DESC
 dev
 devel
 dict
 downloadable
 EventLoop
 favour
+geohash
+geospatial
 getrange
 getset
 google

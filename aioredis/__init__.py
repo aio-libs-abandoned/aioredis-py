@@ -1,5 +1,9 @@
 from .connection import RedisConnection, create_connection
-from .commands import Redis, create_redis, create_reconnecting_redis
+from .commands import (
+    Redis, create_redis,
+    create_reconnecting_redis,
+    GeoPoint, GeoMember,
+    )
 from .pool import RedisPool, create_pool
 from .pubsub import Channel
 from .errors import (
@@ -25,4 +29,5 @@ __version__ = '0.2.9'
  PipelineError, MultiExecError, ConnectionClosedError,
  ChannelClosedError, WatchVariableError,
  PoolClosedError,
+ GeoPoint, GeoMember,
  )
