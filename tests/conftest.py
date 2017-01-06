@@ -167,6 +167,7 @@ def start_server(request, unused_port):
     servers = {}
 
     version = _read_server_version(request.param)
+    verbose = request.config.getoption('-v') > 3
 
     def maker(name):
         if name in servers:
@@ -174,18 +175,28 @@ def start_server(request, unused_port):
 
         port = unused_port()
         tcp_address = TCPAddress('localhost', port)
-        unixsocket = '/tmp/redis.{}.sock'.format(port)
+        cmd = [request.param,
+               '--daemonize', 'no',
+               '--save', '""',
+               '--port', str(port),
+               ]
+        if sys.platform == 'win32':
+            unixsocket = None
+        else:
+            unixsocket = '/tmp/redis.{}.sock'.format(port)
+            cmd.extend(['--unixsocket', unixsocket])
 
-        proc = subprocess.Popen([request.param,
-                                 '--daemonize', 'no',
-                                 '--save', '""',
-                                 '--port', str(port),
-                                 '--unixsocket', unixsocket,
-                                 ], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
         processes.append(proc)
         log = b''
         while b'The server is now ready to accept connections ' not in log:
+            assert proc.poll() is None, (
+                "Process terminated", proc.returncode, proc.stdout.read())
             log = proc.stdout.readline()
+            if log and verbose:
+                print(log)
 
         info = RedisServer(name, tcp_address, unixsocket, version)
         servers.setdefault(name, info)
@@ -290,11 +301,15 @@ def pytest_ignore_collect(path, config):
 def pytest_collection_modifyitems(session, config, items):
     versions = {srv: _read_server_version(srv)
                 for srv in REDIS_SERVERS}
+    assert versions, ("Expected to detect redis versions", REDIS_SERVERS)
     for item in items:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
+            kw = item.keywords
             version = [v for k, v in versions.items()
-                       if k in item.keywords][0]
+                       if k in kw or k.replace('\\', '\\\\') in kw]
+            assert version, ("No version found", versions, item.keywords)
+            version = version[0]
             if version < marker.kwargs['version']:
                 item.add_marker(pytest.mark.skip(
                     reason=marker.kwargs['reason']))
