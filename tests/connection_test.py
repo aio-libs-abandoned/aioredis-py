@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import sys
 
 from aioredis.util import async_task
 
@@ -32,6 +33,8 @@ def test_connect_tcp(request, create_connection, loop, server):
 
 
 @pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
 def test_connect_unixsocket(create_connection, loop, server):
     conn = yield from create_connection(
         server.unixsocket, db=0, loop=loop)
@@ -116,6 +119,8 @@ def test_close_connection__tcp(create_connection, loop, server):
 
 
 @pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
 def test_close_connection__socket(create_connection, loop, server):
     conn = yield from create_connection(
         server.unixsocket, loop=loop)
