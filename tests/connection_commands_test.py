@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 from aioredis import ConnectionClosedError, ReplyError
@@ -38,8 +39,12 @@ def test_ping(redis):
 
 @pytest.mark.run_loop
 def test_quit(redis):
-    resp = yield from redis.quit()
-    assert resp == b'OK'
+    try:
+        resp = yield from redis.quit()
+    except asyncio.CancelledError:
+        pass
+    else:
+        assert resp == b'OK'
 
     with pytest.raises(ConnectionClosedError):
         yield from redis.ping()
