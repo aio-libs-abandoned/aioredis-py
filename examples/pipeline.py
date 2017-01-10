@@ -20,8 +20,8 @@ async def main():
         val, cnt = await asyncio.gather(fut1, fut2)
         return val, cnt
 
-    # Convenient way
-    async def convenience_way():
+    # Explicit pipeline
+    async def explicit_pipeline():
         pipe = redis.pipeline()
         fut1 = pipe.get('foo')
         fut2 = pipe.incr('bar')
@@ -34,7 +34,7 @@ async def main():
     print(res)
     res = await pipelined()
     print(res)
-    res = await convenience_way()
+    res = await explicit_pipeline()
     print(res)
 
     redis.close()

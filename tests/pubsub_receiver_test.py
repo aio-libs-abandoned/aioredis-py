@@ -7,12 +7,12 @@ from unittest import mock
 
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
-from aioredis.pubsub import Listener, _Sender
+from aioredis.pubsub import Receiver, _Sender
 from aioredis.util import async_task
 
 
 def test_listener_channel(loop):
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     assert not mpsc.is_active
 
     ch_a = mpsc.channel("channel:1")
@@ -38,7 +38,7 @@ def test_listener_channel(loop):
 
 
 def test_listener_pattern(loop):
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     assert not mpsc.is_active
 
     ch_a = mpsc.pattern("*")
@@ -101,7 +101,7 @@ def test_subscriptions(create_connection, server, loop):
     sub = yield from create_connection(server.tcp_address, loop=loop)
     pub = yield from create_connection(server.tcp_address, loop=loop)
 
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     yield from sub.execute_pubsub('subscribe',
                                   mpsc.channel('channel:1'),
                                   mpsc.channel('channel:3'))
@@ -127,7 +127,7 @@ def test_unsubscribe(create_connection, server, loop):
     sub = yield from create_connection(server.tcp_address, loop=loop)
     pub = yield from create_connection(server.tcp_address, loop=loop)
 
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     yield from sub.execute_pubsub('subscribe',
                                   mpsc.channel('channel:1'),
                                   mpsc.channel('channel:3'))
@@ -171,7 +171,7 @@ def test_stopped(create_connection, server, loop):
     sub = yield from create_connection(server.tcp_address, loop=loop)
     pub = yield from create_connection(server.tcp_address, loop=loop)
 
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     yield from sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
     assert mpsc.is_active
     mpsc.stop()
@@ -184,7 +184,7 @@ def test_stopped(create_connection, server, loop):
     warn_messaege = (
         "WARNING:aioredis:Pub/Sub listener message after stop: "
         "<_Sender name:b'channel:1', is_pattern:False, receiver:"
-        "<Listener is_active:False, senders:1, qsize:0>>, b'Hello'"
+        "<Receiver is_active:False, senders:1, qsize:0>>, b'Hello'"
     )
     assert cm.output == [warn_messaege]
 
@@ -199,7 +199,7 @@ def test_wait_message(create_connection, server, loop):
     sub = yield from create_connection(server.tcp_address, loop=loop)
     pub = yield from create_connection(server.tcp_address, loop=loop)
 
-    mpsc = Listener(loop=loop)
+    mpsc = Receiver(loop=loop)
     yield from sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
     fut = async_task(mpsc.wait_message(), loop=loop)
     assert not fut.done()
@@ -216,7 +216,7 @@ def test_wait_message(create_connection, server, loop):
 
 @pytest.mark.run_loop
 def test_decode_message(loop):
-    mpsc = Listener(loop)
+    mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
     ch.put_nowait(b'Some data')
 
@@ -256,7 +256,7 @@ def test_decode_message_error(loop):
 
 @pytest.mark.run_loop
 def test_decode_message_for_pattern(loop):
-    mpsc = Listener(loop)
+    mpsc = Receiver(loop)
     ch = mpsc.pattern('*')
     ch.put_nowait((b'channel', b'Some data'))
 

@@ -22,11 +22,11 @@ class AbcConnection(ABC):
     """Abstract connection interface."""
 
     @abc.abstractmethod
-    def execute(self):
+    def execute(self, command, *args, **kwargs):
         """Execute redis command."""
 
     @abc.abstractmethod
-    def execute_pubsub(self):
+    def execute_pubsub(self, command, *args, **kwargs):
         """Execute Redis (p)subscribe/(p)unsubscribe commands."""
 
     @abc.abstractmethod
@@ -48,7 +48,7 @@ class AbcConnection(ABC):
     @property
     @abc.abstractmethod
     def db(self):
-        """Currently selected DB index."""
+        """Current selected DB index."""
 
     @property
     @abc.abstractmethod
@@ -82,14 +82,16 @@ class AbcConnection(ABC):
 class AbcPool(AbcConnection):
     """Abstract connections pool interface.
 
-    Inherited from AbcConnection so both common interface
+    Inherited from AbcConnection so both have common interface
     for executing Redis commands.
     """
 
     @abc.abstractmethod
     def get_connection(self):   # TODO: arguments
-        """Gets free connection from pool in a sync way.
-        If no connection available — returns None
+        """
+        Gets free connection from pool in a sync way.
+
+        If no connection available — returns None.
         """
 
     @asyncio.coroutine
@@ -98,8 +100,11 @@ class AbcPool(AbcConnection):
         """Acquires connection from pool."""
 
     @abc.abstractmethod
-    def release(self):  # TODO: arguments
-        """Releases connection to pool."""
+    def release(self, conn):  # TODO: arguments
+        """Releases connection to pool.
+
+        :param AbcConnection conn: Owned connection to be released.
+        """
 
     @property
     @abc.abstractmethod
@@ -131,7 +136,7 @@ class AbcChannel(ABC):
     def get(self):
         """Wait and return new message.
 
-        Will raise ChannelClosedError if channel is not active.
+        Will raise ``ChannelClosedError`` if channel is not active.
         """
 
     # wait_message is not required; details of implementation

@@ -11,7 +11,7 @@ from .log import logger
 __all__ = [
     "Channel",
     "EndOfStream",
-    "Listener",
+    "Receiver",
 ]
 
 PY_35 = sys.version_info >= (3, 5)
@@ -69,8 +69,8 @@ class Channel(AbcChannel):
     def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
 
-        Raises ChannelClosedError exception if channel is unsubscribed
-        and has no messages.
+        :raises aioredis.ChannelClosedError: If channel is unsubscribed
+            and has no messages.
         """
         assert decoder is None or callable(decoder), decoder
         if not self.is_active:
@@ -179,7 +179,7 @@ if PY_35:
             return msg
 
 
-class Listener:
+class Receiver:
     """Multi-producers, single-consumer Pub/Sub queue.
 
     Can be used in cases where a single consumer task
@@ -189,10 +189,10 @@ class Listener:
 
     Example use case:
 
-    >>> mpsc = Listener(loop=loop)
+    >>> mpsc = Receiver(loop=loop)
     >>> async def reader(mpsc):
     ...     async for channel, msg in mpsc.iter():
-    ...         assert isinstance(channel, Channel)
+    ...         assert isinstance(channel, AbcChannel)
     ...         print("Got {!r} in channel {!r}".format(msg, channel))
     >>> asyncio.ensure_future(reader(mpsc))
     >>> await redis.subscribe(mpsc.channel('channel:1'),
@@ -219,11 +219,14 @@ class Listener:
         self._loop = loop
 
     def __repr__(self):
-        return ('<Listener is_active:{}, senders:{}, qsize:{}>'
+        return ('<Receiver is_active:{}, senders:{}, qsize:{}>'
                 .format(self.is_active, len(self._refs), self._queue.qsize()))
 
     def channel(self, name):
-        """Create channel."""
+        """Create a channel.
+
+        Returns ``_Sender`` object implementing :class:`abc.AbcChannel`.
+        """
         enc_name = _converters[type(name)](name)
         if (enc_name, False) not in self._refs:
             ch = _Sender(self, enc_name,
@@ -234,7 +237,10 @@ class Listener:
         return self._refs[(enc_name, False)]
 
     def pattern(self, pattern):
-        """Create pattern channel."""
+        """Create a pattern channel.
+
+        Returns ``_Sender`` object implementing :class:`abc.AbcChannel`.
+        """
         enc_pattern = _converters[type(pattern)](pattern)
         if (enc_pattern, True) not in self._refs:
             ch = _Sender(self, enc_pattern,
@@ -263,11 +269,11 @@ class Listener:
 
         Return value is either:
         * tuple of two elements: channel & message;
-        * tuple of three elemens: pattern channel, (target channel & message);
-        * or None in case Listener is stopped.
+        * tuple of three elements: pattern channel, (target channel & message);
+        * or None in case Receiver is stopped.
 
-        Raises ChannelClosedError if listener is stopped and all mesesages
-        has been received.
+        :raises aioredis.ChannelClosedError: If listener is stopped
+            and all messages have been received.
         """
         assert decoder is None or callable(decoder), decoder
         if not self.is_active:
@@ -336,7 +342,7 @@ class Listener:
 class _Sender(AbcChannel):
     """Write-Only Channel.
 
-    Does not allow direct `.get()` calls.
+    Does not allow direct ``.get()`` calls.
     """
 
     def __init__(self, receiver, name, is_pattern, *, loop):

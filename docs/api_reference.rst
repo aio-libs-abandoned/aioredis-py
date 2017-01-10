@@ -66,6 +66,8 @@ Connection usage is as simple as:
 
 .. class:: RedisConnection
 
+   Bases: :class:`abc.AbcConnection`
+
    Redis connection interface.
 
    .. attribute:: address
@@ -109,7 +111,11 @@ Connection usage is as simple as:
 
    .. method:: execute(command, \*args, encoding=_NOTSET)
 
-      A :ref:`coroutine<coroutine>` function to execute Redis command.
+      Execute Redis command.
+
+      The method is **not a coroutine** itself but instead it
+      writes to underlying transport and returns a :class:`asyncio.Future`
+      waiting for result.
 
       :param command: Command to execute
       :type command: str, bytes, bytearray
@@ -162,6 +168,9 @@ Connection usage is as simple as:
 
       Closes connection.
 
+      Mark connection as closed and schedule cleanup procedure.
+
+
    .. method:: wait_closed()
 
       Coroutine waiting for connection to get closed.
@@ -202,10 +211,9 @@ The library provides connections pool. The basic usage is as follows:
    import asyncio
    import aioredis
 
-   def test_pool():
+   async def sample_pool():
        pool = await aioredis.create_pool(('localhost', 6379))
-       with await pool as redis:
-           val = await redis.get('my-key')
+       val = await pool.execute('get', 'my-key')
 
 
 .. _aioredis-create_pool:
@@ -214,11 +222,13 @@ The library provides connections pool. The basic usage is as follows:
                           encoding=None, minsize=1, maxsize=10, \
                           commands_factory=_NOTSET, loop=None)
 
-   A :ref:`coroutine<coroutine>` that creates Redis connections pool.
+   A :ref:`coroutine<coroutine>` that instantiates a pool of
+   :class:`~.RedisConnection`.
 
-   By default it creates pool of :class:`Redis` instances, but it is
-   also possible to create plain connections pool by passing
-   ``lambda conn: conn`` as *commands_factory*.
+
+   .. By default it creates pool of :class:`Redis` instances, but it is
+      also possible to create plain connections pool by passing
+      ``lambda conn: conn`` as *commands_factory*.
 
    .. versionchanged:: v0.2.7
       ``minsize`` default value changed from 10 to 1.
@@ -266,6 +276,8 @@ The library provides connections pool. The basic usage is as follows:
 
 
 .. class:: RedisPool
+
+   Bases: :class:`abc.AbcPool`
 
    Redis connections pool.
 
@@ -323,7 +335,7 @@ The library provides connections pool. The basic usage is as follows:
       the connection will be dropped.
       When queue of free connections is full the connection will be dropped.
 
-      .. note:: This method is NOT a coroutine.
+      .. note:: This method is **not a coroutine**.
 
       :param aioredis.RedisConnection conn: A RedisConnection instance.
 
@@ -352,6 +364,8 @@ Pub/Sub Channel object
 
 .. class:: Channel(name, is_pattern, loop=None)
 
+   Bases: :class:`abc.AbcChannel`
+
    Object representing Pub/Sub messages queue.
    It's basically a wrapper around :class:`asyncio.Queue`.
 
@@ -377,9 +391,11 @@ Pub/Sub Channel object
 
       :param str encoding: If not None used to decode resulting bytes message.
 
-      :param callable decoder: If specified used to decode message, ex. :func:`json.loads()`
+      :param callable decoder: If specified used to decode message,
+                               ex. :func:`json.loads()`
 
-      :raise aioredis.ChannelClosedError: If channel is unsubscribed and has no more messages.
+      :raise aioredis.ChannelClosedError: If channel is unsubscribed and
+                                          has no more messages.
 
    .. method:: get_json(\*, encoding="utf-8")
 
@@ -388,8 +404,6 @@ Pub/Sub Channel object
    .. comethod:: wait_message()
 
       Waits for message to become available in channel.
-
-      This function is coroutine.
 
       Main idea is to use it in loops:
 
@@ -521,6 +535,7 @@ to Redis commands.
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
 
+.. NOTE: mark as deprecated
 .. cofunction:: create_reconnecting_redis(address, \*, db=0, password=None,\
                            ssl=None, encoding=None, commands_factory=Redis,\
                            loop=None)

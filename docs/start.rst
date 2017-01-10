@@ -25,9 +25,9 @@ Simple example show both cases (:download:`get source code<../examples/pipeline.
 
 .. note::
 
-   As as convenience :mod:`aioredis` provides
+   For convenience :mod:`aioredis` provides
    :meth:`~TransactionsCommandsMixin.pipeline`
-   method allowing to execute bulk of commands at once
+   method allowing to execute bulk of commands as one
    (:download:`get source code<../examples/pipeline.py>`):
 
       .. literalinclude:: ../examples/pipeline.py
@@ -41,22 +41,17 @@ Multi/Exec transactions
 
 :mod:`aioredis` provides several ways for executing transactions:
 
-* when using raw connection you can issue 'Multi'/'Exec' commands
+* when using raw connection you can issue ``Multi``/``Exec`` commands
   manually;
 
-* when using :class:`aioredis.Redis` instance you can either use
-  :meth:`~TransactionsCommandsMixin.multi`/
-  :meth:`~TransactionsCommandsMixin.exec` methods
-
-* or use :meth:`~TransactionsCommandsMixin.multi_exec` transaction pipeline.
-
-The later one is described in more details.
+* when using :class:`aioredis.Redis` instance you can use
+  :meth:`~TransactionsCommandsMixin.multi_exec` transaction pipeline.
 
 :meth:`~TransactionsCommandsMixin.multi_exec` method creates and returns new
 :class:`~aioredis.commands.MultiExec` object which is used for buffering commands and
 then executing them inside MULTI/EXEC block.
 
-Here is simple example
+Here is a simple example
 (:download:`get source code<../examples/transaction2.py>`):
 
 .. literalinclude:: ../examples/transaction2.py
@@ -106,7 +101,7 @@ Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
    :lines: 6-31
    :dedent: 4
 
-.. warning::
+.. .. warning::
    Using Pub/Sub mode with :class:`~aioredis.Pool` is possible but
    only within ``with`` block or by explicitly ``acquiring/releasing``
    connection. See example below.
