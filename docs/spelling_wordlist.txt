@@ -18,6 +18,7 @@ brpoplpush
 cardinality
 ClientInfo
 codec
+ConnectionsPool
 convertion
 coroutine
 coroutines
@@ -115,6 +116,7 @@ unixsocket
 unreceived
 unsubscribe
 unsubscribed
+unsubscribing
 util
 uvloop
 UVLoop

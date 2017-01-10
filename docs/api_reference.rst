@@ -234,7 +234,7 @@ The library provides connections pool. The basic usage is as follows:
       ``minsize`` default value changed from 10 to 1.
 
    .. versionchanged:: v0.2.8
-      Disallow arbitrary RedisPool maxsize.
+      Disallow arbitrary ConnectionsPool maxsize.
 
    .. deprecated:: v0.2.9
       *commands_factory* argument is deprecated and will be removed in *v0.3*.
@@ -272,10 +272,10 @@ The library provides connections pool. The basic usage is as follows:
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   :return: :class:`RedisPool` instance.
+   :return: :class:`ConnectionsPool` instance.
 
 
-.. class:: RedisPool
+.. class:: ConnectionsPool
 
    Bases: :class:`abc.AbcPool`
 
@@ -311,6 +311,47 @@ The library provides connections pool. The basic usage is as follows:
 
       .. versionadded:: v0.2.8
 
+   .. method:: execute(command, \*args, \**kwargs)
+
+      Execute Redis command in a free connection and return
+      :class:`asyncio.Future` waiting for result.
+
+      This method tries to pick a free connection from pool and send
+      command through it at once (keeping pipelining feature provided
+      by :meth:`aioredis.RedisConnection.execute`).
+      If no connection is found --- returns coroutine waiting for free
+      connection to execute command.
+
+      .. versionadded:: v1.0
+
+   .. method:: execute_pubsub(command, \*channels)
+
+      Execute Redis (p)subscribe/(p)unsubscribe command.
+
+      ``ConnectionsPool`` picks separate free connection for pub/sub
+      and uses it until pool is closed or connection is disconnected
+      (unsubscribing from all channels/pattern will leave connection
+      locked for pub/sub use).
+
+      There is no auto-reconnect for Pub/Sub connection as this will
+      hide from user messages loss.
+
+      Has similar to :meth:`execute` behavior, ie: tries to pick free
+      connection from pool and switch it to pub/sub mode; or fallback
+      to coroutine waiting for free connection and repeating operation.
+
+      .. versionadded:: v1.0
+
+   .. method:: get_connection(command, args=())
+
+      Gets free connection from pool returning tuple of (connection, address).
+
+      If no free connection is found -- None is returned in place of connection.
+
+      :rtype: tuple(:class:`RedisConnection` or None, str)
+
+      .. versionadded:: v1.0
+
    .. comethod:: clear()
 
       Closes and removes all free connections in the pool.
@@ -321,10 +362,12 @@ The library provides connections pool. The basic usage is as follows:
 
       :param int db: New database index.
 
-   .. comethod:: acquire()
+   .. comethod:: acquire(command=None, args=())
 
       Acquires a connection from *free pool*. Creates new connection if needed.
 
+      :param command: reserved for future.
+      :param args: reserved for future.
       :raises aioredis.PoolClosedError: if pool is already closed
 
    .. method:: release(conn)
@@ -472,7 +515,8 @@ Exceptions
 
 .. exception:: PoolClosedError
 
-   Raised from :meth:`aioredis.RedisPool.acquire` when pool is already closed.
+   Raised from :meth:`aioredis.ConnectionsPool.acquire`
+   when pool is already closed.
 
 
 Exceptions Hierarchy

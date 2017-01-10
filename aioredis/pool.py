@@ -16,6 +16,7 @@ PY_35 = sys.version_info >= (3, 5)
 @asyncio.coroutine
 def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET, loop=None):
+    # FIXME: rewrite docstring
     """Creates Redis Pool.
 
     By default it creates pool of Redis instances, but it is
