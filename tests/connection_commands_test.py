@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 import sys
 
@@ -42,12 +41,8 @@ def test_ping(redis):
                    reason="Probably race conditions...")
 @pytest.mark.run_loop
 def test_quit(redis):
-    try:
-        resp = yield from redis.quit()
-    except asyncio.CancelledError:
-        pass
-    else:
-        assert resp == b'OK'
+    resp = yield from redis.quit()
+    assert resp == b'OK'
 
     with pytest.raises(ConnectionClosedError):
         yield from redis.ping()
