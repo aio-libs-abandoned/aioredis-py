@@ -420,7 +420,8 @@ def redis_version(*version, reason):
 
 
 def assert_almost_equal(first, second, places=None, msg=None, delta=None):
-    assert not (places is None and delta is None)
+    assert not (places is None and delta is None), \
+        "Both places and delta are not set, please set one"
     if delta is not None:
         assert abs(first - second) <= delta
     else:

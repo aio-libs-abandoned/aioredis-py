@@ -186,4 +186,4 @@ def test_role(redis):
 def test_time(redis):
     res = yield from redis.time()
     assert isinstance(res, float)
-    assert int(res) == int(time.time())
+    pytest.assert_almost_equal(int(res), int(time.time()), delta=10)
