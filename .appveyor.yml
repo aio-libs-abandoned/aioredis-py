@@ -3,6 +3,7 @@ build: off
 
 environment:
   REDIS: "C:\\ProgramData\\chocolatey\\lib\\redis-64"
+  PYTHONASYNCIODEBUG: "1"
   matrix:
   - PYTHON: "C:\\Python35"
   - PYTHON: "C:\\Python35-x64"
@@ -17,6 +18,7 @@ install:
 
 test_script:
 - "%REDIS%\\redis-server.exe --version"
+- "%PYTHON%\\python.exe -c \"import sys; print(sys.version)\""
 - "%PYTHON%\\python.exe -m pytest -svvv --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
 
 on_finish:
