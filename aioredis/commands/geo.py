@@ -17,14 +17,14 @@ class GeoCommandsMixin:
         """Add one or more geospatial items in the geospatial index represented
         using a sorted set.
         """
-        return self._conn.execute(
+        return self.execute(
             b'GEOADD', key, longitude, latitude, member, *args, **kwargs
         )
 
     def geohash(self, key, member, *args, **kwargs):
         """Returns members of a geospatial index as standard geohash strings.
         """
-        return self._conn.execute(
+        return self.execute(
             b'GEOHASH', key, member, *args, **kwargs
         )
 
@@ -33,7 +33,7 @@ class GeoCommandsMixin:
 
         :rtype: list[GeoPoint or None]
         """
-        fut = self._conn.execute(b'GEOPOS', key, member, *args, **kwargs)
+        fut = self.execute(b'GEOPOS', key, member, *args, **kwargs)
         return wait_convert(fut, make_geopos)
 
     def geodist(self, key, member1, member2, unit='m'):
@@ -41,7 +41,7 @@ class GeoCommandsMixin:
 
         :rtype: list[float or None]
         """
-        fut = self._conn.execute(b'GEODIST', key, member1, member2, unit)
+        fut = self.execute(b'GEODIST', key, member1, member2, unit)
         return wait_convert(fut, make_geodist)
 
     def georadius(self, key, longitude, latitude, radius, unit='m', *,
@@ -75,7 +75,7 @@ class GeoCommandsMixin:
             radius, unit, with_dist, with_hash, with_coord, count, sort
         )
 
-        fut = self._conn.execute(
+        fut = self.execute(
             b'GEORADIUS', key, longitude, latitude, radius,
             unit, *args, encoding=encoding
         )
@@ -117,7 +117,7 @@ class GeoCommandsMixin:
             radius, unit, with_dist, with_hash, with_coord, count, sort
         )
 
-        fut = self._conn.execute(
+        fut = self.execute(
             b'GEORADIUSBYMEMBER', key, member, radius,
             unit, *args, encoding=encoding)
         if with_dist or with_hash or with_coord:

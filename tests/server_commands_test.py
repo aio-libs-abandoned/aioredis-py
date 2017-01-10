@@ -16,7 +16,7 @@ def test_client_list(redis, server):
     expected = {
         'addr': mock.ANY,
         'fd': mock.ANY,
-        'age': '0',
+        'age': mock.ANY,
         'idle': '0',
         'flags': 'N',
         'db': '0',
