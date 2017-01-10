@@ -355,13 +355,13 @@ def test_pexpire(redis, loop):
 def test_pexpireat(redis):
     yield from add(redis, 'my-key', 123)
     now = math.ceil((yield from redis.time()) * 1000)
-    res = yield from redis.pexpireat('my-key', now + 500)
+    res = yield from redis.pexpireat('my-key', now + 800)
     assert res is True
 
     res = yield from redis.ttl('my-key')
     assert res == 1
     res = yield from redis.pttl('my-key')
-    pytest.assert_almost_equal(res, 500, -2)
+    pytest.assert_almost_equal(res, 800, -2)
 
     with pytest.raises(TypeError):
         yield from redis.pexpireat(None, 1234)

@@ -22,7 +22,7 @@ matrix:
     env: TESTS="flake examples"
   - python: "3.5"
     env: TESTS="flake examples spelling"
-  - python: "3.6-dev"
+  - python: "3.6"
     env: TESTS="flake examples" TEST_ARGS=--uvloop
   allow_failures:
   - env: TESTS="flake examples" TEST_ARGS=--uvloop

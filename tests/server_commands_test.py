@@ -1,5 +1,7 @@
 import time
 import pytest
+import sys
+
 from unittest import mock
 
 from aioredis import ReplyError
@@ -35,6 +37,8 @@ def test_client_list(redis, server):
 
 
 @pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
 def test_client_list__unixsocket(create_redis, loop, server):
     redis = yield from create_redis(server.unixsocket, loop=loop)
     res = yield from redis.client_list()

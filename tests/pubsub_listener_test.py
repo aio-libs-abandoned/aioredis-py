@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import json
+import sys
 
 from unittest import mock
 
@@ -229,13 +230,28 @@ def test_decode_message(loop):
     assert res[1] == {'hello': 'world'}
 
     ch.put_nowait(b'{"hello": "world"}')
-    with pytest.raises(TypeError):
-        yield from mpsc.get(decoder=json.loads)
-
-    ch.put_nowait(b'{"hello": "world"}')
     res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == {'hello': 'world'}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 6),
+                    reason="json.loads accept bytes since Python 3.6")
+@pytest.mark.run_loop
+def test_decode_message_error(loop):
+    mpsc = Listener(loop)
+    ch = mpsc.channel('channel:1')
+
+    ch.put_nowait(b'{"hello": "world"}')
+    unexpected = (mock.ANY, {'hello': 'world'})
+    with pytest.raises(TypeError):
+        assert (yield from mpsc.get(decoder=json.loads)) == unexpected
+
+    ch = mpsc.pattern('*')
+    ch.put_nowait((b'channel', b'{"hello": "world"}'))
+    unexpected = (mock.ANY, b'channel', {'hello': 'world'})
+    with pytest.raises(TypeError):
+        assert (yield from mpsc.get(decoder=json.loads)) == unexpected
 
 
 @pytest.mark.run_loop
@@ -254,10 +270,6 @@ def test_decode_message_for_pattern(loop):
     assert isinstance(res[0], _Sender)
     assert res[1] == b'channel'
     assert res[2] == {'hello': 'world'}
-
-    ch.put_nowait((b'channel', b'{"hello": "world"}'))
-    with pytest.raises(TypeError):
-        yield from mpsc.get(decoder=json.loads)
 
     ch.put_nowait((b'channel', b'{"hello": "world"}'))
     res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)

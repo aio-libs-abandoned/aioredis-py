@@ -1,0 +1,28 @@
+version: 0.3.dev{build}
+build: off
+
+environment:
+  REDIS: "C:\\ProgramData\\chocolatey\\lib\\redis-64"
+  PYTHONASYNCIODEBUG: "1"
+  matrix:
+  - PYTHON: "C:\\Python35"
+  - PYTHON: "C:\\Python35-x64"
+  - PYTHON: "C:\\Python36"
+  - PYTHON: "C:\\Python36-x64"
+
+install:
+- "cinst redis-64"
+- "%PYTHON%\\python.exe -m pip install hiredis"
+- "%PYTHON%\\python.exe -m pip install -r tests/requirements.txt"
+- "%PYTHON%\\python.exe -m pip install -e ."
+
+test_script:
+- "%REDIS%\\redis-server.exe --version"
+- "%PYTHON%\\python.exe -c \"import sys; print(sys.version)\""
+- "%PYTHON%\\python.exe -m pytest -svvv --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
+
+on_finish:
+- ps: >-
+    $wc = New-Object 'System.Net.WebClient'
+
+    $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path results.xml))

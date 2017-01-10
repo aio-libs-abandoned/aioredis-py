@@ -463,7 +463,7 @@ def test_psetex(redis, loop):
     test_value = yield from redis.get(key)
     assert test_value == value
 
-    yield from asyncio.sleep(0.011, loop=loop)
+    yield from asyncio.sleep(0.020, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
@@ -489,7 +489,7 @@ def test_set_expire(redis, loop):
     yield from redis.set(key, value, pexpire=10)
     result_1 = yield from redis.get(key)
     assert result_1 == value
-    yield from asyncio.sleep(0.011, loop=loop)
+    yield from asyncio.sleep(0.020, loop=loop)
     result_2 = yield from redis.get(key)
     assert result_2 is None
 
@@ -497,7 +497,7 @@ def test_set_expire(redis, loop):
     yield from redis.set(key, value, expire=1)
     result_3 = yield from redis.get(key)
     assert result_3 == value
-    yield from asyncio.sleep(1.001, loop=loop)
+    yield from asyncio.sleep(1.010, loop=loop)
     result_4 = yield from redis.get(key)
     assert result_4 is None
 
@@ -570,14 +570,14 @@ def test_setex(redis, loop):
     yield from redis.setex(key, 1, value)
     test_value = yield from redis.get(key)
     assert test_value == value
-    yield from asyncio.sleep(1, loop=loop)
+    yield from asyncio.sleep(1.010, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
     yield from redis.setex(key, 0.1, value)
     test_value = yield from redis.get(key)
     assert test_value == value
-    yield from asyncio.sleep(0.11, loop=loop)
+    yield from asyncio.sleep(0.20, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
