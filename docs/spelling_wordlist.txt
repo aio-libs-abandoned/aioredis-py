@@ -2,6 +2,7 @@ AbcConnection
 aioredis
 api
 APIs
+AppVeyor
 ASC
 async
 asyncio
@@ -65,6 +66,7 @@ mget
 minsize
 mixin
 mixins
+MPSC
 multi
 namedtuple
 namespace
@@ -83,6 +85,7 @@ RedisConnection
 RedisPool
 redises
 refactored
+Reflow
 REFCOUNT
 repo
 rpop
