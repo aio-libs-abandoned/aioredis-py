@@ -262,17 +262,14 @@ def test_decode_message_for_pattern(loop):
 
     res = yield from mpsc.get(encoding='utf-8')
     assert isinstance(res[0], _Sender)
-    assert res[1] == b'channel'
-    assert res[2] == 'Some data'
+    assert res[1] == (b'channel', 'Some data')
 
     ch.put_nowait((b'channel', '{"hello": "world"}'))
     res = yield from mpsc.get(decoder=json.loads)
     assert isinstance(res[0], _Sender)
-    assert res[1] == b'channel'
-    assert res[2] == {'hello': 'world'}
+    assert res[1] == (b'channel', {'hello': 'world'})
 
     ch.put_nowait((b'channel', b'{"hello": "world"}'))
     res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)
     assert isinstance(res[0], _Sender)
-    assert res[1] == b'channel'
-    assert res[2] == {'hello': 'world'}
+    assert res[1] == (b'channel', {'hello': 'world'})
