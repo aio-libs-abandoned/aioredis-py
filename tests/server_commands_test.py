@@ -77,8 +77,7 @@ def test_client_pause(redis):
     assert res is True
     ts = time.time()
     yield from redis.ping()
-    dt = int(time.time() - ts)
-    assert dt == 2
+    assert int(time.time() - ts) >= 2
 
     with pytest.raises(TypeError):
         yield from redis.client_pause(2.0)

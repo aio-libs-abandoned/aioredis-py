@@ -113,40 +113,16 @@ def test_expire(redis):
     with pytest.raises(TypeError):
         yield from redis.expire('my-key', 'timeout')
 
-# @pytest.mark.run_loop
-# def test_wait_expire():
-#     return
-#     yield from .add('my-key', 123)
-#     res = yield from .redis.expire('my-key', 1)
-#     .assertIs(res, True)
-
-#     yield from asyncio.sleep(1, loop=.loop)
-
-#     res = yield from .redis.exists('my-key')
-#     .assertIs(res, False)
-
-# @pytest.mark.run_loop
-# def test_wait_expireat():
-#     return
-#     yield from .add('my-key', 123)
-#     ts = int(time.time() + 1)
-#     res = yield from .redis.expireat('my-key', ts)
-
-#     yield from asyncio.sleep(ts - time.time(), loop=.loop)
-#     res = yield from .redis.exists('my-key')
-#     .assertIs(res, False)
-
 
 @pytest.mark.run_loop
 def test_expireat(redis):
     yield from add(redis, 'my-key', 123)
     now = math.ceil(time.time())
 
-    res = yield from redis.expireat('my-key', now + 10)
-    assert res is True
-
-    res = yield from redis.connection.execute('TTL', 'my-key')
-    assert res >= 10
+    fut1 = redis.expireat('my-key', now + 10)
+    fut2 = redis.connection.execute('TTL', 'my-key')
+    assert (yield from fut1) is True
+    assert (yield from fut2) >= 10
 
     res = yield from redis.expireat('my-key', -1)
     assert res is True
@@ -161,13 +137,6 @@ def test_expireat(redis):
 
     res = yield from redis.exists('my-key')
     assert not res
-
-    yield from add(redis, 'my-key', 123)
-    res = yield from redis.expireat('my-key', time.time() + 10)
-    assert res is True
-
-    res = yield from redis.connection.execute('TTL', 'my-key')
-    assert res >= 10
 
     yield from add(redis, 'my-key', 123)
     with pytest.raises(TypeError):
@@ -340,7 +309,8 @@ def test_pexpire(redis, loop):
     res = yield from redis.pexpire('my-key', 1)
     assert res is True
 
-    yield from asyncio.sleep(.002, loop=loop)
+    # XXX: tests now looks strange to me.
+    yield from asyncio.sleep(.2, loop=loop)
 
     res = yield from redis.exists('my-key')
     assert not res
@@ -355,13 +325,12 @@ def test_pexpire(redis, loop):
 def test_pexpireat(redis):
     yield from add(redis, 'my-key', 123)
     now = math.ceil((yield from redis.time()) * 1000)
-    res = yield from redis.pexpireat('my-key', now + 2000)
-    assert res is True
-
-    res = yield from redis.ttl('my-key')
-    assert res == 2
-    res = yield from redis.pttl('my-key')
-    pytest.assert_almost_equal(res, 2000, -3)
+    fut1 = redis.pexpireat('my-key', now + 2000)
+    fut2 = redis.ttl('my-key')
+    fut3 = redis.pttl('my-key')
+    assert (yield from fut1) is True
+    assert (yield from fut2) == 2
+    pytest.assert_almost_equal((yield from fut3), 2000, -3)
 
     with pytest.raises(TypeError):
         yield from redis.pexpireat(None, 1234)
