@@ -18,9 +18,13 @@ from .cluster import ClusterCommandsMixin
 from .geo import GeoCommandsMixin, GeoPoint, GeoMember
 
 __all__ = [
-    'create_redis', 'Redis',
-    'Pipeline', 'MultiExec',
-    'GeoPoint', 'GeoMember',
+    'create_redis',
+    'create_redis_pool',
+    'Redis',
+    'Pipeline',
+    'MultiExec',
+    'GeoPoint',
+    'GeoMember',
 ]
 
 
@@ -160,7 +164,3 @@ create_reconnecting_redis = create_redis_pool
 #                          db=db, password=password, ssl=ssl,
 #                          encoding=encoding, loop=loop)
 #     return commands_factory(conn)
-
-
-# make pyflakes happy
-(Pipeline, MultiExec)

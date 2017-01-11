@@ -47,8 +47,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
 
 
 class ConnectionsPool:
-    """Redis connections pool.
-    """
+    """Redis connections pool."""
 
     def __init__(self, address, db=0, password=None, encoding=None,
                  *, minsize, maxsize, ssl=None, loop=None):

@@ -208,7 +208,6 @@ The library provides connections pool. The basic usage is as follows:
 
 .. code:: python
 
-   import asyncio
    import aioredis
 
    async def sample_pool():
@@ -226,6 +225,7 @@ The library provides connections pool. The basic usage is as follows:
    :class:`~.RedisConnection`.
 
 
+   .. TODO: rewrite this text
    .. By default it creates pool of :class:`Redis` instances, but it is
       also possible to create plain connections pool by passing
       ``lambda conn: conn`` as *commands_factory*.
@@ -545,12 +545,44 @@ Commands Interface
 The library provides high-level API implementing simple interface
 to Redis commands.
 
+The usage is as simple as:
+
+.. code:: python
+
+   import aioredis
+
+   # Create Redis client bound to single non-reconnecting connection.
+   async def single_connection():
+      redis = await aioredis.create_redis(
+         ('localhost', 6379))
+      val = await redis.get('my-key')
+
+   # Create Redis client bound to connections pool.
+   async def pool_of_connections():
+      redis = await aioredis.create_redis_pool(
+         ('localhost', 6379))
+      val = await redis.get('my-key')
+
+      # we can also use pub/sub as underlying pool
+      #  has several free connections:
+      ch1, ch2 = await redis.subscribe('chan:1', 'chan:2')
+      # publish using free connection
+      await redis.publish('chan:1', 'Hello')
+      await ch1.get()
+
+For commands reference ---
+see :ref:`commands mixins reference <aioredis-commands>`.
+
+
 .. cofunction:: create_redis(address, \*, db=0, password=None, ssl=None,\
                              encoding=None, commands_factory=Redis,\
                              loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
-   interface instance.
+   interface instance bound to single Redis connection
+   (without auto-reconnect).
+
+   See also :class:`~aioredis.RedisConnection` for parameters description.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -558,9 +590,9 @@ to Redis commands.
 
    :param int db: Redis database index to switch to when connected.
 
-   :param password: Password to use if redis server instance requires
+   :param password: Password to use if Redis server instance requires
                     authorization.
-   :type password: str or None
+   :type password: str or bytes or None
 
    :param ssl: SSL context that is passed through to
                :func:`asyncio.BaseEventLoop.create_connection`.
@@ -570,7 +602,8 @@ to Redis commands.
    :type encoding: str or None
 
    :param commands_factory: A factory accepting single parameter --
-    :class:`RedisConnection` instance and returning an object providing
+    object implementing :class:`~abc.AbcConnection`
+    and returning an instance providing
     high-level interface to Redis. :class:`Redis` by default.
    :type commands_factory: callable
 
@@ -578,34 +611,52 @@ to Redis commands.
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-
-.. NOTE: mark as deprecated
-.. cofunction:: create_reconnecting_redis(address, \*, db=0, password=None,\
-                           ssl=None, encoding=None, commands_factory=Redis,\
-                           loop=None)
-
-   Like :func:`create_redis` this :ref:`coroutine<coroutine>` creates
-   high-level Redis interface instance that may reconnect to redis server
-   between requests.  Accepts same arguments as :func:`create_redis`.
-
-   The reconnect process is done at most once, at the start of the request. So
-   if your request is broken in the middle of sending or receiving reply, it
-   will not be repeated but an exception is raised.
-
-   .. note:: There are two important differences between :func:`create_redis`
-      and :func:`create_reconnecting_redis`:
-
-      1. The :func:`create_reconnecting_redis` does not establish connection
-         "right now", it defers connection establishing to the first request.
-
-      2. Methods of :func:`Redis` factory returned do not buffer commands
-         until you `yield from` it. I.e. they are real coroutines not the
-         functions returning future. It may impact your pipelining.
+   :returns: Redis client (result of ``commands_factory`` call),
+             :class:`Redis` by default.
 
 
-.. class:: Redis(connection)
-   :noindex:
+.. cofunction:: create_redis_pool(address, \*, db=0, password=None, ssl=None,\
+                                  encoding=None, commands_factory=Redis,\
+                                  minsize=1, maxsize=10,\
+                                  loop=None)
 
-   High-level Redis commands interface.
+   This :ref:`coroutine<coroutine>` create high-level Redis client instance
+   bound to connections pool (this allows auto-reconnect and simple pub/sub
+   use).
 
-   For details see :ref:`mixins<aioredis-commands>` reference.
+   See also :class:`~aioredis.ConnectionsPool` for parameters description.
+
+   :param address: An address where to connect. Can be a (host, port) tuple or
+                   unix domain socket path string.
+   :type address: tuple or str
+
+   :param int db: Redis database index to switch to when connected.
+   :param password: Password to use if Redis server instance requires
+                    authorization.
+   :type password: str or bytes or None
+
+   :param ssl: SSL context that is passed through to
+               :func:`asyncio.BaseEventLoop.create_connection`.
+   :type ssl: :class:`ssl.SSLContext` or True or None
+
+   :param encoding: Codec to use for response decoding.
+   :type encoding: str or None
+
+   :param commands_factory: A factory accepting single parameter --
+    object implementing :class:`~abc.AbcConnection` interface
+    and returning an instance providing
+    high-level interface to Redis. :class:`Redis` by default.
+   :type commands_factory: callable
+
+   :param int minsize: Minimum number of connections to initialize
+                       and keep in pool. Default is 1.
+
+   :param int maxsize: Maximum number of connections that can be created
+                       in pool. Default is 10.
+
+   :param loop: An optional *event loop* instance
+                (uses :func:`asyncio.get_event_loop` if not specified).
+   :type loop: :ref:`EventLoop<asyncio-event-loop>`
+
+   :returns: Redis client (result of ``commands_factory`` call),
+             :class:`Redis` by default.
