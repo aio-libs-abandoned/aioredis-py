@@ -15,7 +15,7 @@ multi-producers, single-consumer queue pattern.
 
 .. autoclass:: _Sender
 
-   Bases: :class:`abc.AbcChannel`
+   Bases: :class:`aioredis.abc.AbcChannel`
 
    **Not to be used directly**, returned by :meth:`Receiver.channel` or
    :meth:`Receiver.pattern()` calls.

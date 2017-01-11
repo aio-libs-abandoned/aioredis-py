@@ -225,10 +225,9 @@ The library provides connections pool. The basic usage is as follows:
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
 
-
-   .. By default it creates pool of :class:`Redis` instances, but it is
-      also possible to create plain connections pool by passing
-      ``lambda conn: conn`` as *commands_factory*.
+   By default it creates pool of :class:`Redis` instances, but it is
+   also possible to create plain connections pool by passing
+   ``lambda conn: conn`` as *commands_factory*.
 
    .. versionchanged:: v0.2.7
       ``minsize`` default value changed from 10 to 1.
@@ -277,7 +276,7 @@ The library provides connections pool. The basic usage is as follows:
 
 .. class:: RedisPool
 
-   Bases: :class:`abc.AbcPool`
+   .. Bases: :class:`abc.AbcPool`
 
    Redis connections pool.
 

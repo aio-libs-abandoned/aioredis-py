@@ -189,6 +189,8 @@ class Receiver:
 
     Example use case:
 
+    >>> from aioredis.pubsub import Receiver
+    >>> from aioredis.abc import AbcChannel
     >>> mpsc = Receiver(loop=loop)
     >>> async def reader(mpsc):
     ...     async for channel, msg in mpsc.iter():
@@ -225,7 +227,8 @@ class Receiver:
     def channel(self, name):
         """Create a channel.
 
-        Returns ``_Sender`` object implementing :class:`abc.AbcChannel`.
+        Returns ``_Sender`` object implementing
+        :class:`~aioredis.abc.AbcChannel`.
         """
         enc_name = _converters[type(name)](name)
         if (enc_name, False) not in self._refs:
@@ -239,7 +242,8 @@ class Receiver:
     def pattern(self, pattern):
         """Create a pattern channel.
 
-        Returns ``_Sender`` object implementing :class:`abc.AbcChannel`.
+        Returns ``_Sender`` object implementing
+        :class:`~aioredis.abc.AbcChannel`.
         """
         enc_pattern = _converters[type(pattern)](pattern)
         if (enc_pattern, True) not in self._refs:
