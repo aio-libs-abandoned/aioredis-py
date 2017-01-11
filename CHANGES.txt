@@ -1,6 +1,45 @@
 Changes
 -------
 
+0.3.0 (2017-01-11)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Pub/Sub connection commands accept ``Channel`` instances
+  (see `#168 <https://github.com/aio-libs/aioredis/pull/168>`_);
+
+* Implement new Pub/Sub MPSC (mutli-producers, single-consumer) Qeueu --
+  ``aioredis.pubsub.Receiver``
+  (see `#176 <https://github.com/aio-libs/aioredis/pull/176>`_);
+
+* Add ``aioredis.abc`` module providing abstract base classes
+  defining interface for basic lib components;
+  (see `#176 <https://github.com/aio-libs/aioredis/pull/176>`_);
+
+* Implement Geo commands support
+  (see `#177 <https://github.com/aio-libs/aioredis/pull/177>`_
+  and `#179 <https://github.com/aio-libs/aioredis/pull/179>`_);
+
+**FIX**:
+
+* Minor tests fixes;
+
+**MISC**:
+
+* Update examples and docs to use ``async``/``await`` syntax
+  also keeping ``yield from`` examples for history
+  (see `#173 <https://github.com/aio-libs/aioredis/pull/173>`_);
+
+* Reflow Travis CI configuration; add Python 3.6 section
+  (see `#170 <https://github.com/aio-libs/aioredis/pull/170>`_);
+
+* Add Appveyor integration to run tests on Windows
+  (see `#180 <https://github.com/aio-libs/aioredis/pull/180>`_);
+
+* Update multiple development requirements;
+
+
 0.2.9 (2016-10-24)
 ^^^^^^^^^^^^^^^^^^
 
