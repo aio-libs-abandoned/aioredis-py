@@ -239,7 +239,7 @@ def test_decode_message(loop):
                     reason="json.loads accept bytes since Python 3.6")
 @pytest.mark.run_loop
 def test_decode_message_error(loop):
-    mpsc = Listener(loop)
+    mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
 
     ch.put_nowait(b'{"hello": "world"}')
