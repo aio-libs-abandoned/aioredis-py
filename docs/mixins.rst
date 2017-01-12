@@ -23,8 +23,8 @@ Generic commands
 .. autoclass:: GenericCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: GenericCommandsMixin
 
@@ -100,8 +100,8 @@ Hash commands
 .. autoclass:: HashCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: HashCommandsMixin
 
@@ -129,8 +129,8 @@ Set commands
 .. autoclass:: SetCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SetCommandsMixin
 
@@ -152,8 +152,8 @@ Sorted Set commands
 .. autoclass:: SortedSetCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SortedSetCommandsMixin
 

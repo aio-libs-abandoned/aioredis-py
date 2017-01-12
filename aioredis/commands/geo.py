@@ -16,24 +16,28 @@ class GeoCommandsMixin:
     def geoadd(self, key, longitude, latitude, member, *args, **kwargs):
         """Add one or more geospatial items in the geospatial index represented
         using a sorted set.
+
+        :rtype: int
         """
         return self.execute(
             b'GEOADD', key, longitude, latitude, member, *args, **kwargs
         )
 
-    def geohash(self, key, member, *args, **kwargs):
+    def geohash(self, key, member, *members, **kwargs):
         """Returns members of a geospatial index as standard geohash strings.
+
+        :rtype: list[str or bytes or None]
         """
         return self.execute(
-            b'GEOHASH', key, member, *args, **kwargs
+            b'GEOHASH', key, member, *members, **kwargs
         )
 
-    def geopos(self, key, member, *args, **kwargs):
+    def geopos(self, key, member, *members, **kwargs):
         """Returns longitude and latitude of members of a geospatial index.
 
         :rtype: list[GeoPoint or None]
         """
-        fut = self.execute(b'GEOPOS', key, member, *args, **kwargs)
+        fut = self.execute(b'GEOPOS', key, member, *members, **kwargs)
         return wait_convert(fut, make_geopos)
 
     def geodist(self, key, member1, member2, unit='m'):
