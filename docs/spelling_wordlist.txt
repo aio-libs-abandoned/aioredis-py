@@ -33,6 +33,7 @@ EventLoop
 failover
 fallback
 favour
+geo
 geohash
 geospatial
 getrange
