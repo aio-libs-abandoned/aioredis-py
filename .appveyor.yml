@@ -1,4 +1,4 @@
-version: 0.3.dev{build}
+version: 1.0.0b1{build}
 build: off
 
 environment:
