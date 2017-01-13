@@ -8,7 +8,7 @@ async def test_await(create_pool, server, loop):
         minsize=10, loop=loop)
 
     with await pool as conn:
-        msg = await conn.echo('hello')
+        msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
 
 
@@ -19,5 +19,5 @@ async def test_async_with(create_pool, server, loop):
         minsize=10, loop=loop)
 
     async with pool.get() as conn:
-        msg = await conn.echo('hello')
+        msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'

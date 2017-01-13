@@ -365,8 +365,6 @@ def test_hvals(redis):
 @pytest.mark.run_loop
 def test_hscan(redis):
     key = b'key:hscan'
-    for k in (yield from redis.keys(key+b'*')):
-        redis.delete(k)
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
     for i in range(1, 11):
         foo_or_bar = 'bar' if i % 3 else 'foo'
@@ -399,12 +397,12 @@ def test_hgetall_enc(create_redis, loop, server):
     redis = yield from create_redis(
         server.tcp_address, loop=loop, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
-    yield from redis._conn.execute('MULTI')
+    yield from redis.hmset(TEST_KEY, 'foo', 'bar', 'baz', 'bad')
 
-    res = yield from redis.hgetall(TEST_KEY)
-    assert res == 'QUEUED'
-
-    yield from redis._conn.execute('EXEC')
+    tr = redis.multi_exec()
+    tr.hgetall(TEST_KEY)
+    res = yield from tr.execute()
+    assert res == [{'foo': 'bar', 'baz': 'bad'}]
 
 
 @pytest.mark.run_loop

@@ -13,6 +13,10 @@ Descriptions are taken from ``docstrings`` so may not contain proper markup.
 .. autoclass:: aioredis.Redis
    :members:
 
+   :param pool_or_conn: Can be either :class:`~aioredis.RedisConnection`
+      or :class:`~aioredis.ConnectionsPool`.
+   :type pool_or_conn: :class:`~aioredis.abc.AbcConnection`
+
 Generic commands
 ----------------
 

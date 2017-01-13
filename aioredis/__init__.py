@@ -2,9 +2,10 @@ from .connection import RedisConnection, create_connection
 from .commands import (
     Redis, create_redis,
     create_reconnecting_redis,
+    create_redis_pool,
     GeoPoint, GeoMember,
     )
-from .pool import RedisPool, create_pool
+from .pool import ConnectionsPool, create_pool
 from .pubsub import Channel
 from .errors import (
     ConnectionClosedError,
@@ -21,10 +22,13 @@ from .errors import (
 
 __version__ = '0.3.0'
 
+RedisPool = ConnectionsPool
+
 # make pyflakes happy
 (create_connection, RedisConnection,
  create_redis, create_reconnecting_redis, Redis,
- create_pool, RedisPool, Channel,
+ create_redis_pool, create_pool,
+ RedisPool, ConnectionsPool, Channel,
  RedisError, ProtocolError, ReplyError,
  PipelineError, MultiExecError, ConnectionClosedError,
  ChannelClosedError, WatchVariableError,

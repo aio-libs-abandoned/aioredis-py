@@ -11,11 +11,12 @@ from aioredis import ReplyError
 def test_client_list(redis, server):
     res = yield from redis.client_list()
     assert isinstance(res, list)
+    assert len(res) == 1
     res = [dict(i._asdict()) for i in res]
     expected = {
         'addr': mock.ANY,
         'fd': mock.ANY,
-        'age': '0',
+        'age': mock.ANY,
         'idle': '0',
         'flags': 'N',
         'db': '0',
@@ -76,8 +77,7 @@ def test_client_pause(redis):
     assert res is True
     ts = time.time()
     yield from redis.ping()
-    dt = int(time.time() - ts)
-    assert dt == 2
+    assert int(time.time() - ts) >= 2
 
     with pytest.raises(TypeError):
         yield from redis.client_pause(2.0)
@@ -185,4 +185,4 @@ def test_role(redis):
 def test_time(redis):
     res = yield from redis.time()
     assert isinstance(res, float)
-    assert int(res) == int(time.time())
+    pytest.assert_almost_equal(int(res), int(time.time()), delta=10)

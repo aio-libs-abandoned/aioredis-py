@@ -58,13 +58,16 @@ def create_connection(_closable):
     return f
 
 
-@pytest.fixture
-def create_redis(_closable, loop):
+@pytest.fixture(params=['single', 'pool'])
+def create_redis(_closable, loop, request):
     """Wrapper around aioredis.create_redis."""
 
     @asyncio.coroutine
     def f(*args, **kw):
-        redis = yield from aioredis.create_redis(*args, **kw)
+        if request.param == 'single':
+            redis = yield from aioredis.create_redis(*args, **kw)
+        else:
+            redis = yield from aioredis.create_redis_pool(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -305,11 +308,7 @@ def pytest_collection_modifyitems(session, config, items):
     for item in items:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
-            kw = item.keywords
-            version = [v for k, v in versions.items()
-                       if k in kw or k.replace('\\', '\\\\') in kw]
-            assert version, ("No version found", versions, item.keywords)
-            version = version[0]
+            version = versions[item.callspec.getparam('start_server')]
             if version < marker.kwargs['version']:
                 item.add_marker(pytest.mark.skip(
                     reason=marker.kwargs['reason']))
@@ -421,7 +420,8 @@ def redis_version(*version, reason):
 
 
 def assert_almost_equal(first, second, places=None, msg=None, delta=None):
-    assert not (places is None and delta is None)
+    assert not (places is None and delta is None), \
+        "Both places and delta are not set, please set one"
     if delta is not None:
         assert abs(first - second) <= delta
     else:

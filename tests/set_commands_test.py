@@ -406,8 +406,6 @@ def test_sunionstore(redis):
 @pytest.mark.run_loop
 def test_sscan(redis):
     key = b'key:sscan'
-    for k in (yield from redis.keys(key+b'*')):
-        redis.delete(k)
     for i in range(1, 11):
         foo_or_bar = 'bar' if i % 3 else 'foo'
         member = 'member:{}:{}'.format(foo_or_bar, i).encode('utf-8')

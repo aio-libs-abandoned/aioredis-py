@@ -459,11 +459,13 @@ def test_msetnx(redis):
 def test_psetex(redis, loop):
     key, value = b'key:psetex:1', b'Hello'
     # test expiration in milliseconds
-    yield from redis.psetex(key, 10, value)
-    test_value = yield from redis.get(key)
+    fut1 = redis.psetex(key, 10, value)
+    fut2 = redis.get(key)
+    yield from fut1
+    test_value = yield from fut2
     assert test_value == value
 
-    yield from asyncio.sleep(0.020, loop=loop)
+    yield from asyncio.sleep(0.050, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
@@ -486,18 +488,22 @@ def test_set(redis):
 def test_set_expire(redis, loop):
     key, value = b'key:set:expire', b'foo'
     # test expiration in milliseconds
-    yield from redis.set(key, value, pexpire=10)
-    result_1 = yield from redis.get(key)
+    fut1 = redis.set(key, value, pexpire=10)
+    fut2 = redis.get(key)
+    yield from fut1
+    result_1 = yield from fut2
     assert result_1 == value
-    yield from asyncio.sleep(0.020, loop=loop)
+    yield from asyncio.sleep(0.050, loop=loop)
     result_2 = yield from redis.get(key)
     assert result_2 is None
 
     # same thing but timeout in seconds
-    yield from redis.set(key, value, expire=1)
-    result_3 = yield from redis.get(key)
+    fut1 = redis.set(key, value, expire=1)
+    fut2 = redis.get(key)
+    yield from fut1
+    result_3 = yield from fut2
     assert result_3 == value
-    yield from asyncio.sleep(1.010, loop=loop)
+    yield from asyncio.sleep(1.050, loop=loop)
     result_4 = yield from redis.get(key)
     assert result_4 is None
 
@@ -567,17 +573,21 @@ def test_setbit(redis):
 @pytest.mark.run_loop
 def test_setex(redis, loop):
     key, value = b'key:setex:1', b'Hello'
-    yield from redis.setex(key, 1, value)
-    test_value = yield from redis.get(key)
+    fut1 = redis.setex(key, 1, value)
+    fut2 = redis.get(key)
+    yield from fut1
+    test_value = yield from fut2
     assert test_value == value
-    yield from asyncio.sleep(1.010, loop=loop)
+    yield from asyncio.sleep(1.050, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
-    yield from redis.setex(key, 0.1, value)
-    test_value = yield from redis.get(key)
+    fut1 = redis.setex(key, 0.1, value)
+    fut2 = redis.get(key)
+    yield from fut1
+    test_value = yield from fut2
     assert test_value == value
-    yield from asyncio.sleep(0.20, loop=loop)
+    yield from asyncio.sleep(0.50, loop=loop)
     test_value = yield from redis.get(key)
     assert test_value is None
 
@@ -647,7 +657,7 @@ def test_strlen(redis):
 
 @pytest.mark.run_loop
 def test_cancel_hang(redis):
-    exists_coro = redis._conn.execute("EXISTS", b"key:test1")
+    exists_coro = redis.execute("EXISTS", b"key:test1")
     exists_coro.cancel()
     exists_check = yield from redis.exists(b"key:test2")
     assert not exists_check
@@ -665,16 +675,3 @@ def test_set_enc(create_redis, loop, server):
         yield from redis.set(None, 'value')
 
     yield from redis.delete(TEST_KEY)
-
-
-@pytest.mark.run_loop
-def test_setnx_enc(create_redis, loop, server):
-    redis = yield from create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
-    TEST_KEY = 'my-key-nx'
-    yield from redis._conn.execute('MULTI')
-    res = yield from redis.setnx(TEST_KEY, 'value')
-    assert res == 'QUEUED'
-
-    ok = yield from redis._conn.execute('DISCARD')
-    assert ok == 'OK'
