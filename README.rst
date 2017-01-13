@@ -26,7 +26,7 @@ Pub/Sub support                     Yes
 SSL/TLS support                     Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested python versions              `3.3, 3.4, 3.5 <travis_>`_
+Tested python versions              `3.3, 3.4, 3.5, 3.6 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0, 3.2 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
@@ -93,9 +93,8 @@ Connections pool:
             ('localhost', 6379),
             minsize=5, maxsize=10,
             loop=loop)
-        with await pool as redis:    # high-level redis API instance
-            await redis.set('my-key', 'value')
-            print(await redis.get('my-key'))
+        await pool.execute('set', 'my-key', 'value')
+        print(await pool.execute('get', 'my-key'))
         # graceful shutdown
         pool.close()
         await pool.wait_closed()
