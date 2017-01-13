@@ -9,6 +9,7 @@ import os
 import ssl
 import time
 import logging
+import tempfile
 
 from collections import namedtuple
 
@@ -243,13 +244,15 @@ def start_server(_proc, request, unused_port, server_bin):
         else:
             unixsocket = '/tmp/aioredis.{}.sock'.format(port)
         dumpfile = 'dump-{}.rdb'.format(port)
-        tmp_files = ['/tmp/{}'.format(dumpfile)]
+        data_dir = tempfile.gettempdir()
+        dumpfile_path = os.path.join(data_dir, dumpfile)
+        tmp_files = [dumpfile_path]
         if config_lines:
-            config = '/tmp/aioredis.{}.conf'.format(port)
+            config = os.path.join(data_dir, 'aioredis.{}.conf'.format(port))
             with config_writer(config) as write:
                 write('daemonize no')
                 write('save ""')
-                write('dir /tmp')
+                write('dir ', data_dir)
                 write('dbfilename', dumpfile)
                 write('port', port)
                 if unixsocket:
@@ -266,7 +269,7 @@ def start_server(_proc, request, unused_port, server_bin):
         else:
             args = ['--daemonize', 'no',
                     '--save', '""',
-                    '--dir', '/tmp',
+                    '--dir', data_dir,
                     '--dbfilename', dumpfile,
                     '--port', str(port),
                     ]
@@ -328,14 +331,23 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             return sentinels[key]
         port = unused_port()
         tcp_address = TCPAddress('localhost', port)
-        unixsocket = '/tmp/aioredis-sentinel.{}.sock'.format(port)
-        config = '/tmp/aioredis-sentinel.{}.conf'.format(port)
+        data_dir = tempfile.gettempdir()
+        config = os.path.join(
+            data_dir, 'aioredis-sentinel.{}.conf'.format(port))
+        tmp_files = [config]
+        if sys.platform == 'win32':
+            unixsocket = None
+        else:
+            unixsocket = os.path.join(
+                data_dir, 'aioredis-sentinel.{}.sock'.format(port))
+            tmp_files.append(unixsocket)
 
         with config_writer(config) as write:
             write('daemonize no')
             write('save ""')
             write('port', port)
-            write('unixsocket', unixsocket)
+            if unixsocket:
+                write('unixsocket', unixsocket)
             write('loglevel debug')
             for master in masters:
                 write('sentinel monitor', master.name,
@@ -347,7 +359,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
                      config,
                      '--sentinel',
                      stdout=subprocess.PIPE,
-                     _clear_tmp_files=[unixsocket, config])
+                     _clear_tmp_files=tmp_files)
         # XXX: wait sentinel see all masters and slaves;
         all_masters = {m.name for m in masters}
         all_slaves = {m.name for m in masters}

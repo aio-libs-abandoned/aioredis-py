@@ -12,22 +12,22 @@ language: python
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2" CERT_DIR=/tmp/certs INSTALL_DIR=$HOME/redis TEST_ARGS=-q
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2" CERT_DIR=/tmp/certs INSTALL_DIR=$HOME/redis
 
 matrix:
   include:
   - python: "3.3"
-    env: TASKS="flake examples"
+    env: TASKS="ci-test flake examples"
   - python: "3.4"
-    env: TASKS="flake examples"
+    env: TASKS="ci-test flake examples"
   - python: "3.5"
-    env: TASKS="flake examples spelling"
+    env: TASKS="ci-test flake examples"
   - python: "3.6"
-    env: TASKS="flake examples"
+    env: TASKS="ci-test flake examples spelling"
   - python: "3.6"
-    env: TEST_ARGS="-q --uvloop"
+    env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop"
   allow_failures:
-  - env: TEST_ARGS="-q --uvloop"
+  - env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop"
 
 cache: pip
 #   directories:
@@ -53,7 +53,6 @@ before_script:
 - make -j certificate ci-build-redis
 
 script:
-- make ci-test
 - make $TASKS
 
 after_script:
