@@ -107,7 +107,7 @@ $(CERT_DIR)/.test.key:
 ci-test: $(REDIS_TARGETS)
 	$(call travis_start,tests)
 	@echo "Tests run"
-	py.test -rsxX --cov -n auto \
+	py.test -rsxX --cov -n 4 \
 		--ssl-cafile=$(CERT_DIR)/test.crt \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 	$(call travis_end,tests)

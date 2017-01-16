@@ -170,7 +170,7 @@ def test_sentinels_empty(sentinel, create_sentinel):
         yield from redis_sentinel.sentinels('unknown-master')
 
 
-@pytest.mark.run_loop
+@pytest.mark.run_loop(timeout=30)
 def test_sentinels__exist(create_sentinel, start_sentinel, start_server, loop):
     m1 = start_server('master-two-sentinels')
     s1 = start_sentinel('peer-sentinel-1', m1, quorum=2, noslaves=True)
@@ -230,7 +230,7 @@ def test_sentinel_role(sentinel, create_redis, loop):
     assert 'master-no-fail' in info.masters
 
 
-@pytest.mark.run_loop
+@pytest.mark.run_loop(timeout=30)
 def test_remove(create_sentinel, sentinel, start_server, loop):
     m1 = start_server('master-to-remove')
     redis_sentinel = yield from create_sentinel([sentinel.tcp_address])
@@ -245,7 +245,7 @@ def test_remove(create_sentinel, sentinel, start_server, loop):
         yield from redis_sentinel.remove('unknown-master')
 
 
-@pytest.mark.run_loop
+@pytest.mark.run_loop(timeout=30)
 def test_monitor(create_sentinel, sentinel, start_server, loop, unused_port):
     m1 = start_server('master-to-monitor')
     redis_sentinel = yield from create_sentinel([sentinel.tcp_address])

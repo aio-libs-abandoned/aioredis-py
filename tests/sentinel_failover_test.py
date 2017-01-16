@@ -10,6 +10,7 @@ from aioredis import (
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
 
 
+@pytest.mark.xfail
 @pytest.mark.run_loop(timeout=40)
 def test_auto_failover(start_sentinel, start_server,
                        create_sentinel, create_connection, loop):
@@ -35,6 +36,7 @@ def test_auto_failover(start_sentinel, start_server,
     # wait failover
     conn = yield from create_connection(server1.tcp_address)
     yield from conn.execute("debug", "sleep", 6)
+    yield from asyncio.sleep(3, loop=loop)
 
     # _, new_port = yield from sp.master_address(server1.name)
     # assert new_port != old_port
