@@ -45,14 +45,15 @@ def test_ping(redis):
 
 
 @pytest.mark.run_loop
-def test_quit(redis):
+def test_quit(redis, loop):
     try:
         assert b'OK' == (yield from redis.quit())
     except asyncio.CancelledError:
         pass
 
-    if not isinstance(redis._pool_or_conn, ConnectionsPool):
-        with pytest.raises(ConnectionClosedError):
+    if not isinstance(redis.connection, ConnectionsPool):
+        assert redis.connection.closed
+        with pytest.raises_only(ConnectionClosedError):
             yield from redis.ping()
 
 

@@ -558,6 +558,21 @@ def raises_regex(exc_type, message):
         .format(message, str(exc_info.value)))
 
 
+@contextlib.contextmanager
+def raises_only(exc_type, message=None):
+    try:
+        with pytest.raises(exc_type) as exc_info:
+            yield exc_info
+    except Exception as unexpected:
+        pytest.fail("Raised {!r} instead of {!r}".format(unexpected, exc_type))
+    else:
+        if message is not None:
+            match = re.search(message, str(exc_info.value))
+            assert match is not None, (
+                "Pattern {!r} does not match {!r}"
+                .format(message, str(exc_info.value)))
+
+
 def logs(logger, level=None):
     """Catches logs for given logger and level.
 
@@ -649,6 +664,7 @@ def assert_almost_equal(first, second, places=None, msg=None, delta=None):
 def pytest_namespace():
     return {
         'raises_regex': raises_regex,
+        'raises_only': raises_only,
         'assert_almost_equal': assert_almost_equal,
         'redis_version': redis_version,
         'logs': logs,

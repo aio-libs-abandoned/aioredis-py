@@ -140,6 +140,7 @@ class RedisConnection:
                 break
             if data == b'' and self._reader.at_eof():
                 logger.debug("Connection has been closed by server")
+                break
             self._parser.feed(data)
             while True:
                 try:
