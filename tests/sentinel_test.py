@@ -122,6 +122,7 @@ def test_sentinel_normal(sentinel, create_sentinel):
     assert ret == 0
 
 
+@pytest.mark.xfail(reason="same sentinel; single master;")
 @pytest.mark.run_loop
 def test_sentinel_slave(sentinel, create_sentinel):
     redis_sentinel = yield from create_sentinel([sentinel.tcp_address])
@@ -209,6 +210,7 @@ def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
             break
 
 
+@pytest.mark.xfail(reason="same sentinel; single master;")
 @pytest.mark.run_loop
 def test_failover(sentinel, create_sentinel, loop):
     master_name = 'masterA'
