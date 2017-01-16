@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import sys
 
 from aioredis import (
     SlaveNotFoundError,
@@ -8,6 +9,8 @@ from aioredis import (
 
 
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
+if sys.platform == 'win32':
+    pytestmark = pytest.mark.skip(reason="unstable on windows")
 
 
 @pytest.mark.xfail

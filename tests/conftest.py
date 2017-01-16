@@ -100,7 +100,7 @@ def create_pool(_closable, loop):
 
 
 @pytest.fixture
-def create_sentinel(_closable, create_pool, loop):
+def create_sentinel(_closable, loop):
     """Helper instantiating RedisSentinel client."""
 
     @asyncio.coroutine
@@ -127,6 +127,15 @@ def redis(create_redis, server, loop):
         create_redis(server.tcp_address, loop=loop))
     loop.run_until_complete(redis.flushall())
     return redis
+
+
+@pytest.fixture
+def redis_sentinel(create_sentinel, sentinel, loop):
+    """Returns Redis Sentinel client instance."""
+    redis_sentinel = loop.run_until_complete(
+        create_sentinel([sentinel.tcp_address], loop=loop))
+    assert loop.run_until_complete(redis_sentinel.ping()) == b'PONG'
+    return redis_sentinel
 
 
 @pytest.yield_fixture
