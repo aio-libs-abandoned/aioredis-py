@@ -1,5 +1,5 @@
 import pytest
-import sys
+import asyncio
 
 from aioredis import ConnectionClosedError, ReplyError
 from aioredis.pool import ConnectionsPool
@@ -44,12 +44,12 @@ def test_ping(redis):
     assert resp == b'PONG'
 
 
-@pytest.mark.xfail(sys.platform == 'win32',
-                   reason="Probably race conditions...")
 @pytest.mark.run_loop
 def test_quit(redis):
-    resp = yield from redis.quit()
-    assert resp == b'OK'
+    try:
+        assert b'OK' == (yield from redis.quit())
+    except asyncio.CancelledError:
+        pass
 
     if not isinstance(redis._pool_or_conn, ConnectionsPool):
         with pytest.raises(ConnectionClosedError):

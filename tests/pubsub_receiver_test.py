@@ -270,10 +270,6 @@ def test_decode_message_for_pattern(loop):
     assert res[1] == (b'channel', {'hello': 'world'})
 
     ch.put_nowait((b'channel', b'{"hello": "world"}'))
-    with pytest.raises(TypeError):
-        yield from mpsc.get(decoder=json.loads)
-
-    ch.put_nowait((b'channel', b'{"hello": "world"}'))
     res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == (b'channel', {'hello': 'world'})

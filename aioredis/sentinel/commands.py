@@ -70,7 +70,7 @@ class RedisSentinel:
     def master_address(self, name):
         """Returns a (host, port) pair for the given ``name``."""
         fut = self.execute(b'get-master-addr-by-name', name, encoding='utf-8')
-        return wait_convert(fut, lambda addr: (addr[0], int(addr[1])))
+        return wait_convert(fut, parse_address)
 
     def masters(self):
         """Returns a list of dictionaries containing each master's state."""
@@ -177,3 +177,8 @@ def parse_sentinel_slaves_and_sentinels(response):
 
 def parse_sentinel_master(response):
     return pairs_to_dict_typed(response, SENTINEL_STATE_TYPES)
+
+
+def parse_address(value):
+    if value is not None:
+        return (value[0], int(value[1]))

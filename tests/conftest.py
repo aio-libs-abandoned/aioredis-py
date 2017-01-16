@@ -159,9 +159,13 @@ def serverB(start_server):
 @pytest.fixture(scope='session')
 def sentinel(start_sentinel, request, start_server):
     """Starts redis-sentinel instance with one master -- masterA."""
+    # Adding master+slave for normal (no failover) tests:
+    master_no_fail = start_server('master-no-fail')
+    start_server('slave-no-fail', slaveof=master_no_fail)
+    # Adding master+slave for failover test;
     masterA = start_server('masterA')
     start_server('slaveA', slaveof=masterA)
-    return start_sentinel('main', masterA)
+    return start_sentinel('main', masterA, master_no_fail)
 
 
 # Internal stuff #
@@ -325,7 +329,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             yield True
         raise RuntimeError("Redis startup timeout expired")
 
-    def maker(name, *masters, quorum=1):
+    def maker(name, *masters, quorum=1, noslaves=False):
         key = (name,) + masters
         if key in sentinels:
             return sentinels[key]
@@ -362,7 +366,10 @@ def start_sentinel(_proc, request, unused_port, server_bin):
                      _clear_tmp_files=tmp_files)
         # XXX: wait sentinel see all masters and slaves;
         all_masters = {m.name for m in masters}
-        all_slaves = {m.name for m in masters}
+        if noslaves:
+            all_slaves = {}
+        else:
+            all_slaves = {m.name for m in masters}
         for _ in timeout(30):
             assert proc.poll() is None, (
                 "Process terminated", proc.returncode, proc.stdout.read())

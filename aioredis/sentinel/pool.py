@@ -226,7 +226,7 @@ class SentinelPool:
             with async_timeout(timeout, loop=self._loop):
                 pool = yield from create_pool(
                     address, minsize=1, maxsize=2,
-                    encoding='utf-8', loop=self._loop)
+                    loop=self._loop)
             pools.append(pool)
             return pool
         except asyncio.TimeoutError as err:
