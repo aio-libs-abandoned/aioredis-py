@@ -148,10 +148,10 @@ class RedisConnection:
                 except ProtocolError as exc:
                     # ProtocolError is fatal
                     # so connection must be closed
-                    self._closing = True
-                    self._loop.call_soon(self._do_close, exc)
                     if self._in_transaction is not None:
                         self._transaction_error = exc
+                    self._closing = True
+                    self._do_close(exc)
                     return
                 else:
                     if obj is False:
@@ -161,7 +161,7 @@ class RedisConnection:
                     else:
                         self._process_data(obj)
         self._closing = True
-        self._loop.call_soon(self._do_close, None)
+        self._do_close(None)
 
     def _process_data(self, obj):
         """Processes command results."""
