@@ -153,21 +153,3 @@ def create_redis_pool(address, *, db=None, password=None, ssl=None,
                                   maxsize=maxsize,
                                   loop=loop)
     return commands_factory(pool)
-
-
-create_reconnecting_redis = create_redis_pool
-# @asyncio.coroutine
-# def create_reconnecting_redis(address, *, db=None, password=None, ssl=None,
-#                               encoding=None, commands_factory=Redis,
-#                               loop=None):
-#     """Creates high-level Redis interface.
-#
-#     This function is a coroutine.
-#     """
-#     # Note: this is not coroutine, but we may make it such. We may start
-#     # a first connection in it, or just resolve DNS. So let's keep it
-#     # coroutine for forward compatibility
-#     conn = AutoConnector(address,
-#                          db=db, password=password, ssl=ssl,
-#                          encoding=encoding, loop=loop)
-#     return commands_factory(conn)

@@ -1,7 +1,6 @@
 from .connection import RedisConnection, create_connection
 from .commands import (
     Redis, create_redis,
-    create_reconnecting_redis,
     create_redis_pool,
     GeoPoint, GeoMember,
     )
@@ -26,17 +25,37 @@ from .errors import (
 
 __version__ = '1.0.0b1'
 
-RedisPool = ConnectionsPool
+__all__ = [
+    # Factories
+    'create_connection',
+    'create_pool',
+    'create_redis',
+    'create_redis_pool',
+    'create_sentinel',
+    # Classes
+    'RedisConnection',
+    'ConnectionsPool',
+    'Redis',
+    'GeoPoint',
+    'GeoMember',
+    'Channel',
+    'RedisSentinel',
+    # Errors
+    'RedisError',
+    'ReplyError',
+    'ProtocolError',
+    'PipelineError',
+    'MultiExecError',
+    'WatchVariableError',
+    'ConnectionClosedError',
+    'PoolClosedError',
+    'ChannelClosedError',
+    'MasterNotFoundError',
+    'SlaveNotFoundError',
+    'ReadOnlyError',
+]
 
-# make pyflakes happy
-(create_connection, RedisConnection,
- create_redis, create_reconnecting_redis, Redis,
- create_redis_pool, create_pool,
- create_sentinel, RedisSentinel,
- RedisPool, ConnectionsPool, Channel,
- RedisError, ProtocolError, ReplyError,
- PipelineError, MultiExecError, ConnectionClosedError,
- ChannelClosedError, WatchVariableError, PoolClosedError,
- MasterNotFoundError, SlaveNotFoundError, ReadOnlyError,
- GeoPoint, GeoMember,
- )
+# NOTE: this is deprecated
+create_reconnecting_redis = create_pool
+
+RedisPool = ConnectionsPool
