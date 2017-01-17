@@ -22,6 +22,7 @@ from .errors import (
     ProtocolError,
     ReplyError,
     WatchVariableError,
+    ReadOnlyError,
     )
 from .pubsub import Channel
 from .abc import AbcChannel
@@ -137,6 +138,9 @@ class RedisConnection:
                 #       before response
                 logger.error("Exception on data read %r", exc, exc_info=True)
                 break
+            if data == b'' and self._reader.at_eof():
+                logger.debug("Connection has been closed by server")
+                break
             self._parser.feed(data)
             while True:
                 try:
@@ -144,10 +148,10 @@ class RedisConnection:
                 except ProtocolError as exc:
                     # ProtocolError is fatal
                     # so connection must be closed
-                    self._closing = True
-                    self._loop.call_soon(self._do_close, exc)
                     if self._in_transaction is not None:
                         self._transaction_error = exc
+                    self._closing = True
+                    self._do_close(exc)
                     return
                 else:
                     if obj is False:
@@ -157,12 +161,16 @@ class RedisConnection:
                     else:
                         self._process_data(obj)
         self._closing = True
-        self._loop.call_soon(self._do_close, None)
+        self._do_close(None)
 
     def _process_data(self, obj):
         """Processes command results."""
+        assert len(self._waiters) > 0, (type(obj), obj)
         waiter, encoding, cb = self._waiters.popleft()
         if isinstance(obj, RedisError):
+            if isinstance(obj, ReplyError):
+                if obj.args[0].startswith('READONLY'):
+                    obj = ReadOnlyError(obj.args[0])
             _set_exception(waiter, obj)
             if self._in_transaction is not None:
                 self._transaction_error = obj

@@ -107,7 +107,7 @@ $(CERT_DIR)/.test.key:
 ci-test: $(REDIS_TARGETS)
 	$(call travis_start,tests)
 	@echo "Tests run"
-	py.test -rsxX --cov -n auto \
+	py.test -rsxX --cov -n 4 \
 		--ssl-cafile=$(CERT_DIR)/test.crt \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 	$(call travis_end,tests)
@@ -124,14 +124,14 @@ $(BUILD_DIR)/redis-%.tar.gz:
 	wget -c https://github.com/antirez/redis/archive/$*.tar.gz \
 		-O $(BUILD_DIR)/redis-$*.tar.gz
 
-ifdef TRAVIS
-
-define travis_start
-	@echo "travis_fold:start:$1"
-endef
-
-define travis_end
-	@echo "travis_fold:end:$1"
-endef
-
-endif
+# ifdef TRAVIS
+#
+# define travis_start
+# 	@echo "travis_fold:start:$1"
+# endef
+#
+# define travis_end
+# 	@echo "travis_fold:end:$1"
+# endef
+#
+# endif

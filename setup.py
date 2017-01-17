@@ -4,7 +4,7 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['hiredis']
+install_requires = ['hiredis', 'async-timeout']
 
 PY_VER = sys.version_info
 

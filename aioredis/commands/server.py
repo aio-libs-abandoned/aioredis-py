@@ -93,6 +93,11 @@ class ServerCommandsMixin:
         """Return the number of keys in the selected database."""
         return self.execute(b'DBSIZE')
 
+    def debug_sleep(self, timeout):
+        """Get debugging information about a key."""
+        fut = self._conn.execute(b'DEBUG', b'SLEEP', timeout)
+        return wait_ok(fut)
+
     def debug_object(self, key):
         """Get debugging information about a key."""
         return self.execute(b'DEBUG', b'OBJECT', key)
@@ -250,7 +255,7 @@ MasterSlaveInfo = namedtuple('MasterSlaveInfo', 'ip port ack_offset')
 SlaveInfo = namedtuple('SlaveInfo',
                        'role master_ip master_port state received')
 
-SentinelInfo = namedtuple('SentinelInfo', 'masters')
+SentinelInfo = namedtuple('SentinelInfo', 'role masters')
 
 
 def parse_role(role):

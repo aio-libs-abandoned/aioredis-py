@@ -1,5 +1,5 @@
 import pytest
-import sys
+import asyncio
 
 from aioredis import ConnectionClosedError, ReplyError
 from aioredis.pool import ConnectionsPool
@@ -44,15 +44,25 @@ def test_ping(redis):
     assert resp == b'PONG'
 
 
-@pytest.mark.xfail(sys.platform == 'win32',
-                   reason="Probably race conditions...")
 @pytest.mark.run_loop
-def test_quit(redis):
-    resp = yield from redis.quit()
-    assert resp == b'OK'
+def test_quit(redis, loop):
+    try:
+        assert b'OK' == (yield from redis.quit())
+    except asyncio.CancelledError:
+        pass
 
-    if not isinstance(redis._pool_or_conn, ConnectionsPool):
-        with pytest.raises(ConnectionClosedError):
+    if not isinstance(redis.connection, ConnectionsPool):
+        expected = (asyncio.CancelledError, ConnectionClosedError)
+        # reader task may not yet been cancelled and _do_close not called
+        #   so the CancelledError may be raised here
+        with pytest.raises_only(expected):
+            yield from redis.ping()
+
+        # wait one loop iteration until it get surely closed
+        yield from asyncio.sleep(0, loop=loop)
+        assert redis.connection.closed
+
+        with pytest.raises_only(ConnectionClosedError):
             yield from redis.ping()
 
 

@@ -51,10 +51,12 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._pool_or_conn.execute(command, *args, **kwargs)
 
     def close(self):
+        """Close client connections."""
         self._pool_or_conn.close()
 
     @asyncio.coroutine
     def wait_closed(self):
+        """Coroutine waiting until underlying connections are closed."""
         yield from self._pool_or_conn.wait_closed()
 
     @property
@@ -73,6 +75,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         or :class:`aioredis.ConnectionsPool` instance.
         """
         return self._pool_or_conn
+
+    @property
+    def address(self):
+        """Redis connection address (if applicable)."""
+        return self._pool_or_conn.address
 
     @property
     def in_transaction(self):
@@ -130,7 +137,7 @@ def create_redis(address, *, db=None, password=None, ssl=None,
 
 
 @asyncio.coroutine
-def create_redis_pool(address, *, db=0, password=None, ssl=None,
+def create_redis_pool(address, *, db=None, password=None, ssl=None,
                       encoding=None, commands_factory=Redis,
                       minsize=1, maxsize=10,
                       loop=None):
