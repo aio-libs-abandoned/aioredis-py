@@ -21,3 +21,4 @@ Samuel Colvin
 Ihor Gorobets
 Thanos Lefteris
 Ilya Goncharov
+Brett Rosen
