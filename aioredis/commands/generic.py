@@ -44,10 +44,10 @@ class GenericCommandsMixin:
         return wait_convert(fut, bool)
 
     def expireat(self, key, timestamp):
-        """Set expire timestamp on key.
+        """Set expire timestamp on a key.
 
         if timeout is float it will be multiplied by 1000
-        coerced to int and passed to `pexpire` method.
+        coerced to int and passed to `pexpireat` method.
 
         Otherwise raises TypeError if timestamp argument is not int.
         """
@@ -112,6 +112,7 @@ class GenericCommandsMixin:
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
         """
+        # TODO: set default encoding to 'utf-8'
         return self.execute(b'OBJECT', b'ENCODING', key)
 
     def object_idletime(self, key):

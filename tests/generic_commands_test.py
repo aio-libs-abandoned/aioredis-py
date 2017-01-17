@@ -124,6 +124,12 @@ def test_expireat(redis):
     assert (yield from fut1) is True
     assert (yield from fut2) >= 10
 
+    now = time.time()
+    fut1 = redis.expireat('my-key', now + 10)
+    fut2 = redis.connection.execute('TTL', 'my-key')
+    assert (yield from fut1) is True
+    assert (yield from fut2) >= 10
+
     res = yield from redis.expireat('my-key', -1)
     assert res is True
 
@@ -171,35 +177,59 @@ def test_keys(redis):
 
 
 @pytest.mark.run_loop
-def test_migrate(redis, create_redis, loop, serverB):
-    yield from add(redis, 'my-key', 123)
+def test_migrate(create_redis, loop, server, serverB):
+    redisA = yield from create_redis(server.tcp_address)
+    redisB = yield from create_redis(serverB.tcp_address, db=2)
 
-    conn2 = yield from create_redis(serverB.tcp_address,
-                                    db=2, loop=loop)
-    yield from conn2.delete('my-key')
-    assert (yield from redis.exists('my-key'))
-    assert not (yield from conn2.exists('my-key'))
+    yield from add(redisA, 'my-key', 123)
 
-    ok = yield from redis.migrate(
+    yield from redisB.delete('my-key')
+    assert (yield from redisA.exists('my-key'))
+    assert not (yield from redisB.exists('my-key'))
+
+    ok = yield from redisA.migrate(
         'localhost', serverB.tcp_address.port, 'my-key', 2, 1000)
     assert ok is True
-    assert not (yield from redis.exists('my-key'))
-    assert (yield from conn2.exists('my-key'))
+    assert not (yield from redisA.exists('my-key'))
+    assert (yield from redisB.exists('my-key'))
 
     with pytest.raises_regex(TypeError, "host .* str"):
-        yield from redis.migrate(None, 1234, 'key', 1, 23)
+        yield from redisA.migrate(None, 1234, 'key', 1, 23)
     with pytest.raises_regex(TypeError, "args .* None"):
-        yield from redis.migrate('host', '1234',  None, 1, 123)
+        yield from redisA.migrate('host', '1234',  None, 1, 123)
     with pytest.raises_regex(TypeError, "dest_db .* int"):
-        yield from redis.migrate('host', 123, 'key', 1.0, 123)
+        yield from redisA.migrate('host', 123, 'key', 1.0, 123)
     with pytest.raises_regex(TypeError, "timeout .* int"):
-        yield from redis.migrate('host', '1234', 'key', 2, None)
+        yield from redisA.migrate('host', '1234', 'key', 2, None)
     with pytest.raises_regex(ValueError, "Got empty host"):
-        yield from redis.migrate('', '123', 'key', 1, 123)
+        yield from redisA.migrate('', '123', 'key', 1, 123)
     with pytest.raises_regex(ValueError, "dest_db .* greater equal 0"):
-        yield from redis.migrate('host', 6379, 'key', -1, 1000)
+        yield from redisA.migrate('host', 6379, 'key', -1, 1000)
     with pytest.raises_regex(ValueError, "timeout .* greater equal 0"):
-        yield from redis.migrate('host', 6379, 'key', 1, -1000)
+        yield from redisA.migrate('host', 6379, 'key', 1, -1000)
+
+
+@pytest.redis_version(
+    3, 0, 0, reason="Copy/Replace flags available since Redis 3.0")
+@pytest.mark.run_loop
+def test_migrate_copy_replace(create_redis, loop, server, serverB):
+    redisA = yield from create_redis(server.tcp_address)
+    redisB = yield from create_redis(serverB.tcp_address, db=0)
+
+    yield from add(redisA, 'my-key', 123)
+    yield from redisB.delete('my-key')
+
+    ok = yield from redisA.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 0, 1000, copy=True)
+    assert ok is True
+    assert (yield from redisA.get('my-key')) == b'123'
+    assert (yield from redisB.get('my-key')) == b'123'
+
+    assert (yield from redisA.set('my-key', 'val'))
+    ok = yield from redisA.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 2, 1000, replace=True)
+    assert (yield from redisA.get('my-key')) is None
+    assert (yield from redisB.get('my-key'))
 
 
 @pytest.mark.run_loop
