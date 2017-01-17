@@ -30,6 +30,7 @@ devel
 dict
 downloadable
 EventLoop
+failover
 favour
 geohash
 geospatial
