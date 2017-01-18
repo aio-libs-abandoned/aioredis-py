@@ -2,6 +2,8 @@ import asyncio
 import time
 import math
 import pytest
+import sys
+
 from unittest import mock
 
 from aioredis import ReplyError
@@ -234,6 +236,8 @@ def test_migrate_copy_replace(create_redis, loop, server, serverB):
 
 @pytest.redis_version(
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
 @pytest.mark.run_loop
 def test_migrate_keys(create_redis, loop, server, serverB):
     redisA = yield from create_redis(server.tcp_address)
@@ -311,6 +315,8 @@ def test_migrate__exceptions(create_redis, loop, server, serverB):
 
 @pytest.redis_version(
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
 @pytest.mark.run_loop
 def test_migrate_keys__errors(redis):
     with pytest.raises_regex(TypeError, "host .* str"):
