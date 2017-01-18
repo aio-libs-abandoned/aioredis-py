@@ -95,7 +95,7 @@ class ServerCommandsMixin:
 
     def debug_sleep(self, timeout):
         """Get debugging information about a key."""
-        fut = self._conn.execute(b'DEBUG', b'SLEEP', timeout)
+        fut = self.execute(b'DEBUG', b'SLEEP', timeout)
         return wait_ok(fut)
 
     def debug_object(self, key):
