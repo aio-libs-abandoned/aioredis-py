@@ -2,6 +2,8 @@ import asyncio
 import time
 import math
 import pytest
+import sys
+
 from unittest import mock
 
 from aioredis import ReplyError
@@ -230,6 +232,109 @@ def test_migrate_copy_replace(create_redis, loop, server, serverB):
         'localhost', serverB.tcp_address.port, 'my-key', 2, 1000, replace=True)
     assert (yield from redisA.get('my-key')) is None
     assert (yield from redisB.get('my-key'))
+
+
+@pytest.redis_version(
+    3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
+@pytest.mark.run_loop
+def test_migrate_keys(create_redis, loop, server, serverB):
+    redisA = yield from create_redis(server.tcp_address)
+    redisB = yield from create_redis(serverB.tcp_address, db=0)
+
+    yield from add(redisA, 'key1', 123)
+    yield from add(redisA, 'key2', 123)
+    yield from add(redisA, 'key3', 123)
+    yield from redisB.delete('key1', 'key2', 'key3')
+
+    ok = yield from redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port,
+        ('key1', 'key2', 'key3', 'non-existing-key'),
+        dest_db=0, timeout=1000)
+    assert ok is True
+
+    assert (yield from redisB.get('key1')) == b'123'
+    assert (yield from redisB.get('key2')) == b'123'
+    assert (yield from redisB.get('key3')) == b'123'
+    assert (yield from redisA.get('key1')) is None
+    assert (yield from redisA.get('key2')) is None
+    assert (yield from redisA.get('key3')) is None
+
+    ok = yield from redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port, ('key1', 'key2', 'key3'),
+        dest_db=0, timeout=1000)
+    assert not ok
+    ok = yield from redisB.migrate_keys(
+        'localhost', server.tcp_address.port, ('key1', 'key2', 'key3'),
+        dest_db=0, timeout=1000,
+        copy=True)
+    assert ok
+    assert (yield from redisB.get('key1')) == b'123'
+    assert (yield from redisB.get('key2')) == b'123'
+    assert (yield from redisB.get('key3')) == b'123'
+    assert (yield from redisA.get('key1')) == b'123'
+    assert (yield from redisA.get('key2')) == b'123'
+    assert (yield from redisA.get('key3')) == b'123'
+
+    assert (yield from redisA.set('key1', 'val'))
+    assert (yield from redisA.set('key2', 'val'))
+    assert (yield from redisA.set('key3', 'val'))
+    ok = yield from redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port,
+        ('key1', 'key2', 'key3', 'non-existing-key'),
+        dest_db=0, timeout=1000, replace=True)
+    assert ok is True
+
+    assert (yield from redisB.get('key1')) == b'val'
+    assert (yield from redisB.get('key2')) == b'val'
+    assert (yield from redisB.get('key3')) == b'val'
+    assert (yield from redisA.get('key1')) is None
+    assert (yield from redisA.get('key2')) is None
+    assert (yield from redisA.get('key3')) is None
+
+
+@pytest.mark.run_loop
+def test_migrate__exceptions(create_redis, loop, server, serverB):
+    redisA = yield from create_redis(server.tcp_address)
+    redisB = yield from create_redis(serverB.tcp_address, db=2)
+
+    yield from add(redisA, 'my-key', 123)
+
+    yield from redisB.delete('my-key')
+    assert (yield from redisA.exists('my-key'))
+    assert not (yield from redisB.exists('my-key'))
+
+    fut1 = redisB.debug_sleep(2)
+    fut2 = redisA.migrate('localhost', serverB.tcp_address.port,
+                          'my-key', dest_db=2, timeout=10)
+    yield from fut1
+    with pytest.raises_regex(ReplyError, "IOERR .* timeout .*"):
+        assert not (yield from fut2)
+
+
+@pytest.redis_version(
+    3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
+@pytest.mark.run_loop
+def test_migrate_keys__errors(redis):
+    with pytest.raises_regex(TypeError, "host .* str"):
+        yield from redis.migrate_keys(None, 1234, 'key', 1, 23)
+    with pytest.raises_regex(TypeError, "keys .* list or tuple"):
+        yield from redis.migrate_keys('host', '1234',  None, 1, 123)
+    with pytest.raises_regex(TypeError, "dest_db .* int"):
+        yield from redis.migrate_keys('host', 123, ('key',), 1.0, 123)
+    with pytest.raises_regex(TypeError, "timeout .* int"):
+        yield from redis.migrate_keys('host', '1234', ('key',), 2, None)
+    with pytest.raises_regex(ValueError, "Got empty host"):
+        yield from redis.migrate_keys('', '123', ('key',), 1, 123)
+    with pytest.raises_regex(ValueError, "dest_db .* greater equal 0"):
+        yield from redis.migrate_keys('host', 6379, ('key',), -1, 1000)
+    with pytest.raises_regex(ValueError, "timeout .* greater equal 0"):
+        yield from redis.migrate_keys('host', 6379, ('key',), 1, -1000)
+    with pytest.raises_regex(ValueError, "keys .* empty"):
+        yield from redis.migrate_keys('host', '1234', (), 2, 123)
 
 
 @pytest.mark.run_loop
