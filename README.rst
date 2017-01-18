@@ -24,7 +24,7 @@ Connections Pool                    Yes
 Pipelining support                  Yes
 Pub/Sub support                     Yes
 SSL/TLS support                     Yes
-Sentinel support                    Yes[1]_
+Sentinel support                    Yes [1]_
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
 Tested python versions              `3.3, 3.4, 3.5, 3.6 <travis_>`_

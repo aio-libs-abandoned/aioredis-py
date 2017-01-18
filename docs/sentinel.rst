@@ -1,6 +1,7 @@
 :mod:`aioredis.sentinel` module
 ===============================
 
+.. highlight:: python3
 .. module:: aioredis.sentinel
 
 
