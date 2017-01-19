@@ -60,6 +60,14 @@ Scan command example
 .. literalinclude:: ../examples/scan.py
 
 
+Sentinel client
+~~~~~~~~~~~~~~~
+
+:download:`get source code<../examples/sentinel.py>`
+
+.. literalinclude:: ../examples/sentinel.py
+
+
 Python 3.4 examples (using ``yield from``)
 ------------------------------------------
 

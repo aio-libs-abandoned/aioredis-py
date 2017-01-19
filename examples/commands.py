@@ -2,21 +2,32 @@ import asyncio
 import aioredis
 
 
-def main():
-    loop = asyncio.get_event_loop()
+async def main():
+    # Redis client bound to single connection (no auto reconnection).
+    redis = await aioredis.create_redis(
+        ('localhost', 6379))
+    await redis.set('my-key', 'value')
+    val = await redis.get('my-key')
+    print(val)
 
-    async def go():
-        redis = await aioredis.create_redis(
-            ('localhost', 6379))
-        await redis.set('my-key', 'value')
-        val = await redis.get('my-key')
-        print(val)
+    # gracefully closing underlying connection
+    redis.close()
+    await redis.wait_closed()
 
-        # gracefully closing underlying connection
-        redis.close()
-        await redis.wait_closed()
-    loop.run_until_complete(go())
+
+async def redis_pool():
+    # Redis client bound to pool of connections (auto-reconnecting).
+    redis = await aioredis.create_redis_pool(
+        ('localhost', 6379))
+    await redis.set('my-key', 'value')
+    val = await redis.get('my-key')
+    print(val)
+
+    # gracefully closing underlying connection
+    redis.close()
+    await redis.wait_closed()
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.get_event_loop().run_until_complete(redis_pool())
