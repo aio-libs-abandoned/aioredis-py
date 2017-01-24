@@ -6,7 +6,9 @@ from .pool import create_sentinel_pool
 
 
 @asyncio.coroutine
-def create_sentinel(sentinels, *, loop=None):
+def create_sentinel(sentinels, *, db=None, password=None,
+                    encoding=None, minsize=1, maxsize=10,
+                    ssl=None, timeout=0.2, loop=None):
     """Creates Redis Sentinel client.
 
     `sentinels` is a list of sentinel nodes.
@@ -15,7 +17,15 @@ def create_sentinel(sentinels, *, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    pool = yield from create_sentinel_pool(sentinels, loop=loop)
+    pool = yield from create_sentinel_pool(sentinels,
+                                           db=db,
+                                           password=password,
+                                           encoding=encoding,
+                                           minsize=minsize,
+                                           maxsize=maxsize,
+                                           ssl=ssl,
+                                           timeout=timeout,
+                                           loop=loop)
     return RedisSentinel(pool)
 
 
@@ -79,27 +89,27 @@ class RedisSentinel:
         return wait_convert(fut, parse_sentinel_masters)
 
     def slaves(self, name):
-        """Returns a list of slaves for ``name``"""
+        """Returns a list of slaves for ``name``."""
         fut = self.execute(b'SLAVES', name, encoding='utf-8')
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def sentinels(self, name):
-        """Returns a list of sentinels for ``name``"""
+        """Returns a list of sentinels for ``name``."""
         fut = self.execute(b'SENTINELS', name, encoding='utf-8')
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def monitor(self, name, ip, port, quorum):
-        """Add a new master to Sentinel to be monitored"""
+        """Add a new master to Sentinel to be monitored."""
         fut = self.execute(b'MONITOR', name, ip, port, quorum)
         return wait_ok(fut)
 
     def remove(self, name):
-        """Remove a master from Sentinel's monitoring"""
+        """Remove a master from Sentinel's monitoring."""
         fut = self.execute(b'REMOVE', name)
         return wait_ok(fut)
 
     def set(self, name, option, value):
-        """Set Sentinel monitoring parameters for a given master"""
+        """Set Sentinel monitoring parameters for a given master."""
         fut = self.execute(b"SET", name, option, value)
         return wait_ok(fut)
 
