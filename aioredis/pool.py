@@ -33,7 +33,7 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
     if commands_factory is not _NOTSET:
         warnings.warn(
             "commands_factory argument is deprecated and will be removed!",
-            warnings.DeprecationWarning)
+            DeprecationWarning)
 
     pool = ConnectionsPool(address, db, password, encoding,
                            minsize=minsize, maxsize=maxsize,
