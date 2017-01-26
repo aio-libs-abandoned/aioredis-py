@@ -7,6 +7,7 @@ from .log import logger
 
 
 PY_35 = sys.version_info >= (3, 5)
+PY_352 = sys.version_info >= (3, 5, 2)
 
 _NOTSET = object()
 
@@ -103,9 +104,13 @@ if PY_35:
             self._cur = b'0'
             self._ret = []
 
-        @asyncio.coroutine
-        def __aiter__(self):
-            return self
+        if PY_352:
+            def __aiter__(self):
+                return self
+        else:
+            @asyncio.coroutine
+            def __aiter__(self):
+                return self
 
     class _ScanIter(_BaseScanIter):
 

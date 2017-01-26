@@ -15,6 +15,7 @@ __all__ = [
 ]
 
 PY_35 = sys.version_info >= (3, 5)
+PY_352 = sys.version_info >= (3, 5, 2)
 
 
 # End of pubsub messages stream marker.
@@ -165,9 +166,13 @@ if PY_35:
             self._args = args
             self._kw = kw
 
-        @asyncio.coroutine
-        def __aiter__(self):
-            return self
+        if PY_352:
+            def __aiter__(self):
+                return self
+        else:
+            @asyncio.coroutine
+            def __aiter__(self):
+                return self
 
         @asyncio.coroutine
         def __anext__(self):
