@@ -4,7 +4,7 @@ import sys
 import types
 
 from .abc import AbcChannel
-from .util import create_future, _converters
+from .util import create_future, _converters, correct_aiter
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -165,7 +165,7 @@ if PY_35:
             self._args = args
             self._kw = kw
 
-        @asyncio.coroutine
+        @correct_aiter
         def __aiter__(self):
             return self
 

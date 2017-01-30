@@ -11,6 +11,13 @@ PY_35 = sys.version_info >= (3, 5)
 _NOTSET = object()
 
 
+def correct_aiter(func):
+    if sys.version_info >= (3, 5, 2):
+        return func
+    else:
+        return asyncio.coroutine(func)
+
+
 # NOTE: never put here anything else;
 #       just this basic types
 _converters = {
@@ -103,7 +110,7 @@ if PY_35:
             self._cur = b'0'
             self._ret = []
 
-        @asyncio.coroutine
+        @correct_aiter
         def __aiter__(self):
             return self
 
