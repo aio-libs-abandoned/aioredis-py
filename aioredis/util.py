@@ -7,9 +7,15 @@ from .log import logger
 
 
 PY_35 = sys.version_info >= (3, 5)
-PY_352 = sys.version_info >= (3, 5, 2)
 
 _NOTSET = object()
+
+
+def correct_aiter(func):
+    if sys.version_info >= (3, 5, 2):
+        return func
+    else:
+        return asyncio.coroutine(func)
 
 
 # NOTE: never put here anything else;
@@ -104,13 +110,9 @@ if PY_35:
             self._cur = b'0'
             self._ret = []
 
-        if PY_352:
-            def __aiter__(self):
-                return self
-        else:
-            @asyncio.coroutine
-            def __aiter__(self):
-                return self
+        @correct_aiter
+        def __aiter__(self):
+            return self
 
     class _ScanIter(_BaseScanIter):
 
