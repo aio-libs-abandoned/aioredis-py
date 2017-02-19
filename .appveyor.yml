@@ -12,7 +12,7 @@ environment:
 
 install:
 - "cinst redis-64"
-- "%PYTHON%\\python.exe -m pip install hiredis"
+- "%PYTHON%\\python.exe -m pip install --upgrade https://github.com/redis/hiredis-py/archive/master.zip"
 - "%PYTHON%\\python.exe -m pip install -r tests/requirements.txt"
 - "%PYTHON%\\python.exe -m pip install -e ."
 
