@@ -215,7 +215,7 @@ def test_zrange(redis):
 @pytest.mark.run_loop
 def test_zrangebylex(redis):
     key = b'key:zrangebylex'
-    scores = [0]*5
+    scores = [0] * 5
     members = [b'a', b'b', b'c', b'd', b'e']
     pairs = list(itertools.chain(*zip(scores, members)))
 
@@ -247,10 +247,10 @@ def test_zrangebylex(redis):
         yield from redis.zrangebylex(key, b'a', b'e', count=1)
     with pytest.raises(TypeError):
         yield from redis.zrangebylex(key, b'a', b'e',
-                                          offset='one', count=1)
+                                     offset='one', count=1)
     with pytest.raises(TypeError):
         yield from redis.zrangebylex(key, b'a', b'e',
-                                          offset=1, count='one')
+                                     offset=1, count='one')
 
 
 @pytest.mark.run_loop
@@ -343,22 +343,22 @@ def test_zremrangebylex(redis):
     key = b'key:zremrangebylex'
     members = [b'aaaa', b'b', b'c', b'd', b'e', b'foo', b'zap', b'zip',
                b'ALPHA', b'alpha']
-    scores = [0]*len(members)
+    scores = [0] * len(members)
 
     pairs = list(itertools.chain(*zip(scores, members)))
     res = yield from redis.zadd(key, *pairs)
     assert res == 10
 
     res = yield from redis.zremrangebylex(key, b'alpha', b'omega',
-                                               include_max=True,
-                                               include_min=True)
+                                          include_max=True,
+                                          include_min=True)
     assert res == 6
     res = yield from redis.zrange(key, 0, -1)
     assert res == [b'ALPHA', b'aaaa', b'zap', b'zip']
 
     res = yield from redis.zremrangebylex(key, b'zap', b'zip',
-                                               include_max=False,
-                                               include_min=False)
+                                          include_max=False,
+                                          include_min=False)
     assert res == 0
 
     res = yield from redis.zrange(key, 0, -1)
@@ -591,11 +591,55 @@ def test_zrevrangebyscore(redis):
         yield from redis.zrevrangebyscore(key, 1, 7, offset=1, count='one')
 
 
+@pytest.redis_version(
+    2, 8, 9, reason='ZREVRANGEBYLEX is available since redis>=2.8.9')
+@pytest.mark.run_loop
+def test_zrevrangebylex(redis):
+    key = b'key:zrevrangebylex'
+    scores = [0] * 5
+    members = [b'a', b'b', b'c', b'd', b'e']
+    rev_members = members[::-1]
+    pairs = list(itertools.chain(*zip(scores, members)))
+
+    res = yield from redis.zadd(key, *pairs)
+    assert res == 5
+    res = yield from redis.zrevrangebylex(key)
+    assert res == rev_members
+    res = yield from redis.zrevrangebylex(key, min=b'-', max=b'd')
+    assert res == rev_members[1:]
+    res = yield from redis.zrevrangebylex(key, min=b'a', max=b'e',
+                                          include_min=False,
+                                          include_max=False)
+    assert res == rev_members[1:-1]
+    res = yield from redis.zrevrangebylex(key, min=b'x', max=b'z')
+    assert res == []
+    res = yield from redis.zrevrangebylex(key, min=b'e', max=b'a')
+    assert res == []
+    res = yield from redis.zrevrangebylex(key, offset=1, count=2)
+    assert res == rev_members[1:3]
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(None, b'a', b'e')
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, 10, b'e')
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', 20)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e', offset=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e', count=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e',
+                                        offset='one', count=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e',
+                                        offset=1, count='one')
+
+
 @pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_zscan(redis):
     key = b'key:zscan'
-    for k in (yield from redis.keys(key+b'*')):
+    for k in (yield from redis.keys(key + b'*')):
         redis.delete(k)
     scores, members = [], []
 
@@ -608,10 +652,10 @@ def test_zscan(redis):
     yield from redis.zadd(key, *pairs)
 
     cursor, values = yield from redis.zscan(key, match=b'zmem:foo:*')
-    assert len(values) == 3*2
+    assert len(values) == 3 * 2
 
     cursor, values = yield from redis.zscan(key, match=b'zmem:bar:*')
-    assert len(values) == 7*2
+    assert len(values) == 7 * 2
 
     # SCAN family functions do not guarantee that the number (count) of
     # elements returned per call are in a given range. So here
