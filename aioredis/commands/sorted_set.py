@@ -209,7 +209,7 @@ class SortedSetCommandsMixin:
         return self.execute(b'ZREM', key, member, *members)
 
     def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
-                       include_max=True,):
+                       include_max=True, ):
         """Remove all members in a sorted set between the given
         lexicographical range.
 
@@ -271,7 +271,7 @@ class SortedSetCommandsMixin:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
-    def zrevrangebyscore(self, key, max=float('inf'),  min=float('-inf'),
+    def zrevrangebyscore(self, key, max=float('inf'), min=float('-inf'),
                          *, exclude=None, withscores=False,
                          offset=None, count=None):
         """Return a range of members in a sorted set, by score,
@@ -308,8 +308,9 @@ class SortedSetCommandsMixin:
         return fut
 
     def zrevrangebylex(self, key, min=b'-', max=b'+', include_min=True,
-                    include_max=True, offset=None, count=None):
-        """Return a range of members in a sorted set, by lexicographical range from high to low.
+                       include_max=True, offset=None, count=None):
+        """Return a range of members in a sorted set, by lexicographical range
+        from high to low.
 
         :raises TypeError: if min is not bytes
         :raises TypeError: if max is not bytes
