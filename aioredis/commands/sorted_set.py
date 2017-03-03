@@ -307,6 +307,39 @@ class SortedSetCommandsMixin:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
+    def zrevrangebylex(self, key, min=b'-', max=b'+', include_min=True,
+                    include_max=True, offset=None, count=None):
+        """Return a range of members in a sorted set, by lexicographical range from high to low.
+
+        :raises TypeError: if min is not bytes
+        :raises TypeError: if max is not bytes
+        :raises TypeError: if both offset and count are not specified
+        :raises TypeError: if offset is not bytes
+        :raises TypeError: if count is not bytes
+        """
+        if not isinstance(min, bytes):  # FIXME
+            raise TypeError("min argument must be bytes")
+        if not isinstance(max, bytes):  # FIXME
+            raise TypeError("max argument must be bytes")
+        if not min == b'-':
+            min = (b'[' if include_min else b'(') + min
+        if not max == b'+':
+            max = (b'[' if include_max else b'(') + max
+
+        if (offset is not None and count is None) or \
+                (count is not None and offset is None):
+            raise TypeError("offset and count must both be specified")
+        if offset is not None and not isinstance(offset, int):
+            raise TypeError("offset argument must be int")
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if offset is not None and count is not None:
+            args.extend([b'LIMIT', offset, count])
+
+        return self.execute(b'ZREVRANGEBYLEX', key, max, min, *args)
+
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
         scores ordered from high to low.

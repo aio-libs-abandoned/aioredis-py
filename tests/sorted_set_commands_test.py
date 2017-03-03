@@ -591,6 +591,50 @@ def test_zrevrangebyscore(redis):
         yield from redis.zrevrangebyscore(key, 1, 7, offset=1, count='one')
 
 
+@pytest.redis_version(
+    2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
+@pytest.mark.run_loop
+def test_zrevrangebylex(redis):
+    key = b'key:zrevrangebylex'
+    scores = [0]*5
+    members = [b'a', b'b', b'c', b'd', b'e']
+    rev_members = members[::-1]
+    pairs = list(itertools.chain(*zip(scores, members)))
+
+    res = yield from redis.zadd(key, *pairs)
+    assert res == 5
+    res = yield from redis.zrevrangebylex(key)
+    assert res == rev_members
+    res = yield from redis.zrevrangebylex(key, min=b'-', max=b'd')
+    assert res == rev_members[1:]
+    res = yield from redis.zrevrangebylex(key, min=b'a', max=b'e',
+                                       include_min=False,
+                                       include_max=False)
+    assert res == rev_members[1:-1]
+    res = yield from redis.zrevrangebylex(key, min=b'x', max=b'z')
+    assert res == []
+    res = yield from redis.zrevrangebylex(key, min=b'e', max=b'a')
+    assert res == []
+    res = yield from redis.zrevrangebylex(key, offset=1, count=2)
+    assert res == rev_members[1:3]
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(None, b'a', b'e')
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, 10, b'e')
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', 20)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e', offset=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e', count=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e',
+                                          offset='one', count=1)
+    with pytest.raises(TypeError):
+        yield from redis.zrevrangebylex(key, b'a', b'e',
+                                          offset=1, count='one')
+
+
 @pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 def test_zscan(redis):
