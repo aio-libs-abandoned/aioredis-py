@@ -592,7 +592,7 @@ def test_zrevrangebyscore(redis):
 
 
 @pytest.redis_version(
-    2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
+    2, 8, 9, reason='ZREVRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 def test_zrevrangebylex(redis):
     key = b'key:zrevrangebylex'
