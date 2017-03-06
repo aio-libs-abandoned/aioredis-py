@@ -208,8 +208,8 @@ class SortedSetCommandsMixin:
         """Remove one or more members from a sorted set."""
         return self._conn.execute(b'ZREM', key, member, *members)
 
-    def zremrangebylex(self, key, min=b'-', max=b'+', include_min=True,
-                       include_max=True, ):
+    def zremrangebylex(self, key, min=b'-', max=b'+',
+                       include_min=True, include_max=True):
         """Remove all members in a sorted set between the given
         lexicographical range.
 
