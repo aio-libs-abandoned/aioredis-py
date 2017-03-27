@@ -111,8 +111,10 @@ class Channel(AbcChannel):
             >>> async for msg in ch.iter():
             ...     print(msg)
             """
-            return _ChannelIter(self, encoding=encoding,
-                                decoder=decoder)
+            return _IterHelper(self,
+                               is_active=lambda ch: ch.is_active,
+                               encoding=encoding,
+                               decoder=decoder)
 
     @asyncio.coroutine
     def wait_message(self):
@@ -156,12 +158,13 @@ class Channel(AbcChannel):
 
 
 if PY_35:
-    class _ChannelIter:
+    class _IterHelper:
 
-        __slots__ = ('_ch', '_args', '_kw')
+        __slots__ = ('_ch', '_is_active', '_args', '_kw')
 
-        def __init__(self, ch, *args, **kw):
+        def __init__(self, ch, is_active, *args, **kw):
             self._ch = ch
+            self._is_active = is_active
             self._args = args
             self._kw = kw
 
@@ -171,7 +174,7 @@ if PY_35:
 
         @asyncio.coroutine
         def __anext__(self):
-            if not self._ch.is_active:
+            if not self._is_active(self._ch):
                 raise StopAsyncIteration    # noqa
             msg = yield from self._ch.get(*self._args, **self._kw)
             if msg is None:
@@ -272,8 +275,11 @@ class Receiver:
         """Wait for and return pub/sub message from one of channels.
 
         Return value is either:
+
         * tuple of two elements: channel & message;
+
         * tuple of three elements: pattern channel, (target channel & message);
+
         * or None in case Receiver is stopped.
 
         :raises aioredis.ChannelClosedError: If listener is stopped
@@ -281,7 +287,7 @@ class Receiver:
         """
         assert decoder is None or callable(decoder), decoder
         if not self.is_active:
-            if not self._running:
+            if not self._running:   # inactive but running
                 raise ChannelClosedError()
             return
         ch, msg = yield from self._queue.get()
@@ -322,6 +328,20 @@ class Receiver:
         so you must call unsubscribe before stopping this listener.
         """
         self._running = False
+
+    if PY_35:
+        def iter(self, *, encoding=None, decoder=None):
+            """Returns async iterator.
+
+            Usage example:
+
+            >>> async for ch, msg in mpsc.iter():
+            ...     print(ch, msg)
+            """
+            return _IterHelper(self,
+                               is_active=lambda r: r.is_active or r._running,
+                               encoding=encoding,
+                               decoder=decoder)
 
     # internal methods
 
