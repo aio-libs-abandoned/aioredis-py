@@ -119,6 +119,16 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._pool_or_conn.select(db)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def __iter__(self):
+        return self
+        yield
+
 
 @asyncio.coroutine
 def create_redis(address, *, db=None, password=None, ssl=None,
