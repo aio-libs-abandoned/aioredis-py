@@ -448,11 +448,3 @@ def test_multi_exec__enc(create_connection, loop, server):
     assert queued == 'QUEUED'
     res = yield from conn.execute("DISCARD")
     assert res == 'OK'
-
-
-@pytest.mark.run_loop
-def test_yield_from_backwards_compatability(create_redis, server, loop):
-    pool = yield from create_redis(server.tcp_address, loop=loop)
-
-    with (yield from pool) as conn:
-        conn.ping()

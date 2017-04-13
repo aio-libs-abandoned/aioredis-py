@@ -3,6 +3,7 @@ import asyncio
 
 from aioredis import ConnectionClosedError, ReplyError
 from aioredis.pool import ConnectionsPool
+from aioredis import Redis
 
 
 @pytest.mark.run_loop
@@ -83,3 +84,15 @@ def test_encoding(create_redis, loop, server):
         db=1, encoding='utf-8',
         loop=loop)
     assert redis.encoding == 'utf-8'
+
+
+@pytest.mark.run_loop
+def test_yield_from_backwards_compatability(create_redis, server, loop):
+    redis = yield from create_redis(server.tcp_address, loop=loop)
+
+    assert isinstance(redis, Redis)
+    with pytest.warns(UserWarning):
+        with (yield from redis) as client:
+            assert isinstance(client, Redis)
+            assert client is redis
+            assert (yield from client.ping())

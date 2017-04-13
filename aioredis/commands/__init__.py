@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
@@ -120,6 +121,9 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._pool_or_conn.select(db)
 
     def __enter__(self):
+        # TODO: warn it is obsolete way
+        warnings.warn("It is not recommended way to use Redis instance"
+                      " as a context manager. Use Redis.<command> directly")
         return self
 
     def __exit__(self, *args):
