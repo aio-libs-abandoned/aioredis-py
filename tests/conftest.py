@@ -70,17 +70,18 @@ def create_connection(_closable, loop):
     return f
 
 
-@pytest.fixture(params=['single', 'pool'])
+@pytest.fixture(params=[
+    aioredis.create_redis,
+    aioredis.create_redis_pool],
+    ids=['single', 'pool'])
 def create_redis(_closable, loop, request):
     """Wrapper around aioredis.create_redis."""
+    factory = request.param
 
     @asyncio.coroutine
     def f(*args, **kw):
         kw.setdefault('loop', loop)
-        if request.param == 'single':
-            redis = yield from aioredis.create_redis(*args, **kw)
-        else:
-            redis = yield from aioredis.create_redis_pool(*args, **kw)
+        redis = yield from factory(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -215,9 +216,14 @@ def config_writer(path):
 
 
 REDIS_SERVERS = []
+VERSIONS = {}
 
 
-@pytest.fixture(scope='session', params=REDIS_SERVERS)
+def format_version(srv):
+    return '{}@v{}'.format(srv, '.'.join(map(str, VERSIONS[srv])))
+
+
+@pytest.fixture(scope='session', params=REDIS_SERVERS, ids=format_version)
 def server_bin(request):
     """Common for start_server and start_sentinel server bin path parameter.
     """
@@ -516,14 +522,11 @@ def pytest_ignore_collect(path, config):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    versions = {srv: _read_server_version(srv)
-                for srv in REDIS_SERVERS}
-    assert versions, ("Expected to detect redis versions", REDIS_SERVERS)
     for item in items:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
             try:
-                version = versions[item.callspec.getparam('server_bin')]
+                version = VERSIONS[item.callspec.getparam('server_bin')]
             except (KeyError, ValueError, AttributeError):
                 # TODO: throw noisy warning
                 continue
@@ -539,6 +542,9 @@ def pytest_collection_modifyitems(session, config, items):
 def pytest_configure(config):
     bins = config.getoption('--redis-server')[:]
     REDIS_SERVERS[:] = bins or ['/usr/bin/redis-server']
+    VERSIONS.update({srv: _read_server_version(srv)
+                     for srv in REDIS_SERVERS})
+    assert VERSIONS, ("Expected to detect redis versions", REDIS_SERVERS)
     if config.getoption('--uvloop'):
         try:
             import uvloop
