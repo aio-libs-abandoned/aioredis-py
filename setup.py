@@ -47,6 +47,7 @@ classifiers = [
     'Intended Audience :: Developers',
     'Topic :: Software Development',
     'Topic :: Software Development :: Libraries',
+    'Framework :: AsyncIO',
 ]
 
 setup(name='aioredis',
