@@ -104,6 +104,8 @@ class Parser:
             val = yield from self.readline()
             if self.encoding is not None:
                 try:
+                    # FIXME: decoding is done when whole
+                    #       (multi-bulk) value is read
                     return val.decode(self.encoding)
                 except UnicodeDecodeError:
                     pass
@@ -120,6 +122,8 @@ class Parser:
             val = yield from self.readline(val)
             if self.encoding:
                 try:
+                    # FIXME: decoding is done when whole
+                    #       (multi-bulk) value is read
                     return val.decode(self.encoding)
                 except UnicodeDecodeError:
                     pass
