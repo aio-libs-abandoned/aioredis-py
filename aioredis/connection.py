@@ -1,6 +1,5 @@
 import types
 import asyncio
-import hiredis
 import socket
 from functools import partial
 from collections import deque
@@ -16,6 +15,7 @@ from .util import (
     async_task,
     create_future,
     )
+from .parser import Reader
 from .errors import (
     ConnectionClosedError,
     RedisError,
@@ -107,8 +107,8 @@ class RedisConnection:
         self._address = address
         self._loop = loop
         self._waiters = deque()
-        self._parser = hiredis.Reader(protocolError=ProtocolError,
-                                      replyError=ReplyError)
+        self._parser = Reader(protocolError=ProtocolError,
+                              replyError=ReplyError)
         self._reader_task = async_task(self._read_data(), loop=self._loop)
         self._db = 0
         self._closing = False
