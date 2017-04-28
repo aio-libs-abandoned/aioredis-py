@@ -280,7 +280,7 @@ class Receiver:
 
         * tuple of three elements: pattern channel, (target channel & message);
 
-        * or None in case Receiver is stopped.
+        * or None in case Receiver is not active or has just been stopped.
 
         :raises aioredis.ChannelClosedError: If listener is stopped
             and all messages have been received.
@@ -290,7 +290,10 @@ class Receiver:
             if not self._running:   # inactive but running
                 raise ChannelClosedError()
             return
-        ch, msg = yield from self._queue.get()
+        obj = yield from self._queue.get()
+        if obj is EndOfStream:
+            return
+        ch, msg = obj
         if ch.is_pattern:
             dest_ch, msg = msg
         if encoding is not None:
@@ -318,6 +321,8 @@ class Receiver:
         """Returns True if listener has any active subscription."""
         if not self._queue.empty():
             return True
+        # NOTE: this expression requires at least one subscriber
+        #   to return True;
         return (self._running and
                 any(ch.is_active for ch in self._refs.values()))
 
@@ -328,6 +333,7 @@ class Receiver:
         so you must call unsubscribe before stopping this listener.
         """
         self._running = False
+        self._put_nowait(EndOfStream, sender=None)
 
     if PY_35:
         def iter(self, *, encoding=None, decoder=None):
@@ -346,11 +352,14 @@ class Receiver:
     # internal methods
 
     def _put_nowait(self, data, *, sender):
-        if not self._running:
-            logger.warning("Pub/Sub listener message after stop: %r, %r",
+        if not self._running and data is not EndOfStream:
+            logger.warning("Pub/Sub listener message after stop:"
+                           " sender: %r, data: %r",
                            sender, data)
             return
-        self._queue.put_nowait((sender, data))
+        if data is not EndOfStream:
+            data = (sender, data)
+        self._queue.put_nowait(data)
         if self._waiter is not None:
             fut, self._waiter = self._waiter, None
             if fut.done():
