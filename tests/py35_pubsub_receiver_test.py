@@ -41,7 +41,6 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
 async def test_pubsub_receiver_call_stop_with_empty_queue(
         create_redis, server, loop):
     sub = await create_redis(server.tcp_address, loop=loop)
-    pub = await create_redis(server.tcp_address, loop=loop)
 
     mpsc = Receiver(loop=loop)
 
@@ -50,7 +49,7 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
 
     now = loop.time()
     loop.call_later(.5, mpsc.stop)
-    async for _ in mpsc.iter():
+    async for i in mpsc.iter():  # noqa (flake8 bug with async for)
         assert False, "StopAsyncIteration not raised"
     dt = loop.time() - now
     assert dt <= 1.5

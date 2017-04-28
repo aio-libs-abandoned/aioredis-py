@@ -181,13 +181,15 @@ def test_stopped(create_connection, server, loop):
         yield from asyncio.sleep(0, loop=loop)
 
     assert len(cm.output) == 1
+    # Receiver must have 1 EndOfStream message
     warn_messaege = (
         "WARNING:aioredis:Pub/Sub listener message after stop: "
-        "<_Sender name:b'channel:1', is_pattern:False, receiver:"
-        "<Receiver is_active:False, senders:1, qsize:0>>, b'Hello'"
+        "sender: <_Sender name:b'channel:1', is_pattern:False, receiver:"
+        "<Receiver is_active:True, senders:1, qsize:1>>, data: b'Hello'"
     )
     assert cm.output == [warn_messaege]
 
+    assert (yield from mpsc.get()) is None
     with pytest.raises(ChannelClosedError):
         yield from mpsc.get()
     res = yield from mpsc.wait_message()
