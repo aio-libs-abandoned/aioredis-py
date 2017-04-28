@@ -340,6 +340,10 @@ class ConnectionsPool(AbcPool):
                 logger.warning(
                     "Connection %r is in subscribe mode, closing it.", conn)
                 conn.close()
+            elif conn._waiters:
+                logger.warning(
+                    "Connection %r has pending commands, closing it.", conn)
+                conn.close()
             elif conn.db == self.db:
                 if self.maxsize and self.freesize < self.maxsize:
                     self._pool.append(conn)
