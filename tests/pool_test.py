@@ -161,7 +161,7 @@ def test_release_pending(create_pool, loop, server):
 
     with (yield from pool) as conn:
         try:
-            yield from asyncio.wait_for(conn.brpop('somekey:not:exists'), 0.1)
+            yield from asyncio.wait_for(conn.execute(b'brpop', b'somekey:not:exists'), 0.1)
         except asyncio.TimeoutError:
             pass
     assert pool.size == 0
