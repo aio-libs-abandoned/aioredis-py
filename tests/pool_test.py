@@ -150,6 +150,23 @@ def test_release_closed(create_pool, loop, server):
     assert pool.size == 0
     assert pool.freesize == 0
 
+    
+@pytest.mark.run_loop
+def test_release_pending(create_pool, loop, server):
+    pool = yield from create_pool(
+        server.tcp_address,
+        minsize=1, loop=loop)
+    assert pool.size == 1
+    assert pool.freesize == 1
+
+    with (yield from pool) as conn:
+        try:
+            yield from asyncio.wait_for(conn.brpop('somekey:not:exists'), 0.1)
+        except asyncio.TimeoutError:
+            pass
+    assert pool.size == 0
+    assert pool.freesize == 0
+
 
 @pytest.mark.run_loop
 def test_release_bad_connection(create_pool, create_redis, loop, server):
