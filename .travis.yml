@@ -13,7 +13,7 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2" CERT_DIR=/tmp/certs INSTALL_DIR=$HOME/redis
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2" INSTALL_DIR=$HOME/redis
 
 matrix:
   include:
@@ -26,21 +26,27 @@ matrix:
   - python: "3.6"
     env: TASKS="ci-test flake examples spelling"
   - python: "3.6"
-    env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop"
+    env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop -v"
+  - python: "pypy-5.3.1"
+    env: PYPY_RELEASE="pypy3-v5.7.0-linux64" TASKS="ci-test examples"
   allow_failures:
-  - env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop"
+  - env: TASKS="ci-test flake examples" TEST_ARGS="--uvloop -v"
 
 cache: pip
-#   directories:
-#   - $HOME/redis
-#   - $HOME/.cache/pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
 
 install:
-- pip install hiredis
-- pip install sphinx
-- pip install codecov
+- make -j ci-build-redis
+- |
+    if [ "$TRAVIS_PYTHON_VERSION" = "pypy-5.3.1" ]; then
+      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
+      export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
+      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
+      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
+      source $HOME/virtualenvs/pypy3/bin/activate
+      python --version
+    fi
 - pip install -r tests/requirements.txt
 - pip install -r docs/requirements.txt
 - pip install -e .
@@ -48,10 +54,6 @@ install:
   if [ "$TEST_ARGS" = "--uvloop" ]; then
     pip install uvloop
   fi
-
-before_script:
-# make certificate for ssl/tls test and build Redises
-- make -j certificate ci-build-redis
 
 script:
 - make $TASKS
