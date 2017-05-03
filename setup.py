@@ -1,10 +1,13 @@
 import re
 import os.path
 import sys
+import platform
 from setuptools import setup, find_packages
 
 
-install_requires = ['hiredis', 'async-timeout']
+install_requires = ['async-timeout']
+if platform.python_implementation() == 'CPython':
+    install_requires.append('hiredis')
 
 PY_VER = sys.version_info
 
