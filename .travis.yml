@@ -1,4 +1,7 @@
 sudo: false
+dist: trusty
+
+language: python
 
 addons:
   apt:
@@ -7,8 +10,6 @@ addons:
     - enchant
     - aspell
     - aspell-en
-
-language: python
 
 env:
   global:
