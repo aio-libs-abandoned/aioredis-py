@@ -50,10 +50,12 @@ install:
 - pip install -r tests/requirements.txt
 - pip install -r docs/requirements.txt
 - pip install -e .
-- >
-  if [ "$TEST_ARGS" = "--uvloop" ]; then
-    pip install uvloop
-  fi
+- |
+    for ARG in $TEST_ARGS; do
+      if [ "$ARG" = "--uvloop" ]; then
+        pip install uvloop
+      fi;
+    done
 
 script:
 - make $TASKS
