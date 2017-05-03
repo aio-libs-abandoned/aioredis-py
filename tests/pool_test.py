@@ -159,19 +159,24 @@ def test_release_pending(create_pool, loop, server):
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with (yield from pool) as conn:
-        try:
-            yield from asyncio.wait_for(
-                conn.execute(
-                    b'blpop',
-                    b'somekey:not:exists',
-                    b'0'),
-                0.1,
-                loop=loop)
-        except asyncio.TimeoutError:
-            pass
+    with pytest.logs('aioredis', 'WARNING') as cm:
+        with (yield from pool) as conn:
+            try:
+                yield from asyncio.wait_for(
+                    conn.execute(
+                        b'blpop',
+                        b'somekey:not:exists',
+                        b'0'),
+                    0.1,
+                    loop=loop)
+            except asyncio.TimeoutError:
+                pass
     assert pool.size == 0
     assert pool.freesize == 0
+    assert cm.output == [
+        'WARNING:aioredis:Connection <RedisConnection [db:0]>'
+        ' has pending commands, closing it.'
+    ]
 
 
 @pytest.mark.run_loop

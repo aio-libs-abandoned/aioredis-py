@@ -73,9 +73,9 @@ def test_client_list__unixsocket(create_redis, loop, server):
 @pytest.redis_version(
     2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 def test_client_pause(redis):
+    ts = time.time()
     res = yield from redis.client_pause(2000)
     assert res is True
-    ts = time.time()
     yield from redis.ping()
     assert int(time.time() - ts) >= 2
 
