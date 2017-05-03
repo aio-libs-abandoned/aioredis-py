@@ -1,5 +1,7 @@
 hiredis==0.2.0
 flake8==3.3.0
+codecov
 pytest==3.0.7
 pytest-cov==2.4.0
 pytest-xdist==1.15.0
+async-timeout==1.2.0
