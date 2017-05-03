@@ -134,8 +134,12 @@ def pytest_addoption(parser):
                      action="append",
                      help="Path to redis-server executable,"
                           " defaults to `%(default)s`")
-    parser.addoption('--ssl-cafile', default='tests/ssl/test.crt',
-                     help="Path to testing SSL certificate")
+    parser.addoption('--ssl-cafile', default='tests/ssl/cafile.crt',
+                     help="Path to testing SSL CA file")
+    parser.addoption('--ssl-dhparam', default='tests/ssl/dhparam.pem',
+                     help="Path to testing SSL DH params file")
+    parser.addoption('--ssl-cert', default='tests/ssl/cert.pem',
+                     help="Path to testing SSL CERT file")
     parser.addoption('--uvloop', default=False,
                      action='store_true',
                      help="Run tests with uvloop")
@@ -216,11 +220,14 @@ def ssl_proxy(request, unused_port):
     by_port = {}
 
     cafile = os.path.abspath(request.config.getoption('--ssl-cafile'))
-    pemfile = os.path.splitext(cafile)[0] + '.pem'
+    certfile = os.path.abspath(request.config.getoption('--ssl-cert'))
+    dhfile = os.path.abspath(request.config.getoption('--ssl-dhparam'))
     assert os.path.exists(cafile), \
-        "No test ssl certificate, run `make certificate`"
-    assert os.path.exists(pemfile), \
-        "No test ssl certificate, run `make certificate`"
+        "Missing SSL CA file, run `make certificate` to generate new one"
+    assert os.path.exists(certfile), \
+        "Missing SSL CERT file, run `make certificate` to generate new one"
+    assert os.path.exists(dhfile), \
+        "Missing SSL DH params, run `make certificate` to generate new one"
 
     if hasattr(ssl, 'create_default_context'):
         ssl_ctx = ssl.create_default_context(cafile=cafile)
@@ -231,6 +238,7 @@ def ssl_proxy(request, unused_port):
         # available since python 3.4
         ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = ssl.CERT_NONE
+    ssl_ctx.load_dh_params(dhfile)
 
     def sockat(unsecure_port):
         if unsecure_port in by_port:
@@ -238,10 +246,11 @@ def ssl_proxy(request, unused_port):
 
         secure_port = unused_port()
         proc = subprocess.Popen(['/usr/bin/socat',
-                                 'openssl-listen:{},'
-                                 'cert={},'
-                                 'verify=0,fork'
-                                 .format(secure_port, pemfile),
+                                 'openssl-listen:{port},'
+                                 'dhparam={param},'
+                                 'cert={cert},verify=0,fork'
+                                 .format(port=secure_port, param=dhfile,
+                                         cert=certfile),
                                  'tcp-connect:localhost:{}'
                                  .format(unsecure_port)
                                  ])

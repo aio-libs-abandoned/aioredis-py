@@ -4,8 +4,10 @@ PYTEST ?= py.test
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.6 4.0-rc2
 
-BUILD_DIR ?= build
-INSTALL_DIR ?= $(BUILD_DIR)
+ARCHIVE_URL = https://github.com/antirez/redis/archive
+INSTALL_DIR ?= build
+
+TEST_ARGS ?= "-n 4"
 
 REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
 
@@ -89,40 +91,25 @@ $(EXAMPLES):
 .PHONY: $(EXAMPLES)
 
 
-CERT_DIR ?= tests/ssl
-
-certificate: $(CERT_DIR)/test.pem $(CERT_DIR)/test.crt
-
-$(CERT_DIR)/test.pem: $(CERT_DIR)/test.crt $(CERT_DIR)/.test.key
-	cat $^ > $@
-
-$(CERT_DIR)/test.crt: $(CERT_DIR)/.test.key
-	openssl req -new -key $< -x509 -out $@ -batch
-
-$(CERT_DIR)/.test.key:
-	mkdir -p $(CERT_DIR)
-	openssl genrsa -out $@ 1024
-
+certificate:
+	make -C tests/ssl
 
 ci-test: $(REDIS_TARGETS)
 	$(call travis_start,tests)
 	@echo "Tests run"
 	py.test -rsxX --cov \
-		--ssl-cafile=$(CERT_DIR)/test.crt \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 	$(call travis_end,tests)
 
 ci-build-redis: $(REDIS_TARGETS)
 
-$(INSTALL_DIR)/%/redis-server: $(BUILD_DIR)/redis-%.tar.gz
-	@echo "Building Redis v$*"
-	cd $(BUILD_DIR) && tar -xzvf redis-$*.tar.gz
-	make -j -C $(BUILD_DIR)/redis-$* INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install
+$(INSTALL_DIR)/%/redis-server:
+	@echo "Building redis-$*..."
+	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
+	make -j -C /tmp/redis-$* \
+		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
+	@echo "Done building redis-$*"
 
-$(BUILD_DIR)/redis-%.tar.gz:
-	mkdir -p $(BUILD_DIR)
-	wget -c https://github.com/antirez/redis/archive/$*.tar.gz \
-		-O $(BUILD_DIR)/redis-$*.tar.gz
 
 ifdef TRAVIS
 
