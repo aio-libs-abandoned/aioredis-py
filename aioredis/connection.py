@@ -43,7 +43,7 @@ _PUBSUB_COMMANDS = (
 
 @asyncio.coroutine
 def create_connection(address, *, db=None, password=None, ssl=None,
-                      encoding=None, loop=None):
+                      encoding=None, parser=None, loop=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -57,6 +57,10 @@ def create_connection(address, *, db=None, password=None, ssl=None,
 
     Encoding argument can be used to decode byte-replies to strings.
     By default no decoding is done.
+
+    Parser parameter can be used to pass custom Redis protocol parser class.
+    By default hiredis.Reader is used (unless it is missing or platform
+    is not CPython).
 
     Return value is RedisConnection instance.
 
@@ -82,7 +86,8 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         if sock is not None:
             address = sock.getpeername()
     conn = RedisConnection(reader, writer, encoding=encoding,
-                           address=address, loop=loop)
+                           address=address, parser=parser,
+                           loop=loop)
 
     try:
         if password is not None:
@@ -99,15 +104,20 @@ def create_connection(address, *, db=None, password=None, ssl=None,
 class RedisConnection:
     """Redis connection."""
 
-    def __init__(self, reader, writer, *, address, encoding=None, loop=None):
+    def __init__(self, reader, writer, *, address, encoding=None,
+                 parser=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
+        if parser is None:
+            parser = Reader
+        assert callable(parser), (
+            "Parser argument is not callable", parser)
         self._reader = reader
         self._writer = writer
         self._address = address
         self._loop = loop
         self._waiters = deque()
-        self._parser = Reader(protocolError=ProtocolError,
+        self._parser = parser(protocolError=ProtocolError,
                               replyError=ReplyError)
         self._reader_task = async_task(self._read_data(), loop=self._loop)
         self._db = 0

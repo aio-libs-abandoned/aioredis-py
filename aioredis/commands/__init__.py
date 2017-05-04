@@ -137,7 +137,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 @asyncio.coroutine
 def create_redis(address, *, db=None, password=None, ssl=None,
                  encoding=None, commands_factory=Redis,
-                 loop=None):
+                 parser=None, loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
@@ -146,6 +146,7 @@ def create_redis(address, *, db=None, password=None, ssl=None,
                                         password=password,
                                         ssl=ssl,
                                         encoding=encoding,
+                                        parser=parser,
                                         loop=loop)
     return commands_factory(conn)
 
@@ -153,7 +154,7 @@ def create_redis(address, *, db=None, password=None, ssl=None,
 @asyncio.coroutine
 def create_redis_pool(address, *, db=None, password=None, ssl=None,
                       encoding=None, commands_factory=Redis,
-                      minsize=1, maxsize=10,
+                      minsize=1, maxsize=10, parser=None,
                       loop=None):
     """Creates high-level Redis interface.
 
@@ -165,5 +166,6 @@ def create_redis_pool(address, *, db=None, password=None, ssl=None,
                                   encoding=encoding,
                                   minsize=minsize,
                                   maxsize=maxsize,
+                                  parser=parser,
                                   loop=loop)
     return commands_factory(pool)

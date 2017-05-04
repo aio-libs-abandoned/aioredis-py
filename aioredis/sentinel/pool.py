@@ -20,7 +20,7 @@ _logger = sentinel_logger.getChild('monitor')
 @asyncio.coroutine
 def create_sentinel_pool(sentinels, *, db=None, password=None,
                          encoding=None, minsize=1, maxsize=10,
-                         ssl=None, timeout=0.2, loop=None):
+                         ssl=None, parser=None, timeout=0.2, loop=None):
     """Create SentinelPool."""
     # FIXME: revise default timeout value
     assert isinstance(sentinels, (list, tuple)), sentinels
@@ -31,6 +31,7 @@ def create_sentinel_pool(sentinels, *, db=None, password=None,
                         password=password,
                         ssl=ssl,
                         encoding=encoding,
+                        parser=parser,
                         minsize=minsize,
                         maxsize=maxsize,
                         timeout=timeout,
@@ -47,7 +48,8 @@ class SentinelPool:
     """
 
     def __init__(self, sentinels, *, db=None, password=None, ssl=None,
-                 encoding=None, minsize, maxsize, timeout, loop=None):
+                 encoding=None, parser=None, minsize, maxsize, timeout,
+                 loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         # TODO: add connection/discover timeouts;
@@ -61,6 +63,7 @@ class SentinelPool:
         self._pools = []     # list of sentinel pools
         self._masters = {}
         self._slaves = {}
+        self._parser_class = parser
         self._redis_db = db
         self._redis_password = password
         self._redis_ssl = ssl
@@ -116,6 +119,7 @@ class SentinelPool:
                 minsize=self._redis_minsize,
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
+                parser=self._parser_class,
                 loop=self._loop)
         return self._masters[service]
 
@@ -131,6 +135,7 @@ class SentinelPool:
                 minsize=self._redis_minsize,
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
+                parser=self._parser_class,
                 loop=self._loop)
         return self._slaves[service]
 
@@ -226,6 +231,7 @@ class SentinelPool:
             with async_timeout(timeout, loop=self._loop):
                 pool = yield from create_pool(
                     address, minsize=1, maxsize=2,
+                    parser=self._parser_class,
                     loop=self._loop)
             pools.append(pool)
             return pool
@@ -368,11 +374,12 @@ class SentinelPool:
 class ManagedPool(ConnectionsPool):
 
     def __init__(self, sentinel, service, is_master,
-                 db=None, password=None, encoding=None,
+                 db=None, password=None, encoding=None, parser=None,
                  *, minsize, maxsize, ssl=None, loop=None):
         super().__init__(_NON_DISCOVERED,
                          db=db, password=password, encoding=encoding,
-                         minsize=minsize, maxsize=maxsize, ssl=ssl, loop=loop)
+                         minsize=minsize, maxsize=maxsize, ssl=ssl,
+                         parser=parser, loop=loop)
         assert self._address is _NON_DISCOVERED
         self._sentinel = sentinel
         self._service = service
