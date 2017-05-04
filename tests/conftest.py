@@ -270,7 +270,8 @@ def start_server(_proc, request, unused_port, server_bin):
         dumpfile = 'dump-{}.rdb'.format(port)
         data_dir = tempfile.gettempdir()
         dumpfile_path = os.path.join(data_dir, dumpfile)
-        tmp_files = [dumpfile_path]
+        stdout_file = os.path.join(data_dir, 'aioredis.{}.stdout'.format(port))
+        tmp_files = [dumpfile_path, stdout_file]
         if config_lines:
             config = os.path.join(data_dir, 'aioredis.{}.conf'.format(port))
             with config_writer(config) as write:
@@ -308,26 +309,26 @@ def start_server(_proc, request, unused_port, server_bin):
                     str(slaveof.tcp_address.port),
                     ]
 
-        proc = _proc(server_bin,
-                     *args,
-                     stdout=subprocess.PIPE,
+        proc = _proc(server_bin, *args,
+                     stdout=open(stdout_file, 'w'),
                      stderr=subprocess.STDOUT,
                      _clear_tmp_files=tmp_files)
-        for _ in timeout(10):
-            assert proc.poll() is None, (
-                "Process terminated", proc.returncode, proc.stdout.read())
-            log = proc.stdout.readline().decode('utf-8').rstrip()
-            if log and verbose:
-                print(name, ":", log)
-            if 'The server is now ready to accept connections ' in log:
-                break
-        if slaveof is not None:
+        with open(stdout_file, 'rt') as f:
             for _ in timeout(10):
-                log = proc.stdout.readline().decode('utf-8').rstrip()
+                assert proc.poll() is None, (
+                    "Process terminated", proc.returncode)
+                log = f.readline()
                 if log and verbose:
                     print(name, ":", log)
-                if 'sync: Finished with success' in log:
+                if 'The server is now ready to accept connections ' in log:
                     break
+            if slaveof is not None:
+                for _ in timeout(10):
+                    log = f.readline()
+                    if log and verbose:
+                        print(name, ":", log)
+                    if 'sync: Finished with success' in log:
+                        break
         info = RedisServer(name, tcp_address, unixsocket, version)
         servers.setdefault(name, info)
         return info
@@ -358,7 +359,9 @@ def start_sentinel(_proc, request, unused_port, server_bin):
         data_dir = tempfile.gettempdir()
         config = os.path.join(
             data_dir, 'aioredis-sentinel.{}.conf'.format(port))
-        tmp_files = [config]
+        stdout_file = os.path.join(
+            data_dir, 'aioredis-sentinel.{}.stdout'.format(port))
+        tmp_files = [config, stdout_file]
         if sys.platform == 'win32':
             unixsocket = None
         else:
@@ -382,7 +385,8 @@ def start_sentinel(_proc, request, unused_port, server_bin):
         proc = _proc(server_bin,
                      config,
                      '--sentinel',
-                     stdout=subprocess.PIPE,
+                     stdout=open(stdout_file, 'w'),
+                     stderr=subprocess.STDOUT,
                      _clear_tmp_files=tmp_files)
         # XXX: wait sentinel see all masters and slaves;
         all_masters = {m.name for m in masters}
@@ -390,21 +394,23 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             all_slaves = {}
         else:
             all_slaves = {m.name for m in masters}
-        for _ in timeout(30):
-            assert proc.poll() is None, (
-                "Process terminated", proc.returncode, proc.stdout.read())
-            log = proc.stdout.readline().decode('utf-8').rstrip()
-            if log and verbose:
-                print(name, ":", log)
-            for m in masters:
-                if '# +monitor master {}'.format(m.name) in log:
-                    all_masters.discard(m.name)
-                if '* +slave slave' in log and '@ {}'.format(m.name) in log:
-                    all_slaves.discard(m.name)
-            if not all_masters and not all_slaves:
-                break
-        else:
-            raise RuntimeError("Could not start Sentinel")
+        with open(stdout_file, 'rt') as f:
+            for _ in timeout(30):
+                assert proc.poll() is None, (
+                    "Process terminated", proc.returncode)
+                log = f.readline()
+                if log and verbose:
+                    print(name, ":", log)
+                for m in masters:
+                    if '# +monitor master {}'.format(m.name) in log:
+                        all_masters.discard(m.name)
+                    if '* +slave slave' in log and \
+                            '@ {}'.format(m.name) in log:
+                        all_slaves.discard(m.name)
+                if not all_masters and not all_slaves:
+                    break
+            else:
+                raise RuntimeError("Could not start Sentinel")
 
         masters = {m.name: m for m in masters}
         info = SentinelServer(name, tcp_address, unixsocket, version, masters)
