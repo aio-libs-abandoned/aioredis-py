@@ -115,7 +115,7 @@ def test_script_kill(create_redis, loop, server, redis):
     assert ok is True
 
     fut = other_redis.eval(script, keys=['non-existent-key'], args=[10])
-    yield from asyncio.sleep(0, loop=loop)
+    yield from asyncio.sleep(0.1, loop=loop)
     resp = yield from redis.script_kill()
     assert resp is True
 

@@ -295,22 +295,15 @@ def test_migrate_keys(create_redis, loop, server, serverB):
 
 
 @pytest.mark.run_loop
-def test_migrate__exceptions(create_redis, loop, server, serverB):
-    redisA = yield from create_redis(server.tcp_address)
-    redisB = yield from create_redis(serverB.tcp_address, db=2)
+def test_migrate__exceptions(redis, loop, server, unused_port):
+    yield from add(redis, 'my-key', 123)
 
-    yield from add(redisA, 'my-key', 123)
+    assert (yield from redis.exists('my-key'))
 
-    yield from redisB.delete('my-key')
-    assert (yield from redisA.exists('my-key'))
-    assert not (yield from redisB.exists('my-key'))
-
-    fut1 = redisB.debug_sleep(2)
-    fut2 = redisA.migrate('localhost', serverB.tcp_address.port,
-                          'my-key', dest_db=2, timeout=10)
-    yield from fut1
     with pytest.raises_regex(ReplyError, "IOERR .* timeout .*"):
-        assert not (yield from fut2)
+        assert not (yield from redis.migrate(
+            'localhost', unused_port(),
+            'my-key', dest_db=30, timeout=10))
 
 
 @pytest.redis_version(
