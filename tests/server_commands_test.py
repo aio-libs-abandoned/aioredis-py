@@ -8,10 +8,12 @@ from aioredis import ReplyError
 
 
 @pytest.mark.run_loop
-def test_client_list(redis, server):
+def test_client_list(redis, server, request):
+    name = request.node.callspec.id
+    assert (yield from redis.client_setname(name))
     res = yield from redis.client_list()
     assert isinstance(res, list)
-    assert len(res) == 1
+    # assert len(res) == 1
     res = [dict(i._asdict()) for i in res]
     expected = {
         'addr': mock.ANY,
@@ -30,11 +32,11 @@ def test_client_list(redis, server):
         'omem': '0',
         'events': 'r',
         'cmd': 'client',
-        'name': '',
+        'name': name,
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
-    assert res == [expected]
+    assert [expected] == res
 
 
 @pytest.mark.run_loop
@@ -43,8 +45,8 @@ def test_client_list(redis, server):
 def test_client_list__unixsocket(create_redis, loop, server):
     redis = yield from create_redis(server.unixsocket, loop=loop)
     res = yield from redis.client_list()
-    assert len(res) == 1
-    info = dict(res[0]._asdict())
+    # assert len(res) == 1
+    info = [dict(i._asdict()) for i in res]
     expected = {
         'addr': '{}:0'.format(server.unixsocket),
         'fd': mock.ANY,
@@ -66,7 +68,7 @@ def test_client_list__unixsocket(create_redis, loop, server):
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
-    assert info == expected
+    assert [expected] == info
 
 
 @pytest.mark.run_loop
