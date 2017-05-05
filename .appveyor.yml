@@ -19,11 +19,11 @@ install:
 test_script:
 - "%REDIS%\\redis-server.exe --version"
 - "%PYTHON%\\python.exe -c \"import sys; print(sys.version)\""
-- "%PYTHON%\\python.exe -m pytest -svvv --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
+- "%PYTHON%\\python.exe -m pytest --cov -svv --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
 
 on_finish:
 - ps: >-
     $wc = New-Object 'System.Net.WebClient'
 
     $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path results.xml))
-- "codecov"
+- "%PYTHON%\\python.exe -m codecov"
