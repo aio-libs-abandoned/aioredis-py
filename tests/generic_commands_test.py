@@ -383,20 +383,16 @@ def test_object_encoding(redis, server):
         yield from redis.object_encoding(None)
 
 
-@pytest.mark.run_loop
+@pytest.mark.run_loop(timeout=20)
 def test_object_idletime(redis, loop, server):
     yield from add(redis, 'foo', 'bar')
 
     res = yield from redis.object_idletime('foo')
     assert res == 0
 
-    if server.version < (2, 8, 0):
-        # Redis at least 2.6.x requires more time to sleep to incr idletime
-        yield from asyncio.sleep(10, loop=loop)
-    else:
-        yield from asyncio.sleep(1, loop=loop)
-
-    res = yield from redis.object_idletime('foo')
+    while not res:
+        res = yield from redis.object_idletime('foo')
+        yield from asyncio.sleep(.5, loop=loop)
     assert res >= 1
 
     res = yield from redis.object_idletime('non-existent-key')

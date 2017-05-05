@@ -319,14 +319,14 @@ def start_server(_proc, request, unused_port, server_bin):
                     "Process terminated", proc.returncode)
                 log = f.readline()
                 if log and verbose:
-                    print(name, ":", log)
+                    print(name, ":", log, end='')
                 if 'The server is now ready to accept connections ' in log:
                     break
             if slaveof is not None:
                 for _ in timeout(10):
                     log = f.readline()
                     if log and verbose:
-                        print(name, ":", log)
+                        print(name, ":", log, end='')
                     if 'sync: Finished with success' in log:
                         break
         info = RedisServer(name, tcp_address, unixsocket, version)
@@ -400,7 +400,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
                     "Process terminated", proc.returncode)
                 log = f.readline()
                 if log and verbose:
-                    print(name, ":", log)
+                    print(name, ":", log, end='')
                 for m in masters:
                     if '# +monitor master {}'.format(m.name) in log:
                         all_masters.discard(m.name)

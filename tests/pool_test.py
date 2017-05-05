@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+import async_timeout
 
 from aioredis import (
     RedisPool,
@@ -269,8 +270,7 @@ def test_select_and_create(create_pool, loop, server):
     # called simultaneously
     # but acquire freezes on _wait_select and
     # then continues with propper db
-    @asyncio.coroutine
-    def test():
+    with async_timeout.timeout(10):
         pool = yield from create_pool(
             server.tcp_address,
             minsize=1, db=0,
@@ -285,7 +285,7 @@ def test_select_and_create(create_pool, loop, server):
             pool.release(conn)
             if conn.db == db:
                 break
-    yield from asyncio.wait_for(test(), 3, loop=loop)
+    # yield from asyncio.wait_for(test(), 3, loop=loop)
 
 
 @pytest.mark.run_loop

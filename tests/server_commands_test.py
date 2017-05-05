@@ -13,7 +13,6 @@ def test_client_list(redis, server, request):
     assert (yield from redis.client_setname(name))
     res = yield from redis.client_list()
     assert isinstance(res, list)
-    # assert len(res) == 1
     res = [dict(i._asdict()) for i in res]
     expected = {
         'addr': mock.ANY,
@@ -36,16 +35,17 @@ def test_client_list(redis, server, request):
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
-    assert [expected] == res
+    assert expected in res
 
 
 @pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
-def test_client_list__unixsocket(create_redis, loop, server):
+def test_client_list__unixsocket(create_redis, loop, server, request):
     redis = yield from create_redis(server.unixsocket, loop=loop)
+    name = request.node.callspec.id
+    assert (yield from redis.client_setname(name))
     res = yield from redis.client_list()
-    # assert len(res) == 1
     info = [dict(i._asdict()) for i in res]
     expected = {
         'addr': '{}:0'.format(server.unixsocket),
@@ -64,11 +64,11 @@ def test_client_list__unixsocket(create_redis, loop, server):
         'omem': '0',
         'events': 'r',
         'cmd': 'client',
-        'name': '',
+        'name': name,
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
-    assert [expected] == info
+    assert expected in info
 
 
 @pytest.mark.run_loop
@@ -136,10 +136,10 @@ def test_config_set(redis):
         yield from redis.config_set(100, 'databases')
 
 
-@pytest.mark.run_loop
-@pytest.mark.skip("Not implemented")
-def test_config_resetstat():
-    pass
+# @pytest.mark.run_loop
+# @pytest.mark.skip("Not implemented")
+# def test_config_resetstat():
+#     pass
 
 
 @pytest.mark.run_loop
