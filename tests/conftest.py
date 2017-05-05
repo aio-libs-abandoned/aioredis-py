@@ -224,7 +224,7 @@ VERSIONS = {}
 
 
 def format_version(srv):
-    return 'redis:v{}'.format('.'.join(map(str, VERSIONS[srv])))
+    return 'redis_v{}'.format('.'.join(map(str, VERSIONS[srv])))
 
 
 @pytest.fixture(scope='session', params=REDIS_SERVERS, ids=format_version)
