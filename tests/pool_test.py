@@ -270,7 +270,7 @@ def test_select_and_create(create_pool, loop, server):
     # called simultaneously
     # but acquire freezes on _wait_select and
     # then continues with propper db
-    with async_timeout.timeout(10):
+    with async_timeout.timeout(10, loop=loop):
         pool = yield from create_pool(
             server.tcp_address,
             minsize=1, db=0,

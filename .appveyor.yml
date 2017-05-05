@@ -19,7 +19,7 @@ install:
 test_script:
 - "%REDIS%\\redis-server.exe --version"
 - "%PYTHON%\\python.exe -c \"import sys; print(sys.version)\""
-- "%PYTHON%\\python.exe -m pytest --cov -svv --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
+- "%PYTHON%\\python.exe -m pytest -svv --cov --cov-report=xml --junit-xml=results.xml --redis-server=%REDIS%\\redis-server.exe"
 
 on_finish:
 - ps: >-
