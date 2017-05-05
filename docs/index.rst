@@ -17,7 +17,7 @@ Features
 
 ================================  ==============================
 :term:`hiredis` parser              Yes
-Pure-python parser                  TBD
+Pure-python parser                  Yes
 Low-level & High-level APIs         Yes
 Connections Pool                    Yes
 Pipelining support                  Yes
