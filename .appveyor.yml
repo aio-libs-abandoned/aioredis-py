@@ -12,7 +12,6 @@ environment:
 
 install:
 - "cinst redis-64"
-- "%PYTHON%\\python.exe -m pip install codecov"
 - "%PYTHON%\\python.exe -m pip install -r tests/requirements.txt"
 - "%PYTHON%\\python.exe -m pip install -e ."
 
@@ -24,6 +23,6 @@ test_script:
 on_finish:
 - ps: >-
     $wc = New-Object 'System.Net.WebClient'
-
     $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path results.xml))
-- "%PYTHON%\\python.exe -m codecov"
+- "%PYTHON%\\python.exe -m pip install codecov"
+- "%PYTHON%\\python.exe -m codecov -f \"coverage.xml\""
