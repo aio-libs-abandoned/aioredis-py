@@ -264,12 +264,15 @@ def test_change_db_errors(create_pool, loop, server):
     assert pool.db == 0
 
 
+@pytest.mark.xfail(reason="Need to refactor this test")
 @pytest.mark.run_loop
 def test_select_and_create(create_pool, loop, server):
     # trying to model situation when select and acquire
     # called simultaneously
     # but acquire freezes on _wait_select and
     # then continues with propper db
+
+    # TODO: refactor this test as there's no _wait_select any more.
     with async_timeout.timeout(10, loop=loop):
         pool = yield from create_pool(
             server.tcp_address,
