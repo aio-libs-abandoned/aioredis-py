@@ -36,9 +36,12 @@ Connection usage is as simple as:
 
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
-                                  encoding=None, loop=None)
+                                  encoding=None, parser=None, loop=None)
 
    Creates Redis connection.
+
+   .. versionchanged:: v1.0
+      ``parser`` argument added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -56,6 +59,10 @@ Connection usage is as simple as:
 
    :param encoding: Codec to use for response decoding.
    :type encoding: str or None
+
+   :param parser: Protocol parser class. Can be used to set custom protocol
+      reader; expected same interface as :class:`hiredis.Reader`.
+   :type parser: callable or None
 
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
@@ -219,7 +226,7 @@ The library provides connections pool. The basic usage is as follows:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
                           encoding=None, minsize=1, maxsize=10, \
-                          commands_factory=_NOTSET, loop=None)
+                          commands_factory=_NOTSET, parser=None, loop=None)
 
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
@@ -238,6 +245,9 @@ The library provides connections pool. The basic usage is as follows:
 
    .. deprecated:: v0.2.9
       *commands_factory* argument is deprecated and will be removed in *v0.3*.
+
+   .. versionchanged:: v1.0
+      ``parser`` argument added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -267,6 +277,10 @@ The library provides connections pool. The basic usage is as follows:
                             call. :class:`Redis` by default.
                             **Deprecated** since v0.2.8
    :type commands_factory: callable
+
+   :param parser: Protocol parser class. Can be used to set custom protocol
+      reader; expected same interface as :class:`hiredis.Reader`.
+   :type parser: callable or None
 
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
@@ -576,11 +590,14 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 
 .. cofunction:: create_redis(address, \*, db=0, password=None, ssl=None,\
                              encoding=None, commands_factory=Redis,\
-                             loop=None)
+                             parser=None, loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
    interface instance bound to single Redis connection
    (without auto-reconnect).
+
+   .. versionchanged:: v1.0
+      ``parser`` argument added.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
@@ -607,6 +624,10 @@ see :ref:`commands mixins reference <aioredis-commands>`.
     high-level interface to Redis. :class:`Redis` by default.
    :type commands_factory: callable
 
+   :param parser: Protocol parser class. Can be used to set custom protocol
+      reader; expected same interface as :class:`hiredis.Reader`.
+   :type parser: callable or None
+
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
@@ -618,13 +639,16 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 .. cofunction:: create_redis_pool(address, \*, db=0, password=None, ssl=None,\
                                   encoding=None, commands_factory=Redis,\
                                   minsize=1, maxsize=10,\
-                                  loop=None)
+                                  parser=None, loop=None)
 
    This :ref:`coroutine<coroutine>` create high-level Redis client instance
    bound to connections pool (this allows auto-reconnect and simple pub/sub
    use).
 
    See also :class:`~aioredis.ConnectionsPool` for parameters description.
+
+   .. versionchanged:: v1.0
+      ``parser`` argument added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -653,6 +677,10 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 
    :param int maxsize: Maximum number of connections that can be created
                        in pool. Default is 10.
+
+   :param parser: Protocol parser class. Can be used to set custom protocol
+      reader; expected same interface as :class:`hiredis.Reader`.
+   :type parser: callable or None
 
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
