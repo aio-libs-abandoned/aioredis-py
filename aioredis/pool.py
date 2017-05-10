@@ -17,7 +17,7 @@ PY_35 = sys.version_info >= (3, 5)
 @asyncio.coroutine
 def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET,
-                parser=None, loop=None):
+                parser=None, loop=None, timeout_create_connection=None):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
 
@@ -38,7 +38,9 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
 
     pool = ConnectionsPool(address, db, password, encoding,
                            minsize=minsize, maxsize=maxsize,
-                           ssl=ssl, parser=parser, loop=loop)
+                           ssl=ssl, parser=parser,
+                           timeout_create_connection=timeout_create_connection,
+                           loop=loop)
     try:
         yield from pool._fill_free(override_min=False)
     except Exception as ex:
@@ -52,7 +54,8 @@ class ConnectionsPool(AbcPool):
     """Redis connections pool."""
 
     def __init__(self, address, db=None, password=None, encoding=None,
-                 *, minsize, maxsize, ssl=None, parser=None, loop=None):
+                 *, minsize, maxsize, ssl=None, parser=None,
+                 timeout_create_connection=None, loop=None):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0", minsize, type(minsize))
         assert maxsize is not None, "Arbitrary pool size is disallowed."
@@ -69,6 +72,7 @@ class ConnectionsPool(AbcPool):
         self._encoding = encoding
         self._parser_class = parser
         self._minsize = minsize
+        self._timeout_create_connection = timeout_create_connection
         self._loop = loop
         self._pool = collections.deque(maxlen=maxsize)
         self._used = set()
@@ -392,6 +396,7 @@ class ConnectionsPool(AbcPool):
                     # connection may be closed at yield point
                     self._drop_closed()
 
+    @asyncio.coroutine
     def _create_new_connection(self, address):
         return create_connection(address,
                                  db=self._db,
@@ -399,6 +404,7 @@ class ConnectionsPool(AbcPool):
                                  ssl=self._ssl,
                                  encoding=self._encoding,
                                  parser=self._parser_class,
+                                 timeout=self._timeout_create_connection,
                                  loop=self._loop)
 
     @asyncio.coroutine

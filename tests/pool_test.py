@@ -58,6 +58,14 @@ def test_maxsize(maxsize, create_pool, loop, server):
             minsize=2, maxsize=maxsize, loop=loop)
 
 
+@pytest.mark.run_loop
+def test_create_connection_timeout(create_pool, loop, server):
+    with pytest.raises(asyncio.TimeoutError):
+        yield from create_pool(
+            server.tcp_address, loop=loop,
+            timeout_create_connection=0)
+
+
 def test_no_yield_from(pool):
     with pytest.raises(RuntimeError):
         with pool:
