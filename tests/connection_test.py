@@ -33,6 +33,13 @@ def test_connect_tcp(request, create_connection, loop, server):
 
 
 @pytest.mark.run_loop
+def test_connect_tcp_timeout(request, create_connection, loop, server):
+    with pytest.raises(asyncio.TimeoutError):
+        yield from create_connection(
+            server.tcp_address, loop=loop, timeout=0)
+
+
+@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 def test_connect_unixsocket(create_connection, loop, server):
@@ -41,6 +48,15 @@ def test_connect_unixsocket(create_connection, loop, server):
     assert conn.db == 0
     assert conn.address == server.unixsocket
     assert str(conn) == '<RedisConnection [db:0]>'
+
+
+@pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
+def test_connect_unixsocket_timeout(create_connection, loop, server):
+    with pytest.raises(asyncio.TimeoutError):
+        yield from create_connection(
+            server.unixsocket, db=0, loop=loop, timeout=0)
 
 
 def test_global_loop(create_connection, loop, server):

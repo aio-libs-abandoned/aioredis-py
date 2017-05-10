@@ -14,7 +14,9 @@ PY_35 = sys.version_info >= (3, 5)
 
 @asyncio.coroutine
 def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
-                minsize=1, maxsize=10, commands_factory=_NOTSET, loop=None):
+                minsize=1, maxsize=10, commands_factory=_NOTSET,
+                loop=None, timeout_create_connection=None):
+    # FIXME: rewrite docstring
     """Creates Redis Pool.
 
     By default it creates pool of Redis instances, but it is
@@ -37,6 +39,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
     pool = RedisPool(address, db, password, encoding,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
+                     timeout_create_connection=timeout_create_connection,
                      ssl=ssl, loop=loop)
     try:
         yield from pool._fill_free(override_min=False)
@@ -53,7 +56,8 @@ class RedisPool:
     """
 
     def __init__(self, address, db=0, password=None, encoding=None,
-                 *, minsize, maxsize, commands_factory, ssl=None, loop=None):
+                 *, minsize, maxsize, commands_factory, ssl=None,
+                 timeout_create_connection=None, loop=None):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0", minsize, type(minsize))
         assert maxsize is not None, "Arbitrary pool size is disallowed."
@@ -70,6 +74,7 @@ class RedisPool:
         self._encoding = encoding
         self._minsize = minsize
         self._factory = commands_factory
+        self._timeout_create_connection = timeout_create_connection
         self._loop = loop
         self._pool = collections.deque(maxlen=maxsize)
         self._used = set()
@@ -251,6 +256,7 @@ class RedisPool:
                     # connection may be closed at yield point
                     self._drop_closed()
 
+    @asyncio.coroutine
     def _create_new_connection(self):
         return create_redis(self._address,
                             db=self._db,
