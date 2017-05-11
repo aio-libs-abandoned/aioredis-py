@@ -67,7 +67,7 @@ Connection usage is as simple as:
    :param timeout: Max time used to open a connection, otherwise
                    raise `asyncio.TimeoutError` exception.
                    ``None`` by default
-   :type timeout: float or None
+   :type timeout: float greater than 0 or None
 
    :return: :class:`RedisConnection` instance.
 
@@ -247,7 +247,7 @@ The library provides connections pool. The basic usage is as follows:
       *commands_factory* argument is deprecated and will be removed in *v0.3*.
 
    .. versionchanged:: v0.3.1
-      ``timeout_create_connection`` argument added.
+      ``create_connection_timeout`` argument added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -282,10 +282,10 @@ The library provides connections pool. The basic usage is as follows:
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   :param timeout_create_connection: Max time used to open a connection,
+   :param create_connection_timeout: Max time used to open a connection,
                                      otherwise raise an `asyncio.TimeoutError`.
                                      ``None`` by default.
-   :type timeout_create_connection: float or None
+   :type create_connection_timeout: float greater than 0 or None
 
    :return: :class:`RedisPool` instance.
 

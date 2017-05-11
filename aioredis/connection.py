@@ -67,9 +67,13 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
 
+    if timeout is not None and timeout <= 0:
+        raise ValueError("Timeout has to be None or a number greater than 0")
+
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
+        print(asyncio.open_connection)
         reader, writer = yield from asyncio.wait_for(asyncio.open_connection(
             host, port, ssl=ssl, loop=loop), timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')

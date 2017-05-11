@@ -15,7 +15,7 @@ PY_35 = sys.version_info >= (3, 5)
 @asyncio.coroutine
 def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET,
-                loop=None, timeout_create_connection=None):
+                loop=None, create_connection_timeout=None):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
 
@@ -39,7 +39,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
     pool = RedisPool(address, db, password, encoding,
                      minsize=minsize, maxsize=maxsize,
                      commands_factory=commands_factory,
-                     timeout_create_connection=timeout_create_connection,
+                     create_connection_timeout=create_connection_timeout,
                      ssl=ssl, loop=loop)
     try:
         yield from pool._fill_free(override_min=False)
@@ -57,7 +57,7 @@ class RedisPool:
 
     def __init__(self, address, db=0, password=None, encoding=None,
                  *, minsize, maxsize, commands_factory, ssl=None,
-                 timeout_create_connection=None, loop=None):
+                 create_connection_timeout=None, loop=None):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0", minsize, type(minsize))
         assert maxsize is not None, "Arbitrary pool size is disallowed."
@@ -74,7 +74,7 @@ class RedisPool:
         self._encoding = encoding
         self._minsize = minsize
         self._factory = commands_factory
-        self._timeout_create_connection = timeout_create_connection
+        self._create_connection_timeout = create_connection_timeout
         self._loop = loop
         self._pool = collections.deque(maxlen=maxsize)
         self._used = set()

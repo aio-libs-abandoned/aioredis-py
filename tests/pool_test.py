@@ -1,6 +1,8 @@
 import asyncio
 import pytest
 
+from unittest.mock import patch
+
 from aioredis import (
     RedisPool,
     ReplyError,
@@ -59,10 +61,14 @@ def test_maxsize(maxsize, create_pool, loop, server):
 
 @pytest.mark.run_loop
 def test_create_connection_timeout(create_pool, loop, server):
-    with pytest.raises(asyncio.TimeoutError):
-        yield from create_pool(
-            server.tcp_address, loop=loop,
-            timeout_create_connection=0)
+    with patch('asyncio.open_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            yield from create_pool(
+                server.tcp_address, loop=loop,
+                create_connection_timeout=0.1)
 
 
 def test_no_yield_from(pool):
