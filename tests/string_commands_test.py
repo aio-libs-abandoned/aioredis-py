@@ -459,8 +459,10 @@ def test_msetnx(redis):
 def test_psetex(redis, loop):
     key, value = b'key:psetex:1', b'Hello'
     # test expiration in milliseconds
-    fut1 = redis.psetex(key, 10, value)
-    fut2 = redis.get(key)
+    tr = redis.multi_exec()
+    fut1 = tr.psetex(key, 10, value)
+    fut2 = tr.get(key)
+    yield from tr.execute()
     yield from fut1
     test_value = yield from fut2
     assert test_value == value
@@ -488,8 +490,10 @@ def test_set(redis):
 def test_set_expire(redis, loop):
     key, value = b'key:set:expire', b'foo'
     # test expiration in milliseconds
-    fut1 = redis.set(key, value, pexpire=10)
-    fut2 = redis.get(key)
+    tr = redis.multi_exec()
+    fut1 = tr.set(key, value, pexpire=10)
+    fut2 = tr.get(key)
+    yield from tr.execute()
     yield from fut1
     result_1 = yield from fut2
     assert result_1 == value
@@ -498,8 +502,10 @@ def test_set_expire(redis, loop):
     assert result_2 is None
 
     # same thing but timeout in seconds
-    fut1 = redis.set(key, value, expire=1)
-    fut2 = redis.get(key)
+    tr = redis.multi_exec()
+    fut1 = tr.set(key, value, expire=1)
+    fut2 = tr.get(key)
+    yield from tr.execute()
     yield from fut1
     result_3 = yield from fut2
     assert result_3 == value
@@ -573,8 +579,10 @@ def test_setbit(redis):
 @pytest.mark.run_loop
 def test_setex(redis, loop):
     key, value = b'key:setex:1', b'Hello'
-    fut1 = redis.setex(key, 1, value)
-    fut2 = redis.get(key)
+    tr = redis.multi_exec()
+    fut1 = tr.setex(key, 1, value)
+    fut2 = tr.get(key)
+    yield from tr.execute()
     yield from fut1
     test_value = yield from fut2
     assert test_value == value
@@ -582,8 +590,10 @@ def test_setex(redis, loop):
     test_value = yield from redis.get(key)
     assert test_value is None
 
-    fut1 = redis.setex(key, 0.1, value)
-    fut2 = redis.get(key)
+    tr = redis.multi_exec()
+    fut1 = tr.setex(key, 0.1, value)
+    fut2 = tr.get(key)
+    yield from tr.execute()
     yield from fut1
     test_value = yield from fut2
     assert test_value == value

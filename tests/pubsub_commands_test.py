@@ -178,11 +178,7 @@ def test_close_pubsub_channels(redis, loop):
 
     @asyncio.coroutine
     def waiter(ch):
-        msg = _empty = object()
-        while (yield from ch.wait_message()):
-            msg = yield from ch.get()
-        # assert no ``ch.get()`` call
-        assert msg is _empty
+        assert not (yield from ch.wait_message())
 
     tsk = asyncio.async(waiter(ch), loop=loop)
     redis.close()
@@ -196,11 +192,7 @@ def test_close_pubsub_patterns(redis, loop):
 
     @asyncio.coroutine
     def waiter(ch):
-        msg = _empty = object()
-        while (yield from ch.wait_message()):
-            msg = yield from ch.get()
-        # assert no ``ch.get()`` call
-        assert msg is _empty
+        assert not (yield from ch.wait_message())
 
     tsk = asyncio.async(waiter(ch), loop=loop)
     redis.close()
@@ -215,8 +207,7 @@ def test_close_cancelled_pubsub_channel(redis, loop):
     @asyncio.coroutine
     def waiter(ch):
         with pytest.raises(asyncio.CancelledError):
-            while (yield from ch.wait_message()):
-                yield from ch.get()
+            yield from ch.wait_message()
 
     tsk = asyncio.async(waiter(ch), loop=loop)
     yield from asyncio.sleep(0, loop=loop)
