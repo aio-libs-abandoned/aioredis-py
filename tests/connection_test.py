@@ -3,8 +3,9 @@ import asyncio
 import sys
 from unittest import mock
 
-from aioredis.util import async_task
+from unittest.mock import patch
 
+from aioredis.util import async_task
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -34,6 +35,24 @@ def test_connect_tcp(request, create_connection, loop, server):
 
 
 @pytest.mark.run_loop
+def test_connect_tcp_timeout(request, create_connection, loop, server):
+    with patch('aioredis.connection.asyncio.open_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            yield from create_connection(
+                server.tcp_address, loop=loop, timeout=0.1)
+
+
+@pytest.mark.run_loop
+def test_connect_tcp_invalid_timeout(request, create_connection, loop, server):
+    with pytest.raises(ValueError):
+        yield from create_connection(
+            server.tcp_address, loop=loop, timeout=0)
+
+
+@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 def test_connect_unixsocket(create_connection, loop, server):
@@ -42,6 +61,19 @@ def test_connect_unixsocket(create_connection, loop, server):
     assert conn.db == 0
     assert conn.address == server.unixsocket
     assert str(conn) == '<RedisConnection [db:0]>'
+
+
+@pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
+def test_connect_unixsocket_timeout(create_connection, loop, server):
+    with patch('aioredis.connection.asyncio.open_unix_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            yield from create_connection(
+                server.unixsocket, db=0, loop=loop, timeout=0.1)
 
 
 def test_global_loop(create_connection, loop, server):

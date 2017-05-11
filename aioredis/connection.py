@@ -43,7 +43,7 @@ _PUBSUB_COMMANDS = (
 
 @asyncio.coroutine
 def create_connection(address, *, db=None, password=None, ssl=None,
-                      encoding=None, parser=None, loop=None):
+                      encoding=None, parser=None, loop=None, timeout=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -54,6 +54,10 @@ def create_connection(address, *, db=None, password=None, ssl=None,
 
     SSL argument is passed through to asyncio.create_connection.
     By default SSL/TLS is not used.
+
+    By default any timeout is applied at the connection stage, however
+    you can set a limitted time used trying to open a connection via
+    the `timeout` Kw.
 
     Encoding argument can be used to decode byte-replies to strings.
     By default no decoding is done.
@@ -68,11 +72,14 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
 
+    if timeout is not None and timeout <= 0:
+        raise ValueError("Timeout has to be None or a number greater than 0")
+
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
-        reader, writer = yield from asyncio.open_connection(
-            host, port, ssl=ssl, loop=loop)
+        reader, writer = yield from asyncio.wait_for(asyncio.open_connection(
+            host, port, ssl=ssl, loop=loop), timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -80,8 +87,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
-        reader, writer = yield from asyncio.open_unix_connection(
-            address, ssl=ssl, loop=loop)
+        reader, writer = yield from asyncio.wait_for(
+            asyncio.open_unix_connection(address, ssl=ssl, loop=loop),
+            timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             address = sock.getpeername()
