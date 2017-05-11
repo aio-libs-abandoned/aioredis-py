@@ -96,7 +96,7 @@ class Parser:
         self._err = self.protocolError(msg)
         return self._err
 
-    def parse(self):
+    def parse(self, is_bulk=False):
         if self._err is not None:
             raise self._err
         ctl = yield from self.readone()
@@ -104,8 +104,6 @@ class Parser:
             val = yield from self.readline()
             if self.encoding is not None:
                 try:
-                    # FIXME: decoding is done when whole
-                    #       (multi-bulk) value is read
                     return val.decode(self.encoding)
                 except UnicodeDecodeError:
                     pass
@@ -122,8 +120,6 @@ class Parser:
             val = yield from self.readline(val)
             if self.encoding:
                 try:
-                    # FIXME: decoding is done when whole
-                    #       (multi-bulk) value is read
                     return val.decode(self.encoding)
                 except UnicodeDecodeError:
                     pass
@@ -132,10 +128,17 @@ class Parser:
             val = yield from self.readint()
             if val == -1:
                 return None
-            arr = []
+            bulk_array = []
+            error = None
             for _ in range(val):
-                arr.append((yield from self.parse()))
-            return arr
+                try:
+                    bulk_array.append((yield from self.parse(is_bulk=True)))
+                except LookupError as err:
+                    if error is None:
+                        error = err
+            if error is not None:
+                raise error
+            return bulk_array
         else:
             raise self.error("Invalid first byte: {!r}".format(ctl))
 
