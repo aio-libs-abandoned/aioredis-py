@@ -2,8 +2,9 @@ import pytest
 import asyncio
 import sys
 
-from aioredis.util import async_task
+from unittest.mock import patch
 
+from aioredis.util import async_task
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -34,7 +35,18 @@ def test_connect_tcp(request, create_connection, loop, server):
 
 @pytest.mark.run_loop
 def test_connect_tcp_timeout(request, create_connection, loop, server):
-    with pytest.raises(asyncio.TimeoutError):
+    with patch('aioredis.connection.asyncio.open_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            yield from create_connection(
+                server.tcp_address, loop=loop, timeout=0.1)
+
+
+@pytest.mark.run_loop
+def test_connect_tcp_invalid_timeout(request, create_connection, loop, server):
+    with pytest.raises(ValueError):
         yield from create_connection(
             server.tcp_address, loop=loop, timeout=0)
 
@@ -54,9 +66,13 @@ def test_connect_unixsocket(create_connection, loop, server):
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 def test_connect_unixsocket_timeout(create_connection, loop, server):
-    with pytest.raises(asyncio.TimeoutError):
-        yield from create_connection(
-            server.unixsocket, db=0, loop=loop, timeout=0)
+    with patch('aioredis.connection.asyncio.open_unix_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            yield from create_connection(
+                server.unixsocket, db=0, loop=loop, timeout=0.1)
 
 
 def test_global_loop(create_connection, loop, server):
