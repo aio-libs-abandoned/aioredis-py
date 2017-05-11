@@ -4,7 +4,7 @@ import sys
 import types
 
 from .abc import AbcChannel
-from .util import create_future, _converters, correct_aiter
+from .util import create_future, _converters, correct_aiter, _set_result
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -140,11 +140,7 @@ class Channel(AbcChannel):
         self._queue.put_nowait(data)
         if self._waiter is not None:
             fut, self._waiter = self._waiter, None
-            if fut.done():
-                assert fut.cancelled(), (
-                    "Waiting future is in wrong state", self, fut)
-                return
-            fut.set_result(None)
+            _set_result(fut, None, self)
 
     def close(self):
         """Marks channel as inactive.
@@ -362,11 +358,7 @@ class Receiver:
         self._queue.put_nowait(data)
         if self._waiter is not None:
             fut, self._waiter = self._waiter, None
-            if fut.done():
-                assert fut.cancelled(), (
-                    "Waiting future is in wrong state", self, fut)
-                return
-            fut.set_result(None)
+            _set_result(fut, None, self)
 
     def _close(self, sender):
         self._refs.pop((sender.name, sender.is_pattern))

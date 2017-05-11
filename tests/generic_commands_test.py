@@ -551,10 +551,16 @@ def test_renamenx(redis, server):
             yield from redis.renamenx('foo', b'foo')
 
 
-# @pytest.mark.run_loop
-@pytest.mark.skip
-def test_restore():
-    pass
+@pytest.mark.run_loop
+def test_restore(redis):
+    ok = yield from redis.set('key', 'value')
+    assert ok
+    dump = yield from redis.dump('key')
+    assert dump is not None
+    ok = yield from redis.delete('key')
+    assert ok
+    assert b'OK' == (yield from redis.restore('key', 0, dump))
+    assert (yield from redis.get('key')) == b'value'
 
 
 @pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')

@@ -18,7 +18,7 @@ def test_client_list(redis, server, request):
         'addr': mock.ANY,
         'fd': mock.ANY,
         'age': mock.ANY,
-        'idle': '0',
+        'idle': mock.ANY,
         'flags': 'N',
         'db': '0',
         'sub': '0',
@@ -50,8 +50,8 @@ def test_client_list__unixsocket(create_redis, loop, server, request):
     expected = {
         'addr': '{}:0'.format(server.unixsocket),
         'fd': mock.ANY,
-        'age': '0',
-        'idle': '0',
+        'age': mock.ANY,
+        'idle': mock.ANY,
         'flags': 'U',   # Conneted via unix socket
         'db': '0',
         'sub': '0',

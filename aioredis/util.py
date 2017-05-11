@@ -140,11 +140,11 @@ if PY_35:
                 return ret
 
 
-def _set_result(fut, result):
+def _set_result(fut, result, *info):
     if fut.done():
-        logger.debug("Waiter future is already done %r", fut)
+        logger.debug("Waiter future is already done %r %r", fut, info)
         assert fut.cancelled(), (
-            "waiting future is in wrong state", fut, result)
+            "waiting future is in wrong state", fut, result, info)
     else:
         fut.set_result(result)
 

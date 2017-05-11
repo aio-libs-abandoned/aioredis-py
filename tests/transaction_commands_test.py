@@ -70,8 +70,7 @@ def test_connection_closed(redis):
     assert fut3.done() is True
 
     try:
-        res = yield from fut1
-        assert res == b'OK'
+        assert (yield from fut1) == b'OK'
     except asyncio.CancelledError:
         pass
     assert fut2.cancelled() is False

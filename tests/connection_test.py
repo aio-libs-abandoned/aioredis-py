@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import sys
+from unittest import mock
 
 from aioredis.util import async_task
 
@@ -448,3 +449,27 @@ def test_multi_exec__enc(create_connection, loop, server):
     assert queued == 'QUEUED'
     res = yield from conn.execute("DISCARD")
     assert res == 'OK'
+
+
+@pytest.mark.run_loop
+def test_connection_parser_argument(create_connection, server, loop):
+    klass = mock.MagicMock()
+    klass.return_value = reader = mock.Mock()
+    conn = yield from create_connection(server.tcp_address,
+                                        parser=klass, loop=loop)
+
+    def ret_once(*args, _called=[False]):
+        if not _called[0]:
+            _called[0] = True
+            return b'xxx'
+        return False
+
+    reader.gets.side_effect = ret_once
+    assert b'xxx' == (yield from conn.execute('ping'))
+
+    assert klass.mock_calls == [
+        mock.call(protocolError=ProtocolError, replyError=ReplyError),
+        mock.call().feed(b'+PONG\r\n'),
+        mock.call().gets(),
+        mock.call().gets(),
+    ]

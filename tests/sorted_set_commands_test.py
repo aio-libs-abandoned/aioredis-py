@@ -639,8 +639,6 @@ def test_zrevrangebylex(redis):
 @pytest.mark.run_loop
 def test_zscan(redis):
     key = b'key:zscan'
-    for k in (yield from redis.keys(key + b'*')):
-        redis.delete(k)
     scores, members = [], []
 
     for i in range(1, 11):
