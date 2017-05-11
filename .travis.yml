@@ -47,6 +47,7 @@ install:
       source $HOME/virtualenvs/pypy3/bin/activate
       python --version
     fi
+- pip install codecov
 - pip install -r tests/requirements.txt
 - pip install -r docs/requirements.txt
 - pip install -e .
