@@ -143,6 +143,7 @@ class Pipeline:
             return wrapper
         return attr
 
+    @asyncio.coroutine
     def execute(self, *, return_exceptions=False):
         """Execute all buffered commands.
 
@@ -156,22 +157,22 @@ class Pipeline:
         self._done = True
 
         if self._pipeline:
-            return self._do_execute(return_exceptions=return_exceptions)
+            if isinstance(self._pool_or_conn, AbcPool):
+                with (yield from self._pool_or_conn) as conn:
+                    return (yield from self._do_execute(
+                        conn, return_exceptions=return_exceptions))
+            else:
+                return (yield from self._do_execute(
+                    self._pool_or_conn,
+                    return_exceptions=return_exceptions))
         else:
-            return self._gather_result(return_exceptions)
+            return (yield from self._gather_result(return_exceptions))
 
     @asyncio.coroutine
-    def _do_execute(self, *, return_exceptions=False):
-        if isinstance(self._pool_or_conn, AbcPool):
-            with (yield from self._pool_or_conn) as conn:
-                yield from asyncio.gather(*self._send_pipeline(conn),
-                                          loop=self._loop,
-                                          return_exceptions=True)
-        else:
-            conn = self._pool_or_conn
-            yield from asyncio.gather(*self._send_pipeline(conn),
-                                      loop=self._loop,
-                                      return_exceptions=True)
+    def _do_execute(self, conn, *, return_exceptions=False):
+        yield from asyncio.gather(*self._send_pipeline(conn),
+                                  loop=self._loop,
+                                  return_exceptions=True)
         return (yield from self._gather_result(return_exceptions))
 
     @asyncio.coroutine
@@ -247,13 +248,8 @@ class MultiExec(Pipeline):
     error_class = MultiExecError
 
     @asyncio.coroutine
-    def _do_execute(self, *, return_exceptions=False):
+    def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
-        is_pool = isinstance(self._pool_or_conn, AbcPool)
-        if is_pool:
-            conn = yield from self._pool_or_conn.acquire()
-        else:
-            conn = self._pool_or_conn
         multi = conn.execute('MULTI')
         coros = list(self._send_pipeline(conn))
         exec_ = conn.execute('EXEC')
@@ -264,8 +260,6 @@ class MultiExec(Pipeline):
         except asyncio.CancelledError:
             yield from gather
         finally:
-            if is_pool:
-                self._pool_or_conn.release(conn)
             if conn.closed:
                 for fut in waiters:
                     fut.cancel()
