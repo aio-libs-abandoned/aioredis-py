@@ -38,7 +38,7 @@ test:
 	$(PYTEST)
 
 cov coverage:
-	$(PYTEST) --cov
+	$(PYTEST) --cov=aioredis
 
 dist: clean man-doc
 	$(PYTHON) setup.py sdist bdist_wheel
