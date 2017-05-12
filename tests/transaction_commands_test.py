@@ -238,3 +238,24 @@ def test_transaction__watch_error(redis, create_redis, server, loop):
         yield from fut1
     with pytest.raises(WatchVariableError):
         yield from fut2
+
+
+@pytest.mark.run_loop
+def test_multi_exec_and_pool_release(redis):
+    # Test the case when pool connection is released before
+    # `exec` result is received.
+
+    slow_script = """
+    local a = tonumber(redis.call('time')[1])
+    local b = a + 1
+    while (a < b)
+    do
+        a = tonumber(redis.call('time')[1])
+    end
+    """
+
+    tr = redis.multi_exec()
+    fut1 = tr.eval(slow_script)
+    ret, = yield from tr.execute()
+    assert ret is None
+    assert (yield from fut1) is None
