@@ -13,28 +13,28 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0-rc2" INSTALL_DIR=$HOME/redis
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0-rc2" INSTALL_DIR=$HOME/redis PYPY_RELEASE="pypy3-v5.7.1-linux64"
+
+python:
+- "3.3"
+- "3.4"
+- "3.5"
+- "3.6"
+- "pypy-5.3.1"
 
 matrix:
   include:
-  - python: "3.3"
-    env: TASKS="ci-test flake examples"
-  - python: "3.4"
-    env: TASKS="ci-test flake examples"
-  - python: "3.5"
-    env: TASKS="ci-test flake examples"
   - python: "3.6"
-    env: TASKS="ci-test flake examples spelling"
+    env: DOCS_SPELL_CHECK="y"
+    install:
+    - pip install -r docs/requirements.txt
+    - pip install -e. -c tests/requirements.txt
+    script:
+    - make spelling
   - python: "3.6"
-    env: TASKS="ci-test flake examples" UVLOOP="y"
-  - python: "pypy-5.3.1"
-    env: PYPY_RELEASE="pypy3-v5.7.1-linux64" TASKS="ci-test examples"
+    env: UVLOOP="y"
   allow_failures:
-  - env: TASKS="ci-test flake examples" UVLOOP="y"
-
-cache: pip
-before_cache:
-  - rm -f $HOME/.cache/pip/log/debug.log
+  - env: UVLOOP="y"
 
 install:
 - make -j ci-build-redis
@@ -46,19 +46,26 @@ install:
       $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
       source $HOME/virtualenvs/pypy3/bin/activate
       python --version
+      pip --version
     fi
-- pip install codecov
-- pip install -r tests/requirements.txt
-- pip install -r docs/requirements.txt
-- pip install -e .
 - |
     if [ "$UVLOOP" = "y" ]; then
       export TEST_ARGS="$TEST_ARGS --uvloop"
       pip install uvloop
     fi;
+- pip install codecov
+- pip install -r tests/requirements.txt
+- pip install -e .
 
 script:
-- make $TASKS
+- make flake
+- make ci-test
+- make examples
+
+cache: pip
+before_cache:
+  - rm -rf $HOME/.cache/pip/http  # drop tar.gz cache; keep only wheels
+  - rm -f $HOME/.cache/pip/log/debug.log
 
 after_script:
 - codecov

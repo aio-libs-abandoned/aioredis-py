@@ -37,7 +37,7 @@ def pubsub():
     pub = yield from aioredis.create_redis(
         ('localhost', 6379))
     while True:
-        channels = yield from pub.pubsub_channels()
+        channels = yield from pub.pubsub_channels('channel:*')
         if len(channels) == 2:
             break
 

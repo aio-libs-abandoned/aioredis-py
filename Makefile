@@ -1,6 +1,7 @@
 PYTHON ?= python3
 FLAKE ?= flake8
 PYTEST ?= py.test
+
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0-rc2
 
@@ -11,6 +12,18 @@ TEST_ARGS ?= "-n 4"
 
 REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
 
+# Python version and implementation
+PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
+PYTHON_35 = $(shell $(PYTHON) -c "import sys; print(sys.version_info >= (3, 5))")
+
+ifeq ($(PYTHON_35), True)
+FLAKE_ARGS = aioredis tests examples
+EXAMPLES = $(shell find examples -name "*.py")
+else
+FLAKE_ARGS = --exclude=py35_* aioredis tests examples/py34
+EXAMPLES = $(shell find examples/py34 -name "*.py")
+endif
+
 .PHONY: all flake doc man-doc spelling test cov dist devel clean
 all: aioredis.egg-info flake doc cov
 
@@ -19,20 +32,16 @@ doc: spelling
 man-doc: spelling
 	make -C docs man
 spelling:
-	$(call travis_start,spellchek)
 	@echo "Running spelling check"
 	make -C docs spelling
-	$(call travis_end,spellchek)
 
+ifeq ($(PYTHON_IMPL), cpython)
 flake:
-	$(call travis_start,flake)
-	@echo "Running flake8"
-	if $(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 5))"; then \
-		$(FLAKE) aioredis tests examples; \
-	else \
-		$(FLAKE) --exclude=py35_* aioredis tests examples/py34; \
-	fi;
-	$(call travis_end,flake)
+	$(FLAKE) $(FLAKE_ARGS)
+else
+flake:
+	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."
+endif
 
 test:
 	$(PYTEST)
@@ -61,12 +70,6 @@ aioredis.egg-info:
 	pip install -Ue .
 
 
-ifeq ($(shell python -c "import sys; print(sys.version_info < (3,5))"), "True")
-EXAMPLES = $(shell find examples -name "*.py")
-else
-EXAMPLES = $(shell find examples/py34 -name "*.py")
-endif
-
 ifdef TRAVIS
 examples: .start-redis $(EXAMPLES)
 else
@@ -74,19 +77,15 @@ examples: $(EXAMPLES)
 endif
 
 $(EXAMPLES):
-	$(call travis_start,$@)
 	@export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
-	@echo "Running example '$@'"
-	python $@
-	$(call travis_end,$@)
+	$(PYTHON) $@
 
 .start-redis: $(lastword $(REDIS_TARGETS))
-	$< --daemonize yes \
-		--pidfile ./aioredis-server.pid \
-		--unixsocket /tmp/aioredis.sock \
-		--port 6379 \
-		--save ""
-	sleep 3s
+	$< ./examples/redis.conf
+	$< ./examples/redis-sentinel.conf --sentinel
+	sleep 5s
+	echo "QUIT" | nc localhost 6379
+	echo "QUIT" | nc localhost 26379
 
 .PHONY: $(EXAMPLES)
 
@@ -95,11 +94,9 @@ certificate:
 	make -C tests/ssl
 
 ci-test: $(REDIS_TARGETS)
-	$(call travis_start,tests)
-	@echo "Tests run"
+	@$(call echo, "Tests run")
 	py.test -rsxX --cov \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
-	$(call travis_end,tests)
 
 ci-build-redis: $(REDIS_TARGETS)
 
@@ -109,16 +106,3 @@ $(INSTALL_DIR)/%/redis-server:
 	make -j -C /tmp/redis-$* \
 		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
 	@echo "Done building redis-$*"
-
-
-# ifdef TRAVIS
-#
-# define travis_start
-# 	@echo "travis_fold:start:$1"
-# endef
-#
-# define travis_end
-# 	@echo "travis_fold:end:$1"
-# endef
-#
-# endif

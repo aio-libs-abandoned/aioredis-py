@@ -14,6 +14,7 @@ async def main():
         assert result == await asyncio.gather(future1, future2)
         return result
 
+    await transaction()
     redis.close()
     await redis.wait_closed()
 

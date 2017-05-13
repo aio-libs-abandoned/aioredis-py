@@ -34,7 +34,7 @@ async def pubsub():
     pub = await aioredis.create_redis(
         ('localhost', 6379))
     while True:
-        channels = await pub.pubsub_channels()
+        channels = await pub.pubsub_channels('channel:*')
         if len(channels) == 2:
             break
 
