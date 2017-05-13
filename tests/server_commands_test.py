@@ -141,6 +141,25 @@ def test_config_set(redis):
 # def test_config_resetstat():
 #     pass
 
+@pytest.mark.run_loop
+def test_debug_object(redis):
+    with pytest.raises(ReplyError):
+        assert (yield from redis.debug_object('key')) is None
+
+    ok = yield from redis.set('key', 'value')
+    assert ok
+    res = yield from redis.debug_object('key')
+    assert res is not None
+
+
+@pytest.mark.run_loop
+def test_debug_sleep(redis):
+    t1 = yield from redis.time()
+    ok = yield from redis.debug_sleep(2)
+    assert ok
+    t2 = yield from redis.time()
+    assert t2 - t1 >= 2
+
 
 @pytest.mark.run_loop
 def test_dbsize(redis):
@@ -173,6 +192,12 @@ def test_info(redis):
 
 
 @pytest.mark.run_loop
+def test_lastsave(redis):
+    res = yield from redis.lastsave()
+    assert res > 0
+
+
+@pytest.mark.run_loop
 @pytest.redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
 def test_role(redis):
     res = yield from redis.role()
@@ -184,7 +209,46 @@ def test_role(redis):
 
 
 @pytest.mark.run_loop
+def test_save(redis):
+    res = yield from redis.dbsize()
+    assert res == 0
+    t1 = int((yield from redis.time()))
+    ok = yield from redis.save()
+    assert ok
+    t2 = yield from redis.lastsave()
+    assert t2 >= t1
+
+
+@pytest.mark.run_loop
 def test_time(redis):
     res = yield from redis.time()
     assert isinstance(res, float)
     pytest.assert_almost_equal(int(res), int(time.time()), delta=10)
+
+
+@pytest.mark.run_loop
+def test_slowlog_len(redis):
+    res = yield from redis.slowlog_len()
+    assert res >= 0
+
+
+@pytest.mark.run_loop
+def test_slowlog_get(redis):
+    res = yield from redis.slowlog_get()
+    assert isinstance(res, list)
+    assert len(res) >= 0
+
+    res = yield from redis.slowlog_get(2)
+    assert isinstance(res, list)
+    assert 0 <= len(res) <= 2
+
+    with pytest.raises(TypeError):
+        assert not (yield from redis.slowlog_get(1.2))
+    with pytest.raises(TypeError):
+        assert not (yield from redis.slowlog_get('1'))
+
+
+@pytest.mark.run_loop
+def test_slowlog_reset(redis):
+    ok = yield from redis.slowlog_reset()
+    assert ok is True

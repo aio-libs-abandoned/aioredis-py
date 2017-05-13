@@ -94,7 +94,7 @@ class ServerCommandsMixin:
         return self.execute(b'DBSIZE')
 
     def debug_sleep(self, timeout):
-        """Get debugging information about a key."""
+        """Suspend connection for timeout seconds."""
         fut = self.execute(b'DEBUG', b'SLEEP', timeout)
         return wait_ok(fut)
 
@@ -104,7 +104,8 @@ class ServerCommandsMixin:
 
     def debug_segfault(self, key):
         """Make the server crash."""
-        return self.execute(b'DEBUG', 'SEGFAULT')
+        # won't test, this probably works
+        return self.execute(b'DEBUG', 'SEGFAULT')  # pragma: no cover
 
     def flushall(self):
         """Remove all keys from all databases."""
@@ -195,13 +196,14 @@ class ServerCommandsMixin:
         else:
             return self.execute(b'SLOWLOG', b'GET')
 
-    def slowlog_len(self, length=None):
+    def slowlog_len(self):
         """Returns length of Redis slow queries log."""
         return self.execute(b'SLOWLOG', b'LEN')
 
     def slowlog_reset(self):
         """Resets Redis slow queries log."""
-        return self.execute(b'SLOWLOG', b'RESET')
+        fut = self.execute(b'SLOWLOG', b'RESET')
+        return wait_ok(fut)
 
     def sync(self):
         """Redis-server internal command used for replication."""
