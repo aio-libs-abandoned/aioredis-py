@@ -100,6 +100,53 @@ def test_client_getname(redis):
     assert res == 'TestClient'
 
 
+@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@pytest.mark.run_loop
+def test_command(redis):
+    res = yield from redis.command()
+    assert isinstance(res, list)
+    assert len(res) > 0
+
+
+@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@pytest.mark.run_loop
+def test_command_count(redis):
+    res = yield from redis.command_count()
+    assert res > 0
+
+
+@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@pytest.mark.run_loop
+def test_command_getkeys(redis):
+    res = yield from redis.command_getkeys('get', 'key')
+    assert res == ['key']
+    res = yield from redis.command_getkeys('get', 'key', encoding=None)
+    assert res == [b'key']
+    res = yield from redis.command_getkeys('mset', 'k1', 'v1', 'k2', 'v2')
+    assert res == ['k1', 'k2']
+    res = yield from redis.command_getkeys('mset', 'k1', 'v1', 'k2')
+    assert res == ['k1', 'k2']
+
+    with pytest.raises(ReplyError):
+        assert (yield from redis.command_getkeys('get'))
+    with pytest.raises(TypeError):
+        assert not (yield from redis.command_getkeys(None))
+
+
+@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@pytest.mark.run_loop
+def test_command_info(redis):
+    res = yield from redis.command_info('get')
+    assert res == [
+        ['get', 2, ['readonly', 'fast'], 1, 1, 1],
+    ]
+
+    res = yield from redis.command_info("unknown-command")
+    assert res == [None]
+    res = yield from redis.command_info("unknown-command", "unknown-commnad")
+    assert res == [None, None]
+
+
 @pytest.mark.run_loop
 def test_config_get(redis, server):
     res = yield from redis.config_get('port')

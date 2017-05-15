@@ -60,6 +60,25 @@ class ServerCommandsMixin:
         fut = self.execute(b'CLIENT', b'SETNAME', name)
         return wait_ok(fut)
 
+    def command(self):
+        """Get array of Redis commands."""
+        # TODO: convert result
+        return self.execute(b'COMMAND', encoding='utf-8')
+
+    def command_count(self):
+        """Get total number of Redis commands."""
+        return self.execute(b'COMMAND', b'COUNT')
+
+    def command_getkeys(self, command, *args, encoding='utf-8'):
+        """Extract keys given a full Redis command."""
+        return self.execute(b'COMMAND', b'GETKEYS', command, *args,
+                            encoding=encoding)
+
+    def command_info(self, command, *commands):
+        """Get array of specific Redis command details."""
+        return self.execute(b'COMMAND', b'INFO', command, *commands,
+                            encoding='utf-8')
+
     def config_get(self, parameter='*'):
         """Get the value of a configuration parameter(s).
 
