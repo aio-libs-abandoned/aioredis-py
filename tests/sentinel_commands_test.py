@@ -2,7 +2,7 @@ import asyncio
 import pytest
 import sys
 
-from aioredis import RedisError, ReplyError
+from aioredis import RedisError, ReplyError, PoolClosedError
 from aioredis.sentinel.commands import RedisSentinel
 
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
@@ -17,8 +17,8 @@ def test_client_close(redis_sentinel):
 
     redis_sentinel.close()
     assert redis_sentinel.closed
-    with pytest.raises(asyncio.CancelledError):
-        yield from redis_sentinel.ping()
+    with pytest.raises(PoolClosedError):
+        assert (yield from redis_sentinel.ping()) != b'PONG'
 
     yield from redis_sentinel.wait_closed()
 

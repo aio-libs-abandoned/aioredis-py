@@ -8,7 +8,7 @@ from ..log import sentinel_logger
 from ..util import async_task
 from ..pubsub import Receiver
 from ..pool import create_pool, ConnectionsPool
-from ..errors import MasterNotFoundError, SlaveNotFoundError
+from ..errors import MasterNotFoundError, SlaveNotFoundError, PoolClosedError
 
 
 # Address marker for discovery
@@ -143,6 +143,8 @@ class SentinelPool:
         """Execute sentinel command."""
         # TODO: choose pool
         #   kwargs can be used to control which sentinel to use
+        if self.closed:
+            raise PoolClosedError("Sentinel pool is closed")
         for pool in self._pools:
             return pool.execute(command, *args, **kwargs)
         # how to handle errors and pick other pool?
