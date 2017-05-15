@@ -115,7 +115,7 @@ def test_command_count(redis):
     assert res > 0
 
 
-@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@pytest.redis_version(3, 0, 0, reason="available since Redis 3.0.0")
 @pytest.mark.run_loop
 def test_command_getkeys(redis):
     res = yield from redis.command_getkeys('get', 'key')

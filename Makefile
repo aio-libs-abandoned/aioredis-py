@@ -98,6 +98,9 @@ ci-test: $(REDIS_TARGETS)
 	py.test -rsxX --cov \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 
+ci-test-%: $(INSTALL_DIR)/%/redis-server
+	py.test -rsxX --cov --redis-server=$< $(TEST_ARGS)
+
 ci-build-redis: $(REDIS_TARGETS)
 
 $(INSTALL_DIR)/%/redis-server:
