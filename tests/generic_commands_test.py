@@ -195,19 +195,19 @@ def test_migrate(create_redis, loop, server, serverB):
     assert not (yield from redisA.exists('my-key'))
     assert (yield from redisB.exists('my-key'))
 
-    with pytest.raises_regex(TypeError, "host .* str"):
+    with pytest.raises(TypeError, match="host .* str"):
         yield from redisA.migrate(None, 1234, 'key', 1, 23)
-    with pytest.raises_regex(TypeError, "args .* None"):
+    with pytest.raises(TypeError, match="args .* None"):
         yield from redisA.migrate('host', '1234',  None, 1, 123)
-    with pytest.raises_regex(TypeError, "dest_db .* int"):
+    with pytest.raises(TypeError, match="dest_db .* int"):
         yield from redisA.migrate('host', 123, 'key', 1.0, 123)
-    with pytest.raises_regex(TypeError, "timeout .* int"):
+    with pytest.raises(TypeError, match="timeout .* int"):
         yield from redisA.migrate('host', '1234', 'key', 2, None)
-    with pytest.raises_regex(ValueError, "Got empty host"):
+    with pytest.raises(ValueError, match="Got empty host"):
         yield from redisA.migrate('', '123', 'key', 1, 123)
-    with pytest.raises_regex(ValueError, "dest_db .* greater equal 0"):
+    with pytest.raises(ValueError, match="dest_db .* greater equal 0"):
         yield from redisA.migrate('host', 6379, 'key', -1, 1000)
-    with pytest.raises_regex(ValueError, "timeout .* greater equal 0"):
+    with pytest.raises(ValueError, match="timeout .* greater equal 0"):
         yield from redisA.migrate('host', 6379, 'key', 1, -1000)
 
 
@@ -300,7 +300,7 @@ def test_migrate__exceptions(redis, loop, server, unused_port):
 
     assert (yield from redis.exists('my-key'))
 
-    with pytest.raises_regex(ReplyError, "IOERR .* timeout .*"):
+    with pytest.raises(ReplyError, match="IOERR .* timeout .*"):
         assert not (yield from redis.migrate(
             'localhost', unused_port(),
             'my-key', dest_db=30, timeout=10))
@@ -312,21 +312,21 @@ def test_migrate__exceptions(redis, loop, server, unused_port):
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
 @pytest.mark.run_loop
 def test_migrate_keys__errors(redis):
-    with pytest.raises_regex(TypeError, "host .* str"):
+    with pytest.raises(TypeError, match="host .* str"):
         yield from redis.migrate_keys(None, 1234, 'key', 1, 23)
-    with pytest.raises_regex(TypeError, "keys .* list or tuple"):
+    with pytest.raises(TypeError, match="keys .* list or tuple"):
         yield from redis.migrate_keys('host', '1234',  None, 1, 123)
-    with pytest.raises_regex(TypeError, "dest_db .* int"):
+    with pytest.raises(TypeError, match="dest_db .* int"):
         yield from redis.migrate_keys('host', 123, ('key',), 1.0, 123)
-    with pytest.raises_regex(TypeError, "timeout .* int"):
+    with pytest.raises(TypeError, match="timeout .* int"):
         yield from redis.migrate_keys('host', '1234', ('key',), 2, None)
-    with pytest.raises_regex(ValueError, "Got empty host"):
+    with pytest.raises(ValueError, match="Got empty host"):
         yield from redis.migrate_keys('', '123', ('key',), 1, 123)
-    with pytest.raises_regex(ValueError, "dest_db .* greater equal 0"):
+    with pytest.raises(ValueError, match="dest_db .* greater equal 0"):
         yield from redis.migrate_keys('host', 6379, ('key',), -1, 1000)
-    with pytest.raises_regex(ValueError, "timeout .* greater equal 0"):
+    with pytest.raises(ValueError, match="timeout .* greater equal 0"):
         yield from redis.migrate_keys('host', 6379, ('key',), 1, -1000)
-    with pytest.raises_regex(ValueError, "keys .* empty"):
+    with pytest.raises(ValueError, match="keys .* empty"):
         yield from redis.migrate_keys('host', '1234', (), 2, 123)
 
 
@@ -511,7 +511,7 @@ def test_rename(redis, server):
     res = yield from redis.rename('foo', 'bar')
     assert res is True
 
-    with pytest.raises_regex(ReplyError, 'ERR no such key'):
+    with pytest.raises(ReplyError, match='ERR no such key'):
         yield from redis.rename('foo', 'bar')
     with pytest.raises(TypeError):
         yield from redis.rename(None, 'bar')
@@ -521,7 +521,7 @@ def test_rename(redis, server):
         yield from redis.rename('foo', 'foo')
 
     if server.version < (3, 2):
-        with pytest.raises_regex(ReplyError, '.* objects are the same'):
+        with pytest.raises(ReplyError, match='.* objects are the same'):
             yield from redis.rename('bar', b'bar')
 
 
@@ -537,7 +537,7 @@ def test_renamenx(redis, server):
     res = yield from redis.renamenx('foo', 'bar')
     assert res is False
 
-    with pytest.raises_regex(ReplyError, 'ERR no such key'):
+    with pytest.raises(ReplyError, match='ERR no such key'):
         yield from redis.renamenx('baz', 'foo')
     with pytest.raises(TypeError):
         yield from redis.renamenx(None, 'foo')
@@ -547,7 +547,7 @@ def test_renamenx(redis, server):
         yield from redis.renamenx('foo', 'foo')
 
     if server.version < (3, 2):
-        with pytest.raises_regex(ReplyError, '.* objects are the same'):
+        with pytest.raises(ReplyError, match='.* objects are the same'):
             yield from redis.renamenx('foo', b'foo')
 
 

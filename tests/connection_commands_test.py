@@ -26,7 +26,7 @@ def test_repr(create_redis, loop, server):
 @pytest.mark.run_loop
 def test_auth(redis):
     expected_message = "ERR Client sent AUTH, but no password is set"
-    with pytest.raises_regex(ReplyError, expected_message):
+    with pytest.raises(ReplyError, match=expected_message):
         yield from redis.auth('')
 
 
@@ -56,14 +56,14 @@ def test_quit(redis, loop):
         expected = (asyncio.CancelledError, ConnectionClosedError)
         # reader task may not yet been cancelled and _do_close not called
         #   so the CancelledError may be raised here
-        with pytest.raises_only(expected):
+        with pytest.raises(expected):
             yield from redis.ping()
 
         # wait one loop iteration until it get surely closed
         yield from asyncio.sleep(0, loop=loop)
         assert redis.connection.closed
 
-        with pytest.raises_only(ConnectionClosedError):
+        with pytest.raises(ConnectionClosedError):
             yield from redis.ping()
 
 

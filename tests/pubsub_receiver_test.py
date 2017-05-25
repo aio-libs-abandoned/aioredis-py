@@ -83,8 +83,9 @@ def test_sender(loop):
         ]
 
 
-def test_sender_close(loop):
+def test_sender_close():
     receiver = mock.Mock()
+    loop = mock.Mock()
     sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
     sender.close()
     assert receiver.mock_calls == [mock.call._close(sender)]

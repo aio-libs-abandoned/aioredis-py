@@ -33,7 +33,7 @@ def test_multi_exec(redis, loop):
 
     tr = redis.multi_exec()
     f1 = tr.incrby('foo', 1.0)
-    with pytest.raises_regex(MultiExecError, "increment must be .* int"):
+    with pytest.raises(MultiExecError, match="increment must be .* int"):
         yield from tr.execute()
     with pytest.raises(TypeError):
         yield from f1

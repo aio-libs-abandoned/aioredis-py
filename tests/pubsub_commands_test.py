@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 
-from aioredis.util import create_future
+from aioredis.util import create_future, async_task
 
 
 @asyncio.coroutine
@@ -20,7 +20,7 @@ def test_publish(create_connection, redis, server, loop):
     fut = create_future(loop=loop)
     conn = yield from create_connection(
         server.tcp_address, loop=loop)
-    sub = asyncio.async(_reader('chan:1', out, fut, conn), loop=loop)
+    sub = async_task(_reader('chan:1', out, fut, conn), loop=loop)
 
     yield from fut
     yield from redis.publish('chan:1', 'Hello')
@@ -36,8 +36,7 @@ def test_publish_json(create_connection, redis, server, loop):
     fut = create_future(loop=loop)
     conn = yield from create_connection(
         server.tcp_address, loop=loop)
-    sub = asyncio.async(_reader('chan:1', out, fut, conn),
-                        loop=loop)
+    sub = async_task(_reader('chan:1', out, fut, conn), loop=loop)
 
     yield from fut
 
@@ -180,7 +179,7 @@ def test_close_pubsub_channels(redis, loop):
     def waiter(ch):
         assert not (yield from ch.wait_message())
 
-    tsk = asyncio.async(waiter(ch), loop=loop)
+    tsk = async_task(waiter(ch), loop=loop)
     redis.close()
     yield from redis.wait_closed()
     yield from tsk
@@ -194,7 +193,7 @@ def test_close_pubsub_patterns(redis, loop):
     def waiter(ch):
         assert not (yield from ch.wait_message())
 
-    tsk = asyncio.async(waiter(ch), loop=loop)
+    tsk = async_task(waiter(ch), loop=loop)
     redis.close()
     yield from redis.wait_closed()
     yield from tsk
@@ -209,7 +208,7 @@ def test_close_cancelled_pubsub_channel(redis, loop):
         with pytest.raises(asyncio.CancelledError):
             yield from ch.wait_message()
 
-    tsk = asyncio.async(waiter(ch), loop=loop)
+    tsk = async_task(waiter(ch), loop=loop)
     yield from asyncio.sleep(0, loop=loop)
     tsk.cancel()
 
@@ -230,7 +229,7 @@ def test_channel_get_after_close(create_redis, loop, server):
                 break
             assert msg == b'message'
 
-    tsk = asyncio.async(waiter(), loop=loop)
+    tsk = async_task(waiter(), loop=loop)
 
     yield from pub.publish('chan:1', 'message')
     sub.close()

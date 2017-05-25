@@ -177,7 +177,7 @@ def test_config_set(redis):
         'slave-read-only', cur_value['slave-read-only'])
     assert res is True
 
-    with pytest.raises_regex(ReplyError, "Unsupported CONFIG parameter"):
+    with pytest.raises(ReplyError, match="Unsupported CONFIG parameter"):
         yield from redis.config_set('databases', 100)
     with pytest.raises(TypeError):
         yield from redis.config_set(100, 'databases')
@@ -259,7 +259,7 @@ def test_role(redis):
 def test_save(redis):
     res = yield from redis.dbsize()
     assert res == 0
-    t1 = int((yield from redis.time()))
+    t1 = yield from redis.lastsave()
     ok = yield from redis.save()
     assert ok
     t2 = yield from redis.lastsave()
