@@ -81,7 +81,7 @@ class RedisPool:
         self._acquiring = 0
         self._cond = asyncio.Condition(loop=loop)
         self._close_state = asyncio.Event(loop=loop)
-        self._close_waiter = async_task(self._do_close(), loop=loop)
+        self._close_waiter = None
 
     @property
     def minsize(self):
@@ -137,6 +137,7 @@ class RedisPool:
         """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
+            self._close_waiter = async_task(self._do_close(), loop=self._loop)
             self._close_state.set()
 
     @property
@@ -147,6 +148,8 @@ class RedisPool:
     @asyncio.coroutine
     def wait_closed(self):
         """Wait until pool gets closed."""
+        if self._close_waiter is None:
+            self._close_waiter = async_task(self._do_close(), loop=self._loop)
         yield from asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
