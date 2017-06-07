@@ -1,3 +1,5 @@
+import sys
+
 from asyncio.locks import Lock as _Lock
 from asyncio import coroutine
 from asyncio import futures
@@ -10,28 +12,54 @@ from asyncio import futures
 
 
 class Lock(_Lock):
-    @coroutine
-    def acquire(self):
-        """Acquire a lock.
-        This method blocks until the lock is unlocked, then sets it to
-        locked and returns True.
-        """
-        if not self._locked and all(w.cancelled() for w in self._waiters):
-            self._locked = True
-            return True
 
-        fut = self._loop.create_future()
-        self._waiters.append(fut)
-        try:
-            yield from fut
-            self._locked = True
-            return True
-        except futures.CancelledError:
-            if not self._locked:
-                self._wake_up_first()
-            raise
-        finally:
-            self._waiters.remove(fut)
+    if sys.version_info < (3, 5):
+        @coroutine
+        def acquire(self):
+            """Acquire a lock.
+
+            This method blocks until the lock is unlocked, then sets it to
+            locked and returns True.
+            """
+            if not self._waiters and not self._locked:
+                self._locked = True
+                return True
+
+            fut = futures.Future(loop=self._loop)
+            self._waiters.append(fut)
+            try:
+                yield from fut
+                self._locked = True
+                return True
+            except futures.CancelledError:
+                if not self._locked:
+                    self._wake_up_first()
+                raise
+            finally:
+                self._waiters.remove(fut)
+    else:
+        @coroutine
+        def acquire(self):
+            """Acquire a lock.
+            This method blocks until the lock is unlocked, then sets it to
+            locked and returns True.
+            """
+            if not self._locked and all(w.cancelled() for w in self._waiters):
+                self._locked = True
+                return True
+
+            fut = self._loop.create_future()
+            self._waiters.append(fut)
+            try:
+                yield from fut
+                self._locked = True
+                return True
+            except futures.CancelledError:
+                if not self._locked:
+                    self._wake_up_first()
+                raise
+            finally:
+                self._waiters.remove(fut)
 
     def _wake_up_first(self):
         """Wake up the first waiter who isn't cancelled."""
