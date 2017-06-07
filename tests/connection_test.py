@@ -9,6 +9,7 @@ from aioredis.util import async_task
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
+    RedisConnection,
     RedisError,
     ReplyError,
     Channel,
@@ -32,6 +33,18 @@ def test_connect_tcp(request, create_connection, loop, server):
     assert conn.address[0] in ('127.0.0.1', '::1')
     assert conn.address[1] == server.tcp_address.port
     assert str(conn) == '<RedisConnection [db:0]>'
+
+
+@pytest.mark.run_loop
+def test_connect_inject_connection_cls(request, create_connection, loop, server):
+
+    class MyConnection(RedisConnection):
+        pass
+
+    conn = yield from create_connection(
+        server.tcp_address, loop=loop, connection_cls=MyConnection)
+
+    assert isinstance(conn, MyConnection)
 
 
 @pytest.mark.run_loop

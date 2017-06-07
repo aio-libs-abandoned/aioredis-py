@@ -43,7 +43,8 @@ _PUBSUB_COMMANDS = (
 
 @asyncio.coroutine
 def create_connection(address, *, db=None, password=None, ssl=None,
-                      encoding=None, parser=None, loop=None, timeout=None):
+                      encoding=None, parser=None, loop=None, timeout=None,
+                      connection_cls=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -66,7 +67,8 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     By default hiredis.Reader is used (unless it is missing or platform
     is not CPython).
 
-    Return value is RedisConnection instance.
+    Return value is RedisConnection instance or a connection_cls if it is
+    given.
 
     This function is a coroutine.
     """
@@ -93,9 +95,11 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             address = sock.getpeername()
-    conn = RedisConnection(reader, writer, encoding=encoding,
-                           address=address, parser=parser,
-                           loop=loop)
+
+    cls = connection_cls or RedisConnection
+    conn = cls(reader, writer, encoding=encoding,
+               address=address, parser=parser,
+               loop=loop)
 
     try:
         if password is not None:

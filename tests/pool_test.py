@@ -9,6 +9,7 @@ from aioredis import (
     ReplyError,
     PoolClosedError,
     ConnectionClosedError,
+    ConnectionsPool
     )
 from aioredis.util import async_task
 
@@ -150,6 +151,20 @@ def test_create_no_minsize(create_pool, loop, server):
                                         loop=loop)
     assert pool.size == 1
     assert pool.freesize == 1
+
+
+@pytest.mark.run_loop
+def test_create_pool_cls(create_pool, loop, server):
+
+    class MyPool(ConnectionsPool):
+        pass
+
+    pool = yield from create_pool(
+        server.tcp_address,
+        loop=loop,
+        pool_cls=MyPool)
+
+    assert isinstance(pool, MyPool)
 
 
 @pytest.mark.run_loop
