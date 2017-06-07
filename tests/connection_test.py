@@ -36,7 +36,11 @@ def test_connect_tcp(request, create_connection, loop, server):
 
 
 @pytest.mark.run_loop
-def test_connect_inject_connection_cls(request, create_connection, loop, server):
+def test_connect_inject_connection_cls(
+        request,
+        create_connection,
+        loop,
+        server):
 
     class MyConnection(RedisConnection):
         pass
