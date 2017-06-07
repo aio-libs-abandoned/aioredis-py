@@ -20,7 +20,7 @@ def test_finished_waiter_cancelled(loop):
     # Create a second waiter, wake up the first, and cancel it.
     # Without the fix, the second was not woken up and the lock
     # will never be locked
-    tc = async_task(lock.acquire(), loop=loop)
+    async_task(lock.acquire(), loop=loop)
     yield from asyncio.sleep(0, loop=loop)
     lock.release()
     tb.cancel()
