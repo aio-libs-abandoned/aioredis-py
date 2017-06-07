@@ -18,15 +18,16 @@ def test_finished_waiter_cancelled(loop):
     assert len(lock._waiters) == 1
 
     # Create a second waiter, wake up the first, and cancel it.
-    # Without the fix, the second was not woken up.
+    # Without the fix, the second was not woken up and the lock
+    # will never be locked
     tc = async_task(lock.acquire(), loop=loop)
+    yield from asyncio.sleep(0, loop=loop)
     lock.release()
     tb.cancel()
 
     yield from asyncio.sleep(0, loop=loop)
-    assert not tc.done()
     assert ta.done()
     assert tb.cancelled()
 
     yield from asyncio.sleep(0, loop=loop)
-    assert tc.done()
+    assert lock.locked()
