@@ -13,7 +13,7 @@ from asyncio import futures
 
 class Lock(_Lock):
 
-    if sys.version_info < (3, 5):
+    if sys.version_info < (3, 5):  # pragma: no cover
         @coroutine
         def acquire(self):
             """Acquire a lock.
@@ -55,7 +55,7 @@ class Lock(_Lock):
                 self._locked = True
                 return True
             except futures.CancelledError:
-                if not self._locked:
+                if not self._locked:  # pragma: no cover
                     self._wake_up_first()
                 raise
             finally:
