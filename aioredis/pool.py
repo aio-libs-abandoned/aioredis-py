@@ -161,8 +161,8 @@ class ConnectionsPool(AbcPool):
     @asyncio.coroutine
     def wait_closed(self):
         """Wait until pool gets closed."""
-        if self._close_waiter is None:
-            self._close_waiter = async_task(self._do_close(), loop=self._loop)
+        yield from self._close_state.wait()
+        assert self._close_waiter is not None
         yield from asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
