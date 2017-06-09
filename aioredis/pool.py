@@ -17,7 +17,8 @@ PY_35 = sys.version_info >= (3, 5)
 @asyncio.coroutine
 def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET,
-                parser=None, loop=None, create_connection_timeout=None):
+                parser=None, loop=None, create_connection_timeout=None,
+                pool_cls=None, connection_cls=None):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
 
@@ -29,18 +30,26 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
 
     All arguments are the same as for create_connection.
 
-    Returns RedisPool instance.
+    Returns RedisPool instance or a pool_cls if it is given.
     """
     if commands_factory is not _NOTSET:
         warnings.warn(
             "commands_factory argument is deprecated and will be removed!",
             DeprecationWarning)
 
-    pool = ConnectionsPool(address, db, password, encoding,
-                           minsize=minsize, maxsize=maxsize,
-                           ssl=ssl, parser=parser,
-                           create_connection_timeout=create_connection_timeout,
-                           loop=loop)
+    if pool_cls:
+        assert issubclass(pool_cls, AbcPool),\
+                "pool_class does not meet the AbcPool contract"
+        cls = pool_cls
+    else:
+        cls = ConnectionsPool
+
+    pool = cls(address, db, password, encoding,
+               minsize=minsize, maxsize=maxsize,
+               ssl=ssl, parser=parser,
+               create_connection_timeout=create_connection_timeout,
+               connection_cls=connection_cls,
+               loop=loop)
     try:
         yield from pool._fill_free(override_min=False)
     except Exception as ex:
@@ -55,7 +64,9 @@ class ConnectionsPool(AbcPool):
 
     def __init__(self, address, db=None, password=None, encoding=None,
                  *, minsize, maxsize, ssl=None, parser=None,
-                 create_connection_timeout=None, loop=None):
+                 create_connection_timeout=None,
+                 connection_cls=None,
+                 loop=None):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0", minsize, type(minsize))
         assert maxsize is not None, "Arbitrary pool size is disallowed."
@@ -81,6 +92,7 @@ class ConnectionsPool(AbcPool):
         self._close_state = asyncio.Event(loop=loop)
         self._close_waiter = None
         self._pubsub_conn = None
+        self._connection_cls = connection_cls
 
     def __repr__(self):
         return '<{} [db:{}, size:[{}:{}], free:{}]>'.format(
@@ -407,6 +419,7 @@ class ConnectionsPool(AbcPool):
                                  encoding=self._encoding,
                                  parser=self._parser_class,
                                  timeout=self._create_connection_timeout,
+                                 connection_cls=self._connection_cls,
                                  loop=self._loop)
 
     @asyncio.coroutine
