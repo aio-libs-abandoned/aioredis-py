@@ -168,6 +168,15 @@ def test_create_pool_cls(create_pool, loop, server):
 
 
 @pytest.mark.run_loop
+def test_create_pool_cls_invalid(create_pool, loop, server):
+    with pytest.raises(AssertionError):
+        yield from create_pool(
+            server.tcp_address,
+            loop=loop,
+            pool_cls=type)
+
+
+@pytest.mark.run_loop
 def test_release_closed(create_pool, loop, server):
     pool = yield from create_pool(
         server.tcp_address,

@@ -52,6 +52,18 @@ def test_connect_inject_connection_cls(
 
 
 @pytest.mark.run_loop
+def test_connect_inject_connection_cls_invalid(
+        request,
+        create_connection,
+        loop,
+        server):
+
+    with pytest.raises(AssertionError):
+        yield from create_connection(
+            server.tcp_address, loop=loop, connection_cls=type)
+
+
+@pytest.mark.run_loop
 def test_connect_tcp_timeout(request, create_connection, loop, server):
     with patch('aioredis.connection.asyncio.open_connection') as\
             open_conn_mock:

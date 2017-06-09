@@ -26,6 +26,7 @@ from .errors import (
     )
 from .pubsub import Channel
 from .abc import AbcChannel
+from .abc import AbcConnection
 from .log import logger
 
 
@@ -77,6 +78,13 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     if timeout is not None and timeout <= 0:
         raise ValueError("Timeout has to be None or a number greater than 0")
 
+    if connection_cls:
+        assert issubclass(connection_cls, AbcConnection),\
+                "connection_class does not meet the AbcConnection contract"
+        cls = connection_cls
+    else:
+        cls = RedisConnection
+
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
@@ -96,7 +104,6 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         if sock is not None:
             address = sock.getpeername()
 
-    cls = connection_cls or RedisConnection
     conn = cls(reader, writer, encoding=encoding,
                address=address, parser=parser,
                loop=loop)
@@ -113,7 +120,7 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     return conn
 
 
-class RedisConnection:
+class RedisConnection(AbcConnection):
     """Redis connection."""
 
     def __init__(self, reader, writer, *, address, encoding=None,

@@ -37,7 +37,13 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
             "commands_factory argument is deprecated and will be removed!",
             DeprecationWarning)
 
-    cls = pool_cls or ConnectionsPool
+    if pool_cls:
+        assert issubclass(pool_cls, AbcPool),\
+                "pool_class does not meet the AbcPool contract"
+        cls = pool_cls
+    else:
+        cls = ConnectionsPool
+
     pool = cls(address, db, password, encoding,
                minsize=minsize, maxsize=maxsize,
                ssl=ssl, parser=parser,
