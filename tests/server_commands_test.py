@@ -3,8 +3,108 @@ import pytest
 import sys
 
 from unittest import mock
+from unittest.mock import patch
+from unittest.mock import call
 
 from aioredis import ReplyError
+from aioredis.util import create_future
+from aioredis.commands.server import ServerCommandsMixin
+
+
+def result_future(value, loop):
+    f = create_future(loop)
+    f.set_result(value)
+    return f
+
+
+@pytest.mark.parametrize(
+    "method,res,command",
+    [
+        (
+            'bgrewriteaof',
+            b'Background append only file rewriting started',
+            b'BGREWRITEAOF'
+        ),
+        ('bgsave', b'Background saving started', b'BGSAVE')
+    ]
+)
+@pytest.mark.run_loop
+def test_bg_methods(method, res, command, redis, loop):
+    with patch.object(redis, 'execute') as execute:
+        execute.return_value = result_future(
+            res,
+            loop
+        )
+        f = getattr(redis, method)
+        res = yield from f()
+        assert res is True
+        execute.assert_called_with(command)
+
+
+@pytest.mark.parametrize(
+    "save,command_arg",
+    [
+        (None, None),
+        (ServerCommandsMixin.SHUTDOWN_SAVE, b"SAVE"),
+        (ServerCommandsMixin.SHUTDOWN_NOSAVE, b"NOSAVE")
+    ]
+)
+@pytest.mark.run_loop
+def test_shutdown(save, command_arg, redis, loop):
+    with patch.object(redis, 'execute') as execute:
+        execute.return_value = result_future(
+            None,
+            loop
+        )
+        yield from redis.shutdown(save=save)
+
+        expected = (b'SHUTDOWN',)
+        if command_arg:
+            expected += (command_arg,)
+
+        execute.assert_called_with(*expected)
+
+
+@pytest.mark.run_loop
+def test_slaveof(redis, loop):
+    with patch.object(redis, 'execute') as execute:
+        execute.return_value = result_future(
+            b'Ok',
+            loop
+        )
+        assert (yield from redis.slaveof())
+        assert (yield from redis.slaveof(host=None))
+        assert (yield from redis.slaveof(host=b'127.0.0.1', port=6379))
+        execute.assert_has_calls([
+            call(b'SLAVEOF', b'NO', b'ONE'),
+            call(b'SLAVEOF', b'NO', b'ONE'),
+            call(b'SLAVEOF', b'127.0.0.1', 6379)
+        ])
+
+
+@pytest.mark.run_loop
+def test_sync(redis, loop):
+    with patch.object(redis, 'execute') as execute:
+        execute.return_value = result_future(
+            None,
+            loop
+        )
+        yield from redis.sync()
+        execute.assert_called_with(b'SYNC')
+
+
+@pytest.mark.parametrize("method", ['client_kill', 'monitor'])
+@pytest.mark.run_loop
+def test_not_implemented_methods(method, redis, loop):
+    with pytest.raises(NotImplementedError):
+        f = getattr(redis, method)
+        yield from f()
+
+
+@pytest.mark.run_loop
+def test_config_resetstat(redis):
+    res = yield from redis.config_resetstat()
+    assert res
 
 
 @pytest.mark.run_loop
@@ -69,6 +169,14 @@ def test_client_list__unixsocket(create_redis, loop, server, request):
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
     assert expected in info
+
+
+@pytest.mark.run_loop
+def test_client_list_multiple_clients(create_redis, redis, server, loop):
+    yield from create_redis(server.tcp_address, loop=loop)
+    res = yield from redis.client_list()
+    assert len(res) == 2
+    assert isinstance(res[0], type(res[1]))
 
 
 @pytest.mark.run_loop

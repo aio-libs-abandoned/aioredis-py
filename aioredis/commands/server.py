@@ -16,12 +16,18 @@ class ServerCommandsMixin:
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""
         fut = self.execute(b'BGREWRITEAOF')
-        return wait_ok(fut)
+        return wait_ok(
+            fut,
+            expected="Background append only file rewriting started"
+        )
 
     def bgsave(self):
         """Asynchronously save the dataset to disk."""
         fut = self.execute(b'BGSAVE')
-        return wait_ok(fut)
+        return wait_ok(
+            fut,
+            expected="Background saving started"
+        )
 
     def client_kill(self):
         """Kill the connection of a client.

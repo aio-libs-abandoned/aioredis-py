@@ -64,11 +64,14 @@ def decode(obj, encoding):
 
 
 @asyncio.coroutine
-def wait_ok(fut):
+def wait_ok(fut, expected=None):
     res = yield from fut
-    if res in (b'QUEUED', 'QUEUED'):
+    if expected:
+        return res in (expected.encode(), expected)
+    elif res in (b'QUEUED', 'QUEUED'):
         return res
-    return res in (b'OK', 'OK')
+    else:
+        return res in (b'OK', 'OK')
 
 
 @asyncio.coroutine
