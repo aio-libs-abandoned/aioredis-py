@@ -1,6 +1,60 @@
 Changes
 -------
 
+1.0.0 (2017-xx-xx)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Connections pool has been refactored; now ``create_redis``
+  function will yield ``Redis`` instance instead of ``RedisPool``
+  (see `#129 <https://github.com/aio-libs/aioredis/pull/129>`_);
+
+* Dropped ``create_reconnecting_redis``, ``create_redis_pool`` should be
+  used instead;
+
+* Implement Sentinel support
+  (see `#181 <https://github.com/aio-libs/aioredis/pull/181>`_);
+
+* Implement pure-python parser
+  (see `#212 <https://github.com/aio-libs/aioredis/pull/212>`_);
+
+* Add ``migrate_keys`` command
+  (see `#187 <https://github.com/aio-libs/aioredis/pull/187>`_);
+
+* Add ``zrevrangebylex`` command
+  (see `#201 <https://github.com/aio-libs/aioredis/pull/201>`_);
+
+* Add ``command``, ``command_count``, ``command_getkeys`` and
+  ``command_info`` commands
+  (see `#229 <https://github.com/aio-libs/aioredis/pull/229>`_);
+
+**FIX**:
+
+* Fix Multi/Exec transaction canceled error
+  (see `#225 <https://github.com/aio-libs/aioredis/pull/225>`_);
+
+* Add missing arguments to ``create_redis`` and ``create_redis_pool``;
+
+* Fix deprecation warning
+  (see `#191 <https://github.com/aio-libs/aioredis/pull/191>`_);
+
+* Make correct ``__aiter__()``
+  (see `#192 <https://github.com/aio-libs/aioredis/pull/192>`_);
+
+* Backward compatibility fix for ``with (yield from pool) as conn:``
+  (see `#205 <https://github.com/aio-libs/aioredis/pull/205>`_);
+
+* Fixed pubsub receiver stop()
+  (see `#211 <https://github.com/aio-libs/aioredis/pull/211>`_);
+
+**MISC**:
+
+* Multiple test fixes;
+
+* Add PyPy3 to build matrix;
+
+
 0.3.2 (2017-06-21)
 ^^^^^^^^^^^^^^^^^^
 

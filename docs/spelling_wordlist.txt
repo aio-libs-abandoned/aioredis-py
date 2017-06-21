@@ -81,6 +81,7 @@ pipelined
 pipelining
 pubsub
 PyPi
+PyPy
 pytest
 randomkey
 README
