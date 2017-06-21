@@ -260,7 +260,6 @@ class RedisPool:
                     # connection may be closed at yield point
                     self._drop_closed()
 
-    @asyncio.coroutine
     def _create_new_connection(self):
         return create_redis(self._address,
                             db=self._db,
@@ -268,6 +267,7 @@ class RedisPool:
                             ssl=self._ssl,
                             encoding=self._encoding,
                             commands_factory=self._factory,
+                            timeout=self._create_connection_timeout,
                             loop=self._loop)
 
     @asyncio.coroutine

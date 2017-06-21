@@ -339,7 +339,7 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
 
-        return self.execute(b'ZREVRANGEBYLEX', key, max, min, *args)
+        return self._conn.execute(b'ZREVRANGEBYLEX', key, max, min, *args)
 
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
