@@ -178,5 +178,6 @@ pseudoxml:
 
 
 spelling:
-	$(SPHINXBUILD) -b spelling $(ALLSPHINXOPTS) $(BUILDDIR)/spelling
+	$(SPHINXBUILD) -b spelling $(ALLSPHINXOPTS) $(BUILDDIR)/spelling || \
+		(cat $(BUILDDIR)/spelling/output.txt; false)
 	test ! -s $(BUILDDIR)/spelling/output.txt
