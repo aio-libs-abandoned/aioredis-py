@@ -1,6 +1,31 @@
 Changes
 -------
 
+0.3.2 (2017-06-21)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Added ``zrevrangebylex`` command
+  (see `#201 <https://github.com/aio-libs/aioredis/pull/201>`_),
+  cherry-picked from master;
+
+* Add connection timeout
+  (see `#201 <https://github.com/aio-libs/aioredis/pull/221>`_),
+  cherry-picked from master;
+
+**FIX**:
+
+* Fixed pool close warning
+  (see `#239 <https://github.com/aio-libs/aioredis/pull/239>`_
+  and `#236 <https://github.com/aio-libs/aioredis/issues/236>`_),
+  cherry-picked from master;
+
+* Fixed asyncio Lock deadlock issue
+  (see `#231 <https://github.com/aio-libs/aioredis/issues/231>`_
+  and `#241 <https://github.com/aio-libs/aioredis/pull/241>`_),
+  
+
 0.3.1 (2017-05-09)
 ^^^^^^^^^^^^^^^^^^
 
