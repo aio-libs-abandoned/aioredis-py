@@ -11,7 +11,7 @@ Changes
   cherry-picked from master;
 
 * Add connection timeout
-  (see `#201 <https://github.com/aio-libs/aioredis/pull/221>`_),
+  (see `#221 <https://github.com/aio-libs/aioredis/pull/221>`_),
   cherry-picked from master;
 
 **FIX**:
