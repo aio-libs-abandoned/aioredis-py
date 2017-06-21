@@ -254,7 +254,7 @@ The library provides connections pool. The basic usage is as follows:
    .. deprecated:: v0.2.9
       *commands_factory* argument is deprecated and will be removed in *v0.3*.
 
-   .. versionchanged:: v0.3.1
+   .. versionchanged:: v0.3.2
       ``create_connection_timeout`` argument added.
 
    .. versionchanged:: v1.0

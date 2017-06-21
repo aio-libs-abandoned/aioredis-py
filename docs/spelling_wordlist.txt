@@ -54,6 +54,7 @@ indices
 inline
 ip
 IPv
+iter
 JSON
 kwargs
 len
@@ -78,6 +79,7 @@ ofcourse
 pexpire
 pipelined
 pipelining
+pubsub
 PyPi
 pytest
 randomkey
