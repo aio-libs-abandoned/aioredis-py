@@ -19,7 +19,7 @@ from .errors import (
     )
 
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 # make pyflakes happy
 (create_connection, RedisConnection,
