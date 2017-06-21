@@ -7,6 +7,7 @@ from .commands import create_redis, Redis
 from .log import logger
 from .util import async_task, _NOTSET
 from .errors import PoolClosedError
+from .locks import Lock
 
 
 PY_35 = sys.version_info >= (3, 5)
@@ -79,7 +80,7 @@ class RedisPool:
         self._pool = collections.deque(maxlen=maxsize)
         self._used = set()
         self._acquiring = 0
-        self._cond = asyncio.Condition(loop=loop)
+        self._cond = asyncio.Condition(lock=Lock(loop=loop), loop=loop)
         self._close_state = asyncio.Event(loop=loop)
         self._close_waiter = None
 
