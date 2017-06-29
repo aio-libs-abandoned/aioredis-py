@@ -41,3 +41,4 @@ class Lock(_Lock):
         for fut in self._waiters:
             if not fut.done():
                 fut.set_result(True)
+                break
