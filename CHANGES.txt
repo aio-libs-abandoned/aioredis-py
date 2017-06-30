@@ -57,7 +57,7 @@ Changes
 
 * Add PyPy3 to build matrix;
 
-* Update dependecies versions;
+* Update dependencies versions;
 
 
 0.3.2 (2017-06-21)
