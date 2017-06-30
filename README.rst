@@ -126,6 +126,8 @@ Discussion list
 
 *aio-libs* google group: https://groups.google.com/forum/#!forum/aio-libs
 
+Or gitter room: https://gitter.im/aio-libs/Lobby
+
 License
 -------
 
