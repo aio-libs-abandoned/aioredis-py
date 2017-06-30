@@ -1,6 +1,15 @@
 Changes
 -------
 
+0.3.3 (2017-06-30)
+^^^^^^^^^^^^^^^^^^
+
+**FIX**:
+
+* Critical bug fixed in patched asyncio.Lock
+  (see `#256 <https://github.com/aio-libs/aioredis/pull/256>`_);
+
+
 0.3.2 (2017-06-21)
 ^^^^^^^^^^^^^^^^^^
 
