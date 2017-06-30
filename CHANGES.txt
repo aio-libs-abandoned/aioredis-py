@@ -31,6 +31,9 @@ Changes
 
 **FIX**:
 
+* Fix critical bug in patched asyncio.Lock
+  (see `#256 <https://github.com/aio-libs/aioredis/pull/256>`_);
+
 * Fix Multi/Exec transaction canceled error
   (see `#225 <https://github.com/aio-libs/aioredis/pull/225>`_);
 
@@ -53,6 +56,8 @@ Changes
 * Multiple test fixes;
 
 * Add PyPy3 to build matrix;
+
+* Update dependecies versions;
 
 
 0.3.2 (2017-06-21)
