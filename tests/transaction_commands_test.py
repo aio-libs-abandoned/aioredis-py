@@ -97,7 +97,7 @@ async def test_discard(redis):
     fut2 = tr.connection.execute('MULTI')
     fut3 = tr.connection.execute('incr', 'foo')
 
-    with pytest.raises(ReplyError):
+    with pytest.raises(MultiExecError):
         await tr.execute()
     with pytest.raises(TypeError):
         await fut1
