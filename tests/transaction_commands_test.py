@@ -87,7 +87,7 @@ def test_discard(redis):
     fut2 = tr.connection.execute('MULTI')
     fut3 = tr.connection.execute('incr', 'foo')
 
-    with pytest.raises(ReplyError):
+    with pytest.raises(MultiExecError):
         yield from tr.execute()
     with pytest.raises(TypeError):
         yield from fut1

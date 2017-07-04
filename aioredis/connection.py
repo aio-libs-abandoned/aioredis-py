@@ -23,6 +23,7 @@ from .errors import (
     ReplyError,
     WatchVariableError,
     ReadOnlyError,
+    MaxClientsError
     )
 from .pubsub import Channel
 from .abc import AbcChannel
@@ -139,6 +140,7 @@ class RedisConnection(AbcConnection):
         self._parser = parser(protocolError=ProtocolError,
                               replyError=ReplyError)
         self._reader_task = async_task(self._read_data(), loop=self._loop)
+        self._close_msg = None
         self._db = 0
         self._closing = False
         self._closed = False
@@ -185,6 +187,11 @@ class RedisConnection(AbcConnection):
                 else:
                     if obj is False:
                         break
+                    elif isinstance(obj, MaxClientsError):
+                        self._closing = True
+                        self._do_close(obj)
+                        return
+
                     if self._in_pubsub:
                         self._process_pubsub(obj)
                     else:
@@ -257,7 +264,9 @@ class RedisConnection(AbcConnection):
           is broken.
         """
         if self._reader is None or self._reader.at_eof():
-            raise ConnectionClosedError("Connection closed or corrupted")
+            msg = self._close_msg if self._close_msg else\
+                    "Connection closed or corrupted"
+            raise ConnectionClosedError(msg)
         if command is None:
             raise TypeError("command must not be None")
         if None in set(args):
@@ -333,6 +342,10 @@ class RedisConnection(AbcConnection):
         self._reader_task = None
         self._writer = None
         self._reader = None
+
+        if exc is not None:
+            self._close_msg = str(exc)
+
         while self._waiters:
             waiter, *spam = self._waiters.popleft()
             logger.debug("Cancelling waiter %r", (waiter, spam))
