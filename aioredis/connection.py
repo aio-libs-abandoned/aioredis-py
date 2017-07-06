@@ -39,6 +39,7 @@ _PUBSUB_COMMANDS = (
     'PSUBSCRIBE', b'PSUBSCRIBE',
     'UNSUBSCRIBE', b'UNSUBSCRIBE',
     'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
+    'PING', b'PING',
     )
 
 
@@ -222,8 +223,9 @@ class RedisConnection(AbcConnection):
 
     def _process_pubsub(self, obj, *, process_waiters=True):
         """Processes pubsub messages."""
-        kind, *pattern, chan, data = obj
+        kind, *args, data = obj
         if kind in (b'subscribe', b'unsubscribe'):
+            chan, = args
             if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
             if kind == b'unsubscribe':
@@ -232,6 +234,7 @@ class RedisConnection(AbcConnection):
                     ch.close()
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
+            chan, = args
             if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
             if kind == b'punsubscribe':
@@ -240,10 +243,14 @@ class RedisConnection(AbcConnection):
                     ch.close()
             self._in_pubsub = data
         elif kind == b'message':
+            chan, = args
             self._pubsub_channels[chan].put_nowait(data)
         elif kind == b'pmessage':
-            pattern = pattern[0]
+            pattern, chan = args
             self._pubsub_patterns[pattern].put_nowait((chan, data))
+        elif kind == b'pong':
+            if process_waiters and self._in_pubsub and self._waiters:
+                self._process_data(obj)
         else:
             logger.warning("Unknown pubsub message received %r", obj)
 
@@ -266,7 +273,7 @@ class RedisConnection(AbcConnection):
         is_pubsub = command in _PUBSUB_COMMANDS
         if self._in_pubsub and not is_pubsub:
             raise RedisError("Connection in SUBSCRIBE mode")
-        elif is_pubsub:
+        elif is_pubsub and command not in ('PING', b'PING'):
             logger.warning("Deprecated. Use `execute_pubsub` method directly")
             return self.execute_pubsub(command, *args)
 
