@@ -39,7 +39,6 @@ _PUBSUB_COMMANDS = (
     'PSUBSCRIBE', b'PSUBSCRIBE',
     'UNSUBSCRIBE', b'UNSUBSCRIBE',
     'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
-    'PING', b'PING',
     )
 
 
@@ -250,7 +249,7 @@ class RedisConnection(AbcConnection):
             self._pubsub_patterns[pattern].put_nowait((chan, data))
         elif kind == b'pong':
             if process_waiters and self._in_pubsub and self._waiters:
-                self._process_data(obj)
+                self._process_data(b'PONG')
         else:
             logger.warning("Unknown pubsub message received %r", obj)
 
@@ -271,9 +270,10 @@ class RedisConnection(AbcConnection):
             raise TypeError("args must not contain None")
         command = command.upper().strip()
         is_pubsub = command in _PUBSUB_COMMANDS
-        if self._in_pubsub and not is_pubsub:
+        is_ping = command in ('PING', b'PING')
+        if self._in_pubsub and not (is_pubsub or is_ping):
             raise RedisError("Connection in SUBSCRIBE mode")
-        elif is_pubsub and command not in ('PING', b'PING'):
+        elif is_pubsub:
             logger.warning("Deprecated. Use `execute_pubsub` method directly")
             return self.execute_pubsub(command, *args)
 

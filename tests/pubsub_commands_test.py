@@ -269,6 +269,6 @@ def test_pubsub_ping(redis):
     yield from redis.subscribe('chan:1', 'chan:2')
 
     res = yield from redis.ping()
-    assert res == [b'pong', b'']
+    assert res == b'PONG'
 
     yield from redis.unsubscribe('chan:1', 'chan:2')
