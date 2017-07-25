@@ -65,7 +65,7 @@ def test_maxsize(maxsize, create_pool, loop, server):
 
 @pytest.mark.run_loop
 def test_create_connection_timeout(create_pool, loop, server):
-    with patch('asyncio.open_connection') as\
+    with patch.object(loop, 'create_connection') as\
             open_conn_mock:
         open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
                                                                     loop=loop)

@@ -61,7 +61,7 @@ def test_connection_closed(redis):
     tr = redis.multi_exec()
     fut1 = tr.quit()
     fut2 = tr.incrby('foo', 1.0)
-    fut3 = tr.connection.execute('INCRBY', 'foo', '1.0')
+    fut3 = tr.incrby('foo', 1)
     with pytest.raises(MultiExecError):
         yield from tr.execute()
 

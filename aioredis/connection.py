@@ -16,6 +16,7 @@ from .util import (
     create_future,
     )
 from .parser import Reader
+from .stream import StreamReader
 from .errors import (
     ConnectionClosedError,
     RedisError,
@@ -85,11 +86,17 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     else:
         cls = RedisConnection
 
+    if loop is None:
+        loop = asyncio.get_event_loop()
+
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
-        reader, writer = yield from asyncio.wait_for(asyncio.open_connection(
-            host, port, ssl=ssl, loop=loop), timeout, loop=loop)
+        reader = StreamReader(limit=MAX_CHUNK_SIZE, loop=loop)
+        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+        transport, _ = yield from asyncio.wait_for(loop.create_connection(
+            lambda: protocol, host, port, ssl=ssl), timeout, loop=loop)
+        writer = asyncio.StreamWriter(transport, protocol, reader, loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -97,9 +104,12 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
-        reader, writer = yield from asyncio.wait_for(
-            asyncio.open_unix_connection(address, ssl=ssl, loop=loop),
+        reader = StreamReader(limit=MAX_CHUNK_SIZE, loop=loop)
+        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+        transport, _ = yield from asyncio.wait_for(
+            loop.create_unix_connection(lambda: protocol, address, ssl=ssl),
             timeout, loop=loop)
+        writer = asyncio.StreamWriter(transport, protocol, reader, loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             address = sock.getpeername()
@@ -136,8 +146,9 @@ class RedisConnection(AbcConnection):
         self._address = address
         self._loop = loop
         self._waiters = deque()
-        self._parser = parser(protocolError=ProtocolError,
-                              replyError=ReplyError)
+        self._reader.set_parser(
+            parser(protocolError=ProtocolError, replyError=ReplyError)
+        )
         self._reader_task = async_task(self._read_data(), loop=self._loop)
         self._db = 0
         self._closing = False
@@ -159,36 +170,32 @@ class RedisConnection(AbcConnection):
         """Response reader task."""
         while not self._reader.at_eof():
             try:
-                data = yield from self._reader.read(MAX_CHUNK_SIZE)
+                obj = yield from self._reader.readobj()
             except asyncio.CancelledError:
                 break
+            except ProtocolError as exc:
+                # ProtocolError is fatal
+                # so connection must be closed
+                if self._in_transaction is not None:
+                    self._transaction_error = exc
+                self._closing = True
+                self._do_close(exc)
+                return
             except Exception as exc:
                 # XXX: for QUIT command connection error can be received
                 #       before response
                 logger.error("Exception on data read %r", exc, exc_info=True)
                 break
-            if data == b'' and self._reader.at_eof():
-                logger.debug("Connection has been closed by server")
-                break
-            self._parser.feed(data)
-            while True:
-                try:
-                    obj = self._parser.gets()
-                except ProtocolError as exc:
-                    # ProtocolError is fatal
-                    # so connection must be closed
-                    if self._in_transaction is not None:
-                        self._transaction_error = exc
-                    self._closing = True
-                    self._do_close(exc)
-                    return
+            else:
+                if obj == b'' and self._reader.at_eof():
+                    logger.debug("Connection has been closed by server")
+                    break
+
+                if self._in_pubsub:
+                    self._process_pubsub(obj)
                 else:
-                    if obj is False:
-                        break
-                    if self._in_pubsub:
-                        self._process_pubsub(obj)
-                    else:
-                        self._process_data(obj)
+                    self._process_data(obj)
+
         self._closing = True
         self._do_close(None)
 
