@@ -489,7 +489,7 @@ def _proc():
         for path in tmp_files:
             try:
                 os.remove(path)
-            except FileNotFoundError:
+            except OSError:
                 pass
 
 
