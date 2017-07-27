@@ -31,11 +31,14 @@ def test_buffer_available_after_RST(reader):
     with pytest.raises(Exception):
         yield from reader.readobj()
 
-
 def test_feed_with_eof(reader):
     reader.feed_eof()
     with pytest.raises(AssertionError):
         reader.feed_data(b'+PONG\r\n')
+
+
+def test_feed_no_data(reader):
+    assert not reader.feed_data(None)
 
 
 @pytest.mark.parametrize(
