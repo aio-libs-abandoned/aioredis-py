@@ -31,6 +31,7 @@ def test_buffer_available_after_RST(reader):
     with pytest.raises(Exception):
         yield from reader.readobj()
 
+
 def test_feed_with_eof(reader):
     reader.feed_eof()
     with pytest.raises(AssertionError):
