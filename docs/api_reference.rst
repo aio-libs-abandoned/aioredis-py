@@ -40,11 +40,11 @@ Connection usage is as simple as:
 
    Creates Redis connection.
 
-   .. versionchanged:: v1.0
-      ``parser`` argument added.
-
    .. versionchanged:: v0.3.1
       ``timeout`` argument added.
+
+   .. versionchanged:: v1.0
+      ``parser`` argument added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -72,7 +72,7 @@ Connection usage is as simple as:
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :param timeout: Max time used to open a connection, otherwise
-                   raise `asyncio.TimeoutError` exception.
+                   raise :exc:`asyncio.TimeoutError` exception.
                    ``None`` by default
    :type timeout: float greater than 0 or None
 
@@ -173,10 +173,11 @@ Connection usage is as simple as:
                                      to or unsubscribe from.
                                      At least one channel/pattern is required.
 
-      :return: Returns a list of subscribe/unsubscribe messages, ex:
+      :return: Returns a list of subscribe/unsubscribe messages,
+         ex::
 
-               >>> await conn.execute_pubsub('subscribe', 'A', 'B')
-               [[b'subscribe', b'A', 1], [b'subscribe', b'B', 2]]
+            >>> await conn.execute_pubsub('subscribe', 'A', 'B')
+            [[b'subscribe', b'A', 1], [b'subscribe', b'B', 2]]
 
 
    .. method:: close()
@@ -234,7 +235,7 @@ The library provides connections pool. The basic usage is as follows:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
                           encoding=None, minsize=1, maxsize=10, \
-                          commands_factory=_NOTSET, parser=None, loop=None)
+                          parser=None, loop=None)
 
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
@@ -252,13 +253,16 @@ The library provides connections pool. The basic usage is as follows:
       Disallow arbitrary ConnectionsPool maxsize.
 
    .. deprecated:: v0.2.9
-      *commands_factory* argument is deprecated and will be removed in *v0.3*.
+      *commands_factory* argument is deprecated and will be removed in *v1.0*.
 
    .. versionchanged:: v0.3.2
       ``create_connection_timeout`` argument added.
 
    .. versionchanged:: v1.0
       ``parser`` argument added.
+
+   .. versionchanged:: v1.0
+      ``commands_factory`` argument dropped.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -284,10 +288,11 @@ The library provides connections pool. The basic usage is as follows:
                        ``10`` by default.
                        Must be greater then ``0``. ``None`` is disallowed.
 
-   :param commands_factory: A factory to be passed to ``create_redis``
+   .. ::
+      :param commands_factory: A factory to be passed to ``create_redis``
                             call. :class:`Redis` by default.
                             **Deprecated** since v0.2.8
-   :type commands_factory: callable
+      :type commands_factory: callable
 
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.
@@ -298,8 +303,8 @@ The library provides connections pool. The basic usage is as follows:
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :param create_connection_timeout: Max time used to open a connection,
-                                     otherwise raise an `asyncio.TimeoutError`.
-                                     ``None`` by default.
+      otherwise raise an :exc:`asyncio.TimeoutError`.
+      ``None`` by default.
    :type create_connection_timeout: float greater than 0 or None
 
    :return: :class:`ConnectionsPool` instance.

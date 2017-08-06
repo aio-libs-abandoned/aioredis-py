@@ -69,6 +69,7 @@ Contents
    :maxdepth: 3
 
    start
+   migration
    api_reference
    mixins
    abc
