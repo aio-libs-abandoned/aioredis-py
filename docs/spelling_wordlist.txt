@@ -17,6 +17,7 @@ brpop
 brpoplpush
 cardinality
 ClientInfo
+CPython
 codec
 ConnectionsPool
 convertion
@@ -33,6 +34,7 @@ EventLoop
 failover
 fallback
 favour
+geo
 geohash
 geospatial
 getrange

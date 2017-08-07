@@ -25,7 +25,8 @@ Pub/Sub support                     Yes
 Sentinel support                    Yes [1]_
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested python versions              `3.3, 3.4, 3.5, 3.6 <travis_>`_
+Tested CPython versions             `3.3, 3.4, 3.5, 3.6 <travis_>`_
+Tested PyPy3 versions               `5.8.0 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0, 3.2 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
@@ -69,6 +70,7 @@ Contents
    :maxdepth: 3
 
    start
+   migration
    api_reference
    mixins
    abc

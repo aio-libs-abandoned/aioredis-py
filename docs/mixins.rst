@@ -23,8 +23,8 @@ Generic commands
 .. autoclass:: GenericCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: GenericCommandsMixin
 
@@ -44,16 +44,53 @@ Python 3.5 async/await support
 Geo commands
 ------------
 
+.. versionadded:: v0.3.0
+
 .. autoclass:: GeoCommandsMixin
    :members:
 
-.. TODO Document GeoPoint & GeoMember
-.. autoclass:: GeoPoint
+Geo commands result wrappers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: GeoMember
+.. class:: GeoPoint(longitude, latitude)
+
+   Bases: :class:`tuple`
+
+   Named tuple representing result returned by ``GEOPOS`` and ``GEORADIUS``
+   commands.
+
+   :param float longitude: longitude value.
+   :param float latitude: latitude value.
+
+.. class:: GeoMember(member, dist, hash, coord)
+
+   Bases: :class:`tuple`
+
+   Named tuple representing result returned by ``GEORADIUS`` and
+   ``GEORADIUSBYMEMBER`` commands.
+
+   :param member: Value of geo sorted set item;
+   :type member: str or bytes
+
+   :param dist: Distance in units passed to call.
+                :class:`None` if ``with_dist`` was not set
+                in :meth:`~GeoCommandsMixin.georadius` call.
+   :type dist: None or float
+
+   :param hash: Geo-hash represented as number.
+                :class:`None` if ``with_hash``
+                was not in :meth:`~GeoCommandsMixin.georadius` call.
+   :type hash: None or int
+
+   :param coord: Coordinate of geospatial index member.
+                 :class:`None` if ``with_coord`` was not set
+                 in :meth:`~GeoCommandsMixin.georadius` call.
+   :type coord: None or GeoPoint
+
 
 Strings commands
 ----------------
+
 .. autoclass:: StringCommandsMixin
    :members:
 
@@ -63,8 +100,8 @@ Hash commands
 .. autoclass:: HashCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: HashCommandsMixin
 
@@ -92,8 +129,8 @@ Set commands
 .. autoclass:: SetCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SetCommandsMixin
 
@@ -115,8 +152,8 @@ Sorted Set commands
 .. autoclass:: SortedSetCommandsMixin
    :members:
 
-Python 3.5 async/await support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``async for`` support
+~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SortedSetCommandsMixin
 
