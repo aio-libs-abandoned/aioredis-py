@@ -1,7 +1,7 @@
 .. module:: aioredis.pubsub
 
-:mod:`aioredis.pubsub` module
-=============================
+:mod:`aioredis.pubsub` --- Pub/Sub Tools Reference
+==================================================
 
 Module provides a Pub/Sub listener interface implementing
 multi-producers, single-consumer queue pattern.
