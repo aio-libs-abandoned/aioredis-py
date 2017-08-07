@@ -28,8 +28,8 @@ RAW_NODE_INFO_DATA_OK = textwrap.dedent("""
     67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
     824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave \
     292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
-    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master \
-    - 0 0 1 connected 0-5460
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@30001 \
+    myself,master - 0 0 1 connected 0-5460
 """)
 
 RAW_NODE_INFO_DATA_FAIL = textwrap.dedent("""
@@ -43,8 +43,8 @@ RAW_NODE_INFO_DATA_FAIL = textwrap.dedent("""
     67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
     824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006 slave \
     292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
-    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001 myself,master \
-    - 0 0 1 connected 0-5460
+    e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@30001 \
+    myself,master - 0 0 1 connected 0-5460
 """)
 
 

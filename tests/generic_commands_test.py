@@ -400,8 +400,9 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.rename('key', 'key')
 
-        with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-            yield from self.redis.rename('key', b'key')
+        if REDIS_VERSION < (3, 2):
+            with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
+                yield from self.redis.rename('key', b'key')
 
     @run_until_complete
     def test_renamenx(self):
@@ -426,8 +427,9 @@ class GenericCommandsTest(RedisTest):
         with self.assertRaises(ValueError):
             yield from self.redis.renamenx('key', 'key')
 
-        with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-            yield from self.redis.renamenx('key', b'key')
+        if REDIS_VERSION < (3, 2):
+            with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
+                yield from self.redis.renamenx('key', b'key')
 
     @run_until_complete
     def test_restore(self):

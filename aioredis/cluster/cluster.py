@@ -64,6 +64,10 @@ def parse_nodes_info(raw_data, select_func):
         flags_info = tuple(str(flag.strip()) for flag in
                            flags_nodes_info.strip().split(','))
         host, port = address_node_info.split(':')
+        if '@' in port:
+            # Since version 4.0.0 address_node_info has the format
+            # '192.1.2.3:7001@17001
+            port = port[:port.index('@')]
         yield id_node_info, host, int(port), flags_info, \
             master_node_info, state_node_info, ranges_info
 
