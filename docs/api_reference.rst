@@ -36,7 +36,8 @@ Connection usage is as simple as:
 
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
-                                  encoding=None, parser=None, loop=None, timeout=None)
+                                  encoding=None, parser=None, loop=None,\
+                                  timeout=None)
 
    Creates Redis connection.
 
@@ -71,7 +72,7 @@ Connection usage is as simple as:
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   :param timeout: Max time used to open a connection, otherwise
+   :param timeout: Max time to open a connection, otherwise
                    raise :exc:`asyncio.TimeoutError` exception.
                    ``None`` by default
    :type timeout: float greater than 0 or None
@@ -235,16 +236,12 @@ The library provides connections pool. The basic usage is as follows:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
                           encoding=None, minsize=1, maxsize=10, \
-                          parser=None, loop=None)
+                          parser=None, loop=None, \
+                          create_connection_timeout=None, \
+                          pool_cls=None, connection_cls=None)
 
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
-
-
-   .. TODO: rewrite this text
-   .. By default it creates pool of :class:`Redis` instances, but it is
-      also possible to create plain connections pool by passing
-      ``lambda conn: conn`` as *commands_factory*.
 
    .. versionchanged:: v0.2.7
       ``minsize`` default value changed from 10 to 1.
@@ -258,8 +255,11 @@ The library provides connections pool. The basic usage is as follows:
    .. versionchanged:: v0.3.2
       ``create_connection_timeout`` argument added.
 
-   .. versionchanged:: v1.0
-      ``parser`` argument added.
+   .. versionchanged: v1.0
+      ``commands_factory`` argument has been dropped.
+
+   .. versionadded:: v1.0
+      ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
 
    .. versionchanged:: v1.0
       ``commands_factory`` argument dropped.
@@ -288,12 +288,6 @@ The library provides connections pool. The basic usage is as follows:
                        ``10`` by default.
                        Must be greater then ``0``. ``None`` is disallowed.
 
-   .. ::
-      :param commands_factory: A factory to be passed to ``create_redis``
-                            call. :class:`Redis` by default.
-                            **Deprecated** since v0.2.8
-      :type commands_factory: callable
-
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
@@ -302,10 +296,18 @@ The library provides connections pool. The basic usage is as follows:
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   :param create_connection_timeout: Max time used to open a connection,
-      otherwise raise an :exc:`asyncio.TimeoutError`.
-      ``None`` by default.
+   :param create_connection_timeout: Max time to open a connection,
+      otherwise raise an :exc:`asyncio.TimeoutError`. ``None`` by default.
    :type create_connection_timeout: float greater than 0 or None
+
+   :param pool_cls: Can be used to instantiate custom pool class.
+      This argument **must be** a subclass of :class:`~aioredis.abc.AbcPool`.
+   :type pool_cls: aioredis.abc.AbcPool
+
+   :param connection_cls: Can be used to make pool instantiate custom
+      connection classes. This argument **must be** a subclass of
+      :class:`~aioredis.abc.AbcConnection`.
+   :type connection_cls: aioredis.abc.AbcConnection
 
    :return: :class:`ConnectionsPool` instance.
 
@@ -553,6 +555,18 @@ Exceptions
    Raised from :meth:`aioredis.ConnectionsPool.acquire`
    when pool is already closed.
 
+.. exception:: ReadOnlyError
+
+   Raised from slave when read-only mode is enabled.
+
+
+.. exception:: MasterNotFoundError
+
+   Raised by Sentinel client if it can not find requested master.
+
+.. exception:: SlaveNotFoundError
+
+   Raised by Sentinel client if it can not find requested slave.
 
 Exceptions Hierarchy
 ~~~~~~~~~~~~~~~~~~~~
@@ -569,6 +583,9 @@ Exceptions Hierarchy
          ChannelClosedError
          ConnectionClosedError
          PoolClosedError
+         ReadOnlyError
+         MasterNotFoundError
+         SlaveNotFoundError
 
 ----
 
@@ -611,14 +628,15 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 
 .. cofunction:: create_redis(address, \*, db=0, password=None, ssl=None,\
                              encoding=None, commands_factory=Redis,\
-                             parser=None, loop=None)
+                             parser=None, timeout=None,\
+                             connection_cls=None, loop=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
    interface instance bound to single Redis connection
    (without auto-reconnect).
 
-   .. versionchanged:: v1.0
-      ``parser`` argument added.
+   .. versionadded:: v1.0
+      ``parser``, ``timeout` and ``connection_cls`` arguments added.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
@@ -649,6 +667,16 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
 
+   :param timeout: Max time to open a connection, otherwise
+                   raise :exc:`asyncio.TimeoutError` exception.
+                   ``None`` by default
+   :type timeout: float greater than 0 or None
+
+   :param connection_cls: Can be used to instantiate custom
+      connection class. This argument **must be** a subclass of
+      :class:`~aioredis.abc.AbcConnection`.
+   :type connection_cls: aioredis.abc.AbcConnection
+
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
@@ -660,7 +688,9 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 .. cofunction:: create_redis_pool(address, \*, db=0, password=None, ssl=None,\
                                   encoding=None, commands_factory=Redis,\
                                   minsize=1, maxsize=10,\
-                                  parser=None, loop=None)
+                                  parser=None, timeout=None,\
+                                  pool_cls=None, connection_cls=None,\
+                                  loop=None)
 
    This :ref:`coroutine<coroutine>` create high-level Redis client instance
    bound to connections pool (this allows auto-reconnect and simple pub/sub
@@ -669,7 +699,8 @@ see :ref:`commands mixins reference <aioredis-commands>`.
    See also :class:`~aioredis.ConnectionsPool` for parameters description.
 
    .. versionchanged:: v1.0
-      ``parser`` argument added.
+      ``parser``, ``timeout``, ``pool_cls`` and ``connection_cls``
+      arguments added.
 
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
@@ -702,6 +733,20 @@ see :ref:`commands mixins reference <aioredis-commands>`.
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
+
+   :param timeout: Max time to open a connection, otherwise
+                   raise :exc:`asyncio.TimeoutError` exception.
+                   ``None`` by default
+   :type timeout: float greater than 0 or None
+
+   :param pool_cls: Can be used to instantiate custom pool class.
+      This argument **must be** a subclass of :class:`~aioredis.abc.AbcPool`.
+   :type pool_cls: aioredis.abc.AbcPool
+
+   :param connection_cls: Can be used to make pool instantiate custom
+      connection classes. This argument **must be** a subclass of
+      :class:`~aioredis.abc.AbcConnection`.
+   :type connection_cls: aioredis.abc.AbcConnection
 
    :param loop: An optional *event loop* instance
                 (uses :func:`asyncio.get_event_loop` if not specified).

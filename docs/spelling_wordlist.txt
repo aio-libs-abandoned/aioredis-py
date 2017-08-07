@@ -17,6 +17,7 @@ brpop
 brpoplpush
 cardinality
 ClientInfo
+CPython
 codec
 ConnectionsPool
 convertion
