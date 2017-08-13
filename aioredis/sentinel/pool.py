@@ -8,7 +8,12 @@ from ..log import sentinel_logger
 from ..util import async_task
 from ..pubsub import Receiver
 from ..pool import create_pool, ConnectionsPool
-from ..errors import MasterNotFoundError, SlaveNotFoundError, PoolClosedError
+from ..errors import (
+    MasterNotFoundError,
+    SlaveNotFoundError,
+    PoolClosedError,
+    ReplyError
+)
 
 
 # Address marker for discovery
@@ -291,6 +296,9 @@ class SentinelPool:
                                       sentinel, service, err)
                 yield from asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
+            except ReplyError as err:
+                raise ReplyError(
+                    "Master {} error: {}".format(service, err)) from err
             except Exception:
                 # TODO: clear (drop) connections to schedule reconnect
                 yield from asyncio.sleep(idle_timeout, loop=self._loop)
@@ -325,6 +333,9 @@ class SentinelPool:
             except DiscoverError:
                 yield from asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
+            except ReplyError as err:
+                raise ReplyError(
+                    "Slave {} error: {}".format(service, err)) from err
             except Exception:
                 yield from asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
