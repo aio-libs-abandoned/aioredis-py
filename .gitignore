@@ -61,3 +61,6 @@ docs/_build/
 # Vim
 .vim
 tests/ssl
+
+# pyenv
+.python-version
