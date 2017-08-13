@@ -78,6 +78,34 @@ async def test_master_info(redis_sentinel, sentinel):
 
 
 @pytest.mark.run_loop
+async def test_master__auth(create_sentinel, start_sentinel,
+                            start_server, loop):
+    master = start_server('master_1', password='123')
+    start_server('slave_1', slaveof=master, password='123')
+
+    sentinel = start_sentinel('auth_sentinel_1', master)
+    client1 = await create_sentinel(
+        [sentinel.tcp_address], password='123', loop=loop)
+
+    client2 = await create_sentinel(
+        [sentinel.tcp_address], password='111', loop=loop)
+
+    client3 = await create_sentinel(
+        [sentinel.tcp_address], loop=loop)
+
+    m1 = client1.master_for(master.name)
+    await m1.set('mykey', 'myval')
+
+    with pytest.raises(ReplyError):
+        m2 = client2.master_for(master.name)
+        await m2.set('mykey', 'myval')
+
+    with pytest.raises(ReplyError):
+        m3 = client3.master_for(master.name)
+        await m3.set('mykey', 'myval')
+
+
+@pytest.mark.run_loop
 async def test_master__unknown(redis_sentinel):
     with pytest.raises(ReplyError):
         await redis_sentinel.master('unknown-master')
