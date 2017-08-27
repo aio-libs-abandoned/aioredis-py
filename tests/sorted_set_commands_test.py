@@ -13,11 +13,27 @@ def test_zadd(redis):
     assert res == 1
     res = yield from redis.zadd(key, 2.5, b'two')
     assert res == 1
-
     res = yield from redis.zadd(key, 3, b'three', 4, b'four')
     assert res == 2
+
+    res = yield from redis.zadd(key, 4.5, b'four', 5, b'five',
+                                exist=redis.SET_IF_EXIST)
+    assert res == 0
+    res = yield from redis.zscore(key, b'four')
+    assert res == 4.5
+    res = yield from redis.zscore(key, b'five')
+    assert res is None
+
+    res = yield from redis.zadd(key, 4.0, b'four', 5, b'five',
+                                exist=redis.SET_IF_NOT_EXIST)
+    assert res == 1
+    res = yield from redis.zscore(key, b'four')
+    assert res == 4.5
+    res = yield from redis.zscore(key, b'five')
+    assert res == 5
+
     res = yield from redis.zrange(key, 0, -1, withscores=False)
-    assert res == [b'one', b'uno', b'two', b'three', b'four']
+    assert res == [b'one', b'uno', b'two', b'three', b'four', b'five']
 
     with pytest.raises(TypeError):
         yield from redis.zadd(None, 1, b'one')

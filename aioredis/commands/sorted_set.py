@@ -18,7 +18,10 @@ class SortedSetCommandsMixin:
     ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
     ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
 
-    def zadd(self, key, score, member, *pairs):
+    SET_IF_NOT_EXIST = 'SET_IF_NOT_EXIST'  # NX
+    SET_IF_EXIST = 'SET_IF_EXIST'  # XX
+
+    def zadd(self, key, score, member, *pairs, exist=None):
         """Add one or more members to a sorted set or update its score.
 
         :raises TypeError: score not int or float
@@ -32,7 +35,17 @@ class SortedSetCommandsMixin:
         scores = (item for i, item in enumerate(pairs) if i % 2 == 0)
         if any(not isinstance(s, (int, float)) for s in scores):
             raise TypeError("all scores must be int or float")
-        return self.execute(b'ZADD', key, score, member, *pairs)
+
+        args = []
+        if exist is self.SET_IF_EXIST:
+            args.append(b'XX')
+        elif exist is self.SET_IF_NOT_EXIST:
+            args.append(b'NX')
+
+        args.extend([score, member])
+        if pairs:
+            args.extend(pairs)
+        return self.execute(b'ZADD', key, *args)
 
     def zcard(self, key):
         """Get the number of members in a sorted set."""
