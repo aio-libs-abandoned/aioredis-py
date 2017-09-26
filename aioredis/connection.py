@@ -16,7 +16,7 @@ from .util import (
     create_future,
     )
 from .parser import Reader
-from .stream import StreamReader
+from .stream import open_connection, open_unix_connection
 from .errors import (
     ConnectionClosedError,
     RedisError,
@@ -92,11 +92,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
-        reader = StreamReader(limit=MAX_CHUNK_SIZE, loop=loop)
-        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-        transport, _ = yield from asyncio.wait_for(loop.create_connection(
-            lambda: protocol, host, port, ssl=ssl), timeout, loop=loop)
-        writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+        reader, writer = yield from asyncio.wait_for(open_connection(
+            host, port, limit=MAX_CHUNK_SIZE, ssl=ssl, loop=loop),
+            timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -104,12 +102,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
-        reader = StreamReader(limit=MAX_CHUNK_SIZE, loop=loop)
-        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-        transport, _ = yield from asyncio.wait_for(
-            loop.create_unix_connection(lambda: protocol, address, ssl=ssl),
+        reader, writer = yield from asyncio.wait_for(open_unix_connection(
+            address, ssl=ssl, limit=MAX_CHUNK_SIZE, loop=loop),
             timeout, loop=loop)
-        writer = asyncio.StreamWriter(transport, protocol, reader, loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             address = sock.getpeername()
@@ -187,8 +182,9 @@ class RedisConnection(AbcConnection):
                 logger.error("Exception on data read %r", exc, exc_info=True)
                 break
             else:
-                if obj == b'' and self._reader.at_eof():
-                    logger.debug("Connection has been closed by server")
+                if (obj == b'' or obj is None) and self._reader.at_eof():
+                    logger.debug("Connection has been closed by server,"
+                                 " response: %r", obj)
                     break
 
                 if self._in_pubsub:

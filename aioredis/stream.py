@@ -1,5 +1,41 @@
 import asyncio
 
+__all__ = [
+    'open_connection',
+    'open_unix_connection',
+    'StreamReader',
+]
+
+
+@asyncio.coroutine
+def open_connection(host=None, port=None, *,
+                    limit, loop=None,
+                    parser=None, **kwds):
+    # XXX: parser is not used (yet)
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    reader = StreamReader(limit=limit, loop=loop)
+    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+    transport, _ = yield from loop.create_connection(
+        lambda: protocol, host, port, **kwds)
+    writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+    return reader, writer
+
+
+@asyncio.coroutine
+def open_unix_connection(address, *,
+                         limit, loop=None,
+                         parser=None, **kwds):
+    # XXX: parser is not used (yet)
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    reader = StreamReader(limit=limit, loop=loop)
+    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+    transport, _ = yield from loop.create_unix_connection(
+        lambda: protocol, address, **kwds)
+    writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+    return reader, writer
+
 
 class StreamReader(asyncio.StreamReader):
     """
@@ -12,6 +48,7 @@ class StreamReader(asyncio.StreamReader):
     """
 
     def set_parser(self, parser):
+        # XXX: we'll get AttributeError unless set_parser is called
         self._parser = parser
 
     def feed_data(self, data):
@@ -51,6 +88,7 @@ class StreamReader(asyncio.StreamReader):
                 break
 
             yield from self._wait_for_data('readobj')
+        # NOTE: after break we return None which must be handled as b''
 
     @asyncio.coroutine
     def _read_not_allowed(self, *args, **kwargs):
