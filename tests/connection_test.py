@@ -65,7 +65,7 @@ def test_connect_inject_connection_cls_invalid(
 
 @pytest.mark.run_loop
 def test_connect_tcp_timeout(request, create_connection, loop, server):
-    with patch('aioredis.connection.asyncio.open_connection') as\
+    with patch.object(loop, 'create_connection') as\
             open_conn_mock:
         open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
                                                                     loop=loop)
@@ -96,7 +96,7 @@ def test_connect_unixsocket(create_connection, loop, server):
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 def test_connect_unixsocket_timeout(create_connection, loop, server):
-    with patch('aioredis.connection.asyncio.open_unix_connection') as\
+    with patch.object(loop, 'create_unix_connection') as\
             open_conn_mock:
         open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
                                                                     loop=loop)
@@ -519,18 +519,15 @@ def test_connection_parser_argument(create_connection, server, loop):
     conn = yield from create_connection(server.tcp_address,
                                         parser=klass, loop=loop)
 
-    def ret_once(*args, _called=[False]):
-        if not _called[0]:
-            _called[0] = True
-            return b'xxx'
-        return False
-
-    reader.gets.side_effect = ret_once
-    assert b'xxx' == (yield from conn.execute('ping'))
-
     assert klass.mock_calls == [
         mock.call(protocolError=ProtocolError, replyError=ReplyError),
-        mock.call().feed(b'+PONG\r\n'),
-        mock.call().gets(),
-        mock.call().gets(),
     ]
+
+    response = [False]
+
+    def feed_gets(data, **kwargs):
+        response[0] = data
+
+    reader.gets.side_effect = lambda *args, **kwargs: response[0]
+    reader.feed.side_effect = feed_gets
+    assert b'+PONG\r\n' == (yield from conn.execute('ping'))
