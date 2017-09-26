@@ -249,7 +249,7 @@ class RedisConnection(AbcConnection):
             self._pubsub_patterns[pattern].put_nowait((chan, data))
         elif kind == b'pong':
             if process_waiters and self._in_pubsub and self._waiters:
-                self._process_data(b'PONG')
+                self._process_data(data or b'PONG')
         else:
             logger.warning("Unknown pubsub message received %r", obj)
 

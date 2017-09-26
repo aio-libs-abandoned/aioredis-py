@@ -104,9 +104,16 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """Echo the given string."""
         return self.execute('ECHO', message, encoding=encoding)
 
-    def ping(self, *, encoding=_NOTSET):
-        """Ping the server."""
-        return self.execute('PING', encoding=encoding)
+    def ping(self, message=_NOTSET, *, encoding=_NOTSET):
+        """Ping the server.
+
+        Accept optional echo message.
+        """
+        if message is not _NOTSET:
+            args = (message,)
+        else:
+            args = ()
+        return self.execute('PING', *args, encoding=encoding)
 
     def quit(self):
         """Close the connection."""

@@ -272,5 +272,9 @@ def test_pubsub_ping(redis):
 
     res = yield from redis.ping()
     assert res == b'PONG'
+    res = yield from redis.ping('Hello')
+    assert res == b'Hello'
+    res = yield from redis.ping('Hello', encoding='utf-8')
+    assert res == 'Hello'
 
     yield from redis.unsubscribe('chan:1', 'chan:2')
