@@ -394,6 +394,9 @@ class ConnectionsPool(AbcPool):
             self._acquiring += 1
             try:
                 conn = yield from self._create_new_connection(address)
+                # check the healthy of that connection, if
+                # something went wrong just trigger the Exception
+                yield from conn.execute('ping')
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1

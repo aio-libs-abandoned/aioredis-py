@@ -9,7 +9,8 @@ from aioredis import (
     ReplyError,
     PoolClosedError,
     ConnectionClosedError,
-    ConnectionsPool
+    ConnectionsPool,
+    MaxClientsError
     )
 from aioredis.util import async_task
 
@@ -462,7 +463,6 @@ def test_pool_close__used(create_pool, server, loop):
 
 @pytest.mark.run_loop
 @pytest.redis_version(2, 8, 0, reason="maxclients config setting")
-@pytest.mark.xfail(reason="Redis returns 'Err max clients reached'")
 def test_pool_check_closed_when_exception(create_pool, create_redis,
                                           start_server, loop):
     server = start_server('server-small')
@@ -470,16 +470,16 @@ def test_pool_check_closed_when_exception(create_pool, create_redis,
     yield from redis.config_set('maxclients', 2)
 
     with pytest.logs('aioredis', 'DEBUG') as cm:
-        with pytest.raises(Exception):
+        with pytest.raises(MaxClientsError):
             yield from create_pool(address=tuple(server.tcp_address),
-                                   minsize=2, loop=loop)
+                                   minsize=3, loop=loop)
 
     assert len(cm.output) >= 3
     connect_msg = (
         "DEBUG:aioredis:Creating tcp connection"
         " to ('localhost', {})".format(server.tcp_address.port))
     assert cm.output[:2] == [connect_msg, connect_msg]
-    assert cm.output[-1] == "DEBUG:aioredis:Closed 1 connections"
+    assert cm.output[-1] == "DEBUG:aioredis:Closed 1 connection(s)"
 
 
 @pytest.mark.run_loop
