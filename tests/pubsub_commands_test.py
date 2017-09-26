@@ -262,3 +262,15 @@ def test_subscribe_concurrency(create_redis, server, loop):
     assert ch1.name == b'channel:0'
     assert subs == 1
     assert ch2.name == b'channel:1'
+
+
+@pytest.redis_version(
+    3, 2, 0, reason='PUBSUB PING is available since redis>=3.2.0')
+@pytest.mark.run_loop
+def test_pubsub_ping(redis):
+    yield from redis.subscribe('chan:1', 'chan:2')
+
+    res = yield from redis.ping()
+    assert res == b'PONG'
+
+    yield from redis.unsubscribe('chan:1', 'chan:2')
