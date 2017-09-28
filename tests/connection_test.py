@@ -531,3 +531,16 @@ def test_connection_parser_argument(create_connection, server, loop):
     reader.gets.side_effect = lambda *args, **kwargs: response[0]
     reader.feed.side_effect = feed_gets
     assert b'+PONG\r\n' == (yield from conn.execute('ping'))
+
+
+@pytest.mark.run_loop
+def test_connection_idle_close(create_connection, start_server, loop):
+    server = start_server('idle')
+    conn = yield from create_connection(server.tcp_address, loop=loop)
+    ok = yield from conn.execute("config", "set", "timeout", 1)
+    assert ok == b'OK'
+
+    yield from asyncio.sleep(2, loop=loop)
+
+    with pytest.raises(ConnectionClosedError):
+        assert (yield from conn.execute('ping')) is None

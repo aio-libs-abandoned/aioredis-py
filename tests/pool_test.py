@@ -521,3 +521,15 @@ def test_pool_get_connection_with_pipelining(create_pool, server, loop):
     assert res == [[b"subscribe", b"channel:2", 2]]
     res = yield from fut5
     assert res == b'next'
+
+
+@pytest.mark.run_loop
+def test_pool_idle_close(create_pool, start_server, loop):
+    server = start_server('idle')
+    conn = yield from create_pool(server.tcp_address, minsize=2, loop=loop)
+    ok = yield from conn.execute("config", "set", "timeout", 1)
+    assert ok == b'OK'
+
+    yield from asyncio.sleep(2, loop=loop)
+
+    assert (yield from conn.execute('ping')) == b'PONG'
