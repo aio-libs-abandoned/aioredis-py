@@ -16,24 +16,8 @@ def test_zadd(redis):
     res = yield from redis.zadd(key, 3, b'three', 4, b'four')
     assert res == 2
 
-    res = yield from redis.zadd(key, 4.5, b'four', 5, b'five',
-                                exist=redis.SET_IF_EXIST)
-    assert res == 0
-    res = yield from redis.zscore(key, b'four')
-    assert res == 4.5
-    res = yield from redis.zscore(key, b'five')
-    assert res is None
-
-    res = yield from redis.zadd(key, 4.0, b'four', 5, b'five',
-                                exist=redis.SET_IF_NOT_EXIST)
-    assert res == 1
-    res = yield from redis.zscore(key, b'four')
-    assert res == 4.5
-    res = yield from redis.zscore(key, b'five')
-    assert res == 5
-
     res = yield from redis.zrange(key, 0, -1, withscores=False)
-    assert res == [b'one', b'uno', b'two', b'three', b'four', b'five']
+    assert res == [b'one', b'uno', b'two', b'three', b'four']
 
     with pytest.raises(TypeError):
         yield from redis.zadd(None, 1, b'one')
@@ -43,6 +27,44 @@ def test_zadd(redis):
         yield from redis.zadd(key, 3, b'three', 4)
     with pytest.raises(TypeError):
         yield from redis.zadd(key, 3, b'three', 'four', 4)
+
+
+@pytest.redis_version(
+    3, 0, 2, reason='ZADD options is available since redis>=3.0.2',
+)
+@pytest.mark.run_loop
+def test_zadd_options(redis):
+    key = b'key:zaddopt'
+
+    res = yield from redis.zadd(key, 0, b'one')
+    assert res == 1
+
+    res = yield from redis.zadd(
+        key, 1, b'one', 2, b'two',
+        exist=redis.SET_IF_EXIST,
+    )
+    assert res == 0
+
+    res = yield from redis.zscore(key, b'one')
+    assert res == 1
+
+    res = yield from redis.zscore(key, b'two')
+    assert res is None
+
+    res = yield from redis.zadd(
+        key, 1, b'one', 2, b'two',
+        exist=redis.SET_IF_NOT_EXIST,
+    )
+    assert res == 1
+
+    res = yield from redis.zscore(key, b'one')
+    assert res == 1
+
+    res = yield from redis.zscore(key, b'two')
+    assert res == 2
+
+    res = yield from redis.zrange(key, 0, -1, withscores=False)
+    assert res == [b'one', b'two']
 
 
 @pytest.mark.run_loop
