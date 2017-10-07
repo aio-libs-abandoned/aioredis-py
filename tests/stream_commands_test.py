@@ -63,7 +63,7 @@ def test_xrange(redis):
     }
     message_id1 = yield from redis.xadd(stream, values)
     message_id2 = yield from redis.xadd(stream, values)
-    message_id3 = yield from redis.xadd(stream, values)
+    message_id3 = yield from redis.xadd(stream, values)  # noqa
 
     # Test no parameters
     messages = yield from redis.xrange(stream)
@@ -93,10 +93,14 @@ def test_xrange(redis):
     assert len(messages) == 3
 
     # Test start & stop
-    messages = yield from redis.xrange(stream, start=message_id1, stop=message_id2)
+    messages = yield from redis.xrange(stream,
+                                       start=message_id1,
+                                       stop=message_id2)
     assert len(messages) == 2
 
-    messages = yield from redis.xrange(stream, start='0000000000000-0', stop='9900000000000-0')
+    messages = yield from redis.xrange(stream,
+                                       start='0000000000000-0',
+                                       stop='9900000000000-0')
     assert len(messages) == 3
 
     # Test count
@@ -114,19 +118,27 @@ def test_xread_selection(redis, create_redis, loop, server):
         'field2': 'value2',
     }
     message_id1 = yield from redis.xadd(stream, values)
-    message_id2 = yield from redis.xadd(stream, values)
+    message_id2 = yield from redis.xadd(stream, values)  # noqa
     message_id3 = yield from redis.xadd(stream, values)
 
-    messages = yield from redis.xread([stream], timeout=1, latest_ids=['0000000000000-0'])
+    messages = yield from redis.xread([stream],
+                                      timeout=1,
+                                      latest_ids=['0000000000000-0'])
     assert len(messages) == 3
 
-    messages = yield from redis.xread([stream], timeout=1, latest_ids=[message_id1])
+    messages = yield from redis.xread([stream],
+                                      timeout=1,
+                                      latest_ids=[message_id1])
     assert len(messages) == 2
 
-    messages = yield from redis.xread([stream], timeout=1, latest_ids=[message_id3])
+    messages = yield from redis.xread([stream],
+                                      timeout=1,
+                                      latest_ids=[message_id3])
     assert len(messages) == 0
 
-    messages = yield from redis.xread([stream], timeout=1, latest_ids=['0000000000000-0'], count=2)
+    messages = yield from redis.xread([stream],
+                                      timeout=1,
+                                      latest_ids=['0000000000000-0'], count=2)
     assert len(messages) == 2
 
 
@@ -153,7 +165,9 @@ def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     assert len(received_messages) == 1
     assert sent_message_id
 
-    received_stream, received_message_id, received_fields = received_messages[0]
+    received_stream, received_message_id, received_fields \
+        = received_messages[0]
+
     assert received_stream == b'test_stream'
     assert sent_message_id == received_message_id
     assert fields == received_fields

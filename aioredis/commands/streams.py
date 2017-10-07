@@ -104,11 +104,15 @@ class StreamCommandsMixin:
 
     def xread(self, streams, timeout=0, count=None, latest_ids=None):
         """Perform a blocking read on the given stream"""
-        # QUESTION: Should we combine streams & starting_ids into a single parameter?
+        # QUESTION: Should we combine streams & starting_ids
+        # into a single parameter?
         if latest_ids is None:
             latest_ids = ['$'] * len(streams)
         if len(streams) != len(latest_ids):
-            raise ValueError('The streams and latest_ids parameters must be of the same length')
+            raise ValueError(
+                'The streams and latest_ids parameters must be of the '
+                'same length'
+            )
 
         count_args = [b'COUNT', count] if count else []
         args = count_args + [b'STREAMS'] + streams + latest_ids
