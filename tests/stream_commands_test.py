@@ -32,11 +32,11 @@ def add_message_with_sleep(redis, loop, stream, fields):
 def test_xadd(redis, server_bin):
     skip_if_streams_not_present(server_bin)
 
-    values = {
-        'field1': 'value1',
-        'field2': 'value2',
-    }
-    message_id = yield from redis.xadd('test_stream', values)
+    fields = OrderedDict((
+        (b'field1', b'value1'),
+        (b'field2', b'value2'),
+    ))
+    message_id = yield from redis.xadd('test_stream', fields)
 
     # Check the result is in the expected format (i.e: 1507400517949-0)
     assert b'-' in message_id
@@ -60,13 +60,13 @@ def test_xrange(redis, server_bin):
     skip_if_streams_not_present(server_bin)
 
     stream = 'test_stream'
-    values = {
-        'field1': 'value1',
-        'field2': 'value2',
-    }
-    message_id1 = yield from redis.xadd(stream, values)
-    message_id2 = yield from redis.xadd(stream, values)
-    message_id3 = yield from redis.xadd(stream, values)  # noqa
+    fields = OrderedDict((
+        (b'field1', b'value1'),
+        (b'field2', b'value2'),
+    ))
+    message_id1 = yield from redis.xadd(stream, fields)
+    message_id2 = yield from redis.xadd(stream, fields)
+    message_id3 = yield from redis.xadd(stream, fields)  # noqa
 
     # Test no parameters
     messages = yield from redis.xrange(stream)
@@ -117,13 +117,13 @@ def test_xread_selection(redis, server_bin):
     skip_if_streams_not_present(server_bin)
 
     stream = 'test_stream'
-    values = {
-        'field1': 'value1',
-        'field2': 'value2',
-    }
-    message_id1 = yield from redis.xadd(stream, values)
-    message_id2 = yield from redis.xadd(stream, values)  # noqa
-    message_id3 = yield from redis.xadd(stream, values)
+    fields = OrderedDict((
+        (b'field1', b'value1'),
+        (b'field2', b'value2'),
+    ))
+    message_id1 = yield from redis.xadd(stream, fields)
+    message_id2 = yield from redis.xadd(stream, fields)  # noqa
+    message_id3 = yield from redis.xadd(stream, fields)
 
     messages = yield from redis.xread([stream],
                                       timeout=1,
