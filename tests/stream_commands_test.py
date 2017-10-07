@@ -1,23 +1,24 @@
 from collections import OrderedDict
 
 import os
-import sys
 
 import pytest
 import asyncio
 
-STREAMS_AVAILABLE = (
-    os.environ.get('STREAMS_AVAILABLE')
-    # Should be true in CI when building the streams branch:
-    or 'streams' in ' '.join(sys.argv)
-)
-SKIP_REASON = (
-    "Streams testing is disabled as streams are not yet available "
-    "in Redis 4.0. Set STREAMS_AVAILABLE=1 in your environment "
-    "if you have compiled the Redis 'streams' branch. You will "
-    "probably need specify the --redis-server=path/to/redis-server "
-    " to py.test."
-)
+
+def skip_if_streams_not_present(server_bin):
+    if os.environ.get('STREAMS_AVAILABLE'):
+        return
+    if '/streams/' in server_bin:
+        return
+
+    pytest.skip(
+        "Streams testing is disabled as streams are not yet available "
+        "in Redis 4.0. Set STREAMS_AVAILABLE=1 in your environment "
+        "if you have compiled the Redis 'streams' branch. You will "
+        "probably need specify the --redis-server=path/to/redis-server "
+        " to py.test."
+    )
 
 
 @asyncio.coroutine
@@ -27,9 +28,10 @@ def add_message_with_sleep(redis, loop, stream, fields):
     return result
 
 
-@pytest.mark.skipif(not STREAMS_AVAILABLE, reason=SKIP_REASON)
 @pytest.mark.run_loop
-def test_xadd(redis):
+def test_xadd(redis, server_bin):
+    skip_if_streams_not_present(server_bin)
+
     values = {
         'field1': 'value1',
         'field2': 'value2',
@@ -53,9 +55,10 @@ def test_xadd(redis):
     )
 
 
-@pytest.mark.skipif(not STREAMS_AVAILABLE, reason=SKIP_REASON)
 @pytest.mark.run_loop
-def test_xrange(redis):
+def test_xrange(redis, server_bin):
+    skip_if_streams_not_present(server_bin)
+
     stream = 'test_stream'
     values = {
         'field1': 'value1',
@@ -108,10 +111,11 @@ def test_xrange(redis):
     assert len(messages) == 2
 
 
-@pytest.mark.skipif(not STREAMS_AVAILABLE, reason=SKIP_REASON)
 @pytest.mark.run_loop
-def test_xread_selection(redis, create_redis, loop, server):
+def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
+    skip_if_streams_not_present(server_bin)
+
     stream = 'test_stream'
     values = {
         'field1': 'value1',
@@ -142,10 +146,11 @@ def test_xread_selection(redis, create_redis, loop, server):
     assert len(messages) == 2
 
 
-@pytest.mark.skipif(not STREAMS_AVAILABLE, reason=SKIP_REASON)
 @pytest.mark.run_loop
 def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     """Test the blocking read features"""
+    skip_if_streams_not_present(server_bin)
+
     fields = OrderedDict((
         (b'field1', b'value1'),
         (b'field2', b'value2'),
