@@ -116,6 +116,5 @@ class StreamCommandsMixin:
 
         count_args = [b'COUNT', count] if count else []
         args = count_args + [b'STREAMS'] + streams + latest_ids
-        print(args)
         fut = self.execute(b'XREAD', b'BLOCK', timeout, *args)
         return wait_convert(fut, parse_messages_by_stream)
