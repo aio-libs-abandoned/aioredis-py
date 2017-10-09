@@ -174,7 +174,7 @@ class RedisConnection(AbcConnection):
                 if self._in_transaction is not None:
                     self._transaction_error = exc
                 self._closing = True
-                self._do_close(exc)
+                self._loop.call_soon(self._do_close, exc)
                 return
             except Exception as exc:
                 # XXX: for QUIT command connection error can be received
@@ -193,7 +193,7 @@ class RedisConnection(AbcConnection):
                     self._process_data(obj)
 
         self._closing = True
-        self._do_close(None)
+        self._loop.call_soon(self._do_close, None)
 
     def _process_data(self, obj):
         """Processes command results."""
