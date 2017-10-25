@@ -2,6 +2,7 @@ import asyncio
 import pytest
 
 import aioredis
+from aioredis.util import async_task
 
 
 @pytest.fixture
@@ -88,7 +89,7 @@ def test_operations(pool_or_redis, test_case, pool_size, loop):
     repeat = 100
     redis = yield from pool_or_redis(pool_size)
     done, pending = yield from asyncio.wait(
-        [asyncio.ensure_future(test_case(redis, i, loop), loop=loop)
+        [async_task(test_case(redis, i, loop), loop=loop)
          for i in range(repeat)], loop=loop)
 
     assert not pending
