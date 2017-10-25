@@ -261,9 +261,6 @@ The library provides connections pool. The basic usage is as follows:
    .. versionadded:: v1.0
       ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
 
-   .. versionchanged:: v1.0
-      ``commands_factory`` argument dropped.
-
    :param address: An address where to connect. Can be a (host, port) tuple or
                    unix domain socket path string.
    :type address: tuple or str
