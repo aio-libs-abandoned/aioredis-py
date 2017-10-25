@@ -274,6 +274,15 @@ def test_time(redis):
 
 
 @pytest.mark.run_loop
+def test_time_with_encoding(create_redis, server, loop):
+    redis = yield from create_redis(server.tcp_address, loop=loop,
+                                    encoding='utf-8')
+    res = yield from redis.time()
+    assert isinstance(res, float)
+    pytest.assert_almost_equal(int(res), int(time.time()), delta=10)
+
+
+@pytest.mark.run_loop
 def test_slowlog_len(redis):
     res = yield from redis.slowlog_len()
     assert res >= 0
