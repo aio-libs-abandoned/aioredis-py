@@ -179,7 +179,7 @@ class RedisConnection(AbcConnection):
             except Exception as exc:
                 # XXX: for QUIT command connection error can be received
                 #       before response
-                logger.error("Exception on data read %r", exc, exc_info=True)
+                logger.error("Exception on data read: %r", exc, exc_info=True)
                 break
             else:
                 if (obj == b'' or obj is None) and self._reader.at_eof():
