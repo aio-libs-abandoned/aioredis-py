@@ -41,7 +41,7 @@ def test_zadd_options(redis):
 
     res = yield from redis.zadd(
         key, 1, b'one', 2, b'two',
-        exist=redis.SET_IF_EXIST,
+        exist=redis.ZSET_IF_EXIST,
     )
     assert res == 0
 
@@ -53,7 +53,7 @@ def test_zadd_options(redis):
 
     res = yield from redis.zadd(
         key, 1, b'one', 2, b'two',
-        exist=redis.SET_IF_NOT_EXIST,
+        exist=redis.ZSET_IF_NOT_EXIST,
     )
     assert res == 1
 

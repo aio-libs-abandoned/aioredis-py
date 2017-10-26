@@ -18,8 +18,8 @@ class SortedSetCommandsMixin:
     ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
     ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
 
-    SET_IF_NOT_EXIST = 'SET_IF_NOT_EXIST'  # NX
-    SET_IF_EXIST = 'SET_IF_EXIST'  # XX
+    ZSET_IF_NOT_EXIST = 'ZSET_IF_NOT_EXIST'  # NX
+    ZSET_IF_EXIST = 'ZSET_IF_EXIST'  # XX
 
     def zadd(self, key, score, member, *pairs, exist=None):
         """Add one or more members to a sorted set or update its score.
@@ -37,9 +37,9 @@ class SortedSetCommandsMixin:
             raise TypeError("all scores must be int or float")
 
         args = []
-        if exist is self.SET_IF_EXIST:
+        if exist is self.ZSET_IF_EXIST:
             args.append(b'XX')
-        elif exist is self.SET_IF_NOT_EXIST:
+        elif exist is self.ZSET_IF_NOT_EXIST:
             args.append(b'NX')
 
         args.extend([score, member])
