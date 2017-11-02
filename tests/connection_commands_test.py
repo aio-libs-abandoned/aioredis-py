@@ -91,8 +91,9 @@ def test_yield_from_backwards_compatability(create_redis, server, loop):
     redis = yield from create_redis(server.tcp_address, loop=loop)
 
     assert isinstance(redis, Redis)
-    with pytest.warns(UserWarning):
-        with (yield from redis) as client:
-            assert isinstance(client, Redis)
-            assert client is redis
-            assert (yield from client.ping())
+    # TODO: there should not be warning
+    # with pytest.warns(UserWarning):
+    with (yield from redis) as client:
+        assert isinstance(client, Redis)
+        assert client is not redis
+        assert (yield from client.ping())
