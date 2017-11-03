@@ -1,9 +1,10 @@
 import asyncio
-import warnings
+# import warnings
 
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
 from aioredis.util import _NOTSET
+from aioredis.abc import AbcPool
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
 from .hash import HashCommandsMixin
@@ -46,7 +47,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         self._pool_or_conn = pool_or_conn
 
     def __repr__(self):
-        return '<Redis {!r}>'.format(self._pool_or_conn)
+        return '<{} {!r}>'.format(self.__class__.__name__, self._pool_or_conn)
 
     def execute(self, command, *args, **kwargs):
         return self._pool_or_conn.execute(command, *args, **kwargs)
@@ -127,18 +128,38 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._pool_or_conn.select(db)
 
+    def __await__(self):
+        if isinstance(self._pool_or_conn, AbcPool):
+            conn = yield from self._pool_or_conn.acquire()
+            release = self._pool_or_conn.release
+        else:
+            # TODO: probably a lock is needed here if _pool_or_conn
+            #       is Connection instance.
+            conn = self._pool_or_conn
+            release = None
+        return ContextRedis(conn, release)
+    __iter__ = __await__
+
+
+class ContextRedis(Redis):
+    """An instance of Redis class bound to single connection."""
+
+    def __init__(self, conn, release_cb=None):
+        super().__init__(conn)
+        self._release_callback = release_cb
+
     def __enter__(self):
-        # TODO: warn it is obsolete way
-        warnings.warn("It is not recommended way to use Redis instance"
-                      " as a context manager. Use Redis.<command> directly")
         return self
 
-    def __exit__(self, *args):
-        pass
+    def __exit__(self, *exc_info):
+        if self._release_callback is not None:
+            conn, self._pool_or_conn = self._pool_or_conn, None
+            self._release_callback(conn)
 
-    def __iter__(self):
-        return self
+    def __await__(self):
+        return ContextRedis(self._pool_or_conn)
         yield
+    __iter__ = __await__
 
 
 @asyncio.coroutine
