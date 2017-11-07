@@ -18,6 +18,7 @@ from .util import (
     )
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
     RedisError,
     ProtocolError,
     ReplyError,
@@ -135,15 +136,19 @@ class RedisConnection:
     @asyncio.coroutine
     def _read_data(self):
         """Response reader task."""
+        last_error = ConnectionClosedError(
+            "Connection has been closed by server")
         while not self._reader.at_eof():
             try:
                 data = yield from self._reader.read(MAX_CHUNK_SIZE)
             except asyncio.CancelledError:
+                # NOTE: reader can get cancelled from `close()` method only.
+                last_error = RuntimeError('this is unexpected')
                 break
             except Exception as exc:
-                # XXX: for QUIT command connection error can be received
+                # NOTE: for QUIT command connection error can be received
                 #       before response
-                logger.error("Exception on data read %r", exc, exc_info=True)
+                last_error = exc
                 break
             self._parser.feed(data)
             while True:
@@ -165,7 +170,7 @@ class RedisConnection:
                     else:
                         self._process_data(obj)
         self._closing = True
-        self._loop.call_soon(self._do_close, None)
+        self._loop.call_soon(self._do_close, last_error)
 
     def _process_data(self, obj):
         """Processes command results."""
@@ -292,7 +297,7 @@ class RedisConnection:
 
     def close(self):
         """Close connection."""
-        self._do_close(None)
+        self._do_close(ConnectionForcedCloseError())
 
     def _do_close(self, exc):
         if self._closed:
@@ -308,9 +313,9 @@ class RedisConnection:
             waiter, *spam = self._waiters.popleft()
             logger.debug("Cancelling waiter %r", (waiter, spam))
             if exc is None:
-                waiter.cancel()
+                _set_exception(waiter, ConnectionForcedCloseError())
             else:
-                waiter.set_exception(exc)
+                _set_exception(waiter, exc)
         while self._pubsub_channels:
             _, ch = self._pubsub_channels.popitem()
             logger.debug("Closing pubsub channel %r", ch)

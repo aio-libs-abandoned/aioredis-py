@@ -1,8 +1,18 @@
 import asyncio
 import functools
 
-from ..errors import RedisError, PipelineError, MultiExecError
-from ..util import wait_ok, async_task, create_future
+from ..errors import (
+    RedisError,
+    PipelineError,
+    MultiExecError,
+    ConnectionClosedError,
+    )
+from ..util import (
+    wait_ok,
+    async_task,
+    create_future,
+    _set_exception,
+    )
 
 
 class TransactionsCommandsMixin:
@@ -248,17 +258,25 @@ class MultiExec(Pipeline):
         exec_ = conn.execute('EXEC')
         gather = asyncio.gather(multi, *coros, loop=self._loop,
                                 return_exceptions=True)
+        last_error = None
         try:
             yield from asyncio.shield(gather, loop=self._loop)
         except asyncio.CancelledError:
             yield from gather
+        except Exception as err:
+            last_error = err
+            raise
         finally:
             if conn.closed:
+                if last_error is None:
+                    last_error = ConnectionClosedError()
                 for fut in waiters:
-                    fut.cancel()
+                    _set_exception(fut, last_error)
+                    # fut.cancel()
                 for fut in self._results:
                     if not fut.done():
-                        fut.cancel()
+                        fut.set_exception(last_error)
+                        # fut.cancel()
             else:
                 try:
                     results = yield from exec_
