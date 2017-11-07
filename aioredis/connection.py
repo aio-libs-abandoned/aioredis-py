@@ -19,6 +19,7 @@ from .parser import Reader
 from .stream import open_connection, open_unix_connection
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
     RedisError,
     ProtocolError,
     ReplyError,
@@ -163,28 +164,32 @@ class RedisConnection(AbcConnection):
     @asyncio.coroutine
     def _read_data(self):
         """Response reader task."""
+        last_error = ConnectionClosedError(
+            "Connection has been closed by server")
         while not self._reader.at_eof():
             try:
                 obj = yield from self._reader.readobj()
             except asyncio.CancelledError:
+                # NOTE: reader can get cancelled from `close()` method only.
+                last_error = RuntimeError('this is unexpected')
                 break
             except ProtocolError as exc:
                 # ProtocolError is fatal
                 # so connection must be closed
                 if self._in_transaction is not None:
                     self._transaction_error = exc
-                self._closing = True
-                self._loop.call_soon(self._do_close, exc)
-                return
+                last_error = exc
+                break
             except Exception as exc:
-                # XXX: for QUIT command connection error can be received
+                # NOTE: for QUIT command connection error can be received
                 #       before response
-                logger.error("Exception on data read: %r", exc, exc_info=True)
+                last_error = exc
                 break
             else:
                 if (obj == b'' or obj is None) and self._reader.at_eof():
                     logger.debug("Connection has been closed by server,"
                                  " response: %r", obj)
+                    last_error = ConnectionClosedError("Reader at end of file")
                     break
 
                 if self._in_pubsub:
@@ -193,7 +198,7 @@ class RedisConnection(AbcConnection):
                     self._process_data(obj)
 
         self._closing = True
-        self._loop.call_soon(self._do_close, None)
+        self._loop.call_soon(self._do_close, last_error)
 
     def _process_data(self, obj):
         """Processes command results."""
@@ -331,7 +336,7 @@ class RedisConnection(AbcConnection):
 
     def close(self):
         """Close connection."""
-        self._do_close(None)
+        self._do_close(ConnectionForcedCloseError())
 
     def _do_close(self, exc):
         if self._closed:
@@ -347,9 +352,9 @@ class RedisConnection(AbcConnection):
             waiter, *spam = self._waiters.popleft()
             logger.debug("Cancelling waiter %r", (waiter, spam))
             if exc is None:
-                waiter.cancel()
+                _set_exception(waiter, ConnectionForcedCloseError())
             else:
-                waiter.set_exception(exc)
+                _set_exception(waiter, exc)
         while self._pubsub_channels:
             _, ch = self._pubsub_channels.popitem()
             logger.debug("Closing pubsub channel %r", ch)
