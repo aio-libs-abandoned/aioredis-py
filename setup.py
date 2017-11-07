@@ -1,13 +1,10 @@
 import re
 import os.path
 import sys
-import platform
 from setuptools import setup, find_packages
 
 
 install_requires = ['async-timeout']
-if platform.python_implementation() == 'CPython':
-    install_requires.append('hiredis')
 
 PY_VER = sys.version_info
 
@@ -67,4 +64,5 @@ setup(name='aioredis',
       packages=find_packages(exclude=["tests"]),
       install_requires=install_requires,
       include_package_data=True,
+      extras_require={'hiredis': ["hiredis"]}
       )
