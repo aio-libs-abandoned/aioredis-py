@@ -47,17 +47,20 @@ def test_ping(redis):
 
 @pytest.mark.run_loop
 def test_quit(redis, loop):
+    expected = (ConnectionClosedError, ConnectionError)
     try:
         assert b'OK' == (yield from redis.quit())
-    except asyncio.CancelledError:
+    except expected:
         pass
 
     if not isinstance(redis.connection, ConnectionsPool):
-        expected = (asyncio.CancelledError, ConnectionClosedError)
         # reader task may not yet been cancelled and _do_close not called
-        #   so the CancelledError may be raised here
+        #   so the ConnectionClosedError may be raised (or ConnectionError)
         with pytest.raises(expected):
-            yield from redis.ping()
+            try:
+                yield from redis.ping()
+            except asyncio.CancelledError:
+                assert False, "Cancelled error must not be raised"
 
         # wait one loop iteration until it get surely closed
         yield from asyncio.sleep(0, loop=loop)

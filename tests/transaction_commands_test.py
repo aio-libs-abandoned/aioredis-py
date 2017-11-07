@@ -2,6 +2,7 @@ import asyncio
 import pytest
 
 from aioredis import ReplyError, MultiExecError, WatchVariableError
+from aioredis import ConnectionClosedError
 
 
 @pytest.mark.run_loop
@@ -68,15 +69,24 @@ def test_connection_closed(redis):
     assert fut1.done() is True
     assert fut2.done() is True
     assert fut3.done() is True
+    assert fut1.exception() is not None
+    assert fut2.exception() is not None
+    assert fut3.exception() is not None
+    assert not fut1.cancelled()
+    assert not fut2.cancelled()
+    assert not fut3.cancelled()
 
     try:
         assert (yield from fut1) == b'OK'
-    except asyncio.CancelledError:
-        pass
+    except Exception as err:
+        assert isinstance(err, (ConnectionClosedError, ConnectionError))
     assert fut2.cancelled() is False
     assert isinstance(fut2.exception(), TypeError)
 
-    assert fut3.cancelled() is True
+    # assert fut3.cancelled() is True
+    assert fut3.done() and not fut3.cancelled()
+    assert isinstance(fut3.exception(),
+                      (ConnectionClosedError, ConnectionError))
 
 
 @pytest.mark.run_loop

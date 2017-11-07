@@ -62,5 +62,9 @@ class ConnectionClosedError(RedisError):
     """Raised if connection to server was closed."""
 
 
+class ConnectionForcedCloseError(ConnectionClosedError):
+    """Raised if connection was closed with .close() method."""
+
+
 class PoolClosedError(RedisError):
     """Raised if pool is closed."""
