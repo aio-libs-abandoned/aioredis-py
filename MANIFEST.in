@@ -8,3 +8,4 @@ recursive-include examples *.py
 recursive-include tests *.py
 recursive-include docs *.rst
 include docs/_build/man/*.*
+include tests/ssl/*.*
