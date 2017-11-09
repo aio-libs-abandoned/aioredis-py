@@ -1,10 +1,8 @@
 import asyncio
 import sys
-
 from asyncio.base_events import BaseEventLoop
 
 from .log import logger
-
 
 _NOTSET = object()
 
@@ -111,6 +109,7 @@ class _BaseScanIter:
     def __aiter__(self):
         return self
 
+
 class _ScanIter(_BaseScanIter):
 
     @asyncio.coroutine
@@ -122,6 +121,7 @@ class _ScanIter(_BaseScanIter):
         else:
             ret = self._ret.pop(0)
             return ret
+
 
 class _ScanIterPairs(_BaseScanIter):
 

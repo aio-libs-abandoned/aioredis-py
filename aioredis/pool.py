@@ -1,6 +1,5 @@
 import asyncio
 import collections
-import sys
 import warnings
 import types
 

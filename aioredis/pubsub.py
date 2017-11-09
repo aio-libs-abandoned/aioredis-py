@@ -1,6 +1,5 @@
 import asyncio
 import json
-import sys
 import types
 
 from .abc import AbcChannel
