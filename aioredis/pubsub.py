@@ -14,8 +14,6 @@ __all__ = [
     "Receiver",
 ]
 
-PY_35 = sys.version_info >= (3, 5)
-
 
 # End of pubsub messages stream marker.
 EndOfStream = object()
@@ -102,19 +100,18 @@ class Channel(AbcChannel):
         """Shortcut to get JSON messages."""
         return (yield from self.get(encoding=encoding, decoder=json.loads))
 
-    if PY_35:
-        def iter(self, *, encoding=None, decoder=None):
-            """Same as get method but its native coroutine.
+    def iter(self, *, encoding=None, decoder=None):
+        """Same as get method but its native coroutine.
 
-            Usage example:
+        Usage example:
 
-            >>> async for msg in ch.iter():
-            ...     print(msg)
-            """
-            return _IterHelper(self,
-                               is_active=lambda ch: ch.is_active,
-                               encoding=encoding,
-                               decoder=decoder)
+        >>> async for msg in ch.iter():
+        ...     print(msg)
+        """
+        return _IterHelper(self,
+                           is_active=lambda ch: ch.is_active,
+                           encoding=encoding,
+                           decoder=decoder)
 
     @asyncio.coroutine
     def wait_message(self):
@@ -153,29 +150,28 @@ class Channel(AbcChannel):
         self._closed = True
 
 
-if PY_35:
-    class _IterHelper:
+class _IterHelper:
 
-        __slots__ = ('_ch', '_is_active', '_args', '_kw')
+    __slots__ = ('_ch', '_is_active', '_args', '_kw')
 
-        def __init__(self, ch, is_active, *args, **kw):
-            self._ch = ch
-            self._is_active = is_active
-            self._args = args
-            self._kw = kw
+    def __init__(self, ch, is_active, *args, **kw):
+        self._ch = ch
+        self._is_active = is_active
+        self._args = args
+        self._kw = kw
 
-        @correct_aiter
-        def __aiter__(self):
-            return self
+    @correct_aiter
+    def __aiter__(self):
+        return self
 
-        @asyncio.coroutine
-        def __anext__(self):
-            if not self._is_active(self._ch):
-                raise StopAsyncIteration    # noqa
-            msg = yield from self._ch.get(*self._args, **self._kw)
-            if msg is None:
-                raise StopAsyncIteration    # noqa
-            return msg
+    @asyncio.coroutine
+    def __anext__(self):
+        if not self._is_active(self._ch):
+            raise StopAsyncIteration    # noqa
+        msg = yield from self._ch.get(*self._args, **self._kw)
+        if msg is None:
+            raise StopAsyncIteration    # noqa
+        return msg
 
 
 class Receiver:
@@ -331,19 +327,18 @@ class Receiver:
         self._running = False
         self._put_nowait(EndOfStream, sender=None)
 
-    if PY_35:
-        def iter(self, *, encoding=None, decoder=None):
-            """Returns async iterator.
+    def iter(self, *, encoding=None, decoder=None):
+        """Returns async iterator.
 
-            Usage example:
+        Usage example:
 
-            >>> async for ch, msg in mpsc.iter():
-            ...     print(ch, msg)
-            """
-            return _IterHelper(self,
-                               is_active=lambda r: r.is_active or r._running,
-                               encoding=encoding,
-                               decoder=decoder)
+        >>> async for ch, msg in mpsc.iter():
+        ...     print(ch, msg)
+        """
+        return _IterHelper(self,
+                           is_active=lambda r: r.is_active or r._running,
+                           encoding=encoding,
+                           decoder=decoder)
 
     # internal methods
 

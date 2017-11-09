@@ -6,8 +6,6 @@ from asyncio.base_events import BaseEventLoop
 from .log import logger
 
 
-PY_35 = sys.version_info >= (3, 5)
-
 _NOTSET = object()
 
 
@@ -101,43 +99,42 @@ class coerced_keys_dict(dict):
         return dict.__contains__(self, other)
 
 
-if PY_35:
-    class _BaseScanIter:
-        __slots__ = ('_scan', '_cur', '_ret')
+class _BaseScanIter:
+    __slots__ = ('_scan', '_cur', '_ret')
 
-        def __init__(self, scan):
-            self._scan = scan
-            self._cur = b'0'
-            self._ret = []
+    def __init__(self, scan):
+        self._scan = scan
+        self._cur = b'0'
+        self._ret = []
 
-        @correct_aiter
-        def __aiter__(self):
-            return self
+    @correct_aiter
+    def __aiter__(self):
+        return self
 
-    class _ScanIter(_BaseScanIter):
+class _ScanIter(_BaseScanIter):
 
-        @asyncio.coroutine
-        def __anext__(self):
-            while not self._ret and self._cur:
-                self._cur, self._ret = yield from self._scan(self._cur)
-            if not self._cur and not self._ret:
-                raise StopAsyncIteration  # noqa
-            else:
-                ret = self._ret.pop(0)
-                return ret
+    @asyncio.coroutine
+    def __anext__(self):
+        while not self._ret and self._cur:
+            self._cur, self._ret = yield from self._scan(self._cur)
+        if not self._cur and not self._ret:
+            raise StopAsyncIteration  # noqa
+        else:
+            ret = self._ret.pop(0)
+            return ret
 
-    class _ScanIterPairs(_BaseScanIter):
+class _ScanIterPairs(_BaseScanIter):
 
-        @asyncio.coroutine
-        def __anext__(self):
-            while not self._ret and self._cur:
-                self._cur, ret = yield from self._scan(self._cur)
-                self._ret = list(zip(ret[::2], ret[1::2]))
-            if not self._cur and not self._ret:
-                raise StopAsyncIteration  # noqa
-            else:
-                ret = self._ret.pop(0)
-                return ret
+    @asyncio.coroutine
+    def __anext__(self):
+        while not self._ret and self._cur:
+            self._cur, ret = yield from self._scan(self._cur)
+            self._ret = list(zip(ret[::2], ret[1::2]))
+        if not self._cur and not self._ret:
+            raise StopAsyncIteration  # noqa
+        else:
+            ret = self._ret.pop(0)
+            return ret
 
 
 def _set_result(fut, result, *info):
@@ -158,10 +155,7 @@ def _set_exception(fut, exception):
         fut.set_exception(exception)
 
 
-if hasattr(asyncio, 'ensure_future'):
-    async_task = asyncio.ensure_future
-else:
-    async_task = asyncio.async  # Deprecated since 3.4.4
+async_task = asyncio.ensure_future
 
 
 # create_future is new in version 3.5.2

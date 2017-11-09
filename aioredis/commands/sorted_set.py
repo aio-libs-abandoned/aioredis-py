@@ -1,7 +1,4 @@
-from aioredis.util import wait_convert, PY_35
-
-if PY_35:
-    from aioredis.util import _ScanIterPairs
+from aioredis.util import wait_convert, _ScanIterPairs
 
 
 class SortedSetCommandsMixin:
@@ -405,19 +402,18 @@ class SortedSetCommandsMixin:
 
         return wait_convert(fut, _converter)
 
-    if PY_35:
-        def izscan(self, key, *, match=None, count=None):
-            """Incrementally iterate sorted set items using async for.
+    def izscan(self, key, *, match=None, count=None):
+        """Incrementally iterate sorted set items using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for val, score in redis.izscan(key, match='something*'):
-            ...     print('Matched:', val, ':', score)
+        >>> async for val, score in redis.izscan(key, match='something*'):
+        ...     print('Matched:', val, ':', score)
 
-            """
-            return _ScanIterPairs(lambda cur: self.zscan(key, cur,
-                                                         match=match,
-                                                         count=count))
+        """
+        return _ScanIterPairs(lambda cur: self.zscan(key, cur,
+                                                     match=match,
+                                                     count=count))
 
 
 def _encode_min_max(flag, min, max):

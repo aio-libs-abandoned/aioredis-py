@@ -12,9 +12,6 @@ from .abc import AbcPool
 from .locks import Lock
 
 
-PY_35 = sys.version_info >= (3, 5)
-
-
 @asyncio.coroutine
 def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
                 minsize=1, maxsize=10, commands_factory=_NOTSET,
@@ -442,19 +439,18 @@ class ConnectionsPool(AbcPool):
         conn = yield from self.acquire()
         return _ConnectionContextManager(self, conn)
 
-    if PY_35:
-        def __await__(self):
-            # To make `with await pool` work
-            conn = yield from self.acquire()
-            return _ConnectionContextManager(self, conn)
+    def __await__(self):
+        # To make `with await pool` work
+        conn = yield from self.acquire()
+        return _ConnectionContextManager(self, conn)
 
-        def get(self):
-            '''Return async context manager for working with connection.
+    def get(self):
+        '''Return async context manager for working with connection.
 
-            async with pool.get() as conn:
-                await conn.get(key)
-            '''
-            return _AsyncConnectionContextManager(self)
+        async with pool.get() as conn:
+            await conn.get(key)
+        '''
+        return _AsyncConnectionContextManager(self)
 
 
 class _ConnectionContextManager:
@@ -476,25 +472,24 @@ class _ConnectionContextManager:
             self._conn = None
 
 
-if PY_35:
-    class _AsyncConnectionContextManager:
+class _AsyncConnectionContextManager:
 
-        __slots__ = ('_pool', '_conn')
+    __slots__ = ('_pool', '_conn')
 
-        def __init__(self, pool):
-            self._pool = pool
+    def __init__(self, pool):
+        self._pool = pool
+        self._conn = None
+
+    @asyncio.coroutine
+    def __aenter__(self):
+        conn = yield from self._pool.acquire()
+        self._conn = conn
+        return self._conn
+
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc_value, tb):
+        try:
+            self._pool.release(self._conn)
+        finally:
+            self._pool = None
             self._conn = None
-
-        @asyncio.coroutine
-        def __aenter__(self):
-            conn = yield from self._pool.acquire()
-            self._conn = conn
-            return self._conn
-
-        @asyncio.coroutine
-        def __aexit__(self, exc_type, exc_value, tb):
-            try:
-                self._pool.release(self._conn)
-            finally:
-                self._pool = None
-                self._conn = None
