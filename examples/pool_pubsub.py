@@ -7,7 +7,7 @@ STOPWORD = 'STOP'
 
 async def pubsub():
     pool = await aioredis.create_pool(
-        ('localhost', 6379),
+        'redis://localhost',
         minsize=5, maxsize=10)
 
     async def reader(channel):
@@ -45,7 +45,7 @@ def main():
 
     async def publish():
         pub = await aioredis.create_redis(
-            ('localhost', 6379))
+            'redis://localhost')
         while not tsk.done():
             # wait for clients to subscribe
             while True:

@@ -5,7 +5,7 @@ import aioredis
 async def main():
 
     pool = await aioredis.create_pool(
-        ('localhost', 6379))
+        'redis://localhost')
 
     # async with pool.get() as conn:
     await pool.execute('set', 'my-key', 'value')

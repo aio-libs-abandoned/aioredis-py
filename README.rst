@@ -56,7 +56,7 @@ Simple low-level interface:
 
     async def go():
         conn = await aioredis.create_connection(
-            ('localhost', 6379), loop=loop)
+            'redis://localhost', loop=loop)
         await conn.execute('set', 'my-key', 'value')
         val = await conn.execute('get', 'my-key')
         print(val)
@@ -76,7 +76,7 @@ Simple high-level interface:
 
     async def go():
         redis = await aioredis.create_redis(
-            ('localhost', 6379), loop=loop)
+            'redis://localhost', loop=loop)
         await redis.set('my-key', 'value')
         val = await redis.get('my-key')
         print(val)
@@ -96,7 +96,7 @@ Connections pool:
 
     async def go():
         pool = await aioredis.create_pool(
-            ('localhost', 6379),
+            'redis://localhost',
             minsize=5, maxsize=10,
             loop=loop)
         await pool.execute('set', 'my-key', 'value')

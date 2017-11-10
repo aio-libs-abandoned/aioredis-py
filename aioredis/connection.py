@@ -14,6 +14,7 @@ from .util import (
     decode,
     async_task,
     create_future,
+    parse_url,
     )
 from .parser import Reader
 from .stream import open_connection, open_unix_connection
@@ -51,10 +52,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
-    Address argument is similar to socket address argument, ie:
-    * when address is a tuple it represents (host, port) pair;
-    * when address is a str it represents unix domain socket path.
-    (no other address formats supported)
+    Address argument can be one of the following:
+    * A tuple representing (host, port) pair for TCP connections;
+    * A string representing either Redis URI or unix domain socket path.
 
     SSL argument is passed through to asyncio.create_connection.
     By default SSL/TLS is not used.
@@ -76,6 +76,17 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     This function is a coroutine.
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
+    if isinstance(address, str):
+        logger.debug("Parsing Redis URI %r", address)
+        address, options = parse_url(address)
+        db = options.setdefault('db', db)
+        password = options.setdefault('password', password)
+        encoding = options.setdefault('encoding', encoding)
+        timeout = options.setdefault('timeout', timeout)
+        if 'ssl' in options:
+            assert options['ssl'] or (not options['ssl'] and not ssl), (
+                "Conflicting ssl options are set", options['ssl'], ssl)
+            ssl = ssl or options['ssl']
 
     if timeout is not None and timeout <= 0:
         raise ValueError("Timeout has to be None or a number greater than 0")

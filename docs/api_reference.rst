@@ -21,6 +21,11 @@ Connection usage is as simple as:
    import asyncio
    import aioredis
 
+   async def connect_uri():
+       conn = await aioredis.create_connection(
+           'redis://localhost/0')
+       val = await conn.execute('GET', 'my-key')
+
    async def connect_tcp():
        conn = await aioredis.create_connection(
            ('localhost', 6379))
@@ -29,6 +34,7 @@ Connection usage is as simple as:
    async def connect_unixsocket():
        conn = await aioredis.create_connection(
            '/path/to/redis/socket')
+       # or uri 'unix:///path/to/redis/socket?db=1'
        val = await conn.execute('GET', 'my-key')
 
    asyncio.get_event_loop().run_until_complete(connect_tcp())
@@ -47,8 +53,14 @@ Connection usage is as simple as:
    .. versionchanged:: v1.0
       ``parser`` argument added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect.
+      Can be one of the following:
+
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -228,7 +240,7 @@ The library provides connections pool. The basic usage is as follows:
    import aioredis
 
    async def sample_pool():
-       pool = await aioredis.create_pool(('localhost', 6379))
+       pool = await aioredis.create_pool('redis://localhost')
        val = await pool.execute('get', 'my-key')
 
 
@@ -261,8 +273,14 @@ The library provides connections pool. The basic usage is as follows:
    .. versionadded:: v1.0
       ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect.
+      Can be one of the following:
+
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -603,13 +621,13 @@ The usage is as simple as:
    # Create Redis client bound to single non-reconnecting connection.
    async def single_connection():
       redis = await aioredis.create_redis(
-         ('localhost', 6379))
+         'redis://localhost')
       val = await redis.get('my-key')
 
    # Create Redis client bound to connections pool.
    async def pool_of_connections():
       redis = await aioredis.create_redis_pool(
-         ('localhost', 6379))
+         'redis://localhost')
       val = await redis.get('my-key')
 
       # we can also use pub/sub as underlying pool
@@ -633,12 +651,12 @@ see :ref:`commands mixins reference <aioredis-commands>`.
    (without auto-reconnect).
 
    .. versionadded:: v1.0
-      ``parser``, ``timeout` and ``connection_cls`` arguments added.
+      ``parser``, ``timeout`` and ``connection_cls`` arguments added.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -699,8 +717,8 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       ``parser``, ``timeout``, ``pool_cls`` and ``connection_cls``
       arguments added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.

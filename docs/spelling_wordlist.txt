@@ -126,6 +126,7 @@ unreceived
 unsubscribe
 unsubscribed
 unsubscribing
+URI
 util
 uvloop
 UVLoop

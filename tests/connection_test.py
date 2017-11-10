@@ -540,7 +540,45 @@ def test_connection_idle_close(create_connection, start_server, loop):
     ok = yield from conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    yield from asyncio.sleep(2, loop=loop)
+    yield from asyncio.sleep(3, loop=loop)
 
     with pytest.raises(ConnectionClosedError):
         assert (yield from conn.execute('ping')) is None
+
+
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
+@pytest.mark.run_loop
+def test_create_connection__tcp_url(
+        create_connection, server_tcp_url, loop, kwargs):
+    url = server_tcp_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = yield from create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert (yield from conn.execute('ping')) == pong
+    assert conn.db == db
+    assert conn.encoding == enc
+
+
+@pytest.mark.skipif('sys.platform == "win32"',
+                    reason="No unix sockets on Windows")
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
+@pytest.mark.run_loop
+def test_create_connection__unix_url(
+        create_connection, server_unix_url, loop, kwargs):
+    url = server_unix_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = yield from create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert (yield from conn.execute('ping')) == pong
+    assert conn.db == db
+    assert conn.encoding == enc

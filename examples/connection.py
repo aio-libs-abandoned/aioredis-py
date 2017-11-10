@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     conn = await aioredis.create_connection(
-        ('localhost', 6379), encoding='utf-8')
+        'redis://localhost', encoding='utf-8')
 
     ok = await conn.execute('set', 'my-key', 'some value')
     assert ok == 'OK', ok
