@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
     await redis.delete('foo', 'bar')
     tr = redis.multi_exec()
     fut1 = tr.incr('foo')
