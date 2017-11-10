@@ -546,17 +546,39 @@ def test_connection_idle_close(create_connection, start_server, loop):
         assert (yield from conn.execute('ping')) is None
 
 
-url_templates = ['redis://{server.tcp_address[0]}:{server.tcp_address[1]}']
-if sys.platform != 'win32':
-    url_templates.append('unix://{server.unixsocket}')
-
-
-@pytest.fixture(params=url_templates)
-def server_url(server, request):
-    return request.param.format(server=server)
-
-
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
 @pytest.mark.run_loop
-def test_create_connection_with_parse_url(create_connection, server_url, loop):
-    conn = yield from create_connection(server_url, loop=loop)
-    assert (yield from conn.execute('ping')) == b'PONG'
+def test_create_connection__tcp_url(
+        create_connection, server_tcp_url, loop, kwargs):
+    url = server_tcp_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = yield from create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert (yield from conn.execute('ping')) == pong
+    assert conn.db == db
+    assert conn.encoding == enc
+
+
+@pytest.mark.skipif('sys.platform == "win32"',
+                    reason="No unix sockets on Windows")
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
+@pytest.mark.run_loop
+def test_create_connection__unix_url(
+        create_connection, server_unix_url, loop, kwargs):
+    url = server_unix_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = yield from create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert (yield from conn.execute('ping')) == pong
+    assert conn.db == db
+    assert conn.encoding == enc

@@ -12,6 +12,7 @@ import tempfile
 import atexit
 
 from collections import namedtuple
+from urllib.parse import urlencode, urlunparse
 from async_timeout import timeout as async_timeout
 
 import aioredis
@@ -178,6 +179,31 @@ def sentinel(start_sentinel, request, start_server):
     start_server('slaveA', slaveof=masterA)
     return start_sentinel('main', masterA, master_no_fail)
 
+
+@pytest.fixture(params=['path', 'query'])
+def server_tcp_url(server, request):
+
+    def make(**kwargs):
+        netloc = '{0.host}:{0.port}'.format(server.tcp_address)
+        path = ''
+        if request.param == 'path':
+            if 'password' in kwargs:
+                netloc = ':{0}@{1.host}:{1.port}'.format(
+                    kwargs.pop('password'), server.tcp_address)
+            if 'db' in kwargs:
+                path = '/{}'.format(kwargs.pop('db'))
+        query = urlencode(kwargs)
+        return urlunparse(('redis', netloc, path, '', query, ''))
+    return make
+
+
+@pytest.fixture
+def server_unix_url(server):
+
+    def make(**kwargs):
+        query = urlencode(kwargs)
+        return urlunparse(('unix', '', server.unixsocket, '', query, ''))
+    return make
 
 # Internal stuff #
 

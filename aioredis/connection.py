@@ -78,6 +78,7 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
     if isinstance(address, str):
+        logger.debug("Parsing Redis URI %r", address)
         address, options = parse_url(address)
         db = options.setdefault('db', db)
         password = options.setdefault('password', password)
