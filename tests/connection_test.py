@@ -540,7 +540,7 @@ def test_connection_idle_close(create_connection, start_server, loop):
     ok = yield from conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    yield from asyncio.sleep(2, loop=loop)
+    yield from asyncio.sleep(3, loop=loop)
 
     with pytest.raises(ConnectionClosedError):
         assert (yield from conn.execute('ping')) is None

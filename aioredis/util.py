@@ -1,5 +1,7 @@
 import asyncio
 import sys
+
+from urllib.parse import urlparse, parse_qsl
 from asyncio.base_events import BaseEventLoop
 
 from .log import logger
@@ -165,3 +167,93 @@ if hasattr(BaseEventLoop, 'create_future'):
 else:
     def create_future(loop):
         return asyncio.Future(loop=loop)
+
+
+def parse_url(url):
+    """Parse Redis connection URI.
+
+    Parse according to IANA specs:
+    * https://www.iana.org/assignments/uri-schemes/prov/redis
+    * https://www.iana.org/assignments/uri-schemes/prov/rediss
+
+    Also more rules applied:
+
+    * empty scheme is treated as unix socket path no further parsing is done.
+
+    * 'unix://' scheme is treated as unix socket path and parsed.
+
+    * Multiple query parameter values and blank values are considered error.
+
+    * DB number specified as path and as query parameter is considered error.
+
+    * Password specified in userinfo and as query parameter is
+      considered error.
+    """
+    r = urlparse(url)
+
+    assert r.scheme in ('', 'redis', 'rediss', 'unix'), (
+        "Unsupported URI scheme", r.scheme)
+    if r.scheme == '':
+        return url, {}
+    query = {}
+    for p, v in parse_qsl(r.query, keep_blank_values=True):
+        assert p not in query, ("Multiple parameters are not allowed", p, v)
+        assert v, ("Empty parameters are not allowed", p, v)
+        query[p] = v
+
+    if r.scheme == 'unix':
+        assert r.path, ("Empty path is not allowed", url)
+        assert not r.netloc, (
+            "Netlocation is not allowed for unix scheme", r.netloc)
+        return r.path, _parse_uri_options(query, '', r.password)
+
+    address = (r.hostname or 'localhost', int(r.port or 6379))
+    path = r.path
+    if path.startswith('/'):
+        path = r.path[1:]
+    options = _parse_uri_options(query, path, r.password)
+    if r.scheme == 'rediss':
+        options['ssl'] = True
+    return address, options
+
+
+def _parse_uri_options(params, path, password):
+
+    def parse_db_num(val):
+        if not val:
+            return
+        assert val.isdecimal(), ("Invalid decimal integer", val)
+        assert val == '0' or not val.startswith('0'), (
+            "Expected integer without leading zeroes", val)
+        return int(val)
+
+    options = {}
+
+    db1 = parse_db_num(path)
+    db2 = parse_db_num(params.get('db'))
+    assert db1 is None or db2 is None, (
+            "Single DB value expected, got path and query", db1, db2)
+    if db1 is not None:
+        options['db'] = db1
+    elif db2 is not None:
+        options['db'] = db2
+
+    password2 = params.get('password')
+    assert not password or not password2, (
+            "Single password value is expected, got in net location and query")
+    if password:
+        options['password'] = password
+    elif password2:
+        options['password'] = password2
+
+    if 'encoding' in params:
+        options['encoding'] = params['encoding']
+    if 'ssl' in params:
+        assert params['ssl'] in ('true', 'false'), (
+                "Expected 'ssl' param to be 'true' or 'false' only",
+                params['ssl'])
+        options['ssl'] = params['ssl'] == 'true'
+
+    if 'timeout' in params:
+        options['timeout'] = float(params['timeout'])
+    return options
