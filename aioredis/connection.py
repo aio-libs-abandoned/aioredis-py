@@ -84,7 +84,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         encoding = options.setdefault('encoding', encoding)
         timeout = options.setdefault('timeout', timeout)
         if 'ssl' in options:
-            pass    # TODO: handle
+            assert options['ssl'] or (not options['ssl'] and not ssl), (
+                "Conflicting ssl options are set", options['ssl'], ssl)
+            ssl = ssl or options['ssl']
 
     if timeout is not None and timeout <= 0:
         raise ValueError("Timeout has to be None or a number greater than 0")

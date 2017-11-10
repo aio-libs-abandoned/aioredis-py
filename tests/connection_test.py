@@ -544,3 +544,17 @@ def test_connection_idle_close(create_connection, start_server, loop):
 
     with pytest.raises(ConnectionClosedError):
         assert (yield from conn.execute('ping')) is None
+
+
+@pytest.fixture(params=[
+    'redis://{server.tcp_address[0]}:{server.tcp_address[1]}',
+    'unix://{server.unixsocket}',
+])
+def server_url(server, request):
+    return request.param.format(server=server)
+
+
+@pytest.mark.run_loop
+def test_create_connection_with_parse_url(create_connection, server_url, loop):
+    conn = yield from create_connection(server_url, loop=loop)
+    assert (yield from conn.execute('ping')) == b'PONG'
