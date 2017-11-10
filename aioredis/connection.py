@@ -52,10 +52,9 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
-    Address argument is similar to socket address argument, ie:
-    * when address is a tuple it represents (host, port) pair;
-    * when address is a str it represents unix domain socket path.
-    (no other address formats supported)
+    Address argument can be one of the following:
+    * A tuple representing (host, port) pair for TCP connections;
+    * A string representing either Redis URI or unix domain socket path.
 
     SSL argument is passed through to asyncio.create_connection.
     By default SSL/TLS is not used.

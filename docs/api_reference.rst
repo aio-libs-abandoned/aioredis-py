@@ -53,8 +53,14 @@ Connection usage is as simple as:
    .. versionchanged:: v1.0
       ``parser`` argument added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect.
+      Can be one of the following:
+
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -267,8 +273,14 @@ The library provides connections pool. The basic usage is as follows:
    .. versionadded:: v1.0
       ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect.
+      Can be one of the following:
+
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -643,8 +655,8 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -705,8 +717,8 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       ``parser``, ``timeout``, ``pool_cls`` and ``connection_cls``
       arguments added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
