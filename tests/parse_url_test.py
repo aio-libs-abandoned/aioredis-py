@@ -67,7 +67,7 @@ from aioredis.util import parse_url
     # no scheme
     ('/some/path/to/socket', '/some/path/to/socket', {}),
     ('/some/path/to/socket?db=1', '/some/path/to/socket?db=1', {}),
-], ids=repr)
+])
 def test_good_url(url, expected_address, expected_options):
     address, options = parse_url(url)
     assert address == expected_address
