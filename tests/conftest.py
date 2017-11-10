@@ -437,14 +437,8 @@ def ssl_proxy(_proc, request, unused_port):
     assert os.path.exists(dhfile), \
         "Missing SSL DH params, run `make certificate` to generate new one"
 
-    if hasattr(ssl, 'create_default_context'):
-        ssl_ctx = ssl.create_default_context(cafile=cafile)
-    else:
-        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        ssl_ctx.load_verify_locations(cafile=cafile)
-    if hasattr(ssl_ctx, 'check_hostname'):
-        # available since python 3.4
-        ssl_ctx.check_hostname = False
+    ssl_ctx = ssl.create_default_context(cafile=cafile)
+    ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = ssl.CERT_NONE
     ssl_ctx.load_dh_params(dhfile)
 
