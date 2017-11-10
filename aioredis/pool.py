@@ -5,7 +5,7 @@ import types
 
 from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
-from .util import async_task, _NOTSET
+from .util import async_task, _NOTSET, parse_url
 from .errors import PoolClosedError
 from .abc import AbcPool
 from .locks import Lock
@@ -40,6 +40,18 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
         cls = pool_cls
     else:
         cls = ConnectionsPool
+    if isinstance(address, str):
+        address, options = parse_url(address)
+        db = options.setdefault('db', db)
+        password = options.setdefault('password', password)
+        encoding = options.setdefault('encoding', encoding)
+        create_connection_timeout = options.setdefault(
+            'timeout', create_connection_timeout)
+        if 'ssl' in options:
+            assert options['ssl'] or (not options['ssl'] and not ssl), (
+                "Conflicting ssl options are set", options['ssl'], ssl)
+            ssl = ssl or options['ssl']
+        # TODO: minsize/maxsize
 
     pool = cls(address, db, password, encoding,
                minsize=minsize, maxsize=maxsize,
