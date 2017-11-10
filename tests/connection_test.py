@@ -546,10 +546,12 @@ def test_connection_idle_close(create_connection, start_server, loop):
         assert (yield from conn.execute('ping')) is None
 
 
-@pytest.fixture(params=[
-    'redis://{server.tcp_address[0]}:{server.tcp_address[1]}',
-    'unix://{server.unixsocket}',
-])
+url_templates = ['redis://{server.tcp_address[0]}:{server.tcp_address[1]}']
+if sys.platform != 'win32':
+    url_templates.append('unix://{server.unixsocket}')
+
+
+@pytest.fixture(params=url_templates)
 def server_url(server, request):
     return request.param.format(server=server)
 
