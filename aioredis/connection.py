@@ -14,6 +14,7 @@ from .util import (
     decode,
     async_task,
     create_future,
+    parse_url,
     )
 from .parser import Reader
 from .stream import open_connection, open_unix_connection
@@ -76,6 +77,14 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     This function is a coroutine.
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
+    if isinstance(address, str):
+        address, options = parse_url(address)
+        db = options.setdefault('db', db)
+        password = options.setdefault('password', password)
+        encoding = options.setdefault('encoding', encoding)
+        timeout = options.setdefault('timeout', timeout)
+        if 'ssl' in options:
+            pass    # TODO: handle
 
     if timeout is not None and timeout <= 0:
         raise ValueError("Timeout has to be None or a number greater than 0")
