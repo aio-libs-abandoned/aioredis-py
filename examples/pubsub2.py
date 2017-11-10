@@ -4,7 +4,7 @@ import aioredis
 
 async def pubsub():
     sub = await aioredis.create_redis(
-         ('localhost', 6379))
+         'redis://localhost')
 
     ch1, ch2 = await sub.subscribe('channel:1', 'channel:2')
     assert isinstance(ch1, aioredis.Channel)

@@ -20,7 +20,7 @@ Simple example show both cases (:download:`get source code<../examples/pipeline.
 
 .. literalinclude:: ../examples/pipeline.py
    :language: python3
-   :lines: 8-22
+   :lines: 9-21
    :dedent: 4
 
 .. note::
@@ -110,7 +110,7 @@ Pub/Sub example (:download:`get source code<../examples/pool_pubsub.py>`):
 
 .. literalinclude:: ../examples/pool_pubsub.py
    :language: python3
-   :lines: 13-35
+   :lines: 13-36
    :dedent: 4
 
 
