@@ -34,10 +34,9 @@ def test_global_loop():
     conn.closed = False
     conn._transaction_error = None
 
-    @asyncio.coroutine
-    def go():
+    async def go():
         tr.ping()
-        res = yield from tr.execute()
+        res = await tr.execute()
         assert res == [b'PONG']
     loop.run_until_complete(go())
     asyncio.set_event_loop(old_loop)
