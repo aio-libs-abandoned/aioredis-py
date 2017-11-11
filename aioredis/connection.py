@@ -45,10 +45,9 @@ _PUBSUB_COMMANDS = (
     )
 
 
-@asyncio.coroutine
-def create_connection(address, *, db=None, password=None, ssl=None,
-                      encoding=None, parser=None, loop=None, timeout=None,
-                      connection_cls=None):
+async def create_connection(address, *, db=None, password=None, ssl=None,
+                            encoding=None, parser=None, loop=None,
+                            timeout=None, connection_cls=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
@@ -104,7 +103,7 @@ def create_connection(address, *, db=None, password=None, ssl=None,
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
-        reader, writer = yield from asyncio.wait_for(open_connection(
+        reader, writer = await asyncio.wait_for(open_connection(
             host, port, limit=MAX_CHUNK_SIZE, ssl=ssl, loop=loop),
             timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
@@ -114,7 +113,7 @@ def create_connection(address, *, db=None, password=None, ssl=None,
         address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
-        reader, writer = yield from asyncio.wait_for(open_unix_connection(
+        reader, writer = await asyncio.wait_for(open_unix_connection(
             address, ssl=ssl, limit=MAX_CHUNK_SIZE, loop=loop),
             timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
@@ -127,12 +126,12 @@ def create_connection(address, *, db=None, password=None, ssl=None,
 
     try:
         if password is not None:
-            yield from conn.auth(password)
+            await conn.auth(password)
         if db is not None:
-            yield from conn.select(db)
+            await conn.select(db)
     except Exception:
         conn.close()
-        yield from conn.wait_closed()
+        await conn.wait_closed()
         raise
     return conn
 
@@ -172,14 +171,13 @@ class RedisConnection(AbcConnection):
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
 
-    @asyncio.coroutine
-    def _read_data(self):
+    async def _read_data(self):
         """Response reader task."""
         last_error = ConnectionClosedError(
             "Connection has been closed by server")
         while not self._reader.at_eof():
             try:
-                obj = yield from self._reader.readobj()
+                obj = await self._reader.readobj()
             except asyncio.CancelledError:
                 # NOTE: reader can get cancelled from `close()` method only.
                 last_error = RuntimeError('this is unexpected')
@@ -384,10 +382,9 @@ class RedisConnection(AbcConnection):
             self._loop.call_soon(self._do_close, None)
         return closed
 
-    @asyncio.coroutine
-    def wait_closed(self):
+    async def wait_closed(self):
         """Coroutine waiting until connection is closed."""
-        yield from asyncio.shield(self._close_waiter, loop=self._loop)
+        await asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
     def db(self):
