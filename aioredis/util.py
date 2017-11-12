@@ -61,25 +61,22 @@ def decode(obj, encoding):
     return obj
 
 
-@asyncio.coroutine
-def wait_ok(fut):
-    res = yield from fut
+async def wait_ok(fut):
+    res = await fut
     if res in (b'QUEUED', 'QUEUED'):
         return res
     return res in (b'OK', 'OK')
 
 
-@asyncio.coroutine
-def wait_convert(fut, type_, **kwargs):
-    result = yield from fut
+async def wait_convert(fut, type_, **kwargs):
+    result = await fut
     if result in (b'QUEUED', 'QUEUED'):
         return result
     return type_(result, **kwargs)
 
 
-@asyncio.coroutine
-def wait_make_dict(fut):
-    res = yield from fut
+async def wait_make_dict(fut):
+    res = await fut
     if res in (b'QUEUED', 'QUEUED'):
         return res
     it = iter(res)
@@ -114,10 +111,9 @@ class _BaseScanIter:
 
 class _ScanIter(_BaseScanIter):
 
-    @asyncio.coroutine
-    def __anext__(self):
+    async def __anext__(self):
         while not self._ret and self._cur:
-            self._cur, self._ret = yield from self._scan(self._cur)
+            self._cur, self._ret = await self._scan(self._cur)
         if not self._cur and not self._ret:
             raise StopAsyncIteration  # noqa
         else:
@@ -127,10 +123,9 @@ class _ScanIter(_BaseScanIter):
 
 class _ScanIterPairs(_BaseScanIter):
 
-    @asyncio.coroutine
-    def __anext__(self):
+    async def __anext__(self):
         while not self._ret and self._cur:
-            self._cur, ret = yield from self._scan(self._cur)
+            self._cur, ret = await self._scan(self._cur)
             self._ret = list(zip(ret[::2], ret[1::2]))
         if not self._cur and not self._ret:
             raise StopAsyncIteration  # noqa

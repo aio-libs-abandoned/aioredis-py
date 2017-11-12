@@ -4,11 +4,8 @@ These are intended to be used for implementing custom connection managers.
 """
 import abc
 import asyncio
-try:
-    from abc import ABC
-except ImportError:
-    class ABC(metaclass=abc.ABCMeta):
-        pass
+
+from abc import ABC
 
 
 __all__ = [

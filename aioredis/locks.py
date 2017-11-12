@@ -12,6 +12,7 @@ from .util import create_future
 
 
 class Lock(_Lock):
+
     @coroutine
     def acquire(self):
         """Acquire a lock.
