@@ -153,8 +153,7 @@ class Pipeline:
             return wrapper
         return attr
 
-    @asyncio.coroutine
-    def execute(self, *, return_exceptions=False):
+    async def execute(self, *, return_exceptions=False):
         """Execute all buffered commands.
 
         Any exception that is raised by any command is caught and
@@ -168,30 +167,28 @@ class Pipeline:
 
         if self._pipeline:
             if isinstance(self._pool_or_conn, AbcPool):
-                with (yield from self._pool_or_conn) as conn:
-                    return (yield from self._do_execute(
-                        conn, return_exceptions=return_exceptions))
+                async with self._pool_or_conn.get() as conn:
+                    return await self._do_execute(
+                        conn, return_exceptions=return_exceptions)
             else:
-                return (yield from self._do_execute(
+                return await self._do_execute(
                     self._pool_or_conn,
-                    return_exceptions=return_exceptions))
+                    return_exceptions=return_exceptions)
         else:
-            return (yield from self._gather_result(return_exceptions))
+            return await self._gather_result(return_exceptions)
 
-    @asyncio.coroutine
-    def _do_execute(self, conn, *, return_exceptions=False):
-        yield from asyncio.gather(*self._send_pipeline(conn),
-                                  loop=self._loop,
-                                  return_exceptions=True)
-        return (yield from self._gather_result(return_exceptions))
+    async def _do_execute(self, conn, *, return_exceptions=False):
+        await asyncio.gather(*self._send_pipeline(conn),
+                             loop=self._loop,
+                             return_exceptions=True)
+        return await self._gather_result(return_exceptions)
 
-    @asyncio.coroutine
-    def _gather_result(self, return_exceptions):
+    async def _gather_result(self, return_exceptions):
         errors = []
         results = []
         for fut in self._results:
             try:
-                res = yield from fut
+                res = await fut
                 results.append(res)
             except Exception as exc:
                 errors.append(exc)
@@ -257,8 +254,7 @@ class MultiExec(Pipeline):
     """
     error_class = MultiExecError
 
-    @asyncio.coroutine
-    def _do_execute(self, conn, *, return_exceptions=False):
+    async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
         multi = conn.execute('MULTI')
         coros = list(self._send_pipeline(conn))
@@ -267,9 +263,9 @@ class MultiExec(Pipeline):
                                 return_exceptions=True)
         last_error = None
         try:
-            yield from asyncio.shield(gather, loop=self._loop)
+            await asyncio.shield(gather, loop=self._loop)
         except asyncio.CancelledError:
-            yield from gather
+            await gather
         except Exception as err:
             last_error = err
             raise
@@ -286,7 +282,7 @@ class MultiExec(Pipeline):
                         # fut.cancel()
             else:
                 try:
-                    results = yield from exec_
+                    results = await exec_
                 except RedisError as err:
                     for fut in waiters:
                         fut.set_exception(err)
@@ -294,7 +290,7 @@ class MultiExec(Pipeline):
                     assert len(results) == len(waiters), (
                         "Results does not match waiters", results, waiters)
                     self._resolve_waiters(results, return_exceptions)
-            return (yield from self._gather_result(return_exceptions))
+            return (await self._gather_result(return_exceptions))
 
     def _resolve_waiters(self, results, return_exceptions):
         errors = []
@@ -310,7 +306,7 @@ class MultiExec(Pipeline):
     def _check_result(self, fut, waiter):
         assert waiter not in self._waiters, (fut, waiter, self._waiters)
         assert not waiter.done(), waiter
-        if fut.cancelled():     # yield from gather was cancelled
+        if fut.cancelled():     # await gather was cancelled
             waiter.cancel()
         elif fut.exception():   # server replied with error
             waiter.set_exception(fut.exception())

@@ -126,7 +126,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     def __await__(self):
         if isinstance(self._pool_or_conn, AbcPool):
-            conn = yield from self._pool_or_conn.acquire()
+            conn = yield from self._pool_or_conn.acquire().__await__()
             release = self._pool_or_conn.release
         else:
             # TODO: probably a lock is needed here if _pool_or_conn

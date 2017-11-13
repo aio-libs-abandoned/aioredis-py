@@ -321,7 +321,7 @@ class ConnectionsPool(AbcPool):
         """
         if self.closed:
             raise PoolClosedError("Pool is closed")
-        with (await self._cond):
+        with await self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
             while True:
@@ -427,9 +427,9 @@ class ConnectionsPool(AbcPool):
     def __exit__(self, *args):
         pass    # pragma: nocover
 
-    async def __await__(self):
+    def __await__(self):
         # To make `with await pool` work
-        conn = await self.acquire()
+        conn = yield from self.acquire().__await__()
         return _ConnectionContextManager(self, conn)
 
     def get(self):
