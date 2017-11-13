@@ -11,7 +11,6 @@ from aioredis import (
     ConnectionClosedError,
     ConnectionsPool
     )
-from aioredis.util import async_task
 
 
 def _assert_defaults(pool):
@@ -402,8 +401,8 @@ async def test_pool_size_growth(create_pool, server, loop):
             assert done == {0, 1}
 
     for _ in range(2):
-        tasks.append(async_task(task1(_), loop=loop))
-    tasks.append(async_task(task2(), loop=loop))
+        tasks.append(asyncio.ensure_future(task1(_), loop=loop))
+    tasks.append(asyncio.ensure_future(task2(), loop=loop))
     await asyncio.gather(*tasks, loop=loop)
 
 

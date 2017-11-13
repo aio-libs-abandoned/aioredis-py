@@ -1,19 +1,8 @@
-import asyncio
-import sys
-
 from urllib.parse import urlparse, parse_qsl
-from asyncio.base_events import BaseEventLoop
 
 from .log import logger
 
 _NOTSET = object()
-
-
-def correct_aiter(func):
-    if sys.version_info >= (3, 5, 2):
-        return func
-    else:
-        return asyncio.coroutine(func)
 
 
 # NOTE: never put here anything else;
@@ -104,7 +93,6 @@ class _BaseScanIter:
         self._cur = b'0'
         self._ret = []
 
-    @correct_aiter
     def __aiter__(self):
         return self
 
@@ -150,18 +138,6 @@ def _set_exception(fut, exception):
             "waiting future is in wrong state", fut, exception)
     else:
         fut.set_exception(exception)
-
-
-async_task = asyncio.ensure_future
-
-
-# create_future is new in version 3.5.2
-if hasattr(BaseEventLoop, 'create_future'):
-    def create_future(loop):
-        return loop.create_future()
-else:
-    def create_future(loop):
-        return asyncio.Future(loop=loop)
 
 
 def parse_url(url):

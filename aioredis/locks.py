@@ -2,8 +2,6 @@ from asyncio.locks import Lock as _Lock
 from asyncio import coroutine
 from asyncio import futures
 
-from .util import create_future
-
 # Fixes an issue with all Python versions that leaves pending waiters
 # without being awakened when the first waiter is canceled.
 # Code adapted from the PR https://github.com/python/cpython/pull/1031
@@ -23,7 +21,7 @@ class Lock(_Lock):
             self._locked = True
             return True
 
-        fut = create_future(self._loop)
+        fut = self._loop.create_future()
 
         self._waiters.append(fut)
         try:

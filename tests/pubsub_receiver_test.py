@@ -8,7 +8,6 @@ from unittest import mock
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
-from aioredis.util import async_task
 
 
 def test_listener_channel(loop):
@@ -204,7 +203,7 @@ async def test_wait_message(create_connection, server, loop):
 
     mpsc = Receiver(loop=loop)
     await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
-    fut = async_task(mpsc.wait_message(), loop=loop)
+    fut = asyncio.ensure_future(mpsc.wait_message(), loop=loop)
     assert not fut.done()
     await asyncio.sleep(0, loop=loop)
     assert not fut.done()

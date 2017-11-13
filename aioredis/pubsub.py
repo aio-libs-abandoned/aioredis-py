@@ -3,7 +3,7 @@ import json
 import types
 
 from .abc import AbcChannel
-from .util import create_future, _converters, correct_aiter, _set_result
+from .util import _converters, _set_result
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -123,7 +123,7 @@ class Channel(AbcChannel):
         if not self._queue.empty():
             return True
         if self._waiter is None:
-            self._waiter = create_future(loop=self._loop)
+            self._waiter = self._loop.create_future()
         await self._waiter
         return self.is_active
 
@@ -156,7 +156,6 @@ class _IterHelper:
         self._args = args
         self._kw = kw
 
-    @correct_aiter
     def __aiter__(self):
         return self
 
@@ -297,7 +296,7 @@ class Receiver:
         if not self._running:
             return False
         if self._waiter is None:
-            self._waiter = create_future(loop=self._loop)
+            self._waiter = self._loop.create_future()
         await self._waiter
         return self.is_active
 

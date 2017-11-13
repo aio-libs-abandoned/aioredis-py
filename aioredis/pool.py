@@ -4,7 +4,7 @@ import types
 
 from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
-from .util import async_task, parse_url
+from .util import parse_url
 from .errors import PoolClosedError
 from .abc import AbcPool
 from .locks import Lock
@@ -161,7 +161,8 @@ class ConnectionsPool(AbcPool):
         """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
-            self._close_waiter = async_task(self._do_close(), loop=self._loop)
+            self._close_waiter = asyncio.ensure_future(self._do_close(),
+                                                       loop=self._loop)
             self._close_state.set()
 
     @property
@@ -367,7 +368,7 @@ class ConnectionsPool(AbcPool):
             else:
                 conn.close()
         # FIXME: check event loop is not closed
-        async_task(self._wakeup(), loop=self._loop)
+        asyncio.ensure_future(self._wakeup(), loop=self._loop)
 
     def _drop_closed(self):
         for i in range(self.freesize):

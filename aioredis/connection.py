@@ -12,8 +12,6 @@ from .util import (
     _set_exception,
     coerced_keys_dict,
     decode,
-    async_task,
-    create_future,
     parse_url,
     )
 from .parser import Reader
@@ -155,11 +153,12 @@ class RedisConnection(AbcConnection):
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)
         )
-        self._reader_task = async_task(self._read_data(), loop=self._loop)
+        self._reader_task = asyncio.ensure_future(self._read_data(),
+                                                  loop=self._loop)
         self._db = 0
         self._closing = False
         self._closed = False
-        self._close_waiter = create_future(loop=self._loop)
+        self._close_waiter = loop.create_future()
         self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
@@ -306,7 +305,7 @@ class RedisConnection(AbcConnection):
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        fut = create_future(loop=self._loop)
+        fut = self._loop.create_future()
         self._writer.write(encode_command(command, *args))
         self._waiters.append((fut, encoding, cb))
         return fut
@@ -336,7 +335,7 @@ class RedisConnection(AbcConnection):
         cmd = encode_command(command, *(ch.name for ch in channels))
         res = []
         for ch in channels:
-            fut = create_future(loop=self._loop)
+            fut = self._loop.create_future()
             res.append(fut)
             cb = partial(self._update_pubsub, ch=ch)
             self._waiters.append((fut, None, cb))

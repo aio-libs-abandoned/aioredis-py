@@ -5,7 +5,6 @@ from unittest import mock
 
 from unittest.mock import patch
 
-from aioredis.util import async_task
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
@@ -237,7 +236,7 @@ async def test_cancel_wait_closed(create_connection, loop, server):
     conn = await create_connection(address, loop=loop)
     reader_task = conn._reader_task
     conn.close()
-    task = async_task(conn.wait_closed(), loop=loop)
+    task = asyncio.ensure_future(conn.wait_closed(), loop=loop)
 
     # Make sure the task is cancelled
     # after it has been started by the loop.

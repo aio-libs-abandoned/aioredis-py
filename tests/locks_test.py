@@ -1,7 +1,6 @@
 import asyncio
 import pytest
 
-from aioredis.util import async_task
 from aioredis.locks import Lock
 
 
@@ -9,18 +8,18 @@ from aioredis.locks import Lock
 async def test_finished_waiter_cancelled(loop):
     lock = Lock(loop=loop)
 
-    ta = async_task(lock.acquire(), loop=loop)
+    ta = asyncio.ensure_future(lock.acquire(), loop=loop)
     await asyncio.sleep(0, loop=loop)
     assert lock.locked()
 
-    tb = async_task(lock.acquire(), loop=loop)
+    tb = asyncio.ensure_future(lock.acquire(), loop=loop)
     await asyncio.sleep(0, loop=loop)
     assert len(lock._waiters) == 1
 
     # Create a second waiter, wake up the first, and cancel it.
     # Without the fix, the second was not woken up and the lock
     # will never be locked
-    async_task(lock.acquire(), loop=loop)
+    asyncio.ensure_future(lock.acquire(), loop=loop)
     await asyncio.sleep(0, loop=loop)
     lock.release()
     tb.cancel()

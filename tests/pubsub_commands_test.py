@@ -1,8 +1,6 @@
 import asyncio
 import pytest
 
-from aioredis.util import create_future, async_task
-
 
 async def _reader(channel, output, waiter, conn):
     await conn.execute('subscribe', channel)
@@ -16,10 +14,10 @@ async def _reader(channel, output, waiter, conn):
 @pytest.mark.run_loop
 async def test_publish(create_connection, redis, server, loop):
     out = asyncio.Queue(loop=loop)
-    fut = create_future(loop=loop)
+    fut = loop.create_future()
     conn = await create_connection(
         server.tcp_address, loop=loop)
-    sub = async_task(_reader('chan:1', out, fut, conn), loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
 
     await fut
     await redis.publish('chan:1', 'Hello')
@@ -32,10 +30,10 @@ async def test_publish(create_connection, redis, server, loop):
 @pytest.mark.run_loop
 async def test_publish_json(create_connection, redis, server, loop):
     out = asyncio.Queue(loop=loop)
-    fut = create_future(loop=loop)
+    fut = loop.create_future()
     conn = await create_connection(
         server.tcp_address, loop=loop)
-    sub = async_task(_reader('chan:1', out, fut, conn), loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
 
     await fut
 
@@ -177,7 +175,7 @@ async def test_close_pubsub_channels(redis, loop):
     async def waiter(ch):
         assert not await ch.wait_message()
 
-    tsk = async_task(waiter(ch), loop=loop)
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
     redis.close()
     await redis.wait_closed()
     await tsk
@@ -190,7 +188,7 @@ async def test_close_pubsub_patterns(redis, loop):
     async def waiter(ch):
         assert not await ch.wait_message()
 
-    tsk = async_task(waiter(ch), loop=loop)
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
     redis.close()
     await redis.wait_closed()
     await tsk
@@ -204,7 +202,7 @@ async def test_close_cancelled_pubsub_channel(redis, loop):
         with pytest.raises(asyncio.CancelledError):
             await ch.wait_message()
 
-    tsk = async_task(waiter(ch), loop=loop)
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
     await asyncio.sleep(0, loop=loop)
     tsk.cancel()
 
@@ -224,7 +222,7 @@ async def test_channel_get_after_close(create_redis, loop, server):
                 break
             assert msg == b'message'
 
-    tsk = async_task(waiter(), loop=loop)
+    tsk = asyncio.ensure_future(waiter(), loop=loop)
 
     await pub.publish('chan:1', 'message')
     sub.close()

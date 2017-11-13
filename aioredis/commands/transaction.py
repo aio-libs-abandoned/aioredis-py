@@ -10,8 +10,6 @@ from ..errors import (
     )
 from ..util import (
     wait_ok,
-    async_task,
-    create_future,
     _set_exception,
     )
 
@@ -100,7 +98,7 @@ class _RedisBuffer:
         self._loop = loop
 
     def execute(self, cmd, *args, **kw):
-        fut = create_future(loop=self._loop)
+        fut = self._loop.create_future()
         self._pipeline.append((fut, cmd, args, kw))
         return fut
 
@@ -144,9 +142,10 @@ class Pipeline:
             @functools.wraps(attr)
             def wrapper(*args, **kw):
                 try:
-                    task = async_task(attr(*args, **kw), loop=self._loop)
+                    task = asyncio.ensure_future(attr(*args, **kw),
+                                                 loop=self._loop)
                 except Exception as exc:
-                    task = create_future(loop=self._loop)
+                    task = self._loop.create_future()
                     task.set_exception(exc)
                 self._results.append(task)
                 return task
