@@ -5,7 +5,6 @@ from concurrent.futures import ALL_COMPLETED
 from async_timeout import timeout as async_timeout
 
 from ..log import sentinel_logger
-from ..util import async_task
 from ..pubsub import Receiver
 from ..pool import create_pool, ConnectionsPool
 from ..errors import MasterNotFoundError, SlaveNotFoundError, PoolClosedError
@@ -98,7 +97,7 @@ class SentinelPool:
                 #       etc...
             except asyncio.CancelledError:
                 pass
-        self._monitor_task = async_task(echo_events(), loop=loop)
+        self._monitor_task = asyncio.ensure_future(echo_events(), loop=loop)
 
     @property
     def discover_timeout(self):
@@ -158,7 +157,8 @@ class SentinelPool:
     def close(self):
         """Close all controlled connections (both sentinel and redis)."""
         if not self._close_state.is_set():
-            self._close_waiter = async_task(self._do_close(), loop=self._loop)
+            self._close_waiter = asyncio.ensure_future(self._do_close(),
+                                                       loop=self._loop)
             self._close_state.set()
 
     @asyncio.coroutine

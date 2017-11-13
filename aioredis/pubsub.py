@@ -3,7 +3,7 @@ import json
 import types
 
 from .abc import AbcChannel
-from .util import create_future, _converters, correct_aiter, _set_result
+from .util import _converters, _set_result
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -57,13 +57,12 @@ class Channel(AbcChannel):
 
         >>> ch = conn.pubsub_channels['chan:1']
         >>> while ch.is_active:
-        ...     msg = yield from ch.get()   # may stuck for a long time
+        ...     msg = await ch.get()   # may stuck for a long time
 
         """
         return not (self._queue.qsize() <= 1 and self._closed)
 
-    @asyncio.coroutine
-    def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
 
         :raises aioredis.ChannelClosedError: If channel is unsubscribed
@@ -76,7 +75,7 @@ class Channel(AbcChannel):
                 assert msg is None, msg
                 return
             raise ChannelClosedError()
-        msg = yield from self._queue.get()
+        msg = await self._queue.get()
         if msg is None:
             # TODO: maybe we need an explicit marker for "end of stream"
             #       currently, returning None may overlap with
@@ -94,10 +93,9 @@ class Channel(AbcChannel):
             return dest_channel, msg
         return msg
 
-    @asyncio.coroutine
-    def get_json(self, encoding='utf-8'):
+    async def get_json(self, encoding='utf-8'):
         """Shortcut to get JSON messages."""
-        return (yield from self.get(encoding=encoding, decoder=json.loads))
+        return (await self.get(encoding=encoding, decoder=json.loads))
 
     def iter(self, *, encoding=None, decoder=None):
         """Same as get method but its native coroutine.
@@ -112,22 +110,21 @@ class Channel(AbcChannel):
                            encoding=encoding,
                            decoder=decoder)
 
-    @asyncio.coroutine
-    def wait_message(self):
+    async def wait_message(self):
         """Waits for message to become available in channel.
 
         Possible usage:
 
-        >>> while (yield from ch.wait_message()):
-        ...     msg = yield from ch.get()
+        >>> while (await ch.wait_message()):
+        ...     msg = await ch.get()
         """
         if not self.is_active:
             return False
         if not self._queue.empty():
             return True
         if self._waiter is None:
-            self._waiter = create_future(loop=self._loop)
-        yield from self._waiter
+            self._waiter = self._loop.create_future()
+        await self._waiter
         return self.is_active
 
     # internal methods
@@ -159,15 +156,13 @@ class _IterHelper:
         self._args = args
         self._kw = kw
 
-    @correct_aiter
     def __aiter__(self):
         return self
 
-    @asyncio.coroutine
-    def __anext__(self):
+    async def __anext__(self):
         if not self._is_active(self._ch):
             raise StopAsyncIteration    # noqa
-        msg = yield from self._ch.get(*self._args, **self._kw)
+        msg = await self._ch.get(*self._args, **self._kw)
         if msg is None:
             raise StopAsyncIteration    # noqa
         return msg
@@ -261,8 +256,7 @@ class Receiver:
             ch.name: ch for ch in self._refs.values()
             if ch.is_pattern})
 
-    @asyncio.coroutine
-    def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, decoder=None):
         """Wait for and return pub/sub message from one of channels.
 
         Return value is either:
@@ -281,7 +275,7 @@ class Receiver:
             if not self._running:   # inactive but running
                 raise ChannelClosedError()
             return
-        obj = yield from self._queue.get()
+        obj = await self._queue.get()
         if obj is EndOfStream:
             return
         ch, msg = obj
@@ -295,16 +289,15 @@ class Receiver:
             return ch, (dest_ch, msg)
         return ch, msg
 
-    @asyncio.coroutine
-    def wait_message(self):
+    async def wait_message(self):
         """Blocks until new message appear."""
         if not self._queue.empty():
             return True
         if not self._running:
             return False
         if self._waiter is None:
-            self._waiter = create_future(loop=self._loop)
-        yield from self._waiter
+            self._waiter = self._loop.create_future()
+        await self._waiter
         return self.is_active
 
     @property
@@ -390,8 +383,7 @@ class _Sender(AbcChannel):
     def is_active(self):
         return not self._closed
 
-    @asyncio.coroutine
-    def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, decoder=None):
         raise RuntimeError("MPSC channel does not allow direct get() calls")
 
     def put_nowait(self, data):

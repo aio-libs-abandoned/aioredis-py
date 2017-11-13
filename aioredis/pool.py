@@ -1,21 +1,19 @@
 import asyncio
 import collections
-import warnings
 import types
 
 from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
-from .util import async_task, _NOTSET, parse_url
+from .util import parse_url
 from .errors import PoolClosedError
 from .abc import AbcPool
 from .locks import Lock
 
 
-@asyncio.coroutine
-def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
-                minsize=1, maxsize=10, commands_factory=_NOTSET,
-                parser=None, loop=None, create_connection_timeout=None,
-                pool_cls=None, connection_cls=None):
+async def create_pool(address, *, db=None, password=None, ssl=None,
+                      encoding=None, minsize=1, maxsize=10,
+                      parser=None, loop=None, create_connection_timeout=None,
+                      pool_cls=None, connection_cls=None):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
 
@@ -29,11 +27,6 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
 
     Returns RedisPool instance or a pool_cls if it is given.
     """
-    if commands_factory is not _NOTSET:
-        warnings.warn(
-            "commands_factory argument is deprecated and will be removed!",
-            DeprecationWarning)
-
     if pool_cls:
         assert issubclass(pool_cls, AbcPool),\
                 "pool_class does not meet the AbcPool contract"
@@ -60,10 +53,10 @@ def create_pool(address, *, db=None, password=None, ssl=None, encoding=None,
                connection_cls=connection_cls,
                loop=loop)
     try:
-        yield from pool._fill_free(override_min=False)
+        await pool._fill_free(override_min=False)
     except Exception as ex:
         pool.close()
-        yield from pool.wait_closed()
+        await pool.wait_closed()
         raise
     return pool
 
@@ -132,28 +125,25 @@ class ConnectionsPool(AbcPool):
     def address(self):
         return self._address
 
-    @asyncio.coroutine
-    def clear(self):
+    async def clear(self):
         """Clear pool connections.
 
         Close and remove all free connections.
         """
-        with (yield from self._cond):
-            yield from self._do_clear()
+        with (await self._cond):
+            await self._do_clear()
 
-    @asyncio.coroutine
-    def _do_clear(self):
+    async def _do_clear(self):
         waiters = []
         while self._pool:
             conn = self._pool.popleft()
             conn.close()
             waiters.append(conn.wait_closed())
-        yield from asyncio.gather(*waiters, loop=self._loop)
+        await asyncio.gather(*waiters, loop=self._loop)
 
-    @asyncio.coroutine
-    def _do_close(self):
-        yield from self._close_state.wait()
-        with (yield from self._cond):
+    async def _do_close(self):
+        await self._close_state.wait()
+        with (await self._cond):
             assert not self._acquiring, self._acquiring
             waiters = []
             while self._pool:
@@ -163,7 +153,7 @@ class ConnectionsPool(AbcPool):
             for conn in self._used:
                 conn.close()
                 waiters.append(conn.wait_closed())
-            yield from asyncio.gather(*waiters, loop=self._loop)
+            await asyncio.gather(*waiters, loop=self._loop)
             # TODO: close _pubsub_conn connection
             logger.debug("Closed %d connection(s)", len(waiters))
 
@@ -171,7 +161,8 @@ class ConnectionsPool(AbcPool):
         """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
-            self._close_waiter = async_task(self._do_close(), loop=self._loop)
+            self._close_waiter = asyncio.ensure_future(self._do_close(),
+                                                       loop=self._loop)
             self._close_state.set()
 
     @property
@@ -179,12 +170,11 @@ class ConnectionsPool(AbcPool):
         """True if pool is closed."""
         return self._close_state.is_set()
 
-    @asyncio.coroutine
-    def wait_closed(self):
+    async def wait_closed(self):
         """Wait until pool gets closed."""
-        yield from self._close_state.wait()
+        await self._close_state.wait()
         assert self._close_waiter is not None
-        yield from asyncio.shield(self._close_waiter, loop=self._loop)
+        await asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
     def db(self):
@@ -266,50 +256,46 @@ class ConnectionsPool(AbcPool):
         """
         return fut
 
-    @asyncio.coroutine
-    def _wait_execute(self, address, command, args, kw):
+    async def _wait_execute(self, address, command, args, kw):
         """Acquire connection and execute command."""
-        conn = yield from self.acquire(command, args)
+        conn = await self.acquire(command, args)
         try:
-            return (yield from conn.execute(command, *args, **kw))
+            return (await conn.execute(command, *args, **kw))
         finally:
             self.release(conn)
 
-    @asyncio.coroutine
-    def _wait_execute_pubsub(self, address, command, args, kw):
+    async def _wait_execute_pubsub(self, address, command, args, kw):
         if self.closed:
             raise PoolClosedError("Pool is closed")
         assert self._pubsub_conn is None or self._pubsub_conn.closed, (
             "Expected no or closed connection", self._pubsub_conn)
-        with (yield from self._cond):
+        with (await self._cond):
             if self.closed:
                 raise PoolClosedError("Pool is closed")
             if self._pubsub_conn is None or self._pubsub_conn.closed:
-                conn = yield from self._create_new_connection(address)
+                conn = await self._create_new_connection(address)
                 self._pubsub_conn = conn
             conn = self._pubsub_conn
-            return (yield from conn.execute_pubsub(command, *args, **kw))
+            return (await conn.execute_pubsub(command, *args, **kw))
 
-    @asyncio.coroutine
-    def select(self, db):
+    async def select(self, db):
         """Changes db index for all free connections.
 
         All previously acquired connections will be closed when released.
         """
         res = True
-        with (yield from self._cond):
+        with (await self._cond):
             for i in range(self.freesize):
-                res = res and (yield from self._pool[i].select(db))
+                res = res and (await self._pool[i].select(db))
             else:
                 self._db = db
         return res
 
-    @asyncio.coroutine
-    def auth(self, password):
+    async def auth(self, password):
         self._password = password
-        with (yield from self._cond):
+        with (await self._cond):
             for i in range(self.freesize):
-                yield from self._pool[i].auth(password)
+                await self._pool[i].auth(password)
 
     @property
     def in_pubsub(self):
@@ -329,19 +315,18 @@ class ConnectionsPool(AbcPool):
             return self._pubsub_conn.pubsub_patterns
         return types.MappingProxyType({})
 
-    @asyncio.coroutine
-    def acquire(self, command=None, args=()):
+    async def acquire(self, command=None, args=()):
         """Acquires a connection from free pool.
 
         Creates new connection if needed.
         """
         if self.closed:
             raise PoolClosedError("Pool is closed")
-        with (yield from self._cond):
+        with await self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
             while True:
-                yield from self._fill_free(override_min=True)
+                await self._fill_free(override_min=True)
                 if self.freesize:
                     conn = self._pool.popleft()
                     assert not conn.closed, conn
@@ -349,7 +334,7 @@ class ConnectionsPool(AbcPool):
                     self._used.add(conn)
                     return conn
                 else:
-                    yield from self._cond.wait()
+                    await self._cond.wait()
 
     def release(self, conn):
         """Returns used connection back into pool.
@@ -383,7 +368,7 @@ class ConnectionsPool(AbcPool):
             else:
                 conn.close()
         # FIXME: check event loop is not closed
-        async_task(self._wakeup(), loop=self._loop)
+        asyncio.ensure_future(self._wakeup(), loop=self._loop)
 
     def _drop_closed(self):
         for i in range(self.freesize):
@@ -393,15 +378,14 @@ class ConnectionsPool(AbcPool):
             else:
                 self._pool.rotate(1)
 
-    @asyncio.coroutine
-    def _fill_free(self, *, override_min):
+    async def _fill_free(self, *, override_min):
         # drop closed connections first
         self._drop_closed()
         address = self._address
         while self.size < self.minsize:
             self._acquiring += 1
             try:
-                conn = yield from self._create_new_connection(address)
+                conn = await self._create_new_connection(address)
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1
@@ -413,7 +397,7 @@ class ConnectionsPool(AbcPool):
             while not self._pool and self.size < self.maxsize:
                 self._acquiring += 1
                 try:
-                    conn = yield from self._create_new_connection(address)
+                    conn = await self._create_new_connection(address)
                     self._pool.append(conn)
                 finally:
                     self._acquiring -= 1
@@ -431,28 +415,22 @@ class ConnectionsPool(AbcPool):
                                  connection_cls=self._connection_cls,
                                  loop=self._loop)
 
-    @asyncio.coroutine
-    def _wakeup(self, closing_conn=None):
-        with (yield from self._cond):
+    async def _wakeup(self, closing_conn=None):
+        with (await self._cond):
             self._cond.notify()
         if closing_conn is not None:
-            yield from closing_conn.wait_closed()
+            await closing_conn.wait_closed()
 
     def __enter__(self):
         raise RuntimeError(
-            "'yield from' should be used as a context manager expression")
+            "'await' should be used as a context manager expression")
 
     def __exit__(self, *args):
         pass    # pragma: nocover
 
-    def __iter__(self):
-        # this method is needed to allow `yield`ing from pool
-        conn = yield from self.acquire()
-        return _ConnectionContextManager(self, conn)
-
     def __await__(self):
         # To make `with await pool` work
-        conn = yield from self.acquire()
+        conn = yield from self.acquire().__await__()
         return _ConnectionContextManager(self, conn)
 
     def get(self):
@@ -491,14 +469,12 @@ class _AsyncConnectionContextManager:
         self._pool = pool
         self._conn = None
 
-    @asyncio.coroutine
-    def __aenter__(self):
-        conn = yield from self._pool.acquire()
+    async def __aenter__(self):
+        conn = await self._pool.acquire()
         self._conn = conn
         return self._conn
 
-    @asyncio.coroutine
-    def __aexit__(self, exc_type, exc_value, tb):
+    async def __aexit__(self, exc_type, exc_value, tb):
         try:
             self._pool.release(self._conn)
         finally:

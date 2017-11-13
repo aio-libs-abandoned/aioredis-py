@@ -1,6 +1,3 @@
-import asyncio
-# import warnings
-
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
 from aioredis.util import _NOTSET
@@ -56,10 +53,9 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """Close client connections."""
         self._pool_or_conn.close()
 
-    @asyncio.coroutine
-    def wait_closed(self):
+    async def wait_closed(self):
         """Coroutine waiting until underlying connections are closed."""
-        yield from self._pool_or_conn.wait_closed()
+        await self._pool_or_conn.wait_closed()
 
     @property
     def db(self):
@@ -130,7 +126,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     def __await__(self):
         if isinstance(self._pool_or_conn, AbcPool):
-            conn = yield from self._pool_or_conn.acquire()
+            conn = yield from self._pool_or_conn.acquire().__await__()
             release = self._pool_or_conn.release
         else:
             # TODO: probably a lock is needed here if _pool_or_conn
@@ -138,7 +134,6 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             conn = self._pool_or_conn
             release = None
         return ContextRedis(conn, release)
-    __iter__ = __await__
 
 
 class ContextRedis(Redis):
@@ -159,48 +154,45 @@ class ContextRedis(Redis):
     def __await__(self):
         return ContextRedis(self._pool_or_conn)
         yield
-    __iter__ = __await__
 
 
-@asyncio.coroutine
-def create_redis(address, *, db=None, password=None, ssl=None,
-                 encoding=None, commands_factory=Redis,
-                 parser=None, timeout=None,
-                 connection_cls=None, loop=None):
+async def create_redis(address, *, db=None, password=None, ssl=None,
+                       encoding=None, commands_factory=Redis,
+                       parser=None, timeout=None,
+                       connection_cls=None, loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    conn = yield from create_connection(address, db=db,
-                                        password=password,
-                                        ssl=ssl,
-                                        encoding=encoding,
-                                        parser=parser,
-                                        timeout=timeout,
-                                        connection_cls=connection_cls,
-                                        loop=loop)
+    conn = await create_connection(address, db=db,
+                                   password=password,
+                                   ssl=ssl,
+                                   encoding=encoding,
+                                   parser=parser,
+                                   timeout=timeout,
+                                   connection_cls=connection_cls,
+                                   loop=loop)
     return commands_factory(conn)
 
 
-@asyncio.coroutine
-def create_redis_pool(address, *, db=None, password=None, ssl=None,
-                      encoding=None, commands_factory=Redis,
-                      minsize=1, maxsize=10, parser=None,
-                      timeout=None, pool_cls=None,
-                      connection_cls=None, loop=None):
+async def create_redis_pool(address, *, db=None, password=None, ssl=None,
+                            encoding=None, commands_factory=Redis,
+                            minsize=1, maxsize=10, parser=None,
+                            timeout=None, pool_cls=None,
+                            connection_cls=None, loop=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    pool = yield from create_pool(address, db=db,
-                                  password=password,
-                                  ssl=ssl,
-                                  encoding=encoding,
-                                  minsize=minsize,
-                                  maxsize=maxsize,
-                                  parser=parser,
-                                  create_connection_timeout=timeout,
-                                  pool_cls=pool_cls,
-                                  connection_cls=connection_cls,
-                                  loop=loop)
+    pool = await create_pool(address, db=db,
+                             password=password,
+                             ssl=ssl,
+                             encoding=encoding,
+                             minsize=minsize,
+                             maxsize=maxsize,
+                             parser=parser,
+                             create_connection_timeout=timeout,
+                             pool_cls=pool_cls,
+                             connection_cls=connection_cls,
+                             loop=loop)
     return commands_factory(pool)

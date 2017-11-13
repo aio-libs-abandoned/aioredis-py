@@ -62,10 +62,9 @@ def unused_port():
 def create_connection(_closable, loop):
     """Wrapper around aioredis.create_connection."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        conn = yield from aioredis.create_connection(*args, **kw)
+        conn = await aioredis.create_connection(*args, **kw)
         _closable(conn)
         return conn
     return f
@@ -79,10 +78,9 @@ def create_redis(_closable, loop, request):
     """Wrapper around aioredis.create_redis."""
     factory = request.param
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        redis = yield from factory(*args, **kw)
+        redis = await factory(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -92,10 +90,9 @@ def create_redis(_closable, loop, request):
 def create_pool(_closable, loop):
     """Wrapper around aioredis.create_pool."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        redis = yield from aioredis.create_pool(*args, **kw)
+        redis = await aioredis.create_pool(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -105,10 +102,9 @@ def create_pool(_closable, loop):
 def create_sentinel(_closable, loop):
     """Helper instantiating RedisSentinel client."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        client = yield from aioredis.sentinel.create_sentinel(*args, **kw)
+        client = await aioredis.sentinel.create_sentinel(*args, **kw)
         _closable(client)
         return client
     return f
@@ -544,10 +540,9 @@ def pytest_pyfunc_call(pyfuncitem):
         return True
 
 
-@asyncio.coroutine
-def _wait_coro(corofunc, kwargs, timeout, loop):
+async def _wait_coro(corofunc, kwargs, timeout, loop):
     with async_timeout(timeout, loop=loop):
-        return (yield from corofunc(**kwargs))
+        return (await corofunc(**kwargs))
 
 
 def pytest_runtest_setup(item):

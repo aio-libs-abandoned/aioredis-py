@@ -2,7 +2,6 @@ import asyncio
 import pytest
 
 import aioredis
-from aioredis.util import async_task
 
 
 @pytest.fixture
@@ -13,64 +12,57 @@ def pool_or_redis(_closable, server, loop):
     else:
         factory = aioredis.create_pool
 
-    @asyncio.coroutine
-    def redis_factory(maxsize):
-        redis = yield from factory(server.tcp_address, loop=loop,
-                                   minsize=1, maxsize=maxsize)
+    async def redis_factory(maxsize):
+        redis = await factory(server.tcp_address, loop=loop,
+                              minsize=1, maxsize=maxsize)
         _closable(redis)
         return redis
     return redis_factory
 
 
-@asyncio.coroutine
-def simple_get_set(pool, idx, loop):
+async def simple_get_set(pool, idx, loop):
     """A simple test to make sure Redis(pool) can be used as old Pool(Redis).
     """
     val = 'val:{}'.format(idx)
-    with (yield from pool) as redis:
-        assert (yield from redis.set('key', val))
-        yield from redis.get('key', encoding='utf-8')
+    with await pool as redis:
+        assert await redis.set('key', val)
+        await redis.get('key', encoding='utf-8')
 
 
-@asyncio.coroutine
-def pipeline(pool, val, loop):
+async def pipeline(pool, val, loop):
     val = 'val:{}'.format(val)
-    with (yield from pool) as redis:
+    with await pool as redis:
         f1 = redis.set('key', val)
         f2 = redis.get('key', encoding='utf-8')
-        ok, res = yield from asyncio.gather(f1, f2, loop=loop)
+        ok, res = await asyncio.gather(f1, f2, loop=loop)
 
 
-@asyncio.coroutine
-def transaction(pool, val, loop):
+async def transaction(pool, val, loop):
     val = 'val:{}'.format(val)
-    with (yield from pool) as redis:
+    with await pool as redis:
         tr = redis.multi_exec()
         tr.set('key', val)
         tr.get('key', encoding='utf-8')
-        ok, res = yield from tr.execute()
+        ok, res = await tr.execute()
         assert ok, ok
         assert res == val
 
 
-@asyncio.coroutine
-def blocking_pop(pool, val, loop):
+async def blocking_pop(pool, val, loop):
 
-    @asyncio.coroutine
-    def lpush():
-        with (yield from pool) as redis:
+    async def lpush():
+        with await pool as redis:
             # here v0.3 has bound connection, v1.0 does not;
-            yield from asyncio.sleep(.1, loop=loop)
-            yield from redis.lpush('list-key', 'val')
+            await asyncio.sleep(.1, loop=loop)
+            await redis.lpush('list-key', 'val')
 
-    @asyncio.coroutine
-    def blpop():
-        with (yield from pool) as redis:
+    async def blpop():
+        with await pool as redis:
             # here v0.3 has bound connection, v1.0 does not;
-            res = yield from redis.blpop(
+            res = await redis.blpop(
                 'list-key', timeout=2, encoding='utf-8')
             assert res == ['list-key', 'val'], res
-    yield from asyncio.gather(blpop(), lpush(), loop=loop)
+    await asyncio.gather(blpop(), lpush(), loop=loop)
 
 
 @pytest.mark.run_loop
@@ -85,11 +77,11 @@ def blocking_pop(pool, val, loop):
     (transaction, 10),
     (blocking_pop, 10),
 ], ids=lambda o: o.__name__)
-def test_operations(pool_or_redis, test_case, pool_size, loop):
+async def test_operations(pool_or_redis, test_case, pool_size, loop):
     repeat = 100
-    redis = yield from pool_or_redis(pool_size)
-    done, pending = yield from asyncio.wait(
-        [async_task(test_case(redis, i, loop), loop=loop)
+    redis = await pool_or_redis(pool_size)
+    done, pending = await asyncio.wait(
+        [asyncio.ensure_future(test_case(redis, i, loop), loop=loop)
          for i in range(repeat)], loop=loop)
 
     assert not pending

@@ -1,19 +1,8 @@
-import asyncio
-import sys
-
 from urllib.parse import urlparse, parse_qsl
-from asyncio.base_events import BaseEventLoop
 
 from .log import logger
 
 _NOTSET = object()
-
-
-def correct_aiter(func):
-    if sys.version_info >= (3, 5, 2):
-        return func
-    else:
-        return asyncio.coroutine(func)
 
 
 # NOTE: never put here anything else;
@@ -61,25 +50,22 @@ def decode(obj, encoding):
     return obj
 
 
-@asyncio.coroutine
-def wait_ok(fut):
-    res = yield from fut
+async def wait_ok(fut):
+    res = await fut
     if res in (b'QUEUED', 'QUEUED'):
         return res
     return res in (b'OK', 'OK')
 
 
-@asyncio.coroutine
-def wait_convert(fut, type_, **kwargs):
-    result = yield from fut
+async def wait_convert(fut, type_, **kwargs):
+    result = await fut
     if result in (b'QUEUED', 'QUEUED'):
         return result
     return type_(result, **kwargs)
 
 
-@asyncio.coroutine
-def wait_make_dict(fut):
-    res = yield from fut
+async def wait_make_dict(fut):
+    res = await fut
     if res in (b'QUEUED', 'QUEUED'):
         return res
     it = iter(res)
@@ -107,17 +93,15 @@ class _BaseScanIter:
         self._cur = b'0'
         self._ret = []
 
-    @correct_aiter
     def __aiter__(self):
         return self
 
 
 class _ScanIter(_BaseScanIter):
 
-    @asyncio.coroutine
-    def __anext__(self):
+    async def __anext__(self):
         while not self._ret and self._cur:
-            self._cur, self._ret = yield from self._scan(self._cur)
+            self._cur, self._ret = await self._scan(self._cur)
         if not self._cur and not self._ret:
             raise StopAsyncIteration  # noqa
         else:
@@ -127,10 +111,9 @@ class _ScanIter(_BaseScanIter):
 
 class _ScanIterPairs(_BaseScanIter):
 
-    @asyncio.coroutine
-    def __anext__(self):
+    async def __anext__(self):
         while not self._ret and self._cur:
-            self._cur, ret = yield from self._scan(self._cur)
+            self._cur, ret = await self._scan(self._cur)
             self._ret = list(zip(ret[::2], ret[1::2]))
         if not self._cur and not self._ret:
             raise StopAsyncIteration  # noqa
@@ -155,18 +138,6 @@ def _set_exception(fut, exception):
             "waiting future is in wrong state", fut, exception)
     else:
         fut.set_exception(exception)
-
-
-async_task = asyncio.ensure_future
-
-
-# create_future is new in version 3.5.2
-if hasattr(BaseEventLoop, 'create_future'):
-    def create_future(loop):
-        return loop.create_future()
-else:
-    def create_future(loop):
-        return asyncio.Future(loop=loop)
 
 
 def parse_url(url):
