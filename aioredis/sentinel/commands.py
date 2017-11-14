@@ -5,10 +5,9 @@ from ..commands import Redis
 from .pool import create_sentinel_pool
 
 
-@asyncio.coroutine
-def create_sentinel(sentinels, *, db=None, password=None,
-                    encoding=None, minsize=1, maxsize=10,
-                    ssl=None, timeout=0.2, loop=None):
+async def create_sentinel(sentinels, *, db=None, password=None,
+                          encoding=None, minsize=1, maxsize=10,
+                          ssl=None, timeout=0.2, loop=None):
     """Creates Redis Sentinel client.
 
     `sentinels` is a list of sentinel nodes.
@@ -17,15 +16,15 @@ def create_sentinel(sentinels, *, db=None, password=None,
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    pool = yield from create_sentinel_pool(sentinels,
-                                           db=db,
-                                           password=password,
-                                           encoding=encoding,
-                                           minsize=minsize,
-                                           maxsize=maxsize,
-                                           ssl=ssl,
-                                           timeout=timeout,
-                                           loop=loop)
+    pool = await create_sentinel_pool(sentinels,
+                                      db=db,
+                                      password=password,
+                                      encoding=encoding,
+                                      minsize=minsize,
+                                      maxsize=maxsize,
+                                      ssl=ssl,
+                                      timeout=timeout,
+                                      loop=loop)
     return RedisSentinel(pool)
 
 
@@ -39,10 +38,9 @@ class RedisSentinel:
         """Close client connections."""
         self._pool.close()
 
-    @asyncio.coroutine
-    def wait_closed(self):
+    async def wait_closed(self):
         """Coroutine waiting until underlying connections are closed."""
-        yield from self._pool.wait_closed()
+        await self._pool.wait_closed()
 
     @property
     def closed(self):
