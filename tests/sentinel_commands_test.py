@@ -3,6 +3,7 @@ import pytest
 import sys
 
 from aioredis import RedisError, ReplyError, PoolClosedError
+from aioredis.errors import AuthError
 from aioredis.sentinel.commands import RedisSentinel
 
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
@@ -96,13 +97,23 @@ async def test_master__auth(create_sentinel, start_sentinel,
     m1 = client1.master_for(master.name)
     await m1.set('mykey', 'myval')
 
-    with pytest.raises(ReplyError):
+    with pytest.raises(AuthError):
         m2 = client2.master_for(master.name)
         await m2.set('mykey', 'myval')
 
-    with pytest.raises(ReplyError):
+    with pytest.raises(AuthError):
         m3 = client3.master_for(master.name)
         await m3.set('mykey', 'myval')
+
+
+@pytest.mark.run_loop
+async def test_master__no_auth(create_sentinel, sentinel, loop):
+    client = await create_sentinel(
+        [sentinel.tcp_address], password='123', loop=loop)
+
+    master = client.master_for('masterA')
+    with pytest.raises(ReplyError):
+        await master.set('mykey', 'myval')
 
 
 @pytest.mark.run_loop
