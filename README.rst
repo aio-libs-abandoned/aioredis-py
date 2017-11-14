@@ -27,7 +27,7 @@ SSL/TLS support                     Yes
 Sentinel support                    Yes [1]_
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested CPython versions             `3.5, 3.6 <travis_>`_
+Tested CPython versions             `3.5, 3.6 <travis_>`_ [2]_
 Tested PyPy3 versions               `5.9.0 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 <travis_>`_
 Support for dev Redis server        through low-level API
@@ -36,6 +36,8 @@ Support for dev Redis server        through low-level API
 
 .. [1] Sentinel support is available in master branch.
    This feature is not yet stable and may have some issues.
+
+.. [2] For Python 3.3, 3.4 support use aioredis v0.3.
 
 Documentation
 -------------
