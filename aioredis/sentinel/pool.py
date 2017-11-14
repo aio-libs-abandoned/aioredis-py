@@ -12,6 +12,8 @@ from ..errors import (
     SlaveNotFoundError,
     PoolClosedError,
     RedisError,
+    MasterReplyError,
+    SlaveReplyError,
 )
 
 
@@ -289,8 +291,8 @@ class SentinelPool:
                                       sentinel, service, err)
                 await asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
-            except RedisError:
-                raise
+            except RedisError as err:
+                raise MasterReplyError("Service {} error".format(service), err)
             except Exception:
                 # TODO: clear (drop) connections to schedule reconnect
                 await asyncio.sleep(idle_timeout, loop=self._loop)
@@ -324,8 +326,8 @@ class SentinelPool:
             except DiscoverError:
                 await asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
-            except RedisError:
-                raise
+            except RedisError as err:
+                raise SlaveReplyError("Service {} error".format(service), err)
             except Exception:
                 await asyncio.sleep(idle_timeout, loop=self._loop)
                 continue

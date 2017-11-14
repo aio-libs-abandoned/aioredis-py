@@ -30,7 +30,7 @@ class ReplyError(RedisError):
 
     def __new__(cls, msg, *args):
         for klass in cls.__subclasses__():
-            if klass.MATCH_REPLY and msg.startswith(klass.MATCH_REPLY):
+            if msg and klass.MATCH_REPLY and msg.startswith(klass.MATCH_REPLY):
                 return klass(msg, *args)
         return super().__new__(cls, msg, *args)
 
@@ -78,6 +78,14 @@ class MasterNotFoundError(RedisError):
 
 class SlaveNotFoundError(RedisError):
     """Raised for sentinel slave not found error."""
+
+
+class MasterReplyError(RedisError):
+    """Raised by sentinel client for master error replies."""
+
+
+class SlaveReplyError(RedisError):
+    """Raised by sentinel client for slave error replies."""
 
 
 class ConnectionClosedError(RedisError):
