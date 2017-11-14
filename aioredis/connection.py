@@ -287,7 +287,7 @@ class RedisConnection(AbcConnection):
             raise ConnectionClosedError(msg)
         if command is None:
             raise TypeError("command must not be None")
-        if None in set(args):
+        if None in args:
             raise TypeError("args must not contain None")
         command = command.upper().strip()
         is_pubsub = command in _PUBSUB_COMMANDS
