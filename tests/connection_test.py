@@ -107,16 +107,16 @@ async def test_connect_unixsocket_timeout(create_connection, loop, server):
 
 @pytest.mark.run_loop
 @pytest.redis_version(2, 8, 0, reason="maxclients config setting")
-def test_connect_maxclients(request, create_connection, loop, start_server):
+async def test_connect_maxclients(create_connection, loop, start_server):
     server = start_server('server-maxclients')
-    conn = yield from create_connection(
+    conn = await create_connection(
         server.tcp_address, loop=loop)
-    yield from conn.execute(b'CONFIG', b'SET', 'maxclients', 1)
+    await conn.execute(b'CONFIG', b'SET', 'maxclients', 1)
 
-    with pytest.raises(MaxClientsError):
-        conn2 = yield from create_connection(
+    with pytest.raises((MaxClientsError, ConnectionError)):
+        conn2 = await create_connection(
             server.tcp_address, loop=loop)
-        yield from conn2.execute('ping')
+        await conn2.execute('ping')
 
 
 def test_global_loop(create_connection, loop, server):

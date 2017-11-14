@@ -468,7 +468,7 @@ async def test_pool_check_closed_when_exception(
     await redis.config_set('maxclients', 2)
 
     with pytest.logs('aioredis', 'DEBUG') as cm:
-        with pytest.raises(MaxClientsError):
+        with pytest.raises((MaxClientsError, ConnectionError)):
             await create_pool(address=tuple(server.tcp_address),
                               minsize=3, loop=loop)
 

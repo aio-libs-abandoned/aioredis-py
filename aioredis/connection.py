@@ -283,8 +283,7 @@ class RedisConnection(AbcConnection):
           is broken.
         """
         if self._reader is None or self._reader.at_eof():
-            msg = self._close_msg if self._close_msg else\
-                    "Connection closed or corrupted"
+            msg = self._close_msg or "Connection closed or corrupted"
             raise ConnectionClosedError(msg)
         if command is None:
             raise TypeError("command must not be None")
