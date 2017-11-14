@@ -21,7 +21,8 @@ import aioredis.sentinel
 
 TCPAddress = namedtuple('TCPAddress', 'host port')
 
-RedisServer = namedtuple('RedisServer', 'name tcp_address unixsocket version')
+RedisServer = namedtuple('RedisServer',
+                         'name tcp_address unixsocket version password')
 
 SentinelServer = namedtuple('SentinelServer',
                             'name tcp_address unixsocket version masters')
@@ -278,7 +279,7 @@ def start_server(_proc, request, unused_port, server_bin):
             yield True
         raise RuntimeError("Redis startup timeout expired")
 
-    def maker(name, config_lines=None, *, slaveof=None):
+    def maker(name, config_lines=None, *, slaveof=None, password=None):
         assert slaveof is None or isinstance(slaveof, RedisServer), slaveof
         if name in servers:
             return servers[name]
@@ -305,12 +306,16 @@ def start_server(_proc, request, unused_port, server_bin):
                 if unixsocket:
                     write('unixsocket', unixsocket)
                     tmp_files.append(unixsocket)
+                if password:
+                    write('requirepass "{}"'.format(password))
                 write('# extra config')
                 for line in config_lines:
                     write(line)
                 if slaveof is not None:
                     write("slaveof {0.tcp_address.host} {0.tcp_address.port}"
                           .format(slaveof))
+                    if password:
+                        write('masterauth "{}"'.format(password))
             args = [config]
             tmp_files.append(config)
         else:
@@ -324,13 +329,20 @@ def start_server(_proc, request, unused_port, server_bin):
                 args += [
                     '--unixsocket', unixsocket,
                     ]
+            if password:
+                args += [
+                    '--requirepass "{}"'.format(password)
+                    ]
             if slaveof is not None:
                 args += [
                     '--slaveof',
                     str(slaveof.tcp_address.host),
                     str(slaveof.tcp_address.port),
                     ]
-
+                if password:
+                    args += [
+                        '--masterauth "{}"'.format(password)
+                    ]
         f = open(stdout_file, 'w')
         atexit.register(f.close)
         proc = _proc(server_bin, *args,
@@ -353,7 +365,7 @@ def start_server(_proc, request, unused_port, server_bin):
                         print(name, ":", log, end='')
                     if 'sync: Finished with success' in log:
                         break
-        info = RedisServer(name, tcp_address, unixsocket, version)
+        info = RedisServer(name, tcp_address, unixsocket, version, password)
         servers.setdefault(name, info)
         return info
 
@@ -405,6 +417,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
                       '127.0.0.1', master.tcp_address.port, quorum)
                 write('sentinel down-after-milliseconds', master.name, '3000')
                 write('sentinel failover-timeout', master.name, '3000')
+                write('sentinel auth-pass', master.name, master.password)
 
         f = open(stdout_file, 'w')
         atexit.register(f.close)

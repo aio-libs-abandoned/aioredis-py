@@ -26,22 +26,26 @@ class ProtocolError(RedisError):
 class ReplyError(RedisError):
     """Raised for redis error replies (-ERR)."""
 
-    _REPLY = None
+    MATCH_REPLY = None
 
-    def __new__(cls, *args):
-        msg, *_ = args
-        for c in cls.__subclasses__():
-            if msg == c._REPLY:
-                return c(*args)
-
-        return super().__new__(cls, *args)
+    def __new__(cls, msg, *args):
+        for klass in cls.__subclasses__():
+            if msg and klass.MATCH_REPLY and msg.startswith(klass.MATCH_REPLY):
+                return klass(msg, *args)
+        return super().__new__(cls, msg, *args)
 
 
 class MaxClientsError(ReplyError):
     """Raised for redis server when the maximum number of client has been
     reached."""
 
-    _REPLY = "ERR max number of clients reached"
+    MATCH_REPLY = "ERR max number of clients reached"
+
+
+class AuthError(ReplyError):
+    """Raised when authentication errors occurs."""
+
+    MATCH_REPLY = ("NOAUTH ", "ERR invalid password")
 
 
 class PipelineError(RedisError):
@@ -74,6 +78,14 @@ class MasterNotFoundError(RedisError):
 
 class SlaveNotFoundError(RedisError):
     """Raised for sentinel slave not found error."""
+
+
+class MasterReplyError(RedisError):
+    """Raised by sentinel client for master error replies."""
+
+
+class SlaveReplyError(RedisError):
+    """Raised by sentinel client for slave error replies."""
 
 
 class ConnectionClosedError(RedisError):

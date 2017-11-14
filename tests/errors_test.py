@@ -2,22 +2,17 @@ from aioredis.errors import ReplyError
 from aioredis.errors import MaxClientsError
 
 
-class TestReplyError:
-
-    def test_return_default_class(self):
-        assert isinstance(ReplyError(None), ReplyError)
-
-    def test_return_adhoc_class(self):
-        class MyError(ReplyError):
-            _REPLY = "my error"
-
-        assert isinstance(ReplyError("my error"), MyError)
+def test_return_default_class():
+    assert isinstance(ReplyError(None), ReplyError)
 
 
-class TestMaxClientsError:
+def test_return_adhoc_class():
+    class MyError(ReplyError):
+        MATCH_REPLY = "my error"
 
-    def test_return_max_clients_error(self):
-        assert isinstance(
-            ReplyError("ERR max number of clients reached"),
-            MaxClientsError
-        )
+    assert isinstance(ReplyError("my error"), MyError)
+
+
+def test_return_max_clients_error():
+    assert isinstance(
+        ReplyError("ERR max number of clients reached"), MaxClientsError)
