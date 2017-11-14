@@ -226,16 +226,24 @@ async def test_zrange(redis):
     key = b'key:zrange'
     scores = [1, 1, 2.5, 3, 7]
     members = [b'one', b'uno', b'two', b'three', b'seven']
+    strings = [x.decode('utf-8') for x in members]
     pairs = list(itertools.chain(*zip(scores, members)))
     rev_pairs = list(itertools.chain(*zip(members, scores)))
+    string_rev_pairs = list(itertools.chain(*zip(strings, scores)))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
 
     res = await redis.zrange(key, 0, -1, withscores=False)
     assert res == members
+    res = await redis.zrange(key, 0, -1, withscores=False,
+                             encoding='utf-8')
+    assert res == strings
     res = await redis.zrange(key, 0, -1, withscores=True)
     assert res == rev_pairs
+    res = await redis.zrange(key, 0, -1, withscores=True,
+                             encoding='utf-8')
+    assert res == string_rev_pairs
     res = await redis.zrange(key, -2, -1, withscores=False)
     assert res == members[-2:]
     res = await redis.zrange(key, 1, 2, withscores=False)
@@ -255,12 +263,15 @@ async def test_zrangebylex(redis):
     key = b'key:zrangebylex'
     scores = [0] * 5
     members = [b'a', b'b', b'c', b'd', b'e']
+    strings = [x.decode('utf-8') for x in members]
     pairs = list(itertools.chain(*zip(scores, members)))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
     res = await redis.zrangebylex(key)
     assert res == members
+    res = await redis.zrangebylex(key, encoding='utf-8')
+    assert res == strings
     res = await redis.zrangebylex(key, min=b'-', max=b'd')
     assert res == members[:-1]
     res = await redis.zrangebylex(key, min=b'a', max=b'e',
@@ -317,17 +328,25 @@ async def test_zrangebyscore(redis):
     key = b'key:zrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
     members = [b'one', b'uno', b'two', b'three', b'seven']
+    strings = [x.decode('utf-8') for x in members]
     pairs = list(itertools.chain(*zip(scores, members)))
     rev_pairs = list(itertools.chain(*zip(members, scores)))
+    string_rev_pairs = list(itertools.chain(*zip(strings, scores)))
     res = await redis.zadd(key, *pairs)
     assert res == 5
     res = await redis.zrangebyscore(key, 1, 7, withscores=False)
     assert res == members
+    res = await redis.zrangebyscore(key, 1, 7, withscores=False,
+                                    encoding='utf-8')
+    assert res == strings
     res = await redis.zrangebyscore(
         key, 1, 7, withscores=False, exclude=redis.ZSET_EXCLUDE_BOTH)
     assert res == members[2:-1]
     res = await redis.zrangebyscore(key, 1, 7, withscores=True)
     assert res == rev_pairs
+    res = await redis.zrangebyscore(key, 1, 7, withscores=True,
+                                    encoding='utf-8')
+    assert res == string_rev_pairs
 
     res = await redis.zrangebyscore(key, 1, 10, offset=2, count=2)
     assert res == members[2:4]
@@ -388,15 +407,15 @@ async def test_zremrangebylex(redis):
     assert res == 10
 
     res = await redis.zremrangebylex(key, b'alpha', b'omega',
-                                          include_max=True,
-                                          include_min=True)
+                                     include_max=True,
+                                     include_min=True)
     assert res == 6
     res = await redis.zrange(key, 0, -1)
     assert res == [b'ALPHA', b'aaaa', b'zap', b'zip']
 
     res = await redis.zremrangebylex(key, b'zap', b'zip',
-                                          include_max=False,
-                                          include_min=False)
+                                     include_max=False,
+                                     include_min=False)
     assert res == 0
 
     res = await redis.zrange(key, 0, -1)
@@ -481,15 +500,23 @@ async def test_zrevrange(redis):
     key = b'key:zrevrange'
     scores = [1, 1, 2.5, 3, 7]
     members = [b'one', b'uno', b'two', b'three', b'seven']
+    strings = [x.decode('utf-8') for x in members]
     pairs = list(itertools.chain(*zip(scores, members)))
+    string_pairs = list(itertools.chain(*zip(scores, strings)))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
 
     res = await redis.zrevrange(key, 0, -1, withscores=False)
     assert res == members[::-1]
+    res = await redis.zrevrange(key, 0, -1, withscores=False,
+                                encoding='utf-8')
+    assert res == strings[::-1]
     res = await redis.zrevrange(key, 0, -1, withscores=True)
     assert res == pairs[::-1]
+    res = await redis.zrevrange(key, 0, -1, withscores=True,
+                                encoding='utf-8')
+    assert res == string_pairs[::-1]
     res = await redis.zrevrange(key, -2, -1, withscores=False)
     assert res == members[1::-1]
     res = await redis.zrevrange(key, 1, 2, withscores=False)
@@ -597,18 +624,26 @@ async def test_zrevrangebyscore(redis):
     key = b'key:zrevrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
     members = [b'one', b'uno', b'two', b'three', b'seven']
+    strings = [x.decode('utf-8') for x in members]
     pairs = list(itertools.chain(*zip(scores, members)))
     rev_pairs = list(itertools.chain(*zip(members[::-1], scores[::-1])))
+    string_rev_pairs = list(itertools.chain(*zip(strings[::-1], scores[::-1])))
     res = await redis.zadd(key, *pairs)
     assert res == 5
     res = await redis.zrevrangebyscore(key, 7, 1, withscores=False)
     assert res == members[::-1]
+    res = await redis.zrevrangebyscore(key, 7, 1, withscores=False,
+                                       encoding='utf-8')
+    assert res == strings[::-1]
     res = await redis.zrevrangebyscore(
         key, 7, 1, withscores=False,
         exclude=redis.ZSET_EXCLUDE_BOTH)
     assert res == members[-2:1:-1]
     res = await redis.zrevrangebyscore(key, 7, 1, withscores=True)
     assert res == rev_pairs
+    res = await redis.zrevrangebyscore(key, 7, 1, withscores=True,
+                                       encoding='utf-8')
+    assert res == string_rev_pairs
 
     res = await redis.zrevrangebyscore(key, 10, 1, offset=2, count=2)
     assert res == members[-3:-5:-1]
@@ -636,13 +671,17 @@ async def test_zrevrangebylex(redis):
     key = b'key:zrevrangebylex'
     scores = [0] * 5
     members = [b'a', b'b', b'c', b'd', b'e']
+    strings = [x.decode('utf-8') for x in members]
     rev_members = members[::-1]
+    rev_strings = strings[::-1]
     pairs = list(itertools.chain(*zip(scores, members)))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
     res = await redis.zrevrangebylex(key)
     assert res == rev_members
+    res = await redis.zrevrangebylex(key, encoding='utf-8')
+    assert res == rev_strings
     res = await redis.zrevrangebylex(key, min=b'-', max=b'd')
     assert res == rev_members[1:]
     res = await redis.zrevrangebylex(key, min=b'a', max=b'e',
@@ -667,10 +706,10 @@ async def test_zrevrangebylex(redis):
         await redis.zrevrangebylex(key, b'a', b'e', count=1)
     with pytest.raises(TypeError):
         await redis.zrevrangebylex(key, b'a', b'e',
-                                        offset='one', count=1)
+                                   offset='one', count=1)
     with pytest.raises(TypeError):
         await redis.zrevrangebylex(key, b'a', b'e',
-                                        offset=1, count='one')
+                                   offset=1, count='one')
 
 
 @pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
