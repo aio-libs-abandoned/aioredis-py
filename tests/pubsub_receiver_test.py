@@ -8,7 +8,6 @@ from unittest import mock
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
-from aioredis.util import async_task
 
 
 def test_listener_channel(loop):
@@ -64,7 +63,7 @@ def test_listener_pattern(loop):
 
 
 @pytest.mark.run_loop
-def test_sender(loop):
+async def test_sender(loop):
     receiver = mock.Mock()
 
     sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
@@ -74,7 +73,7 @@ def test_sender(loop):
     assert sender.is_active is True
 
     with pytest.raises(RuntimeError):
-        yield from sender.get()
+        await sender.get()
     assert receiver.mock_calls == []
 
     sender.put_nowait(b'some data')
@@ -98,88 +97,88 @@ def test_sender_close():
 
 
 @pytest.mark.run_loop
-def test_subscriptions(create_connection, server, loop):
-    sub = yield from create_connection(server.tcp_address, loop=loop)
-    pub = yield from create_connection(server.tcp_address, loop=loop)
+async def test_subscriptions(create_connection, server, loop):
+    sub = await create_connection(server.tcp_address, loop=loop)
+    pub = await create_connection(server.tcp_address, loop=loop)
 
     mpsc = Receiver(loop=loop)
-    yield from sub.execute_pubsub('subscribe',
-                                  mpsc.channel('channel:1'),
-                                  mpsc.channel('channel:3'))
-    res = yield from pub.execute("publish", "channel:3", "Hello world")
+    await sub.execute_pubsub('subscribe',
+                             mpsc.channel('channel:1'),
+                             mpsc.channel('channel:3'))
+    res = await pub.execute("publish", "channel:3", "Hello world")
     assert res == 1
-    res = yield from pub.execute("publish", "channel:1", "Hello world")
+    res = await pub.execute("publish", "channel:1", "Hello world")
     assert res == 1
     assert mpsc.is_active
 
-    ch, msg = yield from mpsc.get()
+    ch, msg = await mpsc.get()
     assert ch.name == b'channel:3'
     assert not ch.is_pattern
     assert msg == b"Hello world"
 
-    ch, msg = yield from mpsc.get()
+    ch, msg = await mpsc.get()
     assert ch.name == b'channel:1'
     assert not ch.is_pattern
     assert msg == b"Hello world"
 
 
 @pytest.mark.run_loop
-def test_unsubscribe(create_connection, server, loop):
-    sub = yield from create_connection(server.tcp_address, loop=loop)
-    pub = yield from create_connection(server.tcp_address, loop=loop)
+async def test_unsubscribe(create_connection, server, loop):
+    sub = await create_connection(server.tcp_address, loop=loop)
+    pub = await create_connection(server.tcp_address, loop=loop)
 
     mpsc = Receiver(loop=loop)
-    yield from sub.execute_pubsub('subscribe',
-                                  mpsc.channel('channel:1'),
-                                  mpsc.channel('channel:3'))
-    res = yield from pub.execute("publish", "channel:3", "Hello world")
+    await sub.execute_pubsub('subscribe',
+                             mpsc.channel('channel:1'),
+                             mpsc.channel('channel:3'))
+    res = await pub.execute("publish", "channel:3", "Hello world")
     assert res == 1
-    res = yield from pub.execute("publish", "channel:1", "Hello world")
+    res = await pub.execute("publish", "channel:1", "Hello world")
     assert res == 1
     assert mpsc.is_active
 
-    assert (yield from mpsc.wait_message()) is True
-    ch, msg = yield from mpsc.get()
+    assert (await mpsc.wait_message()) is True
+    ch, msg = await mpsc.get()
     assert ch.name == b'channel:3'
     assert not ch.is_pattern
     assert msg == b"Hello world"
 
-    assert (yield from mpsc.wait_message()) is True
-    ch, msg = yield from mpsc.get()
+    assert (await mpsc.wait_message()) is True
+    ch, msg = await mpsc.get()
     assert ch.name == b'channel:1'
     assert not ch.is_pattern
     assert msg == b"Hello world"
 
-    yield from sub.execute_pubsub('unsubscribe', 'channel:1')
+    await sub.execute_pubsub('unsubscribe', 'channel:1')
     assert mpsc.is_active
 
-    res = yield from pub.execute("publish", "channel:3", "message")
+    res = await pub.execute("publish", "channel:3", "message")
     assert res == 1
-    assert (yield from mpsc.wait_message()) is True
-    ch, msg = yield from mpsc.get()
+    assert (await mpsc.wait_message()) is True
+    ch, msg = await mpsc.get()
     assert ch.name == b'channel:3'
     assert not ch.is_pattern
     assert msg == b"message"
 
-    yield from sub.execute_pubsub('unsubscribe', 'channel:3')
+    await sub.execute_pubsub('unsubscribe', 'channel:3')
     assert not mpsc.is_active
-    res = yield from mpsc.get()
+    res = await mpsc.get()
     assert res is None
 
 
 @pytest.mark.run_loop
-def test_stopped(create_connection, server, loop):
-    sub = yield from create_connection(server.tcp_address, loop=loop)
-    pub = yield from create_connection(server.tcp_address, loop=loop)
+async def test_stopped(create_connection, server, loop):
+    sub = await create_connection(server.tcp_address, loop=loop)
+    pub = await create_connection(server.tcp_address, loop=loop)
 
     mpsc = Receiver(loop=loop)
-    yield from sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
+    await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
     assert mpsc.is_active
     mpsc.stop()
 
     with pytest.logs('aioredis', 'DEBUG') as cm:
-        yield from pub.execute('publish', 'channel:1', b'Hello')
-        yield from asyncio.sleep(0, loop=loop)
+        await pub.execute('publish', 'channel:1', b'Hello')
+        await asyncio.sleep(0, loop=loop)
 
     assert len(cm.output) == 1
     # Receiver must have 1 EndOfStream message
@@ -190,50 +189,50 @@ def test_stopped(create_connection, server, loop):
     )
     assert cm.output == [warn_messaege]
 
-    assert (yield from mpsc.get()) is None
+    assert (await mpsc.get()) is None
     with pytest.raises(ChannelClosedError):
-        yield from mpsc.get()
-    res = yield from mpsc.wait_message()
+        await mpsc.get()
+    res = await mpsc.wait_message()
     assert res is False
 
 
 @pytest.mark.run_loop
-def test_wait_message(create_connection, server, loop):
-    sub = yield from create_connection(server.tcp_address, loop=loop)
-    pub = yield from create_connection(server.tcp_address, loop=loop)
+async def test_wait_message(create_connection, server, loop):
+    sub = await create_connection(server.tcp_address, loop=loop)
+    pub = await create_connection(server.tcp_address, loop=loop)
 
     mpsc = Receiver(loop=loop)
-    yield from sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
-    fut = async_task(mpsc.wait_message(), loop=loop)
+    await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
+    fut = asyncio.ensure_future(mpsc.wait_message(), loop=loop)
     assert not fut.done()
-    yield from asyncio.sleep(0, loop=loop)
+    await asyncio.sleep(0, loop=loop)
     assert not fut.done()
 
-    yield from pub.execute('publish', 'channel:1', 'hello')
-    yield from asyncio.sleep(0, loop=loop)  # read in connection
-    yield from asyncio.sleep(0, loop=loop)  # call Future.set_result
+    await pub.execute('publish', 'channel:1', 'hello')
+    await asyncio.sleep(0, loop=loop)  # read in connection
+    await asyncio.sleep(0, loop=loop)  # call Future.set_result
     assert fut.done()
-    res = yield from fut
+    res = await fut
     assert res is True
 
 
 @pytest.mark.run_loop
-def test_decode_message(loop):
+async def test_decode_message(loop):
     mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
     ch.put_nowait(b'Some data')
 
-    res = yield from mpsc.get(encoding='utf-8')
+    res = await mpsc.get(encoding='utf-8')
     assert isinstance(res[0], _Sender)
     assert res[1] == 'Some data'
 
     ch.put_nowait('{"hello": "world"}')
-    res = yield from mpsc.get(decoder=json.loads)
+    res = await mpsc.get(decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == {'hello': 'world'}
 
     ch.put_nowait(b'{"hello": "world"}')
-    res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)
+    res = await mpsc.get(encoding='utf-8', decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == {'hello': 'world'}
 
@@ -241,38 +240,90 @@ def test_decode_message(loop):
 @pytest.mark.skipif(sys.version_info >= (3, 6),
                     reason="json.loads accept bytes since Python 3.6")
 @pytest.mark.run_loop
-def test_decode_message_error(loop):
+async def test_decode_message_error(loop):
     mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
 
     ch.put_nowait(b'{"hello": "world"}')
     unexpected = (mock.ANY, {'hello': 'world'})
     with pytest.raises(TypeError):
-        assert (yield from mpsc.get(decoder=json.loads)) == unexpected
+        assert (await mpsc.get(decoder=json.loads)) == unexpected
 
     ch = mpsc.pattern('*')
     ch.put_nowait((b'channel', b'{"hello": "world"}'))
     unexpected = (mock.ANY, b'channel', {'hello': 'world'})
     with pytest.raises(TypeError):
-        assert (yield from mpsc.get(decoder=json.loads)) == unexpected
+        assert (await mpsc.get(decoder=json.loads)) == unexpected
 
 
 @pytest.mark.run_loop
-def test_decode_message_for_pattern(loop):
+async def test_decode_message_for_pattern(loop):
     mpsc = Receiver(loop)
     ch = mpsc.pattern('*')
     ch.put_nowait((b'channel', b'Some data'))
 
-    res = yield from mpsc.get(encoding='utf-8')
+    res = await mpsc.get(encoding='utf-8')
     assert isinstance(res[0], _Sender)
     assert res[1] == (b'channel', 'Some data')
 
     ch.put_nowait((b'channel', '{"hello": "world"}'))
-    res = yield from mpsc.get(decoder=json.loads)
+    res = await mpsc.get(decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == (b'channel', {'hello': 'world'})
 
     ch.put_nowait((b'channel', b'{"hello": "world"}'))
-    res = yield from mpsc.get(encoding='utf-8', decoder=json.loads)
+    res = await mpsc.get(encoding='utf-8', decoder=json.loads)
     assert isinstance(res[0], _Sender)
     assert res[1] == (b'channel', {'hello': 'world'})
+
+
+@pytest.mark.run_loop
+async def test_pubsub_receiver_iter(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    mpsc = Receiver(loop=loop)
+
+    async def coro(mpsc):
+        lst = []
+        async for msg in mpsc.iter():
+            lst.append(msg)
+        return lst
+
+    tsk = asyncio.ensure_future(coro(mpsc), loop=loop)
+    snd1, = await sub.subscribe(mpsc.channel('chan:1'))
+    snd2, = await sub.subscribe(mpsc.channel('chan:2'))
+    snd3, = await sub.psubscribe(mpsc.pattern('chan:*'))
+
+    subscribers = await pub.publish_json('chan:1', {'Hello': 'World'})
+    assert subscribers > 1
+    subscribers = await pub.publish_json('chan:2', ['message'])
+    assert subscribers > 1
+    loop.call_later(0, mpsc.stop)
+    # await asyncio.sleep(0, loop=loop)
+    assert await tsk == [
+        (snd1, b'{"Hello": "World"}'),
+        (snd3, (b'chan:1', b'{"Hello": "World"}')),
+        (snd2, b'["message"]'),
+        (snd3, (b'chan:2', b'["message"]')),
+        ]
+    assert not mpsc.is_active
+
+
+@pytest.mark.run_loop(timeout=5)
+async def test_pubsub_receiver_call_stop_with_empty_queue(
+        create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+
+    mpsc = Receiver(loop=loop)
+
+    # FIXME: currently at least one subscriber is needed
+    snd1, = await sub.subscribe(mpsc.channel('chan:1'))
+
+    now = loop.time()
+    loop.call_later(.5, mpsc.stop)
+    async for i in mpsc.iter():  # noqa (flake8 bug with async for)
+        assert False, "StopAsyncIteration not raised"
+    dt = loop.time() - now
+    assert dt <= 1.5
+    assert not mpsc.is_active

@@ -23,23 +23,6 @@ Generic commands
 .. autoclass:: GenericCommandsMixin
    :members:
 
-``async for`` support
-~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: GenericCommandsMixin
-
-   .. comethod:: iscan(\*, match=None, count=None)
-      :async-for:
-
-      Incrementally iterate the keys space using async for.
-
-      Usage example:
-
-      >>> async for key in redis.iscan(match='something*'):
-      ...     print('Matched:', key)
-
-      See also :meth:`GenericCommandsMixin.scan`.
-
 
 Geo commands
 ------------
@@ -100,23 +83,6 @@ Hash commands
 .. autoclass:: HashCommandsMixin
    :members:
 
-``async for`` support
-~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: HashCommandsMixin
-
-   .. comethod:: ihscan(key, \*, match=None, count=None)
-      :async-for:
-
-      Incrementally iterate sorted set items using async for.
-
-      Usage example:
-
-      >>> async for name, val in redis.ihscan(key, match='something*'):
-      ...     print('Matched:', name, '->', val)
-
-      See also :meth:`HashCommandsMixin.hscan()`.
-
 List commands
 -------------
 
@@ -129,45 +95,11 @@ Set commands
 .. autoclass:: SetCommandsMixin
    :members:
 
-``async for`` support
-~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: SetCommandsMixin
-
-   .. comethod:: isscan(key, \*, match=None, count=None)
-      :async-for:
-
-      Incrementally iterate set elements using async for.
-
-      Usage example:
-
-      >>> async for val in redis.isscan(key, match='something*'):
-      ...     print('Matched:', val)
-
-      See also :meth:`SetCommandsMixin.sscan()`.
-
 Sorted Set commands
 -------------------
 
 .. autoclass:: SortedSetCommandsMixin
    :members:
-
-``async for`` support
-~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: SortedSetCommandsMixin
-
-   .. comethod:: izscan(key, \*, match=None, count=None)
-      :async-for:
-
-      Incrementally iterate sorted set items using async for.
-
-      Usage example:
-
-      >>> async for val, score in redis.izscan(key, match='something*'):
-      ...     print('Matched:', val, ':', score)
-
-      See also :meth:`SortedSetCommandsMixin.zscan()`.
 
 Server commands
 ---------------

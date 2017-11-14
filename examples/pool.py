@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     pool = await aioredis.create_pool(
-        ('localhost', 6379),
+        'redis://localhost',
         minsize=5, maxsize=10)
     with await pool as conn:    # low-level redis connection
         await conn.execute('set', 'my-key', 'value')

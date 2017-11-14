@@ -5,7 +5,7 @@ import aioredis
 async def main():
     # Redis client bound to single connection (no auto reconnection).
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
     await redis.set('my-key', 'value')
     val = await redis.get('my-key')
     print(val)
@@ -18,7 +18,7 @@ async def main():
 async def redis_pool():
     # Redis client bound to pool of connections (auto-reconnecting).
     redis = await aioredis.create_redis_pool(
-        ('localhost', 6379))
+        'redis://localhost')
     await redis.set('my-key', 'value')
     val = await redis.get('my-key')
     print(val)

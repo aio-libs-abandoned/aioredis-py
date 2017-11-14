@@ -1,4 +1,3 @@
-import asyncio
 import json
 
 from aioredis.util import wait_make_dict
@@ -104,8 +103,6 @@ class PubSubCommandsMixin:
         return self._pool_or_conn.in_pubsub
 
 
-@asyncio.coroutine
-def wait_return_channels(fut, channels_dict):
-    res = yield from fut
+async def wait_return_channels(fut, channels_dict):
     return [channels_dict[name]
-            for cmd, name, count in res]
+            for cmd, name, count in await fut]

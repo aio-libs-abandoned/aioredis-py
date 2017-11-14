@@ -5,7 +5,7 @@ import aioredis
 async def main():
     """Scan command example."""
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
 
     await redis.mset('key:1', 'value1', 'key:2', 'value2')
     cur = b'0'  # set initial cursor to 0

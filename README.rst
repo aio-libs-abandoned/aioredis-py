@@ -27,15 +27,17 @@ SSL/TLS support                     Yes
 Sentinel support                    Yes [1]_
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested CPython versions             `3.3, 3.4, 3.5, 3.6 <travis_>`_
-Tested PyPy3 versions               `5.8.0 <travis_>`_
-Tested for Redis server             `2.6, 2.8, 3.0, 3.2 <travis_>`_
+Tested CPython versions             `3.5, 3.6 <travis_>`_ [2]_
+Tested PyPy3 versions               `5.9.0 <travis_>`_
+Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
 
 .. [1] Sentinel support is available in master branch.
    This feature is not yet stable and may have some issues.
+
+.. [2] For Python 3.3, 3.4 support use aioredis v0.3.
 
 Documentation
 -------------
@@ -56,7 +58,7 @@ Simple low-level interface:
 
     async def go():
         conn = await aioredis.create_connection(
-            ('localhost', 6379), loop=loop)
+            'redis://localhost', loop=loop)
         await conn.execute('set', 'my-key', 'value')
         val = await conn.execute('get', 'my-key')
         print(val)
@@ -76,7 +78,7 @@ Simple high-level interface:
 
     async def go():
         redis = await aioredis.create_redis(
-            ('localhost', 6379), loop=loop)
+            'redis://localhost', loop=loop)
         await redis.set('my-key', 'value')
         val = await redis.get('my-key')
         print(val)
@@ -96,7 +98,7 @@ Connections pool:
 
     async def go():
         pool = await aioredis.create_pool(
-            ('localhost', 6379),
+            'redis://localhost',
             minsize=5, maxsize=10,
             loop=loop)
         await pool.execute('set', 'my-key', 'value')
@@ -111,8 +113,7 @@ Connections pool:
 Requirements
 ------------
 
-* Python_ 3.3+
-* asyncio_ or Python_ 3.4+
+* Python_ 3.5.3+
 * hiredis_
 
 .. note::
@@ -134,6 +135,5 @@ License
 The aioredis is offered under MIT license.
 
 .. _Python: https://www.python.org
-.. _asyncio: https://pypi.python.org/pypi/asyncio
 .. _hiredis: https://pypi.python.org/pypi/hiredis
 .. _travis: https://travis-ci.org/aio-libs/aioredis

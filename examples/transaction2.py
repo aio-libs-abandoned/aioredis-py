@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
 
     async def transaction():
         tr = redis.multi_exec()

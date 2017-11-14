@@ -1,7 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET, PY_35
-
-if PY_35:
-    from aioredis.util import _ScanIterPairs
+from aioredis.util import wait_convert, _NOTSET, _ScanIterPairs
 
 
 class SortedSetCommandsMixin:
@@ -18,7 +15,10 @@ class SortedSetCommandsMixin:
     ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
     ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
 
-    def zadd(self, key, score, member, *pairs):
+    ZSET_IF_NOT_EXIST = 'ZSET_IF_NOT_EXIST'  # NX
+    ZSET_IF_EXIST = 'ZSET_IF_EXIST'  # XX
+
+    def zadd(self, key, score, member, *pairs, exist=None):
         """Add one or more members to a sorted set or update its score.
 
         :raises TypeError: score not int or float
@@ -32,7 +32,17 @@ class SortedSetCommandsMixin:
         scores = (item for i, item in enumerate(pairs) if i % 2 == 0)
         if any(not isinstance(s, (int, float)) for s in scores):
             raise TypeError("all scores must be int or float")
-        return self.execute(b'ZADD', key, score, member, *pairs)
+
+        args = []
+        if exist is self.ZSET_IF_EXIST:
+            args.append(b'XX')
+        elif exist is self.ZSET_IF_NOT_EXIST:
+            args.append(b'NX')
+
+        args.extend([score, member])
+        if pairs:
+            args.extend(pairs)
+        return self.execute(b'ZADD', key, *args)
 
     def zcard(self, key):
         """Get the number of members in a sorted set."""
@@ -401,19 +411,18 @@ class SortedSetCommandsMixin:
 
         return wait_convert(fut, _converter)
 
-    if PY_35:
-        def izscan(self, key, *, match=None, count=None):
-            """Incrementally iterate sorted set items using async for.
+    def izscan(self, key, *, match=None, count=None):
+        """Incrementally iterate sorted set items using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for val, score in redis.izscan(key, match='something*'):
-            ...     print('Matched:', val, ':', score)
+        >>> async for val, score in redis.izscan(key, match='something*'):
+        ...     print('Matched:', val, ':', score)
 
-            """
-            return _ScanIterPairs(lambda cur: self.zscan(key, cur,
-                                                         match=match,
-                                                         count=count))
+        """
+        return _ScanIterPairs(lambda cur: self.zscan(key, cur,
+                                                     match=match,
+                                                     count=count))
 
 
 def _encode_min_max(flag, min, max):

@@ -67,10 +67,10 @@ class RedisSentinel:
         return self._pool.execute(
             b'SENTINEL', command, *args, **kwargs)
 
-    def ping(self):
+    async def ping(self):
         """Send PING command to Sentinel instance(s)."""
         # TODO: add kwargs allowing to pick sentinel to send command to.
-        return (yield from self._pool.execute(b'PING'))
+        return await self._pool.execute(b'PING')
 
     def master(self, name):
         """Returns a dictionary containing the specified masters state."""

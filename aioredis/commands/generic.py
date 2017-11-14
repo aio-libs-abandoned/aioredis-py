@@ -1,7 +1,4 @@
-from aioredis.util import wait_convert, wait_ok, _NOTSET, PY_35
-
-if PY_35:
-    from aioredis.util import _ScanIter
+from aioredis.util import wait_convert, wait_ok, _NOTSET, _ScanIter
 
 
 class GenericCommandsMixin:
@@ -244,18 +241,17 @@ class GenericCommandsMixin:
         fut = self.execute(b'SCAN', cursor, *args)
         return wait_convert(fut, lambda o: (int(o[0]), o[1]))
 
-    if PY_35:
-        def iscan(self, *, match=None, count=None):
-            """Incrementally iterate the keys space using async for.
+    def iscan(self, *, match=None, count=None):
+        """Incrementally iterate the keys space using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for key in redis.iscan(match='something*'):
-            ...     print('Matched:', key)
+        >>> async for key in redis.iscan(match='something*'):
+        ...     print('Matched:', key)
 
-            """
-            return _ScanIter(lambda cur: self.scan(cur,
-                                                   match=match, count=count))
+        """
+        return _ScanIter(lambda cur: self.scan(cur,
+                                               match=match, count=count))
 
     def sort(self, key, *get_patterns,
              by=None, offset=None, count=None,

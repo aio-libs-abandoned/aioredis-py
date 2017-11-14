@@ -240,7 +240,7 @@ def _split(s):
 
 
 def to_time(obj):
-    return float(obj[0] + b'.' + obj[1].zfill(6))
+    return int(obj[0]) + int(obj[1]) * 1e-6
 
 
 def to_tuples(value):

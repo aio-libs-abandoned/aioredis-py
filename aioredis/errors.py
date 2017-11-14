@@ -2,6 +2,7 @@ __all__ = [
     'RedisError',
     'ProtocolError',
     'ReplyError',
+    'MaxClientsError',
     'PipelineError',
     'MultiExecError',
     'WatchVariableError',
@@ -25,8 +26,25 @@ class ProtocolError(RedisError):
 class ReplyError(RedisError):
     """Raised for redis error replies (-ERR)."""
 
+    _REPLY = None
 
-class PipelineError(ReplyError):
+    def __new__(cls, *args):
+        msg, *_ = args
+        for c in cls.__subclasses__():
+            if msg == c._REPLY:
+                return c(*args)
+
+        return super().__new__(cls, *args)
+
+
+class MaxClientsError(ReplyError):
+    """Raised for redis server when the maximum number of client has been
+    reached."""
+
+    _REPLY = "ERR max number of clients reached"
+
+
+class PipelineError(RedisError):
     """Raised if command within pipeline raised error."""
 
     def __init__(self, errors):
@@ -60,6 +78,10 @@ class SlaveNotFoundError(RedisError):
 
 class ConnectionClosedError(RedisError):
     """Raised if connection to server was closed."""
+
+
+class ConnectionForcedCloseError(ConnectionClosedError):
+    """Raised if connection was closed with .close() method."""
 
 
 class PoolClosedError(RedisError):

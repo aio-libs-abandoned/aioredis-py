@@ -13,11 +13,9 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0-rc2" INSTALL_DIR=$HOME/redis PYPY_RELEASE="pypy-c-jit-91658-97ca3ac43c30-linux64"
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.2" INSTALL_DIR=$HOME/redis PYPY_RELEASE="pypy-c-jit-91658-97ca3ac43c30-linux64"
 
 python:
-- "3.3"
-- "3.4"
 - "3.5"
 - "3.6"
 - "pypy-5.3.1"
