@@ -16,6 +16,7 @@ from .errors import (
     ReadOnlyError,
     RedisError,
     ReplyError,
+    MaxClientsError,
     ChannelClosedError,
     WatchVariableError,
     PoolClosedError,
@@ -43,6 +44,7 @@ __all__ = [
     # Errors
     'RedisError',
     'ReplyError',
+    'MaxClientsError',
     'ProtocolError',
     'PipelineError',
     'MultiExecError',

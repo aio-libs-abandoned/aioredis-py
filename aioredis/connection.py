@@ -24,6 +24,7 @@ from .errors import (
     ReplyError,
     WatchVariableError,
     ReadOnlyError,
+    MaxClientsError
     )
 from .pubsub import Channel
 from .abc import AbcChannel
@@ -155,6 +156,7 @@ class RedisConnection(AbcConnection):
         )
         self._reader_task = asyncio.ensure_future(self._read_data(),
                                                   loop=self._loop)
+        self._close_msg = None
         self._db = 0
         self._closing = False
         self._closed = False
@@ -200,11 +202,13 @@ class RedisConnection(AbcConnection):
                     last_error = ConnectionClosedError("Reader at end of file")
                     break
 
+                if isinstance(obj, MaxClientsError):
+                    last_error = obj
+                    break
                 if self._in_pubsub:
                     self._process_pubsub(obj)
                 else:
                     self._process_data(obj)
-
         self._closing = True
         self._loop.call_soon(self._do_close, last_error)
 
@@ -279,7 +283,8 @@ class RedisConnection(AbcConnection):
           is broken.
         """
         if self._reader is None or self._reader.at_eof():
-            raise ConnectionClosedError("Connection closed or corrupted")
+            msg = self._close_msg or "Connection closed or corrupted"
+            raise ConnectionClosedError(msg)
         if command is None:
             raise TypeError("command must not be None")
         if None in set(args):
@@ -356,6 +361,10 @@ class RedisConnection(AbcConnection):
         self._reader_task = None
         self._writer = None
         self._reader = None
+
+        if exc is not None:
+            self._close_msg = str(exc)
+
         while self._waiters:
             waiter, *spam = self._waiters.popleft()
             logger.debug("Cancelling waiter %r", (waiter, spam))
