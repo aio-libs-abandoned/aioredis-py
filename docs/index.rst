@@ -49,6 +49,11 @@ Requirements
 - Python 3.5.3+
 - :term:`hiredis`
 
+Benchmarks
+----------
+
+Benchmarks can be found here: https://github.com/popravich/python-redis-benchmark
+
 Contribute
 ----------
 

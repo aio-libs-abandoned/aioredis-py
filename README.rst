@@ -122,6 +122,11 @@ Requirements
     Pure-python protocol parser is implemented as well and can be used
     through ``parser`` parameter.
 
+Benchmarks
+----------
+
+Benchmarks can be found here: https://github.com/popravich/python-redis-benchmark
+
 Discussion list
 ---------------
 
