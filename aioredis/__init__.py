@@ -9,6 +9,7 @@ from .pubsub import Channel
 from .sentinel import RedisSentinel, create_sentinel
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
     MasterNotFoundError,
     MultiExecError,
     PipelineError,
@@ -17,10 +18,13 @@ from .errors import (
     RedisError,
     ReplyError,
     MaxClientsError,
+    AuthError,
     ChannelClosedError,
     WatchVariableError,
     PoolClosedError,
     SlaveNotFoundError,
+    MasterReplyError,
+    SlaveReplyError,
     )
 
 
@@ -45,16 +49,20 @@ __all__ = [
     'RedisError',
     'ReplyError',
     'MaxClientsError',
+    'AuthError',
     'ProtocolError',
     'PipelineError',
     'MultiExecError',
     'WatchVariableError',
     'ConnectionClosedError',
+    'ConnectionForcedCloseError',
     'PoolClosedError',
     'ChannelClosedError',
     'MasterNotFoundError',
     'SlaveNotFoundError',
     'ReadOnlyError',
+    'MasterReplyError',
+    'SlaveReplyError',
 ]
 
 # NOTE: this is deprecated

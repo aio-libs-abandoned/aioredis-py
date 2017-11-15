@@ -199,6 +199,9 @@ Connection usage is as simple as:
 
       Mark connection as closed and schedule cleanup procedure.
 
+      All pending commands will be canceled with
+      :exc:`ConnectionForcedCloseError`.
+
 
    .. method:: wait_closed()
 
@@ -529,9 +532,13 @@ Exceptions
 
 .. exception:: RedisError
 
+   :Bases: :exc:`Exception`
+
    Base exception class for aioredis exceptions.
 
 .. exception:: ProtocolError
+
+   :Bases: :exc:`RedisError`
 
    Raised when protocol error occurs.
    When this type of exception is raised connection must be considered
@@ -539,49 +546,101 @@ Exceptions
 
 .. exception:: ReplyError
 
+   :Bases: :exc:`RedisError`
+
    Raised for Redis :term:`error replies`.
+
+.. exception:: MaxClientsError
+
+   :Bases: :exc:`ReplyError`
+
+   Raised when maximum number of clients has been reached
+   (Redis server configured value).
+
+.. exception:: AuthError
+
+   :Bases: :exc:`ReplyError`
+
+   Raised when authentication errors occur.
 
 .. exception:: ConnectionClosedError
 
+   :Bases: :exc:`RedisError`
+
    Raised if connection to server was lost/closed.
 
+.. exception:: ConnectionForcedCloseError
+
+   :Bases: :exc:`ConnectionClosedError`
+
+   Raised if connection was closed with :func:`RedisConnection.close` method.
+
 .. exception:: PipelineError
+
+   :Bases: :exc:`RedisError`
 
    Raised from :meth:`~.commands.TransactionsCommandsMixin.pipeline`
    if any pipelined command raised error.
 
 .. exception:: MultiExecError
 
+   :Bases: :exc:`PipelineError`
+
    Same as :exc:`~.PipelineError` but raised when executing multi_exec
    block.
 
 .. exception:: WatchVariableError
+
+   :Bases: :exc:`MultiExecError`
 
    Raised if watched variable changed (EXEC returns None).
    Subclass of :exc:`~.MultiExecError`.
 
 .. exception:: ChannelClosedError
 
+   :Bases: :exc:`RedisError`
+
    Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is
    unsubscribed and messages queue is empty.
 
 .. exception:: PoolClosedError
+
+   :Bases: :exc:`RedisError`
 
    Raised from :meth:`aioredis.ConnectionsPool.acquire`
    when pool is already closed.
 
 .. exception:: ReadOnlyError
 
+   :Bases: :exc:`RedisError`
+
    Raised from slave when read-only mode is enabled.
 
-
 .. exception:: MasterNotFoundError
+
+   :Bases: :exc:`RedisError`
 
    Raised by Sentinel client if it can not find requested master.
 
 .. exception:: SlaveNotFoundError
 
+   :Bases: :exc:`RedisError`
+
    Raised by Sentinel client if it can not find requested slave.
+
+.. exception:: MasterReplyError
+
+   :Bases: :exc:`RedisError`
+
+   Raised if establishing connection to master failed with ``RedisError``,
+   for instance because of required or wrong authentication.
+
+.. exception:: SlaveReplyError
+
+   :Bases: :exc:`RedisError`
+
+   Raised if establishing connection to slave failed with ``RedisError``,
+   for instance because of required or wrong authentication.
 
 Exceptions Hierarchy
 ~~~~~~~~~~~~~~~~~~~~
@@ -592,15 +651,20 @@ Exceptions Hierarchy
       RedisError
          ProtocolError
          ReplyError
-            PipelineError
-               MultiExecError
-                  WatchVariableError
+            MaxClientsError
+            AuthError
+         PipelineError
+            MultiExecError
+               WatchVariableError
          ChannelClosedError
          ConnectionClosedError
+            ConnectionForcedCloseError
          PoolClosedError
          ReadOnlyError
          MasterNotFoundError
          SlaveNotFoundError
+         MasterReplyError
+         SlaveReplyError
 
 ----
 

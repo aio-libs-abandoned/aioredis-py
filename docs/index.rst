@@ -54,6 +54,7 @@ Contribute
 
 - Issue Tracker: https://github.com/aio-libs/aioredis/issues
 - Source Code: https://github.com/aio-libs/aioredis
+- Contributor's guide: :doc:`devel`
 
 Feel free to file an issue or make pull request if you find any bugs or have
 some suggestions for library improvement.
