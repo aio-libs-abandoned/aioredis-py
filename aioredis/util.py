@@ -13,7 +13,7 @@ _converters = {
     str: lambda val: val.encode('utf-8'),
     int: lambda val: str(val).encode('utf-8'),
     float: lambda val: str(val).encode('utf-8'),
-    }
+}
 
 
 def _bytes_len(sized):
@@ -23,7 +23,8 @@ def _bytes_len(sized):
 def encode_command(*args):
     """Encodes arguments into redis bulk-strings array.
 
-    Raises TypeError if any of args not of bytes, str, int or float type.
+    Raises TypeError if any of args not of bytearray, bytes, float, int, or str
+    type.
     """
     buf = bytearray()
 
@@ -37,8 +38,8 @@ def encode_command(*args):
             add(b'$' + _bytes_len(barg))
             add(barg)
         else:
-            raise TypeError("Argument {!r} expected to be of bytes,"
-                            " str, int or float type".format(arg))
+            raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
+                            " float, int, or str type".format(arg))
     return buf
 
 

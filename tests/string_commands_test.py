@@ -481,6 +481,12 @@ async def test_set(redis):
     ok = await redis.set('my-key', 'value')
     assert ok is True
 
+    ok = await redis.set(b'my-key', b'value')
+    assert ok is True
+
+    ok = await redis.set(bytearray(b'my-key'), bytearray(b'value'))
+    assert ok is True
+
     with pytest.raises(TypeError):
         await redis.set(None, 'value')
 
