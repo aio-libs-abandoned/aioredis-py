@@ -8,11 +8,11 @@ _NOTSET = object()
 # NOTE: never put here anything else;
 #       just this basic types
 _converters = {
-    bytearray: lambda val: val,
     bytes: lambda val: val,
-    float: lambda val: str(val).encode('utf-8'),
-    int: lambda val: str(val).encode('utf-8'),
+    bytearray: lambda val: val,
     str: lambda val: val.encode('utf-8'),
+    int: lambda val: str(val).encode('utf-8'),
+    float: lambda val: str(val).encode('utf-8'),
 }
 
 
