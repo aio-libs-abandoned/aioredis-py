@@ -1,6 +1,11 @@
 Migrating from v0.3 to v1.0
 ===========================
 
+.. contents:: API changes and backward incompatible changes:
+   :local:
+
+----
+
 aioredis.create_pool
 --------------------
 
@@ -163,3 +168,37 @@ acquire (lock) exclusive connection from pool and send all commands through it.
       with await pool as redis:
           # Redis is bound to exclusive connection
           redis.set('key', 'val')
+
+
+Sorted set commands return values
+---------------------------------
+
+Sorted set commands (like ``zrange``, ``zrevrange`` and others) that accept
+``withscores`` argument now **return list of tuples** instead of plain list.
+
++--------+--------------------------------------------------------------------+
+|        |  .. code-block:: python3                                           |
+| v0.3   |     :emphasize-lines: 4,7-8                                        |
+|        |                                                                    |
+|        |     redis = await aioredis.create_redis(('localhost', 6379))       |
+|        |     await redis.zadd('zset-key', 1, 'one', 2, 'two')               |
+|        |     res = await redis.zrage('zset-key', withscores=True)           |
+|        |     assert res == [b'one', 1, b'two', 2]                           |
+|        |                                                                    |
+|        |     # not an esiest way to make a dict                             |
+|        |     it = iter(res)                                                 |
+|        |     assert dict(zip(it, it)) == {b'one': 1, b'two': 2}             |
+|        |                                                                    |
++--------+--------------------------------------------------------------------+
+|        |  .. code-block:: python3                                           |
+| v1.0   |     :emphasize-lines: 4,7                                          |
+|        |                                                                    |
+|        |     redis = await aioredis.create_redis(('localhost', 6379))       |
+|        |     await redis.zadd('zset-key', 1, 'one', 2, 'two')               |
+|        |     res = await redis.zrage('zset-key', withscores=True)           |
+|        |     assert res == [(b'one', 1), (b'two', 2)]                       |
+|        |                                                                    |
+|        |     # now its easier to make a dict of it                          |
+|        |     assert dict(res) == {b'one': 1, b'two': 2}                     |
+|        |                                                                    |
++--------+--------------------------------------------------------------------+
