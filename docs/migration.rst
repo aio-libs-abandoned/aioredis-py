@@ -202,3 +202,37 @@ Sorted set commands (like ``zrange``, ``zrevrange`` and others) that accept
 |        |     assert dict(res) == {b'one': 1, b'two': 2}                     |
 |        |                                                                    |
 +--------+--------------------------------------------------------------------+
+
+
+Hash ``hscan`` command now returns list of tuples
+-------------------------------------------------
+
+``hscan`` updated to return a list of tuples instead of plain
+mixed key/value list.
+
++--------+--------------------------------------------------------------------+
+|        |  .. code-block:: python3                                           |
+| v0.3   |     :emphasize-lines: 4,7-8                                        |
+|        |                                                                    |
+|        |     redis = await aioredis.create_redis(('localhost', 6379))       |
+|        |     await redis.hmset('hash', 'one', 1, 'two', 2)                  |
+|        |     cur, data = await redis.hscan('hash')                          |
+|        |     assert data == [b'one', b'1', b'two', b'2']                    |
+|        |                                                                    |
+|        |     # not an esiest way to make a dict                             |
+|        |     it = iter(data)                                                |
+|        |     assert dict(zip(it, it)) == {b'one': b'1', b'two': b'2'}       |
+|        |                                                                    |
++--------+--------------------------------------------------------------------+
+|        |  .. code-block:: python3                                           |
+| v1.0   |     :emphasize-lines: 4,7                                          |
+|        |                                                                    |
+|        |     redis = await aioredis.create_redis(('localhost', 6379))       |
+|        |     await redis.hmset('hash', 'one', 1, 'two', 2)                  |
+|        |     cur, data = await redis.hscan('hash')                          |
+|        |     assert data == [(b'one', b'1'), (b'two', b'2')]                |
+|        |                                                                    |
+|        |     # now its easier to make a dict of it                          |
+|        |     assert dict(data) == {b'one': b'1': b'two': b'2'}              |
+|        |                                                                    |
++--------+--------------------------------------------------------------------+

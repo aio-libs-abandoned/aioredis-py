@@ -371,10 +371,24 @@ async def test_hscan(redis):
         await add(redis, key, f, v)
     # fetch 'field:foo:*' items expected tuple with 3 fields and 3 values
     cursor, values = await redis.hscan(key, match=b'field:foo:*')
-    assert len(values) == 3*2
+    assert len(values) == 3
+    assert sorted(values) == [
+        (b'field:foo:3', b'value:3'),
+        (b'field:foo:6', b'value:6'),
+        (b'field:foo:9', b'value:9'),
+        ]
     # fetch 'field:bar:*' items expected tuple with 7 fields and 7 values
     cursor, values = await redis.hscan(key, match=b'field:bar:*')
-    assert len(values) == 7*2
+    assert len(values) == 7
+    assert sorted(values) == [
+        (b'field:bar:1', b'value:1'),
+        (b'field:bar:10', b'value:10'),
+        (b'field:bar:2', b'value:2'),
+        (b'field:bar:4', b'value:4'),
+        (b'field:bar:5', b'value:5'),
+        (b'field:bar:7', b'value:7'),
+        (b'field:bar:8', b'value:8'),
+        ]
 
     # SCAN family functions do not guarantee that the number of
     # elements returned per call are in a given range. So here
@@ -384,7 +398,7 @@ async def test_hscan(redis):
     while cursor:
         cursor, values = await redis.hscan(key, cursor, count=1)
         test_values.extend(values)
-    assert len(test_values) == 10*2
+    assert len(test_values) == 10
 
     with pytest.raises(TypeError):
         await redis.hscan(None)
