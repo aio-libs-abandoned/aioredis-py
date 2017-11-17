@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET, _ScanIterPairs
+from aioredis.util import wait_convert, _NOTSET, _ScanIter
 
 
 class SortedSetCommandsMixin:
@@ -420,9 +420,9 @@ class SortedSetCommandsMixin:
         ...     print('Matched:', val, ':', score)
 
         """
-        return _ScanIterPairs(lambda cur: self.zscan(key, cur,
-                                                     match=match,
-                                                     count=count))
+        return _ScanIter(lambda cur: self.zscan(key, cur,
+                                                match=match,
+                                                count=count))
 
 
 def _encode_min_max(flag, min, max):
@@ -451,5 +451,5 @@ def optional_int_or_float(value):
 
 def pairs_int_or_float(value):
     it = iter(value)
-    return list(sum(([val, int_or_float(score)] for val, score in zip(it, it)),
-                    []))
+    return [(val, int_or_float(score))
+            for val, score in zip(it, it)]
