@@ -86,7 +86,8 @@ class coerced_keys_dict(dict):
         return dict.__contains__(self, other)
 
 
-class _BaseScanIter:
+class _ScanIter:
+
     __slots__ = ('_scan', '_cur', '_ret')
 
     def __init__(self, scan):
@@ -97,25 +98,9 @@ class _BaseScanIter:
     def __aiter__(self):
         return self
 
-
-class _ScanIter(_BaseScanIter):
-
     async def __anext__(self):
         while not self._ret and self._cur:
             self._cur, self._ret = await self._scan(self._cur)
-        if not self._cur and not self._ret:
-            raise StopAsyncIteration  # noqa
-        else:
-            ret = self._ret.pop(0)
-            return ret
-
-
-class _ScanIterPairs(_BaseScanIter):
-
-    async def __anext__(self):
-        while not self._ret and self._cur:
-            self._cur, ret = await self._scan(self._cur)
-            self._ret = list(zip(ret[::2], ret[1::2]))
         if not self._cur and not self._ret:
             raise StopAsyncIteration  # noqa
         else:
