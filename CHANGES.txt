@@ -1,17 +1,30 @@
 Changes
 -------
 
-1.0.0 (2017-xx-xx)
+1.0.0 (2017-11-17)
 ^^^^^^^^^^^^^^^^^^
 
 **NEW**:
 
-* Connections pool has been refactored; now ``create_redis``
+* **Important!** Drop Python 3.3, 3.4 support;
+  (see `#321 <https://github.com/aio-libs/aioredis/pull/321>`_,
+  `#323 <https://github.com/aio-libs/aioredis/pull/323>`_
+  and `#326 <https://github.com/aio-libs/aioredis/pull/326>`_);
+
+* **Important!** Connections pool has been refactored; now ``create_redis``
   function will yield ``Redis`` instance instead of ``RedisPool``
   (see `#129 <https://github.com/aio-libs/aioredis/pull/129>`_);
 
+* **Important!** Change sorted set commands reply format:
+  return list of tuples instead of plain list for commands
+  accepting ``withscores`` argument
+  (see `#334 <https://github.com/aio-libs/aioredis/pull/334>`_);
+
 * Dropped ``create_reconnecting_redis``, ``create_redis_pool`` should be
   used instead;
+
+* Implement custom ``StreamReader``
+  (see `#273 <https://github.com/aio-libs/aioredis/pull/273>`_);
 
 * Implement Sentinel support
   (see `#181 <https://github.com/aio-libs/aioredis/pull/181>`_);
@@ -29,7 +42,32 @@ Changes
   ``command_info`` commands
   (see `#229 <https://github.com/aio-libs/aioredis/pull/229>`_);
 
+* Add ``ping`` support in pubsub connection
+  (see `#264 <https://github.com/aio-libs/aioredis/pull/264>`_);
+
+* Add ``exist`` parameter to ``zadd`` command
+  (see `#288 <https://github.com/aio-libs/aioredis/pull/288>`_);
+
+* Add ``MaxClientsError`` and implement ``ReplyError`` specialization
+  (see `#325 <https://github.com/aio-libs/aioredis/pull/325>`_);
+
+* Add ``encoding`` parameter to sorted set commands
+  (see `#289 <https://github.com/aio-libs/aioredis/pull/289>`_);
+
 **FIX**:
+
+* Fix ``CancelledError`` in ``conn._reader_task``
+  (see `#301 <https://github.com/aio-libs/aioredis/pull/301>`_);
+
+* Fix pending commands cancellation with ``CancelledError``,
+  use explicit exception instead of calling ``cancel()`` method
+  (see `#316 <https://github.com/aio-libs/aioredis/pull/316>`_);
+
+* Correct error message on Sentinel discovery of master/slave with password
+  (see `#327 <https://github.com/aio-libs/aioredis/pull/327>`_);
+
+* Fix ``bytearray`` support as command argument
+  (see `#329 <https://github.com/aio-libs/aioredis/pull/329>`_);
 
 * Fix critical bug in patched asyncio.Lock
   (see `#256 <https://github.com/aio-libs/aioredis/pull/256>`_);
@@ -59,6 +97,7 @@ Changes
 
 * Update dependencies versions;
 
+* Add missing Python 3.6 classifier;
 
 0.3.4 (2017-10-25)
 ^^^^^^^^^^^^^^^^^^
