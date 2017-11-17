@@ -1,29 +1,32 @@
-Acknowledgements
-----------------
-
-Andrew Svetlov
-Paul Colomiets
-
-
 Contributors
 ------------
 
-Nickolai Novik
-Alexander Shorin
+Adam Rothman
 Aider Ibragimov
-SeungHyun Hwang
-Taku Fukada
-Volodymyr Hotsyk
-Jeff Moser
-Dima Kruk
-Leonid Shvechikov
-Samuel Colvin
-Ihor Gorobets
-Thanos Lefteris
-Ilya Goncharov
-Brett Rosen
-Pau Freixes
+Alexander Shorin
 Aliaksei Urbanski
-Martin <the-panda>
-Marijn Giesen
+Andrew Svetlov
 Anton Verinov
+<cynecx>
+Dima Kruk
+Hugo <hugovk>
+Ihor Gorobets
+Ihor Liubymov
+James Hilliard
+Jan Špaček
+Jeff Moser
+SeungHyun Hwang
+Leonid Shvechikov
+Manuel Miranda
+Marijn Giesen
+Martin <the-panda>
+Nickolai Novik
+Pau Freixes
+Paul Colomiets
+Samuel Colvin
+Samuel Dion-Girardeau
+Taku Fukada
+Taras Voinarovskyi
+Thanos Lefteris
+Thomas Steinacher
+Volodymyr Hotsyk

@@ -20,6 +20,9 @@ Changes
   accepting ``withscores`` argument
   (see `#334 <https://github.com/aio-libs/aioredis/pull/334>`_);
 
+* Implement Redis URI support as supported ``address`` argument value
+  (see `#322 <https://github.com/aio-libs/aioredis/pull/322>`_);
+
 * Dropped ``create_reconnecting_redis``, ``create_redis_pool`` should be
   used instead;
 
