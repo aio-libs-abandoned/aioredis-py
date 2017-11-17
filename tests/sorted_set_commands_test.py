@@ -159,28 +159,28 @@ async def test_zinterstore(redis):
     res = await redis.zinterstore('zout', 'zset1', 'zset2')
     assert res == 1
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 5]
+    assert res == [(b'one', 5)]
 
     res = await redis.zinterstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_SUM)
     assert res == 1
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 5]
+    assert res == [(b'one', 5)]
 
     res = await redis.zinterstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_MIN)
     assert res == 1
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 2]
+    assert res == [(b'one', 2)]
 
     res = await redis.zinterstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_MAX)
     assert res == 1
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 3]
+    assert res == [(b'one', 3)]
 
     # weights
 
@@ -193,7 +193,7 @@ async def test_zinterstore(redis):
                                   with_weights=True)
     assert res == 1
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 10]
+    assert res == [(b'one', 10)]
 
 
 @pytest.redis_version(
@@ -221,33 +221,30 @@ async def test_zlexcount(redis):
         await redis.zlexcount(key, b'a', 20)
 
 
+@pytest.mark.parametrize('encoding', [None, 'utf-8'])
 @pytest.mark.run_loop
-async def test_zrange(redis):
+async def test_zrange(redis, encoding):
     key = b'key:zrange'
     scores = [1, 1, 2.5, 3, 7]
-    members = [b'one', b'uno', b'two', b'three', b'seven']
-    strings = [x.decode('utf-8') for x in members]
+    if encoding:
+        members = ['one', 'uno', 'two', 'three', 'seven']
+    else:
+        members = [b'one', b'uno', b'two', b'three', b'seven']
     pairs = list(itertools.chain(*zip(scores, members)))
-    rev_pairs = list(itertools.chain(*zip(members, scores)))
-    string_rev_pairs = list(itertools.chain(*zip(strings, scores)))
+    rev_pairs = list(zip(members, scores))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
 
-    res = await redis.zrange(key, 0, -1, withscores=False)
+    res = await redis.zrange(key, 0, -1, withscores=False, encoding=encoding)
     assert res == members
-    res = await redis.zrange(key, 0, -1, withscores=False,
-                             encoding='utf-8')
-    assert res == strings
-    res = await redis.zrange(key, 0, -1, withscores=True)
+    res = await redis.zrange(key, 0, -1, withscores=True, encoding=encoding)
     assert res == rev_pairs
-    res = await redis.zrange(key, 0, -1, withscores=True,
-                             encoding='utf-8')
-    assert res == string_rev_pairs
-    res = await redis.zrange(key, -2, -1, withscores=False)
+    res = await redis.zrange(key, -2, -1, withscores=False, encoding=encoding)
     assert res == members[-2:]
-    res = await redis.zrange(key, 1, 2, withscores=False)
+    res = await redis.zrange(key, 1, 2, withscores=False, encoding=encoding)
     assert res == members[1:3]
+
     with pytest.raises(TypeError):
         await redis.zrange(None, 1, b'one')
     with pytest.raises(TypeError):
@@ -323,32 +320,33 @@ async def test_zrank(redis):
         await redis.zrank(None, b'one')
 
 
+@pytest.mark.parametrize('encoding', [None, 'utf-8'])
 @pytest.mark.run_loop
-async def test_zrangebyscore(redis):
+async def test_zrangebyscore(redis, encoding):
     key = b'key:zrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
-    members = [b'one', b'uno', b'two', b'three', b'seven']
-    strings = [x.decode('utf-8') for x in members]
+    if encoding:
+        members = ['one', 'uno', 'two', 'three', 'seven']
+    else:
+        members = [b'one', b'uno', b'two', b'three', b'seven']
     pairs = list(itertools.chain(*zip(scores, members)))
-    rev_pairs = list(itertools.chain(*zip(members, scores)))
-    string_rev_pairs = list(itertools.chain(*zip(strings, scores)))
+    rev_pairs = list(zip(members, scores))
     res = await redis.zadd(key, *pairs)
     assert res == 5
-    res = await redis.zrangebyscore(key, 1, 7, withscores=False)
-    assert res == members
-    res = await redis.zrangebyscore(key, 1, 7, withscores=False,
-                                    encoding='utf-8')
-    assert res == strings
-    res = await redis.zrangebyscore(
-        key, 1, 7, withscores=False, exclude=redis.ZSET_EXCLUDE_BOTH)
-    assert res == members[2:-1]
-    res = await redis.zrangebyscore(key, 1, 7, withscores=True)
-    assert res == rev_pairs
-    res = await redis.zrangebyscore(key, 1, 7, withscores=True,
-                                    encoding='utf-8')
-    assert res == string_rev_pairs
 
-    res = await redis.zrangebyscore(key, 1, 10, offset=2, count=2)
+    res = await redis.zrangebyscore(key, 1, 7, withscores=False,
+                                    encoding=encoding)
+    assert res == members
+    res = await redis.zrangebyscore(
+        key, 1, 7, withscores=False, exclude=redis.ZSET_EXCLUDE_BOTH,
+        encoding=encoding)
+    assert res == members[2:-1]
+    res = await redis.zrangebyscore(key, 1, 7, withscores=True,
+                                    encoding=encoding)
+    assert res == rev_pairs
+
+    res = await redis.zrangebyscore(key, 1, 10, offset=2, count=2,
+                                    encoding=encoding)
     assert res == members[2:4]
 
     with pytest.raises(TypeError):
@@ -495,33 +493,34 @@ async def test_zremrangebyscore(redis):
         await redis.zremrangebyscore(key, 0, 'last')
 
 
+@pytest.mark.parametrize('encoding', [None, 'utf-8'])
 @pytest.mark.run_loop
-async def test_zrevrange(redis):
+async def test_zrevrange(redis, encoding):
     key = b'key:zrevrange'
     scores = [1, 1, 2.5, 3, 7]
-    members = [b'one', b'uno', b'two', b'three', b'seven']
-    strings = [x.decode('utf-8') for x in members]
+    if encoding:
+        members = ['one', 'uno', 'two', 'three', 'seven']
+    else:
+        members = [b'one', b'uno', b'two', b'three', b'seven']
     pairs = list(itertools.chain(*zip(scores, members)))
-    string_pairs = list(itertools.chain(*zip(scores, strings)))
+    rev_pairs = list(zip(members, scores))
 
     res = await redis.zadd(key, *pairs)
     assert res == 5
 
-    res = await redis.zrevrange(key, 0, -1, withscores=False)
-    assert res == members[::-1]
     res = await redis.zrevrange(key, 0, -1, withscores=False,
-                                encoding='utf-8')
-    assert res == strings[::-1]
-    res = await redis.zrevrange(key, 0, -1, withscores=True)
-    assert res == pairs[::-1]
+                                encoding=encoding)
+    assert res == members[::-1]
     res = await redis.zrevrange(key, 0, -1, withscores=True,
-                                encoding='utf-8')
-    assert res == string_pairs[::-1]
-    res = await redis.zrevrange(key, -2, -1, withscores=False)
+                                encoding=encoding)
+    assert res == rev_pairs[::-1]
+    res = await redis.zrevrange(key, -2, -1, withscores=False,
+                                encoding=encoding)
     assert res == members[1::-1]
-    res = await redis.zrevrange(key, 1, 2, withscores=False)
-
+    res = await redis.zrevrange(key, 1, 2, withscores=False,
+                                encoding=encoding)
     assert res == members[3:1:-1]
+
     with pytest.raises(TypeError):
         await redis.zrevrange(None, 1, b'one')
     with pytest.raises(TypeError):
@@ -582,28 +581,28 @@ async def test_zunionstore(redis):
     res = await redis.zunionstore('zout', 'zset1', 'zset2')
     assert res == 3
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'two', 2, b'three', 3, b'one', 5]
+    assert res == [(b'two', 2), (b'three', 3), (b'one', 5)]
 
     res = await redis.zunionstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_SUM)
     assert res == 3
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'two', 2, b'three', 3, b'one', 5]
+    assert res == [(b'two', 2), (b'three', 3), (b'one', 5)]
 
     res = await redis.zunionstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_MIN)
     assert res == 3
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'one', 2, b'two', 2, b'three', 3]
+    assert res == [(b'one', 2), (b'two', 2), (b'three', 3)]
 
     res = await redis.zunionstore(
         'zout', 'zset1', 'zset2',
         aggregate=redis.ZSET_AGGREGATE_MAX)
     assert res == 3
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'two', 2, b'one', 3, b'three', 3]
+    assert res == [(b'two', 2), (b'one', 3), (b'three', 3)]
 
     # weights
 
@@ -616,36 +615,37 @@ async def test_zunionstore(redis):
                                   with_weights=True)
     assert res == 3
     res = await redis.zrange('zout', withscores=True)
-    assert res == [b'two', 4, b'three', 6, b'one', 10]
+    assert res == [(b'two', 4), (b'three', 6), (b'one', 10)]
 
 
+@pytest.mark.parametrize('encoding', [None, 'utf-8'])
 @pytest.mark.run_loop
-async def test_zrevrangebyscore(redis):
+async def test_zrevrangebyscore(redis, encoding):
     key = b'key:zrevrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
-    members = [b'one', b'uno', b'two', b'three', b'seven']
-    strings = [x.decode('utf-8') for x in members]
+    if encoding:
+        members = ['one', 'uno', 'two', 'three', 'seven']
+    else:
+        members = [b'one', b'uno', b'two', b'three', b'seven']
     pairs = list(itertools.chain(*zip(scores, members)))
-    rev_pairs = list(itertools.chain(*zip(members[::-1], scores[::-1])))
-    string_rev_pairs = list(itertools.chain(*zip(strings[::-1], scores[::-1])))
+    rev_pairs = list(zip(members[::-1], scores[::-1]))
     res = await redis.zadd(key, *pairs)
     assert res == 5
-    res = await redis.zrevrangebyscore(key, 7, 1, withscores=False)
-    assert res == members[::-1]
+
     res = await redis.zrevrangebyscore(key, 7, 1, withscores=False,
-                                       encoding='utf-8')
-    assert res == strings[::-1]
+                                       encoding=encoding)
+    assert res == members[::-1]
     res = await redis.zrevrangebyscore(
         key, 7, 1, withscores=False,
-        exclude=redis.ZSET_EXCLUDE_BOTH)
+        exclude=redis.ZSET_EXCLUDE_BOTH,
+        encoding=encoding)
     assert res == members[-2:1:-1]
-    res = await redis.zrevrangebyscore(key, 7, 1, withscores=True)
-    assert res == rev_pairs
     res = await redis.zrevrangebyscore(key, 7, 1, withscores=True,
-                                       encoding='utf-8')
-    assert res == string_rev_pairs
+                                       encoding=encoding)
+    assert res == rev_pairs
 
-    res = await redis.zrevrangebyscore(key, 10, 1, offset=2, count=2)
+    res = await redis.zrevrangebyscore(key, 10, 1, offset=2, count=2,
+                                       encoding=encoding)
     assert res == members[-3:-5:-1]
 
     with pytest.raises(TypeError):
@@ -723,23 +723,23 @@ async def test_zscan(redis):
         members.append('zmem:{}:{}'.format(foo_or_bar, i).encode('utf-8'))
         scores.append(i)
     pairs = list(itertools.chain(*zip(scores, members)))
-    rev_pairs = list(itertools.chain(*zip(members, scores)))
+    rev_pairs = set(zip(members, scores))
     await redis.zadd(key, *pairs)
 
     cursor, values = await redis.zscan(key, match=b'zmem:foo:*')
-    assert len(values) == 3 * 2
+    assert len(values) == 3
 
     cursor, values = await redis.zscan(key, match=b'zmem:bar:*')
-    assert len(values) == 7 * 2
+    assert len(values) == 7
 
     # SCAN family functions do not guarantee that the number (count) of
     # elements returned per call are in a given range. So here
     # just dummy test, that *count* argument does not break something
     cursor = b'0'
-    test_values = []
+    test_values = set()
     while cursor:
         cursor, values = await redis.zscan(key, cursor, count=2)
-        test_values.extend(values)
+        test_values.update(values)
     assert test_values == rev_pairs
 
     with pytest.raises(TypeError):
@@ -758,13 +758,13 @@ async def test_izscan(redis):
         scores.append(i)
     pairs = list(itertools.chain(*zip(scores, members)))
     await redis.zadd(key, *pairs)
-    vals = list(zip(members, scores))
+    vals = set(zip(members, scores))
 
     async def coro(cmd):
-        lst = []
-        async for i in cmd:
-            lst.append(i)
-        return lst
+        res = set()
+        async for key, score in cmd:
+            res.add((key, score))
+        return res
 
     ret = await coro(redis.izscan(key))
     assert set(ret) == set(vals)
