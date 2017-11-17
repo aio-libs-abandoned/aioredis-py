@@ -64,8 +64,3 @@ __all__ = [
     'MasterReplyError',
     'SlaveReplyError',
 ]
-
-# NOTE: this is deprecated
-create_reconnecting_redis = create_pool
-
-RedisPool = ConnectionsPool
