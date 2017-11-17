@@ -5,7 +5,6 @@ import async_timeout
 from unittest.mock import patch
 
 from aioredis import (
-    RedisPool,
     ReplyError,
     PoolClosedError,
     ConnectionClosedError,
@@ -15,7 +14,7 @@ from aioredis import (
 
 
 def _assert_defaults(pool):
-    assert isinstance(pool, RedisPool)
+    assert isinstance(pool, ConnectionsPool)
     assert pool.minsize == 1
     assert pool.maxsize == 10
     assert pool.size == 1
