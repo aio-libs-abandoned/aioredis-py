@@ -90,7 +90,7 @@ class StreamCommandsMixin:
         # TODO: Add the MAXLEN parameter
         flattened = []
         for k, v in fields.items():
-            flattened += [k, v]
+            flattened.extend([k, v])
         return self.execute(b'XADD', stream, '*', *flattened)
 
     def xrange(self, stream, start='-', stop='+', count=None):
