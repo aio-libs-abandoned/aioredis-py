@@ -109,6 +109,27 @@ Connections pool:
 
     loop.run_until_complete(go())
 
+Simple high-level interface with connections pool:
+
+.. code:: python
+
+    import asyncio
+    import aioredis
+
+    loop = asyncio.get_event_loop()
+
+    async def go():
+        redis = await aioredis.create_redis_pool(
+            'redis://localhost',
+            minsize=5, maxsize=10,
+            loop=loop)
+        await redis.set('my-key', 'value')
+        val = await redis.get('my-key')
+        print(val)
+        redis.close()
+        await redis.wait_closed()
+    loop.run_until_complete(go())
+    # will print 'value'
 
 Requirements
 ------------
