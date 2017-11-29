@@ -250,13 +250,6 @@ def format_version(srv):
     return 'redis_v{}'.format('.'.join(map(str, VERSIONS[srv])))
 
 
-@pytest.fixture(scope='session', params=REDIS_SERVERS, ids=format_version)
-def server_bin(request):
-    """Common for start_server and start_sentinel server bin path parameter.
-    """
-    return request.param
-
-
 @pytest.fixture(scope='session')
 def start_server(_proc, request, unused_port, server_bin):
     """Starts Redis server instance.
@@ -594,6 +587,18 @@ def pytest_configure(config):
     VERSIONS.update({srv: _read_server_version(srv)
                      for srv in REDIS_SERVERS})
     assert VERSIONS, ("Expected to detect redis versions", REDIS_SERVERS)
+
+    class DynamicFixturePlugin:
+        @pytest.fixture(scope='session',
+                        params=REDIS_SERVERS,
+                        ids=format_version)
+        def server_bin(self, request):
+            """Common for start_server and start_sentinel
+            server bin path parameter.
+            """
+            return request.param
+    config.pluginmanager.register(DynamicFixturePlugin(), 'server-bin-fixture')
+
     if config.getoption('--uvloop'):
         try:
             import uvloop
