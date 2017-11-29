@@ -1,320 +1,292 @@
-import sys
-import unittest
 import asyncio
-from textwrap import dedent
-
-from ._testutil import RedisTest, run_until_complete, REDIS_VERSION
-
-
-PY_35 = sys.version_info > (3, 5)
-
-
-class PubSubCommandsTest(RedisTest):
-
-    @asyncio.coroutine
-    def _reader(self, channel, output, waiter, conn=None):
-        if conn is None:
-            conn = yield from self.create_connection(
-                ('localhost', self.redis_port), loop=self.loop)
-        yield from conn.execute('subscribe', channel)
-        ch = conn.pubsub_channels[channel]
-        waiter.set_result(conn)
-        while (yield from ch.wait_message()):
-            msg = yield from ch.get()
-            yield from output.put(msg)
-
-    @run_until_complete
-    def test_publish(self):
-        out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
-        sub = asyncio.async(self._reader('chan:1', out, fut),
-                            loop=self.loop)
-
-        redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        yield from fut
-        yield from redis.publish('chan:1', 'Hello')
-        msg = yield from out.get()
-        self.assertEqual(msg, b'Hello')
-
-        sub.cancel()
-
-    @run_until_complete
-    def test_publish_json(self):
-        out = asyncio.Queue(loop=self.loop)
-        fut = asyncio.Future(loop=self.loop)
-        sub = asyncio.async(self._reader('chan:1', out, fut),
-                            loop=self.loop)
-
-        redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        yield from fut
-
-        res = yield from redis.publish_json('chan:1', {"Hello": "world"})
-        self.assertEqual(res, 1)    # recievers
-
-        msg = yield from out.get()
-        self.assertEqual(msg, b'{"Hello": "world"}')
-        sub.cancel()
-
-    @run_until_complete
-    def test_subscribe(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from sub.subscribe('chan:1', 'chan:2')
-        self.assertEqual(sub.in_pubsub, 2)
-
-        ch1 = sub.channels['chan:1']
-        ch2 = sub.channels['chan:2']
-
-        self.assertEqual(res, [ch1, ch2])
-        self.assertFalse(ch1.is_pattern)
-        self.assertFalse(ch2.is_pattern)
-
-        res = yield from sub.unsubscribe('chan:1', 'chan:2')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 1],
-                               [b'unsubscribe', b'chan:2', 0]])
-
-    @run_until_complete
-    def test_psubscribe(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from sub.psubscribe('patt:*', 'chan:*')
-        self.assertEqual(sub.in_pubsub, 2)
-
-        pat1 = sub.patterns['patt:*']
-        pat2 = sub.patterns['chan:*']
-        self.assertEqual(res, [pat1, pat2])
-
-        pub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        yield from pub.publish_json('chan:123', {"Hello": "World"})
-        res = yield from pat2.get_json()
-        self.assertEqual(res, (b'chan:123', {"Hello": "World"}))
-
-        res = yield from sub.punsubscribe('patt:*', 'patt:*', 'chan:*')
-        self.assertEqual(res, [[b'punsubscribe', b'patt:*', 1],
-                               [b'punsubscribe', b'patt:*', 1],
-                               [b'punsubscribe', b'chan:*', 0],
-                               ])
-
-    def _withoutSentinelAutoDiscoveryChannel(self, res):
-        SENTINEL_AUTO_DISCOVERY_CHANNEL = b'__sentinel__:hello'
-        return [channel for channel in res
-                if channel != SENTINEL_AUTO_DISCOVERY_CHANNEL]
-
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB CHANNELS is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_channels(self):
-        redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from redis.pubsub_channels()
-
-        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [])
-
-        res = yield from redis.pubsub_channels('chan:*')
-        self.assertEqual(res, [])
-
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        yield from sub.subscribe('chan:1')
-
-        res = yield from redis.pubsub_channels()
-        self.assertEqual(
-            self._withoutSentinelAutoDiscoveryChannel(res), [b'chan:1'])
-
-        res = yield from redis.pubsub_channels('ch*')
-        self.assertEqual(res, [b'chan:1'])
-
-        yield from sub.unsubscribe('chan:1')
-        yield from sub.psubscribe('chan:*')
-
-        res = yield from redis.pubsub_channels()
-        self.assertEqual(self._withoutSentinelAutoDiscoveryChannel(res), [])
-
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB NUMSUB is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_numsub(self):
-        redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
-
-        res = yield from redis.pubsub_numsub('chan:1')
-        self.assertEqual(res, {b'chan:1': 0})
-
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        yield from sub.subscribe('chan:1')
-
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
-
-        res = yield from redis.pubsub_numsub('chan:1')
-        self.assertEqual(res, {b'chan:1': 1})
-
-        res = yield from redis.pubsub_numsub('chan:2')
-        self.assertEqual(res, {b'chan:2': 0})
-
-        res = yield from redis.pubsub_numsub('chan:1', 'chan:2')
-        self.assertEqual(res, {b'chan:1': 1, b'chan:2': 0})
-
-        yield from sub.unsubscribe('chan:1')
-        yield from sub.psubscribe('chan:*')
-
-        res = yield from redis.pubsub_numsub()
-        self.assertEqual(res, {})
-
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'PUBSUB NUMPAT is available since redis>=2.8.0')
-    @run_until_complete
-    def test_pubsub_numpat(self):
-        redis = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 0)
-
-        yield from sub.subscribe('chan:1')
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 0)
-
-        yield from sub.psubscribe('chan:*')
-        res = yield from redis.pubsub_numpat()
-        self.assertEqual(res, 1)
-
-    @run_until_complete
-    def test_close_pubsub_channels(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        ch, = yield from sub.subscribe('chan:1')
-
-        @asyncio.coroutine
-        def waiter(ch):
-            msg = _empty = object()
-            while (yield from ch.wait_message()):
-                msg = yield from ch.get()
-            # assert no ``ch.get()`` call
-            self.assertIs(msg, _empty)
-
-        tsk = asyncio.async(waiter(ch), loop=self.loop)
-        sub.close()
-        yield from sub.wait_closed()
-        yield from tsk
-
-    @run_until_complete
-    def test_close_pubsub_patterns(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        ch, = yield from sub.psubscribe('chan:*')
-
-        @asyncio.coroutine
-        def waiter(ch):
-            msg = _empty = object()
-            while (yield from ch.wait_message()):
-                msg = yield from ch.get()
-            # assert no ``ch.get()`` call
-            self.assertIs(msg, _empty)
-
-        tsk = asyncio.async(waiter(ch), loop=self.loop)
-        sub.close()
-        yield from sub.wait_closed()
-        yield from tsk
-
-    @run_until_complete
-    def test_close_cancelled_pubsub_channel(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        ch, = yield from sub.subscribe('chan:1')
-
-        @asyncio.coroutine
-        def waiter(ch):
-            with self.assertRaises(asyncio.CancelledError):
-                while (yield from ch.wait_message()):
-                    yield from ch.get()
-
-        tsk = asyncio.async(waiter(ch), loop=self.loop)
-        yield from asyncio.sleep(0, loop=self.loop)
-        tsk.cancel()
-        sub.close()
-        yield from sub.wait_closed()
-
-    @run_until_complete
-    def test_channel_get_after_close(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        pub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        ch, = yield from sub.subscribe('chan:1')
-
-        @asyncio.coroutine
-        def waiter():
-            while True:
-                msg = yield from ch.get()
-                if msg is None:
-                    break
-                self.assertEqual(msg, b'message')
-
-        tsk = asyncio.async(waiter(), loop=self.loop)
-
-        yield from pub.publish('chan:1', 'message')
-        sub.close()
-        yield from tsk
-
-    @unittest.skipUnless(PY_35, "Python 3.5+ required")
-    @run_until_complete
-    def test_pubsub_channel_iter(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        pub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        ch, = yield from sub.subscribe('chan:1')
-
-        s = dedent('''\
-        async def coro(ch):
-            lst = []
-            async for msg in ch.iter():
-                lst.append(msg)
-            return lst
-        ''')
-        lcl = {}
-        exec(s, globals(), lcl)
-        coro = lcl['coro']
-
-        tsk = asyncio.async(coro(ch), loop=self.loop)
-        yield from pub.publish_json('chan:1', {'Hello': 'World'})
-        yield from pub.publish_json('chan:1', ['message'])
-        yield from asyncio.sleep(0, loop=self.loop)
-        ch.close()
-        lst = yield from tsk
-        self.assertEqual(lst, [
-            b'{"Hello": "World"}',
-            b'["message"]',
-            ])
-
-    @run_until_complete
-    def test_subscribe_concurrency(self):
-        sub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-        pub = yield from self.create_redis(
-            ('localhost', self.redis_port), loop=self.loop)
-
-        res = yield from asyncio.gather(
-            sub.subscribe('channel:0'),
-            pub.publish('channel:0', 'Hello'),
-            sub.subscribe('channel:1'),
-            loop=self.loop)
-        (ch1,), subs, (ch2,) = res
-
-        self.assertEqual(ch1.name, b'channel:0')
-        self.assertEqual(subs, 1)
-        self.assertEqual(ch2.name, b'channel:1')
+import pytest
+
+
+async def _reader(channel, output, waiter, conn):
+    await conn.execute('subscribe', channel)
+    ch = conn.pubsub_channels[channel]
+    waiter.set_result(conn)
+    while await ch.wait_message():
+        msg = await ch.get()
+        await output.put(msg)
+
+
+@pytest.mark.run_loop
+async def test_publish(create_connection, redis, server, loop):
+    out = asyncio.Queue(loop=loop)
+    fut = loop.create_future()
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
+
+    await fut
+    await redis.publish('chan:1', 'Hello')
+    msg = await out.get()
+    assert msg == b'Hello'
+
+    sub.cancel()
+
+
+@pytest.mark.run_loop
+async def test_publish_json(create_connection, redis, server, loop):
+    out = asyncio.Queue(loop=loop)
+    fut = loop.create_future()
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
+
+    await fut
+
+    res = await redis.publish_json('chan:1', {"Hello": "world"})
+    assert res == 1    # recievers
+
+    msg = await out.get()
+    assert msg == b'{"Hello": "world"}'
+    sub.cancel()
+
+
+@pytest.mark.run_loop
+async def test_subscribe(redis):
+    res = await redis.subscribe('chan:1', 'chan:2')
+    assert redis.in_pubsub == 2
+
+    ch1 = redis.channels['chan:1']
+    ch2 = redis.channels['chan:2']
+
+    assert res == [ch1, ch2]
+    assert ch1.is_pattern is False
+    assert ch2.is_pattern is False
+
+    res = await redis.unsubscribe('chan:1', 'chan:2')
+    assert res == [[b'unsubscribe', b'chan:1', 1],
+                   [b'unsubscribe', b'chan:2', 0]]
+
+
+@pytest.mark.run_loop
+async def test_psubscribe(redis, create_redis, server, loop):
+    sub = redis
+    res = await sub.psubscribe('patt:*', 'chan:*')
+    assert sub.in_pubsub == 2
+
+    pat1 = sub.patterns['patt:*']
+    pat2 = sub.patterns['chan:*']
+    assert res == [pat1, pat2]
+
+    pub = await create_redis(
+        server.tcp_address, loop=loop)
+    await pub.publish_json('chan:123', {"Hello": "World"})
+    res = await pat2.get_json()
+    assert res == (b'chan:123', {"Hello": "World"})
+
+    res = await sub.punsubscribe('patt:*', 'patt:*', 'chan:*')
+    assert res == [[b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'chan:*', 0],
+                   ]
+
+
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB CHANNELS is available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_pubsub_channels(create_redis, server, loop):
+    redis = await create_redis(
+        server.tcp_address, loop=loop)
+    res = await redis.pubsub_channels()
+    assert res == []
+
+    res = await redis.pubsub_channels('chan:*')
+    assert res == []
+
+    sub = await create_redis(
+        server.tcp_address, loop=loop)
+    await sub.subscribe('chan:1')
+
+    res = await redis.pubsub_channels()
+    assert res == [b'chan:1']
+
+    res = await redis.pubsub_channels('ch*')
+    assert res == [b'chan:1']
+
+    await sub.unsubscribe('chan:1')
+    await sub.psubscribe('chan:*')
+
+    res = await redis.pubsub_channels()
+    assert res == []
+
+
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB NUMSUB is available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_pubsub_numsub(create_redis, server, loop):
+    redis = await create_redis(
+        server.tcp_address, loop=loop)
+    res = await redis.pubsub_numsub()
+    assert res == {}
+
+    res = await redis.pubsub_numsub('chan:1')
+    assert res == {b'chan:1': 0}
+
+    sub = await create_redis(
+        server.tcp_address, loop=loop)
+    await sub.subscribe('chan:1')
+
+    res = await redis.pubsub_numsub()
+    assert res == {}
+
+    res = await redis.pubsub_numsub('chan:1')
+    assert res == {b'chan:1': 1}
+
+    res = await redis.pubsub_numsub('chan:2')
+    assert res == {b'chan:2': 0}
+
+    res = await redis.pubsub_numsub('chan:1', 'chan:2')
+    assert res == {b'chan:1': 1, b'chan:2': 0}
+
+    await sub.unsubscribe('chan:1')
+    await sub.psubscribe('chan:*')
+
+    res = await redis.pubsub_numsub()
+    assert res == {}
+
+
+@pytest.redis_version(
+    2, 8, 0, reason='PUBSUB NUMPAT is available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_pubsub_numpat(create_redis, server, loop, redis):
+    sub = await create_redis(
+        server.tcp_address, loop=loop)
+
+    res = await redis.pubsub_numpat()
+    assert res == 0
+
+    await sub.subscribe('chan:1')
+    res = await redis.pubsub_numpat()
+    assert res == 0
+
+    await sub.psubscribe('chan:*')
+    res = await redis.pubsub_numpat()
+    assert res == 1
+
+
+@pytest.mark.run_loop
+async def test_close_pubsub_channels(redis, loop):
+    ch, = await redis.subscribe('chan:1')
+
+    async def waiter(ch):
+        assert not await ch.wait_message()
+
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
+    redis.close()
+    await redis.wait_closed()
+    await tsk
+
+
+@pytest.mark.run_loop
+async def test_close_pubsub_patterns(redis, loop):
+    ch, = await redis.psubscribe('chan:*')
+
+    async def waiter(ch):
+        assert not await ch.wait_message()
+
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
+    redis.close()
+    await redis.wait_closed()
+    await tsk
+
+
+@pytest.mark.run_loop
+async def test_close_cancelled_pubsub_channel(redis, loop):
+    ch, = await redis.subscribe('chan:1')
+
+    async def waiter(ch):
+        with pytest.raises(asyncio.CancelledError):
+            await ch.wait_message()
+
+    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
+    await asyncio.sleep(0, loop=loop)
+    tsk.cancel()
+
+
+@pytest.mark.run_loop
+async def test_channel_get_after_close(create_redis, loop, server):
+    sub = await create_redis(
+        server.tcp_address, loop=loop)
+    pub = await create_redis(
+        server.tcp_address, loop=loop)
+    ch, = await sub.subscribe('chan:1')
+
+    async def waiter():
+        while True:
+            msg = await ch.get()
+            if msg is None:
+                break
+            assert msg == b'message'
+
+    tsk = asyncio.ensure_future(waiter(), loop=loop)
+
+    await pub.publish('chan:1', 'message')
+    sub.close()
+    await tsk
+
+
+@pytest.mark.run_loop
+async def test_subscribe_concurrency(create_redis, server, loop):
+    sub = await create_redis(
+        server.tcp_address, loop=loop)
+    pub = await create_redis(
+        server.tcp_address, loop=loop)
+
+    async def subscribe(*args):
+        return await sub.subscribe(*args)
+
+    async def publish(*args):
+        await asyncio.sleep(0, loop=loop)
+        return await pub.publish(*args)
+
+    res = await asyncio.gather(
+        subscribe('channel:0'),
+        publish('channel:0', 'Hello'),
+        subscribe('channel:1'),
+        loop=loop)
+    (ch1,), subs, (ch2,) = res
+
+    assert ch1.name == b'channel:0'
+    assert subs == 1
+    assert ch2.name == b'channel:1'
+
+
+@pytest.redis_version(
+    3, 2, 0, reason='PUBSUB PING is available since redis>=3.2.0')
+@pytest.mark.run_loop
+async def test_pubsub_ping(redis):
+    await redis.subscribe('chan:1', 'chan:2')
+
+    res = await redis.ping()
+    assert res == b'PONG'
+    res = await redis.ping('Hello')
+    assert res == b'Hello'
+    res = await redis.ping('Hello', encoding='utf-8')
+    assert res == 'Hello'
+
+    await redis.unsubscribe('chan:1', 'chan:2')
+
+
+@pytest.mark.run_loop
+async def test_pubsub_channel_iter(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    ch, = await sub.subscribe('chan:1')
+
+    async def coro(ch):
+        lst = []
+        async for msg in ch.iter():
+            lst.append(msg)
+        return lst
+
+    tsk = asyncio.ensure_future(coro(ch), loop=loop)
+    await pub.publish_json('chan:1', {'Hello': 'World'})
+    await pub.publish_json('chan:1', ['message'])
+    await asyncio.sleep(0, loop=loop)
+    ch.close()
+    assert await tsk == [b'{"Hello": "World"}', b'["message"]']

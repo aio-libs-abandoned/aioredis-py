@@ -1,6 +1,10 @@
 include LICENSE
 include CHANGES.txt
+include CONTRIBUTORS.txt
 include README.rst
 graft aioredis
-global-exclude *.pyc *.swp
-
+global-exclude *.pyc *.swp *.*~
+recursive-include examples *.py
+recursive-include tests *.py
+recursive-include docs *.rst
+include docs/_build/man/*.*

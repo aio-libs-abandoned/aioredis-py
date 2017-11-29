@@ -5,7 +5,7 @@ import aioredis
 async def main():
 
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
 
     await redis.delete('something:hash',
                        'something:set',

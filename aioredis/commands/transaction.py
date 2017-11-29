@@ -1,8 +1,17 @@
 import asyncio
 import functools
 
-from ..errors import RedisError, PipelineError, MultiExecError
-from ..util import wait_ok, async_task
+from ..abc import AbcPool
+from ..errors import (
+    RedisError,
+    PipelineError,
+    MultiExecError,
+    ConnectionClosedError,
+    )
+from ..util import (
+    wait_ok,
+    _set_exception,
+    )
 
 
 class TransactionsCommandsMixin:
@@ -16,23 +25,23 @@ class TransactionsCommandsMixin:
     >>> result_future1 = tr.incr('foo')
     >>> result_future2 = tr.incr('bar')
     >>> try:
-    ...     result = yield from tr.execute()
+    ...     result = await tr.execute()
     ... except MultiExecError:
     ...     pass    # check what happened
-    >>> result1 = yield from result_future1
-    >>> result2 = yield from result_future2
+    >>> result1 = await result_future1
+    >>> result2 = await result_future2
     >>> assert result == [result1, result2]
     """
 
     def unwatch(self):
         """Forget about all watched keys."""
-        fut = self._conn.execute(b'UNWATCH')
+        fut = self._pool_or_conn.execute(b'UNWATCH')
         return wait_ok(fut)
 
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
         """
-        fut = self._conn.execute(b'WATCH', key, *keys)
+        fut = self._pool_or_conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
 
     def multi_exec(self):
@@ -41,16 +50,16 @@ class TransactionsCommandsMixin:
         Usage:
 
         >>> tr = redis.multi_exec()
-        >>> fut1 = tr.incr('foo')   # NO `yield from` as it will block forever!
+        >>> fut1 = tr.incr('foo')   # NO `await` as it will block forever!
         >>> fut2 = tr.incr('bar')
-        >>> result = yield from tr.execute()
+        >>> result = await tr.execute()
         >>> result
         [1, 1]
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         """
-        return MultiExec(self._conn, self.__class__,
-                         loop=self._conn._loop)
+        return MultiExec(self._pool_or_conn, self.__class__,
+                         loop=self._pool_or_conn._loop)
 
     def pipeline(self):
         """Returns :class:`Pipeline` object to execute bulk of commands.
@@ -61,23 +70,23 @@ class TransactionsCommandsMixin:
         Example:
 
         >>> pipe = redis.pipeline()
-        >>> fut1 = pipe.incr('foo') # NO `yield from` as it will block forever!
+        >>> fut1 = pipe.incr('foo') # NO `await` as it will block forever!
         >>> fut2 = pipe.incr('bar')
-        >>> result = yield from pipe.execute()
+        >>> result = await pipe.execute()
         >>> result
         [1, 1]
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         >>> #
         >>> # The same can be done without pipeline:
         >>> #
         >>> fut1 = redis.incr('foo')    # the 'INCRY foo' command already sent
         >>> fut2 = redis.incr('bar')
-        >>> yield from asyncio.gather(fut1, fut2)
+        >>> await asyncio.gather(fut1, fut2)
         [2, 2]
         """
-        return Pipeline(self._conn, self.__class__,
-                        loop=self._conn._loop)
+        return Pipeline(self._pool_or_conn, self.__class__,
+                        loop=self._pool_or_conn._loop)
 
 
 class _RedisBuffer:
@@ -89,7 +98,7 @@ class _RedisBuffer:
         self._loop = loop
 
     def execute(self, cmd, *args, **kw):
-        fut = asyncio.Future(loop=self._loop)
+        fut = self._loop.create_future()
         self._pipeline.append((fut, cmd, args, kw))
         return fut
 
@@ -104,20 +113,20 @@ class Pipeline:
     >>> pipe = redis.pipeline()
     >>> fut1 = pipe.incr('foo')
     >>> fut2 = pipe.incr('bar')
-    >>> yield from pipe.execute()
+    >>> await pipe.execute()
     [1, 1]
-    >>> yield from fut1
+    >>> await fut1
     1
-    >>> yield from fut2
+    >>> await fut2
     1
     """
     error_class = PipelineError
 
-    def __init__(self, connection, commands_factory=lambda conn: conn,
+    def __init__(self, pool_or_connection, commands_factory=lambda conn: conn,
                  *, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        self._conn = connection
+        self._pool_or_conn = pool_or_connection
         self._loop = loop
         self._pipeline = []
         self._results = []
@@ -133,16 +142,17 @@ class Pipeline:
             @functools.wraps(attr)
             def wrapper(*args, **kw):
                 try:
-                    task = async_task(attr(*args, **kw), loop=self._loop)
+                    task = asyncio.ensure_future(attr(*args, **kw),
+                                                 loop=self._loop)
                 except Exception as exc:
-                    task = asyncio.Future(loop=self._loop)
+                    task = self._loop.create_future()
                     task.set_exception(exc)
                 self._results.append(task)
                 return task
             return wrapper
         return attr
 
-    def execute(self, *, return_exceptions=False):
+    async def execute(self, *, return_exceptions=False):
         """Execute all buffered commands.
 
         Any exception that is raised by any command is caught and
@@ -155,25 +165,29 @@ class Pipeline:
         self._done = True
 
         if self._pipeline:
-            return self._do_execute(return_exceptions=return_exceptions)
+            if isinstance(self._pool_or_conn, AbcPool):
+                async with self._pool_or_conn.get() as conn:
+                    return await self._do_execute(
+                        conn, return_exceptions=return_exceptions)
+            else:
+                return await self._do_execute(
+                    self._pool_or_conn,
+                    return_exceptions=return_exceptions)
         else:
-            return self._gather_result(return_exceptions)
+            return await self._gather_result(return_exceptions)
 
-    @asyncio.coroutine
-    def _do_execute(self, *, return_exceptions=False):
-        conn = yield from self._conn.get_atomic_connection()
-        yield from asyncio.gather(*self._send_pipeline(conn),
-                                  loop=self._loop,
-                                  return_exceptions=True)
-        return (yield from self._gather_result(return_exceptions))
+    async def _do_execute(self, conn, *, return_exceptions=False):
+        await asyncio.gather(*self._send_pipeline(conn),
+                             loop=self._loop,
+                             return_exceptions=True)
+        return await self._gather_result(return_exceptions)
 
-    @asyncio.coroutine
-    def _gather_result(self, return_exceptions):
+    async def _gather_result(self, return_exceptions):
         errors = []
         results = []
         for fut in self._results:
             try:
-                res = yield from fut
+                res = await fut
                 results.append(res)
             except Exception as exc:
                 errors.append(exc)
@@ -211,18 +225,18 @@ class MultiExec(Pipeline):
     >>> f1 = tr.incr('foo')
     >>> f2 = tr.incr('bar')
     >>> # A)
-    >>> yield from tr.execute()
-    >>> res1 = yield from f1
-    >>> res2 = yield from f2
+    >>> await tr.execute()
+    >>> res1 = await f1
+    >>> res2 = await f2
     >>> # or B)
-    >>> res1, res2 = yield from tr.execute()
+    >>> res1, res2 = await tr.execute()
 
     and ofcourse try/except:
 
     >>> tr = redis.multi_exec()
     >>> f1 = tr.incr('1') # won't raise any exception (why?)
     >>> try:
-    ...     res = yield from tr.execute()
+    ...     res = await tr.execute()
     ... except RedisError:
     ...     pass
     >>> assert f1.done()
@@ -231,37 +245,43 @@ class MultiExec(Pipeline):
     >>> tr = redis.multi_exec()
     >>> wait_ok_coro = tr.mset('1')
     >>> try:
-    ...     ok1 = yield from tr.execute()
+    ...     ok1 = await tr.execute()
     ... except RedisError:
     ...     pass # handle it
-    >>> ok2 = yield from wait_ok_coro
+    >>> ok2 = await wait_ok_coro
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
     error_class = MultiExecError
 
-    @asyncio.coroutine
-    def _do_execute(self, *, return_exceptions=False):
+    async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
-        conn = yield from self._conn.get_atomic_connection()
         multi = conn.execute('MULTI')
         coros = list(self._send_pipeline(conn))
         exec_ = conn.execute('EXEC')
         gather = asyncio.gather(multi, *coros, loop=self._loop,
                                 return_exceptions=True)
+        last_error = None
         try:
-            yield from asyncio.shield(gather, loop=self._loop)
+            await asyncio.shield(gather, loop=self._loop)
         except asyncio.CancelledError:
-            yield from gather
+            await gather
+        except Exception as err:
+            last_error = err
+            raise
         finally:
             if conn.closed:
+                if last_error is None:
+                    last_error = ConnectionClosedError()
                 for fut in waiters:
-                    fut.cancel()
+                    _set_exception(fut, last_error)
+                    # fut.cancel()
                 for fut in self._results:
                     if not fut.done():
-                        fut.cancel()
+                        fut.set_exception(last_error)
+                        # fut.cancel()
             else:
                 try:
-                    results = yield from exec_
+                    results = await exec_
                 except RedisError as err:
                     for fut in waiters:
                         fut.set_exception(err)
@@ -269,7 +289,7 @@ class MultiExec(Pipeline):
                     assert len(results) == len(waiters), (
                         "Results does not match waiters", results, waiters)
                     self._resolve_waiters(results, return_exceptions)
-            return (yield from self._gather_result(return_exceptions))
+            return (await self._gather_result(return_exceptions))
 
     def _resolve_waiters(self, results, return_exceptions):
         errors = []
@@ -285,7 +305,7 @@ class MultiExec(Pipeline):
     def _check_result(self, fut, waiter):
         assert waiter not in self._waiters, (fut, waiter, self._waiters)
         assert not waiter.done(), waiter
-        if fut.cancelled():     # yield from gather was cancelled
+        if fut.cancelled():     # await gather was cancelled
             waiter.cancel()
         elif fut.exception():   # server replied with error
             waiter.set_exception(fut.exception())

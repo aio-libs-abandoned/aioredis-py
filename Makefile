@@ -1,34 +1,104 @@
-
 PYTHON ?= python3
-FLAKE ?= pyflakes
-PEP ?= pep8
-REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
+FLAKE ?= flake8
+PYTEST ?= py.test
 
-.PHONY: all flake doc test cov dist devel
+REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.2
+
+ARCHIVE_URL = https://github.com/antirez/redis/archive
+INSTALL_DIR ?= build
+
+TEST_ARGS ?= "-n 4"
+
+REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
+
+# Python implementation
+PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
+
+EXAMPLES = $(shell find examples -name "*.py")
+
+.PHONY: all flake doc man-doc spelling test cov dist devel clean
 all: aioredis.egg-info flake doc cov
 
-doc:
+doc: spelling
 	make -C docs html
+man-doc: spelling
+	make -C docs man
+spelling:
+	@echo "Running spelling check"
+	make -C docs spelling
 
+ifeq ($(PYTHON_IMPL), cpython)
 flake:
 	$(FLAKE) aioredis tests examples
-	$(PEP) aioredis tests examples
+else
+flake:
+	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."
+endif
 
 test:
-	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py -v
+	$(PYTEST)
 
 cov coverage:
-	redis-cli FLUSHALL
-	REDIS_VERSION=$(REDIS_VERSION) $(PYTHON) runtests.py --coverage
+	$(PYTEST) --cov
 
-dist:
-	-rm -r build dist aioredis.egg-info
+dist: clean man-doc
 	$(PYTHON) setup.py sdist bdist_wheel
+
+clean:
+	-rm -r docs/_build
+	-rm -r build dist aioredis.egg-info
 
 devel: aioredis.egg-info
 	pip install -U pip
-	pip install -U pyflakes pep8 sphinx coverage bumpversion wheel
+	pip install -U \
+		sphinx \
+		sphinx_rtd_theme \
+		bumpversion \
+		wheel
+	pip install -Ur tests/requirements.txt
+	pip install -Ur docs/requirements.txt
 
 aioredis.egg-info:
 	pip install -Ue .
+
+
+ifdef TRAVIS
+examples: .start-redis $(EXAMPLES)
+else
+examples: $(EXAMPLES)
+endif
+
+$(EXAMPLES):
+	@export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
+	$(PYTHON) $@
+
+.start-redis: $(lastword $(REDIS_TARGETS))
+	$< ./examples/redis.conf
+	$< ./examples/redis-sentinel.conf --sentinel
+	sleep 5s
+	echo "QUIT" | nc localhost 6379
+	echo "QUIT" | nc localhost 26379
+
+.PHONY: $(EXAMPLES)
+
+
+certificate:
+	make -C tests/ssl
+
+ci-test: $(REDIS_TARGETS)
+	@$(call echo, "Tests run")
+	py.test -rsxX --cov \
+		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
+
+ci-test-%: $(INSTALL_DIR)/%/redis-server
+	py.test -rsxX --cov --redis-server=$< $(TEST_ARGS)
+
+ci-build-redis: $(REDIS_TARGETS)
+
+$(INSTALL_DIR)/%/redis-server:
+	@echo "Building redis-$*..."
+	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
+	make -j -C /tmp/redis-$* \
+		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
+	@echo "Done building redis-$*"

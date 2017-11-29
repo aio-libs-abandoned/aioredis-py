@@ -1,657 +1,747 @@
 import asyncio
 import time
 import math
-import os
+import pytest
 import sys
-import unittest
-from textwrap import dedent
+
 from unittest import mock
 
-from ._testutil import (
-    RedisTest, run_until_complete, REDIS_VERSION, cluster_test,
-    no_cluster_test
-)
 from aioredis import ReplyError
 
 
-PY_35 = sys.version_info >= (3, 5)
+async def add(redis, key, value):
+    ok = await redis.connection.execute('set', key, value)
+    assert ok == b'OK'
 
 
-class GenericCommandsTest(RedisTest):
+@pytest.mark.run_loop
+async def test_delete(redis):
+    await add(redis, 'my-key', 123)
+    await add(redis, 'other-key', 123)
 
-    @run_until_complete
-    def test_delete(self):
-        yield from self.add('{key:delete}:1', 123)
-        yield from self.add('{key:delete}:2', 123)
+    res = await redis.delete('my-key', 'non-existent-key')
+    assert res == 1
 
-        res = yield from self.redis.delete(
-            '{key:delete}:1', '{key:delete}:non-existent')
-        self.assertEqual(res, 1)
+    res = await redis.delete('other-key', 'other-key')
+    assert res == 1
 
-        res = yield from self.redis.delete('{key:delete}:2', '{key:delete}:2')
-        self.assertEqual(res, 1)
+    with pytest.raises(TypeError):
+        await redis.delete(None)
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.delete(None)
+    with pytest.raises(TypeError):
+        await redis.delete('my-key', 'my-key', None)
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.delete('key', 'key', None)
 
-    @run_until_complete
-    def test_dump(self):
-        yield from self.add('my-key', 123)
+@pytest.mark.run_loop
+async def test_dump(redis):
+    await add(redis, 'my-key', 123)
 
-        data = yield from self.redis.dump('my-key')
-        self.assertEqual(data, mock.ANY)
-        self.assertIsInstance(data, (bytes, bytearray))
-        self.assertGreater(len(data), 0)
+    data = await redis.dump('my-key')
+    assert data == mock.ANY
+    assert isinstance(data, (bytes, bytearray))
+    assert len(data) > 0
 
-        data = yield from self.redis.dump('non-existent-key')
-        self.assertIsNone(data)
+    data = await redis.dump('non-existent-key')
+    assert data is None
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.dump(None)
+    with pytest.raises(TypeError):
+        await redis.dump(None)
 
-    @run_until_complete
-    def test_exists(self):
-        yield from self.add('my-key', 123)
 
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, True)
+@pytest.mark.run_loop
+async def test_exists(redis, server):
+    await add(redis, 'my-key', 123)
 
-        res = yield from self.redis.exists('non-existent-key')
-        self.assertIs(res, False)
+    res = await redis.exists('my-key')
+    assert isinstance(res, int)
+    assert res == 1
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.exists(None)
+    res = await redis.exists('non-existent-key')
+    assert isinstance(res, int)
+    assert res == 0
 
-    @run_until_complete
-    def test_expire(self):
-        yield from self.add('my-key', 132)
+    with pytest.raises(TypeError):
+        await redis.exists(None)
+    if server.version < (3, 0, 3):
+        with pytest.raises(ReplyError):
+            await redis.exists('key-1', 'key-2')
 
-        res = yield from self.redis.expire('my-key', 10)
-        self.assertIs(res, True)
 
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertGreaterEqual(res, 10)
+@pytest.redis_version(
+    3, 0, 3, reason='Multi-key EXISTS available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_exists_multiple(redis):
+    await add(redis, 'my-key', 123)
 
-        yield from self.redis.expire('my-key', -1)
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, False)
+    res = await redis.exists('my-key', 'other-key')
+    assert isinstance(res, int)
+    assert res == 1
 
-        res = yield from self.redis.expire('other-key', 1000)
-        self.assertIs(res, False)
+    res = await redis.exists('my-key', 'my-key')
+    assert isinstance(res, int)
+    assert res == 2
 
-        yield from self.add('my-key', 1)
-        res = yield from self.redis.expire('my-key', 10.0)
-        self.assertIs(res, True)
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertGreaterEqual(res, 10)
+    res = await redis.exists('foo', 'bar')
+    assert isinstance(res, int)
+    assert res == 0
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.expire(None, 123)
-        with self.assertRaises(TypeError):
-            yield from self.redis.expire('my-key', 'timeout')
 
-    # @run_until_complete
-    # def test_wait_expire(self):
-    #     return
-    #     yield from self.add('my-key', 123)
-    #     res = yield from self.redis.expire('my-key', 1)
-    #     self.assertIs(res, True)
+@pytest.mark.run_loop
+async def test_expire(redis):
+    await add(redis, 'my-key', 132)
 
-    #     yield from asyncio.sleep(1, loop=self.loop)
+    res = await redis.expire('my-key', 10)
+    assert res is True
 
-    #     res = yield from self.redis.exists('my-key')
-    #     self.assertIs(res, False)
+    res = await redis.connection.execute('TTL', 'my-key')
+    assert res >= 10
 
-    # @run_until_complete
-    # def test_wait_expireat(self):
-    #     return
-    #     yield from self.add('my-key', 123)
-    #     ts = int(time.time() + 1)
-    #     res = yield from self.redis.expireat('my-key', ts)
-
-    #     yield from asyncio.sleep(ts - time.time(), loop=self.loop)
-    #     res = yield from self.redis.exists('my-key')
-    #     self.assertIs(res, False)
-
-    @run_until_complete
-    def test_expireat(self):
-        yield from self.add('my-key', 123)
-        now = math.ceil(time.time())
-
-        res = yield from self.redis.expireat('my-key', now + 10)
-        self.assertIs(res, True)
-
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertGreaterEqual(res, 10)
-
-        res = yield from self.redis.expireat('my-key', -1)
-        self.assertIs(res, True)
-
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, False)
-
-        yield from self.add('my-key', 123)
-
-        res = yield from self.redis.expireat('my-key', 0)
-        self.assertIs(res, True)
-
-        res = yield from self.redis.exists('my-key')
-        self.assertIs(res, False)
-
-        yield from self.add('my-key', 123)
-        res = yield from self.redis.expireat('my-key', time.time() + 10)
-        self.assertIs(res, True)
-
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertGreaterEqual(res, 10)
-
-        yield from self.add('my-key', 123)
-        with self.assertRaises(TypeError):
-            yield from self.redis.expireat(None, 123)
-        with self.assertRaises(TypeError):
-            yield from self.redis.expireat('my-key', 'timestamp')
-
-    @run_until_complete
-    def test_keys(self):
-        res = yield from self.redis.keys('*pattern*')
-        self.assertEqual(res, [])
-
-        yield from self.flushall()
-        res = yield from self.redis.keys('*')
-        self.assertEqual(res, [])
-
-        yield from self.add('my-key-1', 1)
-        yield from self.add('my-key-ab', 1)
-
-        res = yield from self.redis.keys('my-key-?')
-        self.assertEqual(res, [b'my-key-1'])
-        res = yield from self.redis.keys('my-key-*')
-        self.assertEqual(sorted(res), [b'my-key-1', b'my-key-ab'])
-
-        # test with encoding param
-        res = yield from self.redis.keys('my-key-*', encoding='utf-8')
-        self.assertEqual(sorted(res), ['my-key-1', 'my-key-ab'])
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.keys(None)
-
-    @no_cluster_test('Not supported on cluster')
-    @run_until_complete
-    @unittest.skipUnless(os.environ.get('TRAVIS'),
-                         "Configured to run on travis")
-    def test_migrate(self):
-        yield from self.add('my-key', 123)
-
-        conn2 = yield from self.create_redis(('localhost', 6380), db=2,
-                                             loop=self.loop)
-        yield from conn2.delete('my-key')
-        self.assertTrue((yield from self.redis.exists('my-key')))
-        self.assertFalse((yield from conn2.exists('my-key')))
-
-        ok = yield from self.redis.migrate('localhost', 6380, 'my-key',
-                                           2, 1000)
-        self.assertTrue(ok)
-        self.assertFalse((yield from self.redis.exists('my-key')))
-        self.assertTrue((yield from conn2.exists('my-key')))
-
-        with self.assertRaisesRegex(TypeError, "host .* str"):
-            yield from self.redis.migrate(None, 1234, 'key', 1, 23)
-        with self.assertRaisesRegex(TypeError, "args .* None"):
-            yield from self.redis.migrate('host', '1234',  None, 1, 123)
-        with self.assertRaisesRegex(TypeError, "dest_db .* int"):
-            yield from self.redis.migrate('host', 123, 'key', 1.0, 123)
-        with self.assertRaisesRegex(TypeError, "timeout .* int"):
-            yield from self.redis.migrate('host', '1234', 'key', 2, None)
-        with self.assertRaisesRegex(ValueError, "Got empty host"):
-            yield from self.redis.migrate('', '123', 'key', 1, 123)
-        with self.assertRaisesRegex(ValueError, "dest_db .* greater equal 0"):
-            yield from self.redis.migrate('host', 6379, 'key', -1, 1000)
-        with self.assertRaisesRegex(ValueError, "timeout .* greater equal 0"):
-            yield from self.redis.migrate('host', 6379, 'key', 1, -1000)
-
-    @no_cluster_test('Move is not available on cluster')
-    @run_until_complete
-    def test_move(self):
-        yield from self.flushall()
-        yield from self.add('my-key', 123)
-
-        self.assertEqual(self.redis.db, 0)
-        res = yield from self.redis.move('my-key', 1)
-        self.assertIs(res, True)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.move(None, 1)
-        with self.assertRaises(TypeError):
-            yield from self.redis.move('my-key', None)
-        with self.assertRaises(ValueError):
-            yield from self.redis.move('my-key', -1)
-        with self.assertRaises(TypeError):
-            yield from self.redis.move('my-key', 'not db')
-
-    @run_until_complete
-    def test_object_refcount(self):
-        yield from self.flushall()
-        yield from self.add('foo', 'bar')
-
-        res = yield from self.redis.object_refcount('foo')
-        self.assertEqual(res, 1)
-        res = yield from self.redis.object_refcount('non-existent-key')
-        self.assertIsNone(res)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.object_refcount(None)
-
-    @run_until_complete
-    def test_object_encoding(self):
-        yield from self.flushall()
-        yield from self.add('foo', 'bar')
-
-        res = yield from self.redis.object_encoding('foo')
-        if REDIS_VERSION < (3, 0, 0):
-            self.assertEqual(res, b'raw')
-        else:
-            self.assertEqual(res, b'embstr')
-        res = yield from self.redis.incr('key')
-        self.assertEqual(res, 1)
-        res = yield from self.redis.object_encoding('key')
-        self.assertEqual(res, b'int')
-        res = yield from self.redis.object_encoding('non-existent-key')
-        self.assertIsNone(res)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.object_encoding(None)
-
-    @run_until_complete
-    def test_object_idletime(self):
-        yield from self.flushall()
-        yield from self.add('foo', 'bar')
-
-        res = yield from self.redis.object_idletime('foo')
-        self.assertEqual(res, 0)
-
-        if REDIS_VERSION < (2, 8, 0):
-            # Redis at least 2.6.x requires more time to sleep to incr idletime
-            yield from asyncio.sleep(10, loop=self.loop)
-        else:
-            yield from asyncio.sleep(1, loop=self.loop)
-
-        res = yield from self.redis.object_idletime('foo')
-        self.assertGreaterEqual(res, 1)
-
-        res = yield from self.redis.object_idletime('non-existent-key')
-        self.assertIsNone(res)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.object_idletime(None)
-
-    @run_until_complete
-    def test_persist(self):
-        yield from self.add('my-key', 123)
-        res = yield from self.redis.expire('my-key', 10)
-        self.assertTrue(res)
-
-        res = yield from self.redis.persist('my-key')
-        self.assertIs(res, True)
-
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertEqual(res, -1)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.persist(None)
-
-    @run_until_complete
-    def test_pexpire(self):
-        yield from self.add('my-key', 123)
-        res = yield from self.redis.pexpire('my-key', 100)
-        self.assertIs(res, True)
-
-        res = yield from self.execute('TTL', 'my-key')
-        self.assertEqual(res, 0)
-        res = yield from self.execute('PTTL', 'my-key')
-        self.assertGreater(res, 0)
-
-        yield from self.add('my-key', 123)
-        res = yield from self.redis.pexpire('my-key', 1)
-        self.assertTrue(res)
-
-        yield from asyncio.sleep(.002, loop=self.loop)
-
-        res = yield from self.redis.exists('my-key')
-        self.assertFalse(res)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.pexpire(None, 0)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pexpire('my-key', 1.0)
-
-    @run_until_complete
-    def test_pexpireat(self):
-        yield from self.add('my-key', 123)
-        now = math.ceil(time.time() * 1000)
-        res = yield from self.redis.pexpireat('my-key', now + 100)
-        self.assertTrue(res)
-
-        res = yield from self.redis.ttl('my-key')
-        self.assertAlmostEqual(res, 0)
-        res = yield from self.redis.pttl('my-key')
-        self.assertAlmostEqual(res, 100, -2)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.pexpireat(None, 1234)
-        with self.assertRaises(TypeError):
-            yield from self.redis.pexpireat('key', 'timestamp')
-        with self.assertRaises(TypeError):
-            yield from self.redis.pexpireat('key', 1000.0)
-
-    @run_until_complete
-    def test_pttl(self):
-        yield from self.add('key', 'val')
-        res = yield from self.redis.pttl('key')
-        self.assertEqual(res, -1)
-        res = yield from self.redis.pttl('non-existent-key')
-        if REDIS_VERSION < (2, 8, 0):
-            self.assertEqual(res, -1)
-        else:
-            self.assertEqual(res, -2)
-
-        yield from self.redis.pexpire('key', 500)
-        res = yield from self.redis.pttl('key')
-        self.assertAlmostEqual(res, 500, -2)
-
-        with self.assertRaises(TypeError):
-            yield from self.redis.pttl(None)
-
-    @no_cluster_test('Would return random key from each node.')
-    @run_until_complete
-    def test_randomkey(self):
-        yield from self.flushall()
-        yield from self.add('key:1', 123)
-        yield from self.add('key:2', 123)
-        yield from self.add('key:3', 123)
-
-        res = yield from self.redis.randomkey()
-        self.assertIn(res, [b'key:1', b'key:2', b'key:3'])
-
-        # test with encoding param
-        res = yield from self.redis.randomkey(encoding='utf-8')
-        self.assertIn(res, ['key:1', 'key:2', 'key:3'])
-
-        yield from self.redis.connection.execute('flushdb')
-        res = yield from self.redis.randomkey()
-        self.assertIsNone(res)
-
-    @run_until_complete
-    def test_rename(self):
-        yield from self.add('{key:rename}:1', 'bar')
-        yield from self.redis.delete('{key:rename}:2')
-
-        res = yield from self.redis.rename('{key:rename}:1', '{key:rename}:2')
-        self.assertTrue(res)
-
-        with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
-            yield from self.redis.rename('{key:rename}:1', '{key:rename}:2')
-        with self.assertRaises(TypeError):
-            yield from self.redis.rename(None, 'key')
-        with self.assertRaises(TypeError):
-            yield from self.redis.rename('key', None)
-        with self.assertRaises(ValueError):
-            yield from self.redis.rename('key', 'key')
-
-        if REDIS_VERSION < (3, 2):
-            with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-                yield from self.redis.rename('key', b'key')
-
-    @run_until_complete
-    def test_renamenx(self):
-        yield from self.redis.delete('{key:renamenx}:1', '{key:renamenx}:2')
-        yield from self.add('{key:renamenx}:1', 123)
-
-        res = yield from self.redis.renamenx(
-            '{key:renamenx}:1', '{key:renamenx}:2')
-        self.assertTrue(res)
-        yield from self.add('{key:renamenx}:1', 123)
-        res = yield from self.redis.renamenx(
-            '{key:renamenx}:1', '{key:renamenx}:2')
-        self.assertFalse(res)
-
-        with self.assertRaisesRegex(ReplyError, 'ERR no such key'):
-            yield from self.redis.renamenx(
-                '{key:renamenx}:non-existing', '{key:renamenx}:1')
-        with self.assertRaises(TypeError):
-            yield from self.redis.renamenx(None, 'key')
-        with self.assertRaises(TypeError):
-            yield from self.redis.renamenx('key', None)
-        with self.assertRaises(ValueError):
-            yield from self.redis.renamenx('key', 'key')
-
-        if REDIS_VERSION < (3, 2):
-            with self.assertRaisesRegex(ReplyError, '.* objects are the same'):
-                yield from self.redis.renamenx('key', b'key')
-
-    @run_until_complete
-    def test_restore(self):
-        pass
-
-    @no_cluster_test('Scan command behaves differently on cluster')
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'SCAN is available since redis>=2.8.0')
-    @run_until_complete
-    def test_scan(self):
-        for i in range(1, 11):
-            foo_or_bar = 'bar' if i % 3 else 'foo'
-            key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
-            yield from self.add(key, i)
-
-        cursor, values = yield from self.redis.scan()
-        # values should be *>=* just in case some other tests left
-        # test keys
-        self.assertGreaterEqual(len(values), 10)
-
-        cursor, test_values = b'0', []
-        while cursor:
-            cursor, values = yield from self.redis.scan(
-                cursor=cursor, match=b'key:scan:foo*')
-            test_values.extend(values)
-        self.assertEqual(len(test_values), 3)
-
-        cursor, test_values = b'0', []
-        while cursor:
-            cursor, values = yield from self.redis.scan(
-                cursor=cursor, match=b'key:scan:bar:*')
-            test_values.extend(values)
-        self.assertEqual(len(test_values), 7)
-
-        # SCAN family functions do not guarantee that the number of
-        # elements returned per call are in a given range. So here
-        # just dummy test, that *count* argument does not break something
-        cursor = b'0'
-        test_values = []
-        while cursor:
-            cursor, values = yield from self.redis.scan(cursor=cursor,
-                                                        match=b'key:scan:*',
-                                                        count=2)
-
-            test_values.extend(values)
-        self.assertEqual(len(test_values), 10)
-
-    @cluster_test('Scan command behaves differently on cluster')
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'SCAN is available since redis>=2.8.0')
-    @run_until_complete
-    def test_scan_cluster(self):
-        yield from self.flushall()
-
-        for i in range(1, 11):
-            foo_or_bar = 'bar' if i % 3 else 'foo'
-            key = 'key:scan:{}:{}'.format(foo_or_bar, i)
-            yield from self.add(key, i)
-
-        values_per_node = yield from self.redis.scan()
-        values_per_node = set(frozenset(values) for values in values_per_node)
-        expected = {
-            frozenset([b'key:scan:bar:4', b'key:scan:foo:6',
-                       b'key:scan:bar:8']),
-            frozenset([b'key:scan:bar:1', b'key:scan:bar:2',
-                       b'key:scan:foo:3', b'key:scan:bar:5']),
-            frozenset([b'key:scan:bar:7', b'key:scan:foo:9',
-                       b'key:scan:bar:10'])
-        }
-        self.assertEqual(values_per_node, expected)
-
-    def _make_list(self, key, items):
-        yield from self.redis.delete(key)
+    await redis.expire('my-key', -1)
+    res = await redis.exists('my-key')
+    assert not res
+
+    res = await redis.expire('other-key', 1000)
+    assert res is False
+
+    await add(redis, 'my-key', 1)
+    res = await redis.expire('my-key', 10.0)
+    assert res is True
+    res = await redis.connection.execute('TTL', 'my-key')
+    assert res >= 10
+
+    with pytest.raises(TypeError):
+        await redis.expire(None, 123)
+    with pytest.raises(TypeError):
+        await redis.expire('my-key', 'timeout')
+
+
+@pytest.mark.run_loop
+async def test_expireat(redis):
+    await add(redis, 'my-key', 123)
+    now = math.ceil(time.time())
+
+    fut1 = redis.expireat('my-key', now + 10)
+    fut2 = redis.connection.execute('TTL', 'my-key')
+    assert (await fut1) is True
+    assert (await fut2) >= 10
+
+    now = time.time()
+    fut1 = redis.expireat('my-key', now + 10)
+    fut2 = redis.connection.execute('TTL', 'my-key')
+    assert (await fut1) is True
+    assert (await fut2) >= 10
+
+    res = await redis.expireat('my-key', -1)
+    assert res is True
+
+    res = await redis.exists('my-key')
+    assert not res
+
+    await add(redis, 'my-key', 123)
+
+    res = await redis.expireat('my-key', 0)
+    assert res is True
+
+    res = await redis.exists('my-key')
+    assert not res
+
+    await add(redis, 'my-key', 123)
+    with pytest.raises(TypeError):
+        await redis.expireat(None, 123)
+    with pytest.raises(TypeError):
+        await redis.expireat('my-key', 'timestamp')
+
+
+@pytest.mark.run_loop
+async def test_keys(redis):
+    res = await redis.keys('*pattern*')
+    assert res == []
+
+    await redis.connection.execute('FLUSHDB')
+    res = await redis.keys('*')
+    assert res == []
+
+    await add(redis, 'my-key-1', 1)
+    await add(redis, 'my-key-ab', 1)
+
+    res = await redis.keys('my-key-?')
+    assert res == [b'my-key-1']
+    res = await redis.keys('my-key-*')
+    assert sorted(res) == [b'my-key-1', b'my-key-ab']
+
+    # test with encoding param
+    res = await redis.keys('my-key-*', encoding='utf-8')
+    assert sorted(res) == ['my-key-1', 'my-key-ab']
+
+    with pytest.raises(TypeError):
+        await redis.keys(None)
+
+
+@pytest.mark.run_loop
+async def test_migrate(create_redis, loop, server, serverB):
+    redisA = await create_redis(server.tcp_address)
+    redisB = await create_redis(serverB.tcp_address, db=2)
+
+    await add(redisA, 'my-key', 123)
+
+    await redisB.delete('my-key')
+    assert (await redisA.exists('my-key'))
+    assert not (await redisB.exists('my-key'))
+
+    ok = await redisA.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 2, 1000)
+    assert ok is True
+    assert not (await redisA.exists('my-key'))
+    assert (await redisB.exists('my-key'))
+
+    with pytest.raises(TypeError, match="host .* str"):
+        await redisA.migrate(None, 1234, 'key', 1, 23)
+    with pytest.raises(TypeError, match="args .* None"):
+        await redisA.migrate('host', '1234',  None, 1, 123)
+    with pytest.raises(TypeError, match="dest_db .* int"):
+        await redisA.migrate('host', 123, 'key', 1.0, 123)
+    with pytest.raises(TypeError, match="timeout .* int"):
+        await redisA.migrate('host', '1234', 'key', 2, None)
+    with pytest.raises(ValueError, match="Got empty host"):
+        await redisA.migrate('', '123', 'key', 1, 123)
+    with pytest.raises(ValueError, match="dest_db .* greater equal 0"):
+        await redisA.migrate('host', 6379, 'key', -1, 1000)
+    with pytest.raises(ValueError, match="timeout .* greater equal 0"):
+        await redisA.migrate('host', 6379, 'key', 1, -1000)
+
+
+@pytest.redis_version(
+    3, 0, 0, reason="Copy/Replace flags available since Redis 3.0")
+@pytest.mark.run_loop
+async def test_migrate_copy_replace(create_redis, loop, server, serverB):
+    redisA = await create_redis(server.tcp_address)
+    redisB = await create_redis(serverB.tcp_address, db=0)
+
+    await add(redisA, 'my-key', 123)
+    await redisB.delete('my-key')
+
+    ok = await redisA.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 0, 1000, copy=True)
+    assert ok is True
+    assert (await redisA.get('my-key')) == b'123'
+    assert (await redisB.get('my-key')) == b'123'
+
+    assert (await redisA.set('my-key', 'val'))
+    ok = await redisA.migrate(
+        'localhost', serverB.tcp_address.port, 'my-key', 2, 1000, replace=True)
+    assert (await redisA.get('my-key')) is None
+    assert (await redisB.get('my-key'))
+
+
+@pytest.redis_version(
+    3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
+@pytest.mark.run_loop
+async def test_migrate_keys(create_redis, loop, server, serverB):
+    redisA = await create_redis(server.tcp_address)
+    redisB = await create_redis(serverB.tcp_address, db=0)
+
+    await add(redisA, 'key1', 123)
+    await add(redisA, 'key2', 123)
+    await add(redisA, 'key3', 123)
+    await redisB.delete('key1', 'key2', 'key3')
+
+    ok = await redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port,
+        ('key1', 'key2', 'key3', 'non-existing-key'),
+        dest_db=0, timeout=1000)
+    assert ok is True
+
+    assert (await redisB.get('key1')) == b'123'
+    assert (await redisB.get('key2')) == b'123'
+    assert (await redisB.get('key3')) == b'123'
+    assert (await redisA.get('key1')) is None
+    assert (await redisA.get('key2')) is None
+    assert (await redisA.get('key3')) is None
+
+    ok = await redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port, ('key1', 'key2', 'key3'),
+        dest_db=0, timeout=1000)
+    assert not ok
+    ok = await redisB.migrate_keys(
+        'localhost', server.tcp_address.port, ('key1', 'key2', 'key3'),
+        dest_db=0, timeout=1000,
+        copy=True)
+    assert ok
+    assert (await redisB.get('key1')) == b'123'
+    assert (await redisB.get('key2')) == b'123'
+    assert (await redisB.get('key3')) == b'123'
+    assert (await redisA.get('key1')) == b'123'
+    assert (await redisA.get('key2')) == b'123'
+    assert (await redisA.get('key3')) == b'123'
+
+    assert (await redisA.set('key1', 'val'))
+    assert (await redisA.set('key2', 'val'))
+    assert (await redisA.set('key3', 'val'))
+    ok = await redisA.migrate_keys(
+        'localhost', serverB.tcp_address.port,
+        ('key1', 'key2', 'key3', 'non-existing-key'),
+        dest_db=0, timeout=1000, replace=True)
+    assert ok is True
+
+    assert (await redisB.get('key1')) == b'val'
+    assert (await redisB.get('key2')) == b'val'
+    assert (await redisB.get('key3')) == b'val'
+    assert (await redisA.get('key1')) is None
+    assert (await redisA.get('key2')) is None
+    assert (await redisA.get('key3')) is None
+
+
+@pytest.mark.run_loop
+async def test_migrate__exceptions(redis, loop, server, unused_port):
+    await add(redis, 'my-key', 123)
+
+    assert (await redis.exists('my-key'))
+
+    with pytest.raises(ReplyError, match="IOERR .* timeout .*"):
+        assert not (await redis.migrate(
+            'localhost', unused_port(),
+            'my-key', dest_db=30, timeout=10))
+
+
+@pytest.redis_version(
+    3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
+@pytest.mark.skipif(
+    sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
+@pytest.mark.run_loop
+async def test_migrate_keys__errors(redis):
+    with pytest.raises(TypeError, match="host .* str"):
+        await redis.migrate_keys(None, 1234, 'key', 1, 23)
+    with pytest.raises(TypeError, match="keys .* list or tuple"):
+        await redis.migrate_keys('host', '1234',  None, 1, 123)
+    with pytest.raises(TypeError, match="dest_db .* int"):
+        await redis.migrate_keys('host', 123, ('key',), 1.0, 123)
+    with pytest.raises(TypeError, match="timeout .* int"):
+        await redis.migrate_keys('host', '1234', ('key',), 2, None)
+    with pytest.raises(ValueError, match="Got empty host"):
+        await redis.migrate_keys('', '123', ('key',), 1, 123)
+    with pytest.raises(ValueError, match="dest_db .* greater equal 0"):
+        await redis.migrate_keys('host', 6379, ('key',), -1, 1000)
+    with pytest.raises(ValueError, match="timeout .* greater equal 0"):
+        await redis.migrate_keys('host', 6379, ('key',), 1, -1000)
+    with pytest.raises(ValueError, match="keys .* empty"):
+        await redis.migrate_keys('host', '1234', (), 2, 123)
+
+
+@pytest.mark.run_loop
+async def test_move(redis):
+    await add(redis, 'my-key', 123)
+
+    assert redis.db == 0
+    res = await redis.move('my-key', 1)
+    assert res is True
+
+    with pytest.raises(TypeError):
+        await redis.move(None, 1)
+    with pytest.raises(TypeError):
+        await redis.move('my-key', None)
+    with pytest.raises(ValueError):
+        await redis.move('my-key', -1)
+    with pytest.raises(TypeError):
+        await redis.move('my-key', 'not db')
+
+
+@pytest.mark.run_loop
+async def test_object_refcount(redis):
+    await add(redis, 'foo', 'bar')
+
+    res = await redis.object_refcount('foo')
+    assert res == 1
+    res = await redis.object_refcount('non-existent-key')
+    assert res is None
+
+    with pytest.raises(TypeError):
+        await redis.object_refcount(None)
+
+
+@pytest.mark.run_loop
+async def test_object_encoding(redis, server):
+    await add(redis, 'foo', 'bar')
+
+    res = await redis.object_encoding('foo')
+
+    if server.version < (3, 0, 0):
+        assert res == b'raw'
+    else:
+        assert res == b'embstr'
+
+    res = await redis.incr('key')
+    assert res == 1
+    res = await redis.object_encoding('key')
+    assert res == b'int'
+    res = await redis.object_encoding('non-existent-key')
+    assert res is None
+
+    with pytest.raises(TypeError):
+        await redis.object_encoding(None)
+
+
+@pytest.mark.run_loop(timeout=20)
+async def test_object_idletime(redis, loop, server):
+    await add(redis, 'foo', 'bar')
+
+    res = await redis.object_idletime('foo')
+    # NOTE: sometimes travis-ci is too slow
+    assert res >= 0
+
+    res = 0
+    while not res:
+        res = await redis.object_idletime('foo')
+        await asyncio.sleep(.5, loop=loop)
+    assert res >= 1
+
+    res = await redis.object_idletime('non-existent-key')
+    assert res is None
+
+    with pytest.raises(TypeError):
+        await redis.object_idletime(None)
+
+
+@pytest.mark.run_loop
+async def test_persist(redis):
+    await add(redis, 'my-key', 123)
+    res = await redis.expire('my-key', 10)
+    assert res is True
+
+    res = await redis.persist('my-key')
+    assert res is True
+
+    res = await redis.connection.execute('TTL', 'my-key')
+    assert res == -1
+
+    with pytest.raises(TypeError):
+        await redis.persist(None)
+
+
+@pytest.mark.run_loop
+async def test_pexpire(redis, loop):
+    await add(redis, 'my-key', 123)
+    res = await redis.pexpire('my-key', 100)
+    assert res is True
+
+    res = await redis.connection.execute('TTL', 'my-key')
+    assert res == 0
+    res = await redis.connection.execute('PTTL', 'my-key')
+    assert res > 0
+
+    await add(redis, 'my-key', 123)
+    res = await redis.pexpire('my-key', 1)
+    assert res is True
+
+    # XXX: tests now looks strange to me.
+    await asyncio.sleep(.2, loop=loop)
+
+    res = await redis.exists('my-key')
+    assert not res
+
+    with pytest.raises(TypeError):
+        await redis.pexpire(None, 0)
+    with pytest.raises(TypeError):
+        await redis.pexpire('my-key', 1.0)
+
+
+@pytest.mark.run_loop
+async def test_pexpireat(redis):
+    await add(redis, 'my-key', 123)
+    now = math.ceil((await redis.time()) * 1000)
+    fut1 = redis.pexpireat('my-key', now + 2000)
+    fut2 = redis.ttl('my-key')
+    fut3 = redis.pttl('my-key')
+    assert (await fut1) is True
+    assert (await fut2) == 2
+    pytest.assert_almost_equal((await fut3), 2000, -3)
+
+    with pytest.raises(TypeError):
+        await redis.pexpireat(None, 1234)
+    with pytest.raises(TypeError):
+        await redis.pexpireat('key', 'timestamp')
+    with pytest.raises(TypeError):
+        await redis.pexpireat('key', 1000.0)
+
+
+@pytest.mark.run_loop
+async def test_pttl(redis, server):
+    await add(redis, 'key', 'val')
+    res = await redis.pttl('key')
+    assert res == -1
+    res = await redis.pttl('non-existent-key')
+    if server.version < (2, 8, 0):
+        assert res == -1
+    else:
+        assert res == -2
+
+    await redis.pexpire('key', 500)
+    res = await redis.pttl('key')
+    pytest.assert_almost_equal(res, 500, -2)
+
+    with pytest.raises(TypeError):
+        await redis.pttl(None)
+
+
+@pytest.mark.run_loop
+async def test_randomkey(redis):
+    await add(redis, 'key:1', 123)
+    await add(redis, 'key:2', 123)
+    await add(redis, 'key:3', 123)
+
+    res = await redis.randomkey()
+    assert res in [b'key:1', b'key:2', b'key:3']
+
+    # test with encoding param
+    res = await redis.randomkey(encoding='utf-8')
+    assert res in ['key:1', 'key:2', 'key:3']
+
+    await redis.connection.execute('flushdb')
+    res = await redis.randomkey()
+    assert res is None
+
+
+@pytest.mark.run_loop
+async def test_rename(redis, server):
+    await add(redis, 'foo', 'bar')
+    await redis.delete('bar')
+
+    res = await redis.rename('foo', 'bar')
+    assert res is True
+
+    with pytest.raises(ReplyError, match='ERR no such key'):
+        await redis.rename('foo', 'bar')
+    with pytest.raises(TypeError):
+        await redis.rename(None, 'bar')
+    with pytest.raises(TypeError):
+        await redis.rename('foo', None)
+    with pytest.raises(ValueError):
+        await redis.rename('foo', 'foo')
+
+    if server.version < (3, 2):
+        with pytest.raises(ReplyError, match='.* objects are the same'):
+            await redis.rename('bar', b'bar')
+
+
+@pytest.mark.run_loop
+async def test_renamenx(redis, server):
+    await redis.delete('foo', 'bar')
+    await add(redis, 'foo', 123)
+
+    res = await redis.renamenx('foo', 'bar')
+    assert res is True
+
+    await add(redis, 'foo', 123)
+    res = await redis.renamenx('foo', 'bar')
+    assert res is False
+
+    with pytest.raises(ReplyError, match='ERR no such key'):
+        await redis.renamenx('baz', 'foo')
+    with pytest.raises(TypeError):
+        await redis.renamenx(None, 'foo')
+    with pytest.raises(TypeError):
+        await redis.renamenx('foo', None)
+    with pytest.raises(ValueError):
+        await redis.renamenx('foo', 'foo')
+
+    if server.version < (3, 2):
+        with pytest.raises(ReplyError, match='.* objects are the same'):
+            await redis.renamenx('foo', b'foo')
+
+
+@pytest.mark.run_loop
+async def test_restore(redis):
+    ok = await redis.set('key', 'value')
+    assert ok
+    dump = await redis.dump('key')
+    assert dump is not None
+    ok = await redis.delete('key')
+    assert ok
+    assert b'OK' == (await redis.restore('key', 0, dump))
+    assert (await redis.get('key')) == b'value'
+
+
+@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_scan(redis):
+    for i in range(1, 11):
+        foo_or_bar = 'bar' if i % 3 else 'foo'
+        key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+        await add(redis, key, i)
+
+    cursor, values = await redis.scan()
+    # values should be *>=* just in case some other tests left
+    # test keys
+    assert len(values) >= 10
+
+    cursor, test_values = b'0', []
+    while cursor:
+        cursor, values = await redis.scan(
+            cursor=cursor, match=b'key:scan:foo*')
+        test_values.extend(values)
+    assert len(test_values) == 3
+
+    cursor, test_values = b'0', []
+    while cursor:
+        cursor, values = await redis.scan(
+            cursor=cursor, match=b'key:scan:bar:*')
+        test_values.extend(values)
+    assert len(test_values) == 7
+
+    # SCAN family functions do not guarantee that the number of
+    # elements returned per call are in a given range. So here
+    # just dummy test, that *count* argument does not break something
+    cursor = b'0'
+    test_values = []
+    while cursor:
+        cursor, values = await redis.scan(cursor=cursor,
+                                          match=b'key:scan:*',
+                                          count=2)
+
+        test_values.extend(values)
+    assert len(test_values) == 10
+
+
+@pytest.mark.run_loop
+async def test_sort(redis):
+    async def _make_list(key, items):
+        await redis.delete(key)
         for i in items:
-            yield from self.redis.rpush(key, i)
+            await redis.rpush(key, i)
 
-    @run_until_complete
-    def test_sort(self):
-        yield from self._make_list('a', '4231')
-        res = yield from self.redis.sort('a')
-        self.assertEqual(res, [b'1', b'2', b'3', b'4'])
+    await _make_list('a', '4231')
+    res = await redis.sort('a')
+    assert res == [b'1', b'2', b'3', b'4']
 
-        res = yield from self.redis.sort('a', offset=2, count=2)
-        self.assertEqual(res, [b'3', b'4'])
+    res = await redis.sort('a', offset=2, count=2)
+    assert res == [b'3', b'4']
 
-        res = yield from self.redis.sort('a', asc=b'DESC')
-        self.assertEqual(res, [b'4', b'3', b'2', b'1'])
+    res = await redis.sort('a', asc=b'DESC')
+    assert res == [b'4', b'3', b'2', b'1']
 
-        yield from self._make_list('a', 'dbca')
-        res = yield from self.redis.sort(
-            'a', asc=b'DESC', alpha=True, offset=2, count=2
-        )
-        self.assertEqual(res, [b'b', b'a'])
+    await _make_list('a', 'dbca')
+    res = await redis.sort(
+        'a', asc=b'DESC', alpha=True, offset=2, count=2
+    )
+    assert res == [b'b', b'a']
 
-    @no_cluster_test('BY option not supported on cluster')
-    @run_until_complete
-    def test_sort_by(self):
-        yield from self.redis.set('key:1', 10)
-        yield from self.redis.set('key:2', 4)
-        yield from self.redis.set('key:3', 7)
-        yield from self._make_list('a', '321')
+    await redis.set('key:1', 10)
+    await redis.set('key:2', 4)
+    await redis.set('key:3', 7)
+    await _make_list('a', '321')
 
-        res = yield from self.redis.sort('a', by='key:*')
-        self.assertEqual(res, [b'2', b'3', b'1'])
+    res = await redis.sort('a', by='key:*')
+    assert res == [b'2', b'3', b'1']
 
-        res = yield from self.redis.sort('a', by='nosort')
-        self.assertEqual(res, [b'3', b'2', b'1'])
+    res = await redis.sort('a', by='nosort')
+    assert res == [b'3', b'2', b'1']
 
-        res = yield from self.redis.sort('a', by='key:*', store='sorted_a')
-        self.assertEqual(res, 3)
-        res = yield from self.redis.lrange('sorted_a', 0, -1)
-        self.assertEqual(res, [b'2', b'3', b'1'])
+    res = await redis.sort('a', by='key:*', store='sorted_a')
+    assert res == 3
+    res = await redis.lrange('sorted_a', 0, -1)
+    assert res == [b'2', b'3', b'1']
 
-        yield from self.redis.set('value:1', 20)
-        yield from self.redis.set('value:2', 30)
-        yield from self.redis.set('value:3', 40)
-        res = yield from self.redis.sort('a', 'value:*', by='key:*')
-        self.assertEqual(res, [b'30', b'40', b'20'])
+    await redis.set('value:1', 20)
+    await redis.set('value:2', 30)
+    await redis.set('value:3', 40)
+    res = await redis.sort('a', 'value:*', by='key:*')
+    assert res == [b'30', b'40', b'20']
 
-        yield from self.redis.hset('data_1', 'weight', 30)
-        yield from self.redis.hset('data_2', 'weight', 20)
-        yield from self.redis.hset('data_3', 'weight', 10)
-        yield from self.redis.hset('hash_1', 'field', 20)
-        yield from self.redis.hset('hash_2', 'field', 30)
-        yield from self.redis.hset('hash_3', 'field', 10)
-        res = yield from self.redis.sort(
-            'a', 'hash_*->field', by='data_*->weight'
-        )
-        self.assertEqual(res, [b'10', b'30', b'20'])
+    await redis.hset('data_1', 'weight', 30)
+    await redis.hset('data_2', 'weight', 20)
+    await redis.hset('data_3', 'weight', 10)
+    await redis.hset('hash_1', 'field', 20)
+    await redis.hset('hash_2', 'field', 30)
+    await redis.hset('hash_3', 'field', 10)
+    res = await redis.sort(
+        'a', 'hash_*->field', by='data_*->weight'
+    )
+    assert res == [b'10', b'30', b'20']
 
-    @run_until_complete
-    def test_ttl(self):
-        yield from self.add('key', 'val')
-        res = yield from self.redis.ttl('key')
-        self.assertEqual(res, -1)
-        res = yield from self.redis.ttl('non-existent-key')
-        if REDIS_VERSION < (2, 8, 0):
-            self.assertEqual(res, -1)
+
+@pytest.mark.run_loop
+async def test_ttl(redis, server):
+    await add(redis, 'key', 'val')
+    res = await redis.ttl('key')
+    assert res == -1
+    res = await redis.ttl('non-existent-key')
+    if server.version < (2, 8, 0):
+        assert res == -1
+    else:
+        assert res == -2
+
+    await redis.expire('key', 10)
+    res = await redis.ttl('key')
+    assert res >= 9
+
+    with pytest.raises(TypeError):
+        await redis.ttl(None)
+
+
+@pytest.mark.run_loop
+async def test_type(redis):
+    await add(redis, 'key', 'val')
+    res = await redis.type('key')
+    assert res == b'string'
+
+    await redis.delete('key')
+    await redis.incr('key')
+    res = await redis.type('key')
+    assert res == b'string'
+
+    await redis.delete('key')
+    await redis.sadd('key', 'val')
+    res = await redis.type('key')
+    assert res == b'set'
+
+    res = await redis.type('non-existent-key')
+    assert res == b'none'
+
+    with pytest.raises(TypeError):
+        await redis.type(None)
+
+
+@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@pytest.mark.run_loop
+async def test_iscan(redis):
+    full = set()
+    foo = set()
+    bar = set()
+    for i in range(1, 11):
+        is_bar = i % 3
+        foo_or_bar = 'bar' if is_bar else 'foo'
+        key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
+        full.add(key)
+        if is_bar:
+            bar.add(key)
         else:
-            self.assertEqual(res, -2)
+            foo.add(key)
+        assert await redis.set(key, i) is True
 
-        yield from self.redis.expire('key', 10)
-        res = yield from self.redis.ttl('key')
-        self.assertGreaterEqual(res, 9)
+    async def coro(cmd):
+        lst = []
+        async for i in cmd:
+            lst.append(i)
+        return lst
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.ttl(None)
+    ret = await coro(redis.iscan())
+    assert len(ret) >= 10
 
-    @run_until_complete
-    def test_type(self):
-        yield from self.add('key', 'val')
-        res = yield from self.redis.type('key')
-        self.assertEqual(res, b'string')
+    ret = await coro(redis.iscan(match='key:scan:*'))
+    assert 10 == len(ret)
+    assert set(ret) == full
 
-        yield from self.redis.delete('key')
-        yield from self.redis.incr('key')
-        res = yield from self.redis.type('key')
-        self.assertEqual(res, b'string')
+    ret = await coro(redis.iscan(match='key:scan:foo*'))
+    assert set(ret) == foo
 
-        yield from self.redis.delete('key')
-        yield from self.redis.sadd('key', 'val')
-        res = yield from self.redis.type('key')
-        self.assertEqual(res, b'set')
+    ret = await coro(redis.iscan(match='key:scan:bar*'))
+    assert set(ret) == bar
 
-        res = yield from self.redis.type('non-existent-key')
-        self.assertEqual(res, b'none')
+    # SCAN family functions do not guarantee that the number of
+    # elements returned per call are in a given range. So here
+    # just dummy test, that *count* argument does not break something
 
-        with self.assertRaises(TypeError):
-            yield from self.redis.type(None)
-
-    @no_cluster_test('iscan not yet implemented on cluster')
-    @unittest.skipUnless(PY_35,
-                         'Python 3.5+ required')
-    @unittest.skipIf(REDIS_VERSION < (2, 8, 0),
-                     'SCAN is available since redis>=2.8.0')
-    @run_until_complete
-    def test_iscan(self):
-        full = set()
-        foo = set()
-        bar = set()
-        for i in range(1, 11):
-            is_bar = i % 3
-            foo_or_bar = 'bar' if is_bar else 'foo'
-            key = 'key:scan:{}:{}'.format(foo_or_bar, i).encode('utf-8')
-            full.add(key)
-            if is_bar:
-                bar.add(key)
-            else:
-                foo.add(key)
-            yield from self.add(key, i)
-
-        s1 = dedent('''\
-        async def coro(cmd):
-            lst = []
-            async for i in cmd:
-                lst.append(i)
-            return lst
-        ''')
-
-        lcl = {}
-        exec(s1, globals(), lcl)
-
-        coro = lcl['coro']
-
-        ret = yield from coro(self.redis.iscan())
-
-        self.assertGreaterEqual(len(ret), 10)
-
-        ret = yield from coro(self.redis.iscan(match='key:scan:*'))
-        self.assertEqual(10, len(ret), ret)
-        self.assertEqual(set(ret), full)
-
-        ret = yield from coro(self.redis.iscan(match='key:scan:foo*'))
-        self.assertEqual(set(ret), foo)
-
-        ret = yield from coro(self.redis.iscan(match='key:scan:bar*'))
-        self.assertEqual(set(ret), bar)
-
-        # SCAN family functions do not guarantee that the number of
-        # elements returned per call are in a given range. So here
-        # just dummy test, that *count* argument does not break something
-
-        ret = yield from coro(self.redis.iscan(match='key:scan:*', count=2))
-        self.assertEqual(10, len(ret), ret)
-        self.assertEqual(set(ret), full)
+    ret = await coro(redis.iscan(match='key:scan:*', count=2))
+    assert 10 == len(ret)
+    assert set(ret) == full
