@@ -12,7 +12,7 @@ from aioredis import (
     RedisError,
     ReplyError,
     Channel,
-    MaxClientsError
+    MaxClientsError,
     )
 
 
@@ -113,7 +113,8 @@ async def test_connect_maxclients(create_connection, loop, start_server):
         server.tcp_address, loop=loop)
     await conn.execute(b'CONFIG', b'SET', 'maxclients', 1)
 
-    with pytest.raises((MaxClientsError, ConnectionError)):
+    errors = (MaxClientsError, ConnectionClosedError, ConnectionError)
+    with pytest.raises(errors):
         conn2 = await create_connection(
             server.tcp_address, loop=loop)
         await conn2.execute('ping')
