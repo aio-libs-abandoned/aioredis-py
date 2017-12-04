@@ -12,6 +12,7 @@ import tempfile
 import atexit
 
 from collections import namedtuple
+from urllib.parse import urlencode, urlunparse
 from async_timeout import timeout as async_timeout
 
 import aioredis
@@ -20,7 +21,8 @@ import aioredis.sentinel
 
 TCPAddress = namedtuple('TCPAddress', 'host port')
 
-RedisServer = namedtuple('RedisServer', 'name tcp_address unixsocket version')
+RedisServer = namedtuple('RedisServer',
+                         'name tcp_address unixsocket version password')
 
 SentinelServer = namedtuple('SentinelServer',
                             'name tcp_address unixsocket version masters')
@@ -61,10 +63,9 @@ def unused_port():
 def create_connection(_closable, loop):
     """Wrapper around aioredis.create_connection."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        conn = yield from aioredis.create_connection(*args, **kw)
+        conn = await aioredis.create_connection(*args, **kw)
         _closable(conn)
         return conn
     return f
@@ -78,10 +79,9 @@ def create_redis(_closable, loop, request):
     """Wrapper around aioredis.create_redis."""
     factory = request.param
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        redis = yield from factory(*args, **kw)
+        redis = await factory(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -91,10 +91,9 @@ def create_redis(_closable, loop, request):
 def create_pool(_closable, loop):
     """Wrapper around aioredis.create_pool."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        redis = yield from aioredis.create_pool(*args, **kw)
+        redis = await aioredis.create_pool(*args, **kw)
         _closable(redis)
         return redis
     return f
@@ -104,10 +103,9 @@ def create_pool(_closable, loop):
 def create_sentinel(_closable, loop):
     """Helper instantiating RedisSentinel client."""
 
-    @asyncio.coroutine
-    def f(*args, **kw):
+    async def f(*args, **kw):
         kw.setdefault('loop', loop)
-        client = yield from aioredis.sentinel.create_sentinel(*args, **kw)
+        client = await aioredis.sentinel.create_sentinel(*args, **kw)
         _closable(client)
         return client
     return f
@@ -179,6 +177,31 @@ def sentinel(start_sentinel, request, start_server):
     return start_sentinel('main', masterA, master_no_fail)
 
 
+@pytest.fixture(params=['path', 'query'])
+def server_tcp_url(server, request):
+
+    def make(**kwargs):
+        netloc = '{0.host}:{0.port}'.format(server.tcp_address)
+        path = ''
+        if request.param == 'path':
+            if 'password' in kwargs:
+                netloc = ':{0}@{1.host}:{1.port}'.format(
+                    kwargs.pop('password'), server.tcp_address)
+            if 'db' in kwargs:
+                path = '/{}'.format(kwargs.pop('db'))
+        query = urlencode(kwargs)
+        return urlunparse(('redis', netloc, path, '', query, ''))
+    return make
+
+
+@pytest.fixture
+def server_unix_url(server):
+
+    def make(**kwargs):
+        query = urlencode(kwargs)
+        return urlunparse(('unix', '', server.unixsocket, '', query, ''))
+    return make
+
 # Internal stuff #
 
 
@@ -227,13 +250,6 @@ def format_version(srv):
     return 'redis_v{}'.format('.'.join(map(str, VERSIONS[srv])))
 
 
-@pytest.fixture(scope='session', params=REDIS_SERVERS, ids=format_version)
-def server_bin(request):
-    """Common for start_server and start_sentinel server bin path parameter.
-    """
-    return request.param
-
-
 @pytest.fixture(scope='session')
 def start_server(_proc, request, unused_port, server_bin):
     """Starts Redis server instance.
@@ -256,7 +272,7 @@ def start_server(_proc, request, unused_port, server_bin):
             yield True
         raise RuntimeError("Redis startup timeout expired")
 
-    def maker(name, config_lines=None, *, slaveof=None):
+    def maker(name, config_lines=None, *, slaveof=None, password=None):
         assert slaveof is None or isinstance(slaveof, RedisServer), slaveof
         if name in servers:
             return servers[name]
@@ -283,12 +299,16 @@ def start_server(_proc, request, unused_port, server_bin):
                 if unixsocket:
                     write('unixsocket', unixsocket)
                     tmp_files.append(unixsocket)
+                if password:
+                    write('requirepass "{}"'.format(password))
                 write('# extra config')
                 for line in config_lines:
                     write(line)
                 if slaveof is not None:
                     write("slaveof {0.tcp_address.host} {0.tcp_address.port}"
                           .format(slaveof))
+                    if password:
+                        write('masterauth "{}"'.format(password))
             args = [config]
             tmp_files.append(config)
         else:
@@ -302,13 +322,20 @@ def start_server(_proc, request, unused_port, server_bin):
                 args += [
                     '--unixsocket', unixsocket,
                     ]
+            if password:
+                args += [
+                    '--requirepass "{}"'.format(password)
+                    ]
             if slaveof is not None:
                 args += [
                     '--slaveof',
                     str(slaveof.tcp_address.host),
                     str(slaveof.tcp_address.port),
                     ]
-
+                if password:
+                    args += [
+                        '--masterauth "{}"'.format(password)
+                    ]
         f = open(stdout_file, 'w')
         atexit.register(f.close)
         proc = _proc(server_bin, *args,
@@ -331,7 +358,7 @@ def start_server(_proc, request, unused_port, server_bin):
                         print(name, ":", log, end='')
                     if 'sync: Finished with success' in log:
                         break
-        info = RedisServer(name, tcp_address, unixsocket, version)
+        info = RedisServer(name, tcp_address, unixsocket, version, password)
         servers.setdefault(name, info)
         return info
 
@@ -383,6 +410,7 @@ def start_sentinel(_proc, request, unused_port, server_bin):
                       '127.0.0.1', master.tcp_address.port, quorum)
                 write('sentinel down-after-milliseconds', master.name, '3000')
                 write('sentinel failover-timeout', master.name, '3000')
+                write('sentinel auth-pass', master.name, master.password)
 
         f = open(stdout_file, 'w')
         atexit.register(f.close)
@@ -437,14 +465,8 @@ def ssl_proxy(_proc, request, unused_port):
     assert os.path.exists(dhfile), \
         "Missing SSL DH params, run `make certificate` to generate new one"
 
-    if hasattr(ssl, 'create_default_context'):
-        ssl_ctx = ssl.create_default_context(cafile=cafile)
-    else:
-        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        ssl_ctx.load_verify_locations(cafile=cafile)
-    if hasattr(ssl_ctx, 'check_hostname'):
-        # available since python 3.4
-        ssl_ctx.check_hostname = False
+    ssl_ctx = ssl.create_default_context(cafile=cafile)
+    ssl_ctx.check_hostname = False
     ssl_ctx.verify_mode = ssl.CERT_NONE
     ssl_ctx.load_dh_params(dhfile)
 
@@ -524,10 +546,9 @@ def pytest_pyfunc_call(pyfuncitem):
         return True
 
 
-@asyncio.coroutine
-def _wait_coro(corofunc, kwargs, timeout, loop):
+async def _wait_coro(corofunc, kwargs, timeout, loop):
     with async_timeout(timeout, loop=loop):
-        return (yield from corofunc(**kwargs))
+        return (await corofunc(**kwargs))
 
 
 def pytest_runtest_setup(item):
@@ -566,6 +587,18 @@ def pytest_configure(config):
     VERSIONS.update({srv: _read_server_version(srv)
                      for srv in REDIS_SERVERS})
     assert VERSIONS, ("Expected to detect redis versions", REDIS_SERVERS)
+
+    class DynamicFixturePlugin:
+        @pytest.fixture(scope='session',
+                        params=REDIS_SERVERS,
+                        ids=format_version)
+        def server_bin(self, request):
+            """Common for start_server and start_sentinel
+            server bin path parameter.
+            """
+            return request.param
+    config.pluginmanager.register(DynamicFixturePlugin(), 'server-bin-fixture')
+
     if config.getoption('--uvloop'):
         try:
             import uvloop

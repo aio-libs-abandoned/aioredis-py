@@ -11,12 +11,8 @@ if platform.python_implementation() == 'CPython':
 
 PY_VER = sys.version_info
 
-if PY_VER >= (3, 4):
-    pass
-elif PY_VER >= (3, 3):
-    install_requires.append('asyncio')
-else:
-    raise RuntimeError("aioredis doesn't support Python version prior 3.3")
+if PY_VER < (3, 5):
+    raise RuntimeError("aioredis doesn't support Python version prior 3.5")
 
 
 def read(*parts):
@@ -42,9 +38,9 @@ classifiers = [
     'Development Status :: 4 - Beta',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.3',
-    'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3 :: Only',
     'Operating System :: POSIX',
     'Environment :: Web Environment',
     'Intended Audience :: Developers',

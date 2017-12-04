@@ -1,7 +1,4 @@
-from aioredis.util import wait_convert, PY_35
-
-if PY_35:
-    from aioredis.util import _ScanIterPairs
+from aioredis.util import wait_convert, _NOTSET, _ScanIter
 
 
 class SortedSetCommandsMixin:
@@ -18,7 +15,10 @@ class SortedSetCommandsMixin:
     ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
     ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
 
-    def zadd(self, key, score, member, *pairs):
+    ZSET_IF_NOT_EXIST = 'ZSET_IF_NOT_EXIST'  # NX
+    ZSET_IF_EXIST = 'ZSET_IF_EXIST'  # XX
+
+    def zadd(self, key, score, member, *pairs, exist=None):
         """Add one or more members to a sorted set or update its score.
 
         :raises TypeError: score not int or float
@@ -32,7 +32,17 @@ class SortedSetCommandsMixin:
         scores = (item for i, item in enumerate(pairs) if i % 2 == 0)
         if any(not isinstance(s, (int, float)) for s in scores):
             raise TypeError("all scores must be int or float")
-        return self.execute(b'ZADD', key, score, member, *pairs)
+
+        args = []
+        if exist is self.ZSET_IF_EXIST:
+            args.append(b'XX')
+        elif exist is self.ZSET_IF_NOT_EXIST:
+            args.append(b'NX')
+
+        args.extend([score, member])
+        if pairs:
+            args.extend(pairs)
+        return self.execute(b'ZADD', key, *args)
 
     def zcard(self, key):
         """Get the number of members in a sorted set."""
@@ -113,7 +123,8 @@ class SortedSetCommandsMixin:
             max = (b'[' if include_max else b'(') + max
         return self.execute(b'ZLEXCOUNT', key, min, max)
 
-    def zrange(self, key, start=0, stop=-1, withscores=False):
+    def zrange(self, key, start=0, stop=-1, withscores=False,
+               encoding=_NOTSET):
         """Return a range of members in a sorted set, by index.
 
         :raises TypeError: if start is not int
@@ -127,13 +138,15 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        fut = self.execute(b'ZRANGE', key, start, stop, *args)
+        fut = self.execute(b'ZRANGE', key, start, stop, *args,
+                           encoding=encoding)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
     def zrangebylex(self, key, min=b'-', max=b'+', include_min=True,
-                    include_max=True, offset=None, count=None):
+                    include_max=True, offset=None, count=None,
+                    encoding=_NOTSET):
         """Return a range of members in a sorted set, by lexicographical range.
 
         :raises TypeError: if min is not bytes
@@ -163,11 +176,12 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
 
-        return self.execute(b'ZRANGEBYLEX', key, min, max, *args)
+        return self.execute(b'ZRANGEBYLEX', key, min, max, *args,
+                            encoding=encoding)
 
     def zrangebyscore(self, key, min=float('-inf'), max=float('inf'),
                       withscores=False, offset=None, count=None,
-                      *, exclude=None):
+                      *, exclude=None, encoding=_NOTSET):
         """Return a range of members in a sorted set, by score.
 
         :raises TypeError: if min or max is not float or int
@@ -195,7 +209,8 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        fut = self.execute(b'ZRANGEBYSCORE', key, min, max, *args)
+        fut = self.execute(b'ZRANGEBYSCORE', key, min, max, *args,
+                           encoding=encoding)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
@@ -252,7 +267,7 @@ class SortedSetCommandsMixin:
         min, max = _encode_min_max(exclude, min, max)
         return self.execute(b'ZREMRANGEBYSCORE', key, min, max)
 
-    def zrevrange(self, key, start, stop, withscores=False):
+    def zrevrange(self, key, start, stop, withscores=False, encoding=_NOTSET):
         """Return a range of members in a sorted set, by index,
         with scores ordered from high to low.
 
@@ -266,14 +281,15 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         else:
             args = []
-        fut = self.execute(b'ZREVRANGE', key, start, stop, *args)
+        fut = self.execute(b'ZREVRANGE', key, start, stop, *args,
+                           encoding=encoding)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
     def zrevrangebyscore(self, key, max=float('inf'), min=float('-inf'),
                          *, exclude=None, withscores=False,
-                         offset=None, count=None):
+                         offset=None, count=None, encoding=_NOTSET):
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
 
@@ -302,13 +318,15 @@ class SortedSetCommandsMixin:
             args = [b'WITHSCORES']
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
-        fut = self.execute(b'ZREVRANGEBYSCORE', key, max, min, *args)
+        fut = self.execute(b'ZREVRANGEBYSCORE', key, max, min, *args,
+                           encoding=encoding)
         if withscores:
             return wait_convert(fut, pairs_int_or_float)
         return fut
 
     def zrevrangebylex(self, key, min=b'-', max=b'+', include_min=True,
-                       include_max=True, offset=None, count=None):
+                       include_max=True, offset=None, count=None,
+                       encoding=_NOTSET):
         """Return a range of members in a sorted set, by lexicographical range
         from high to low.
 
@@ -339,7 +357,8 @@ class SortedSetCommandsMixin:
         if offset is not None and count is not None:
             args.extend([b'LIMIT', offset, count])
 
-        return self.execute(b'ZREVRANGEBYLEX', key, max, min, *args)
+        return self.execute(b'ZREVRANGEBYLEX', key, max, min, *args,
+                            encoding=encoding)
 
     def zrevrank(self, key, member):
         """Determine the index of a member in a sorted set, with
@@ -392,19 +411,18 @@ class SortedSetCommandsMixin:
 
         return wait_convert(fut, _converter)
 
-    if PY_35:
-        def izscan(self, key, *, match=None, count=None):
-            """Incrementally iterate sorted set items using async for.
+    def izscan(self, key, *, match=None, count=None):
+        """Incrementally iterate sorted set items using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for val, score in redis.izscan(key, match='something*'):
-            ...     print('Matched:', val, ':', score)
+        >>> async for val, score in redis.izscan(key, match='something*'):
+        ...     print('Matched:', val, ':', score)
 
-            """
-            return _ScanIterPairs(lambda cur: self.zscan(key, cur,
-                                                         match=match,
-                                                         count=count))
+        """
+        return _ScanIter(lambda cur: self.zscan(key, cur,
+                                                match=match,
+                                                count=count))
 
 
 def _encode_min_max(flag, min, max):
@@ -433,5 +451,5 @@ def optional_int_or_float(value):
 
 def pairs_int_or_float(value):
     it = iter(value)
-    return list(sum(([val, int_or_float(score)] for val, score in zip(it, it)),
-                    []))
+    return [(val, int_or_float(score))
+            for val, score in zip(it, it)]

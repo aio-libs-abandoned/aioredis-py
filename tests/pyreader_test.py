@@ -1,6 +1,11 @@
 import pytest
 
-from aioredis.errors import ProtocolError, ReplyError
+from aioredis.errors import (
+    ProtocolError,
+    ReplyError,
+    AuthError,
+    MaxClientsError,
+    )
 from aioredis.parser import PyReader
 
 
@@ -67,6 +72,18 @@ def test_error_string(reader):
 
     assert isinstance(error, ReplyError)
     assert error.args == ("error",)
+
+
+@pytest.mark.parametrize('error_kind,data', [
+    (AuthError, b"-NOAUTH auth required\r\n"),
+    (AuthError, b"-ERR invalid password\r\n"),
+    (MaxClientsError, b"-ERR max number of clients reached\r\n"),
+])
+def test_error_construction(reader, error_kind, data):
+    reader.feed(data)
+    error = reader.gets()
+    assert isinstance(error, ReplyError)
+    assert isinstance(error, error_kind)
 
 
 @pytest.mark.parametrize('exc,arg', [

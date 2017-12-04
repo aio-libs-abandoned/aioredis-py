@@ -13,14 +13,11 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0-rc2 streams" INSTALL_DIR=$HOME/redis PYPY_RELEASE="pypy-c-jit-91658-97ca3ac43c30-linux64"
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.2 streams" INSTALL_DIR=$HOME/redis
 
 python:
-- "3.3"
-- "3.4"
 - "3.5"
 - "3.6"
-- "pypy-5.3.1"
 
 matrix:
   include:
@@ -31,17 +28,19 @@ matrix:
     - pip install -e. -c tests/requirements.txt
     script:
     - make spelling
+  - python: "pypy3.5-5.8.0"
+    env: PYPY_RELEASE="pypy3-v5.9.0-linux64"
   - python: "3.6"
     env: UVLOOP="y"
   allow_failures:
   - env: UVLOOP="y"
-  - python: "pypy-5.3.1"
+  - python: "pypy3.5-5.8.0"
 
 install:
 - make -j ci-build-redis
 - |
-    if [ "$TRAVIS_PYTHON_VERSION" = "pypy-5.3.1" ]; then
-      wget -nv -c "http://buildbot.pypy.org/nightly/py3.5/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
+    if [ "$TRAVIS_PYTHON_VERSION" = "pypy3.5-5.8.0" ]; then
+      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
       export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
       $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
       $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3

@@ -32,7 +32,7 @@ Sample usage:
 
    Creates Redis Sentinel client.
 
-   :param sentinels: A list of sentinel node addresses.
+   :param sentinels: A list of Sentinel node addresses.
    :type sentinels: list[tuple]
 
    :param int db: Redis database index to select for every master/slave
@@ -127,7 +127,7 @@ Sample usage:
 
    .. method:: masters()
 
-      Returns a list of dictionaries containing all maters' states.
+      Returns a list of dictionaries containing all masters' states.
 
       :rtype: asyncio.Future
 

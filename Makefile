@@ -12,17 +12,10 @@ TEST_ARGS ?= "-n 4"
 
 REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
 
-# Python version and implementation
+# Python implementation
 PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
-PYTHON_35 = $(shell $(PYTHON) -c "import sys; print(sys.version_info >= (3, 5))")
 
-ifeq ($(PYTHON_35), True)
-FLAKE_ARGS = aioredis tests examples
 EXAMPLES = $(shell find examples -name "*.py")
-else
-FLAKE_ARGS = --exclude=py35_* aioredis tests examples/py34
-EXAMPLES = $(shell find examples/py34 -name "*.py")
-endif
 
 .PHONY: all flake doc man-doc spelling test cov dist devel clean
 all: aioredis.egg-info flake doc cov
@@ -37,7 +30,7 @@ spelling:
 
 ifeq ($(PYTHON_IMPL), cpython)
 flake:
-	$(FLAKE) $(FLAKE_ARGS)
+	$(FLAKE) aioredis tests examples
 else
 flake:
 	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."

@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     redis = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
 
     # No pipelining;
     async def wait_each_command():

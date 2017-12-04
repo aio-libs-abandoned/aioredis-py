@@ -3,7 +3,6 @@ from unittest import mock
 
 from aioredis.commands import MultiExec
 from aioredis.commands import Redis
-from aioredis.util import create_future
 
 
 def test_global_loop():
@@ -21,7 +20,7 @@ def test_global_loop():
     assert tr._loop is loop
 
     def make_fut(cmd, *args, **kw):
-        fut = create_future(asyncio.get_event_loop())
+        fut = asyncio.get_event_loop().create_future()
         if cmd == 'PING':
             fut.set_result(b'QUEUED')
         elif cmd == 'EXEC':
@@ -34,10 +33,9 @@ def test_global_loop():
     conn.closed = False
     conn._transaction_error = None
 
-    @asyncio.coroutine
-    def go():
+    async def go():
         tr.ping()
-        res = yield from tr.execute()
+        res = await tr.execute()
         assert res == [b'PONG']
     loop.run_until_complete(go())
     asyncio.set_event_loop(old_loop)

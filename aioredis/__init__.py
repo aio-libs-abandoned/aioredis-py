@@ -9,6 +9,7 @@ from .pubsub import Channel
 from .sentinel import RedisSentinel, create_sentinel
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
     MasterNotFoundError,
     MultiExecError,
     PipelineError,
@@ -16,14 +17,18 @@ from .errors import (
     ReadOnlyError,
     RedisError,
     ReplyError,
+    MaxClientsError,
+    AuthError,
     ChannelClosedError,
     WatchVariableError,
     PoolClosedError,
     SlaveNotFoundError,
+    MasterReplyError,
+    SlaveReplyError,
     )
 
 
-__version__ = '1.0.0b2'
+__version__ = '1.0.0'
 
 __all__ = [
     # Factories
@@ -43,19 +48,19 @@ __all__ = [
     # Errors
     'RedisError',
     'ReplyError',
+    'MaxClientsError',
+    'AuthError',
     'ProtocolError',
     'PipelineError',
     'MultiExecError',
     'WatchVariableError',
     'ConnectionClosedError',
+    'ConnectionForcedCloseError',
     'PoolClosedError',
     'ChannelClosedError',
     'MasterNotFoundError',
     'SlaveNotFoundError',
     'ReadOnlyError',
+    'MasterReplyError',
+    'SlaveReplyError',
 ]
-
-# NOTE: this is deprecated
-create_reconnecting_redis = create_pool
-
-RedisPool = ConnectionsPool

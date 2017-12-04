@@ -1,8 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET, PY_35
-
-
-if PY_35:
-    from aioredis.util import _ScanIter
+from aioredis.util import wait_convert, _NOTSET, _ScanIter
 
 
 class SetCommandsMixin:
@@ -77,16 +73,15 @@ class SetCommandsMixin:
         fut = self.execute(b'SSCAN', *tokens)
         return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
 
-    if PY_35:
-        def isscan(self, key, *, match=None, count=None):
-            """Incrementally iterate set elements using async for.
+    def isscan(self, key, *, match=None, count=None):
+        """Incrementally iterate set elements using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for val in redis.isscan(key, match='something*'):
-            ...     print('Matched:', val)
+        >>> async for val in redis.isscan(key, match='something*'):
+        ...     print('Matched:', val)
 
-            """
-            return _ScanIter(lambda cur: self.sscan(key, cur,
-                                                    match=match,
-                                                    count=count))
+        """
+        return _ScanIter(lambda cur: self.sscan(key, cur,
+                                                match=match,
+                                                count=count))

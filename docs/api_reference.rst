@@ -21,6 +21,11 @@ Connection usage is as simple as:
    import asyncio
    import aioredis
 
+   async def connect_uri():
+       conn = await aioredis.create_connection(
+           'redis://localhost/0')
+       val = await conn.execute('GET', 'my-key')
+
    async def connect_tcp():
        conn = await aioredis.create_connection(
            ('localhost', 6379))
@@ -29,6 +34,7 @@ Connection usage is as simple as:
    async def connect_unixsocket():
        conn = await aioredis.create_connection(
            '/path/to/redis/socket')
+       # or uri 'unix:///path/to/redis/socket?db=1'
        val = await conn.execute('GET', 'my-key')
 
    asyncio.get_event_loop().run_until_complete(connect_tcp())
@@ -47,8 +53,14 @@ Connection usage is as simple as:
    .. versionchanged:: v1.0
       ``parser`` argument added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect.
+      Can be one of the following:
+
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -187,6 +199,9 @@ Connection usage is as simple as:
 
       Mark connection as closed and schedule cleanup procedure.
 
+      All pending commands will be canceled with
+      :exc:`ConnectionForcedCloseError`.
+
 
    .. method:: wait_closed()
 
@@ -228,7 +243,7 @@ The library provides connections pool. The basic usage is as follows:
    import aioredis
 
    async def sample_pool():
-       pool = await aioredis.create_pool(('localhost', 6379))
+       pool = await aioredis.create_pool('redis://localhost')
        val = await pool.execute('get', 'my-key')
 
 
@@ -261,11 +276,14 @@ The library provides connections pool. The basic usage is as follows:
    .. versionadded:: v1.0
       ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
 
-   .. versionchanged:: v1.0
-      ``commands_factory`` argument dropped.
+   :param address: An address where to connect.
+      Can be one of the following:
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+      * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+
+      * a (host, port) tuple --- ``('localhost', 6379)``;
+
+      * or a unix domain socket path string --- ``"/path/to/redis.sock"``.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -514,9 +532,13 @@ Exceptions
 
 .. exception:: RedisError
 
+   :Bases: :exc:`Exception`
+
    Base exception class for aioredis exceptions.
 
 .. exception:: ProtocolError
+
+   :Bases: :exc:`RedisError`
 
    Raised when protocol error occurs.
    When this type of exception is raised connection must be considered
@@ -524,49 +546,101 @@ Exceptions
 
 .. exception:: ReplyError
 
+   :Bases: :exc:`RedisError`
+
    Raised for Redis :term:`error replies`.
+
+.. exception:: MaxClientsError
+
+   :Bases: :exc:`ReplyError`
+
+   Raised when maximum number of clients has been reached
+   (Redis server configured value).
+
+.. exception:: AuthError
+
+   :Bases: :exc:`ReplyError`
+
+   Raised when authentication errors occur.
 
 .. exception:: ConnectionClosedError
 
+   :Bases: :exc:`RedisError`
+
    Raised if connection to server was lost/closed.
 
+.. exception:: ConnectionForcedCloseError
+
+   :Bases: :exc:`ConnectionClosedError`
+
+   Raised if connection was closed with :func:`RedisConnection.close` method.
+
 .. exception:: PipelineError
+
+   :Bases: :exc:`RedisError`
 
    Raised from :meth:`~.commands.TransactionsCommandsMixin.pipeline`
    if any pipelined command raised error.
 
 .. exception:: MultiExecError
 
+   :Bases: :exc:`PipelineError`
+
    Same as :exc:`~.PipelineError` but raised when executing multi_exec
    block.
 
 .. exception:: WatchVariableError
+
+   :Bases: :exc:`MultiExecError`
 
    Raised if watched variable changed (EXEC returns None).
    Subclass of :exc:`~.MultiExecError`.
 
 .. exception:: ChannelClosedError
 
+   :Bases: :exc:`RedisError`
+
    Raised from :meth:`aioredis.Channel.get` when Pub/Sub channel is
    unsubscribed and messages queue is empty.
 
 .. exception:: PoolClosedError
+
+   :Bases: :exc:`RedisError`
 
    Raised from :meth:`aioredis.ConnectionsPool.acquire`
    when pool is already closed.
 
 .. exception:: ReadOnlyError
 
+   :Bases: :exc:`RedisError`
+
    Raised from slave when read-only mode is enabled.
 
-
 .. exception:: MasterNotFoundError
+
+   :Bases: :exc:`RedisError`
 
    Raised by Sentinel client if it can not find requested master.
 
 .. exception:: SlaveNotFoundError
 
+   :Bases: :exc:`RedisError`
+
    Raised by Sentinel client if it can not find requested slave.
+
+.. exception:: MasterReplyError
+
+   :Bases: :exc:`RedisError`
+
+   Raised if establishing connection to master failed with ``RedisError``,
+   for instance because of required or wrong authentication.
+
+.. exception:: SlaveReplyError
+
+   :Bases: :exc:`RedisError`
+
+   Raised if establishing connection to slave failed with ``RedisError``,
+   for instance because of required or wrong authentication.
 
 Exceptions Hierarchy
 ~~~~~~~~~~~~~~~~~~~~
@@ -577,15 +651,20 @@ Exceptions Hierarchy
       RedisError
          ProtocolError
          ReplyError
-            PipelineError
-               MultiExecError
-                  WatchVariableError
+            MaxClientsError
+            AuthError
+         PipelineError
+            MultiExecError
+               WatchVariableError
          ChannelClosedError
          ConnectionClosedError
+            ConnectionForcedCloseError
          PoolClosedError
          ReadOnlyError
          MasterNotFoundError
          SlaveNotFoundError
+         MasterReplyError
+         SlaveReplyError
 
 ----
 
@@ -606,13 +685,13 @@ The usage is as simple as:
    # Create Redis client bound to single non-reconnecting connection.
    async def single_connection():
       redis = await aioredis.create_redis(
-         ('localhost', 6379))
+         'redis://localhost')
       val = await redis.get('my-key')
 
    # Create Redis client bound to connections pool.
    async def pool_of_connections():
       redis = await aioredis.create_redis_pool(
-         ('localhost', 6379))
+         'redis://localhost')
       val = await redis.get('my-key')
 
       # we can also use pub/sub as underlying pool
@@ -636,12 +715,12 @@ see :ref:`commands mixins reference <aioredis-commands>`.
    (without auto-reconnect).
 
    .. versionadded:: v1.0
-      ``parser``, ``timeout` and ``connection_cls`` arguments added.
+      ``parser``, ``timeout`` and ``connection_cls`` arguments added.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.
@@ -702,8 +781,8 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       ``parser``, ``timeout``, ``pool_cls`` and ``connection_cls``
       arguments added.
 
-   :param address: An address where to connect. Can be a (host, port) tuple or
-                   unix domain socket path string.
+   :param address: An address where to connect. Can be a (host, port) tuple,
+                   unix domain socket path string or a Redis URI string.
    :type address: tuple or str
 
    :param int db: Redis database index to switch to when connected.

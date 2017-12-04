@@ -5,11 +5,8 @@ from aioredis.util import (
     wait_convert,
     wait_make_dict,
     _NOTSET,
-    PY_35,
+    _ScanIter,
     )
-
-if PY_35:
-    from aioredis.util import _ScanIterPairs
 
 
 class HashCommandsMixin:
@@ -122,22 +119,26 @@ class HashCommandsMixin:
         match is not None and args.extend([b'MATCH', match])
         count is not None and args.extend([b'COUNT', count])
         fut = self.execute(b'HSCAN', *args)
-        return wait_convert(fut, lambda obj: (int(obj[0]), obj[1]))
+        return wait_convert(fut, _make_pairs)
 
-    if PY_35:
-        def ihscan(self, key, *, match=None, count=None):
-            """Incrementally iterate sorted set items using async for.
+    def ihscan(self, key, *, match=None, count=None):
+        """Incrementally iterate sorted set items using async for.
 
-            Usage example:
+        Usage example:
 
-            >>> async for name, val in redis.ihscan(key, match='something*'):
-            ...     print('Matched:', name, '->', val)
+        >>> async for name, val in redis.ihscan(key, match='something*'):
+        ...     print('Matched:', name, '->', val)
 
-            """
-            return _ScanIterPairs(lambda cur: self.hscan(key, cur,
-                                                         match=match,
-                                                         count=count))
+        """
+        return _ScanIter(lambda cur: self.hscan(key, cur,
+                                                match=match,
+                                                count=count))
 
     def hstrlen(self, key, field):
         """Get the length of the value of a hash field."""
         return self.execute(b'HSTRLEN', key, field)
+
+
+def _make_pairs(obj):
+    it = iter(obj[1])
+    return (int(obj[0]), list(zip(it, it)))

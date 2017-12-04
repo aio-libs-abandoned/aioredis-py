@@ -17,6 +17,14 @@ def test_encode_bytes():
     assert res == b'*1\r\n$7\r\nHello\r\n\r\n'
 
 
+def test_encode_bytearray():
+    res = encode_command(bytearray(b'Hello'))
+    assert res == b'*1\r\n$5\r\nHello\r\n'
+
+    res = encode_command(bytearray(b'Hello'), bytearray(b'world'))
+    assert res == b'*2\r\n$5\r\nHello\r\n$5\r\nworld\r\n'
+
+
 def test_encode_str():
     res = encode_command('Hello')
     assert res == b'*1\r\n$5\r\nHello\r\n'

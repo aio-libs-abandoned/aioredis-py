@@ -10,9 +10,9 @@ async def reader(ch):
 
 async def main():
     pub = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
     sub = await aioredis.create_redis(
-        ('localhost', 6379))
+        'redis://localhost')
     res = await sub.subscribe('chan:1')
     ch1 = res[0]
 
