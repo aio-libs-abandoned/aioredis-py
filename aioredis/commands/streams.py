@@ -111,6 +111,15 @@ class StreamCommandsMixin:
         fut = self.execute(b'XRANGE', stream, start, stop, *extra)
         return wait_convert(fut, parse_messages)
 
+    def xrevrange(self, stream, start='+', stop='-', count=None):
+        """Retrieve stream data"""
+        if count is not None:
+            extra = ['COUNT', count]
+        else:
+            extra = []
+        fut = self.execute(b'XREVRANGE', stream, start, stop, *extra)
+        return wait_convert(fut, parse_messages)
+
     def xread(self, streams, timeout=0, count=None, latest_ids=None):
         """Perform a blocking read on the given stream"""
         # QUESTION: Should we combine streams & starting_ids

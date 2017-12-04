@@ -162,6 +162,62 @@ async def test_xrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
+async def test_xrevrange(redis, server_bin):
+    skip_if_streams_not_present(server_bin)
+
+    stream = 'test_stream'
+    fields = OrderedDict((
+        (b'field1', b'value1'),
+        (b'field2', b'value2'),
+    ))
+    message_id1 = await redis.xadd(stream, fields)
+    message_id2 = await redis.xadd(stream, fields)
+    message_id3 = await redis.xadd(stream, fields)  # noqa
+
+    # Test no parameters
+    messages = await redis.xrevrange(stream)
+    assert len(messages) == 3
+    message = messages[0]
+    assert message[0] == message_id3
+    assert message[1] == OrderedDict([
+        (b'field1', b'value1'),
+        (b'field2', b'value2')]
+    )
+
+    # Test start
+    messages = await redis.xrevrange(stream, start=message_id2)
+    assert len(messages) == 2
+
+    messages = await redis.xrevrange(stream, start='9900000000000-0')
+    assert len(messages) == 3
+
+    # Test stop
+    messages = await redis.xrevrange(stream, stop='0000000000000-0')
+    assert len(messages) == 3
+
+    messages = await redis.xrevrange(stream, stop=message_id2)
+    assert len(messages) == 2
+
+    messages = await redis.xrevrange(stream, stop='9900000000000-0')
+    assert len(messages) == 0
+
+    # Test start & stop
+    messages = await redis.xrevrange(stream,
+                                       start=message_id2,
+                                       stop=message_id1)
+    assert len(messages) == 2
+
+    messages = await redis.xrevrange(stream,
+                                       start='9900000000000-0',
+                                       stop='0000000000000-0')
+    assert len(messages) == 3
+
+    # Test count
+    messages = await redis.xrevrange(stream, count=2)
+    assert len(messages) == 2
+
+
+@pytest.mark.run_loop
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
     skip_if_streams_not_present(server_bin)
