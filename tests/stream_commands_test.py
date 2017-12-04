@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 import os
+from time import sleep
 
 import pytest
 import asyncio
@@ -53,6 +54,55 @@ async def test_xadd(redis, server_bin):
         (b'field1', b'value1'),
         (b'field2', b'value2')]
     )
+
+
+@pytest.mark.run_loop
+async def test_xadd_maxlen_exact(redis, server_bin):
+    skip_if_streams_not_present(server_bin)
+
+    message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
+    sleep(0.001)  # Ensure the millisecond-based message ID increments
+    message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
+    sleep(0.001)
+    message_id3 = await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=True)
+
+    # Read it back
+    messages = await redis.xrange('test_stream')
+    assert len(messages) == 2
+
+    message2 = messages[0]
+    message3 = messages[1]
+
+    # The first message should no longer exist, just messages
+    # 2 and 3 remain
+    assert message2[0] == message_id2
+    assert message2[1] == OrderedDict([(b'f2', b'v2')])
+
+    assert message3[0] == message_id3
+    assert message3[1] == OrderedDict([(b'f3', b'v3')])
+
+
+@pytest.mark.run_loop
+async def test_xadd_maxlen_inexact(redis, server_bin):
+    skip_if_streams_not_present(server_bin)
+
+    message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
+    sleep(0.001)  # Ensure the millisecond-based message ID increments
+    message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
+    sleep(0.001)
+    message_id3 = await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=False)
+
+    # Read it back
+    messages = await redis.xrange('test_stream')
+    # Redis will not have removed the whole node yet
+    assert len(messages) == 3
+
+    # Check the stream is eventually truncated
+    for x in range(0, 1000):
+        await redis.xadd('test_stream', {'f': 'v'}, max_len=2)
+
+    messages = await redis.xrange('test_stream')
+    assert len(messages) < 1000
 
 
 @pytest.mark.run_loop

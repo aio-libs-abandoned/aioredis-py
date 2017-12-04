@@ -84,14 +84,23 @@ class StreamCommandsMixin:
     not currently released.
     """
 
-    def xadd(self, stream, fields=None):
+    def xadd(self, stream, fields, max_len=None, exact_len=False):
         """ Add a message to the specified stream
         """
-        # TODO: Add the MAXLEN parameter
-        flattened = []
-        for k, v in fields.items():
-            flattened.extend([k, v])
-        return self.execute(b'XADD', stream, '*', *flattened)
+        args = []
+        if max_len is not None:
+            if exact_len:
+                args.extend((b'MAXLEN', max_len))
+            else:
+                args.extend((b'MAXLEN', b'~', max_len))
+
+        if fields:
+            args.append('*')
+
+            for k, v in fields.items():
+                args.extend([k, v])
+
+        return self.execute(b'XADD', stream, *args)
 
     def xrange(self, stream, start='-', stop='+', count=None):
         """Retrieve stream data"""
