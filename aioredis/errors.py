@@ -100,3 +100,7 @@ class ConnectionForcedCloseError(ConnectionClosedError):
 
 class PoolClosedError(RedisError):
     """Raised if pool is closed."""
+
+
+class RedisClusterError(RedisError):
+    """Cluster exception class for aioredis exceptions."""

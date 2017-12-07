@@ -30,35 +30,40 @@ class TestCluster:
     behaviour.
 
     Parameters:
-        - *redis_count* is the number of processes the cluster should contain.
-        The first half of them will be master nodes (rounding upwards).
-        - *start_port*: The cluster will use the ports from start_port to
-        start_port + redis_count.
+        - *ports*: The cluster will use the ports from ports list
         - *directory* is used to store the configuration files of all
         processes.
         - *node_timeout*: The cluster node timeout in millliseconds,
         see http://redis.io/topics/cluster-tutorial.
 
     """
-    def __init__(self, redis_count, start_port, directory, node_timeout=3000):
-        self.redis_count = redis_count
-        self.start_port = start_port
+    def __init__(self, ports, directory, node_timeout=3000,
+                 server_exec=REDIS_SERVER_EXEC):
+        self.redis_count = len(ports)
+        self.ports = ports
         self.directory = os.path.abspath(directory)
         self.node_timeout = node_timeout
         self.processes = {}
+        self._new_directories = set()
+        self._exec = server_exec
 
     def setup(self):
         self._setup_directory()
         self._create_redis_directories()
         for port in self.get_ports():
             self._start_redis(port)
-        self._configure_cluster()
+        self.configure_cluster()
 
     def terminate(self):
         for process in self.processes.values():
             process.terminate()
         for process in self.processes.values():
             process.wait(1)
+
+    def clear_directories(self):
+        for directory in self._new_directories:
+            self._delete_directory_contents(directory)
+            os.rmdir(directory)
 
     def stop_redis(self, port):
         if port not in self.processes:
@@ -75,7 +80,7 @@ class TestCluster:
         self._start_redis(port)
 
     def get_ports(self):
-        return [self.start_port + i for i in range(self.redis_count)]
+        return self.ports
 
     def _setup_directory(self):
         if not os.path.exists(self.directory):
@@ -91,13 +96,14 @@ class TestCluster:
 
             self._write_redis_config_file(os.path.join(
                 redis_directory, 'redis.conf'), port)
+            self._new_directories.add(redis_directory)
 
     def _start_redis(self, port):
         directory = self._get_redis_directory(port)
         self.processes[port] = subprocess.Popen(
-            [REDIS_SERVER_EXEC, 'redis.conf'], cwd=directory)
+            [self._exec, 'redis.conf'], cwd=directory)
 
-    def _configure_cluster(self):
+    def configure_cluster(self):
         time.sleep(_ATTEMPT_INTERVAL)  # Give cluster some time to start up
 
         addresses = [('127.0.0.1', port) for port in self.get_ports()]

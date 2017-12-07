@@ -1,25 +1,16 @@
 import random
 import asyncio
 from functools import partial
-from operator import itemgetter
 
 from aioredis.errors import ProtocolError
-from aioredis.util import async_task
-from ..commands import (
+from aioredis.commands import (
     create_redis,
     Redis,
+    create_redis_pool
 )
-from ..pool import create_pool
-from ..util import (
-    cached_property,
-    decode,
-    encode_str,
-)
-from ..log import logger
-from ..errors import (
-    RedisClusterError,
-    ReplyError,
-)
+from aioredis.util import decode, encode_str, cached_property
+from aioredis.log import logger
+from aioredis.errors import ReplyError, RedisClusterError
 from .crc import crc16
 from .mixin import RedisClusterMixin
 
@@ -45,38 +36,18 @@ def parse_moved_response_error(err):
         return
 
 
-def parse_nodes_info(raw_data, select_func):
-    data = decode(raw_data).strip()
-    nodes_info = (node.strip().split() for node in data.split('\n'))
-    for node_info in nodes_info:
-        if len(node_info) == 8:
-            # slave node
-            node_info.append('0')
-        cluster_node_info = select_func(node_info)
-        (id_node_info, address_node_info,
-         flags_nodes_info, master_node_info,
-         state_node_info, ranges_node_info) = cluster_node_info
-        ranges_info = tuple(sorted(
-            rng if len(rng) == 2 else rng * 2 for rng in (
-                tuple(map(int, range_info.strip().split('-')))
-                for range_info in ranges_node_info.strip().split()
-            )))
-        flags_info = tuple(str(flag.strip()) for flag in
-                           flags_nodes_info.strip().split(','))
-        host, port = address_node_info.split(':')
-        if '@' in port:
-            # Since version 4.0.0 address_node_info has the format
-            # '192.1.2.3:7001@17001
-            port = port[:port.index('@')]
-        yield id_node_info, host, int(port), flags_info, \
-            master_node_info, state_node_info, ranges_info
-
-
 class ClusterNode:
-
-    def __init__(self, number, *args):
-        self.id, self.host, self.port, self.flags, \
-            self.master, self.status, self.ranges = args
+    def __init__(
+            self, number, id, host, port, flags, master, status, slots,
+            **kwargs
+    ):
+        self.id = decode(id, 'utf-8')
+        self.host = decode(host, 'utf-8')
+        self.port = decode(port, 'utf-8')
+        self.flags = tuple(decode(f, 'utf-8') for f in flags)
+        self.master = decode(master, 'utf-8')
+        self.status = decode(status, 'utf-8')
+        self.slots = slots
         self.number = number
 
     def __repr__(self):
@@ -106,27 +77,23 @@ class ClusterNode:
                 self.status == 'connected')
 
     def in_range(self, value):
-        if value < self.ranges[0][0]:
+        if not self.slots:
             return False
-        if value > self.ranges[-1][-1]:
+
+        if value < self.slots[0][0]:
             return False
-        return any(rng[0] <= value <= rng[1] for rng in self.ranges)
+        if value > self.slots[-1][-1]:
+            return False
+        return any(rng[0] <= value <= rng[1] for rng in self.slots)
 
 
 class ClusterNodesManager:
 
     REDIS_CLUSTER_HASH_SLOTS = 16384
-    ID = 0
-    ADDRESS = 1  # ip:port
-    FLAGS = 2  # master,fail,slave..
-    MASTER = 3  # master node or -
-    STATE = 7
-    SLOTS = 8
-    CLUSTER_NODES_TUPLE = itemgetter(ID, ADDRESS, FLAGS, MASTER, STATE, SLOTS)
 
     def __init__(self, nodes):
         nodes = list(nodes)
-        masters_slots = {node.id: node.ranges for node in nodes}
+        masters_slots = {node.id: node.slots for node in nodes}
         for node in nodes:
             if node.is_slave:
                 node.slots = masters_slots[node.master]
@@ -139,14 +106,13 @@ class ClusterNodesManager:
         return '\n'.join(repr(node) for node in self.nodes)
 
     @classmethod
-    def parse_raw_info(cls, raw_info):
-        for index, node_data in enumerate(parse_nodes_info(
-                raw_info, cls.CLUSTER_NODES_TUPLE)):
-            yield ClusterNode(index, *node_data)
+    def parse_info(cls, info):
+        for index, node_data in enumerate(info):
+            yield ClusterNode(index, **node_data)
 
     @classmethod
-    def create(cls, raw_data):
-        nodes = cls.parse_raw_info(raw_data)
+    def create(cls, data):
+        nodes = cls.parse_info(data)
         return cls(nodes)
 
     @staticmethod
@@ -192,7 +158,7 @@ class ClusterNodesManager:
     def all_slots_covered(self):
         covered_slots_number = sum(
             end - start + 1
-            for master in self.masters for start, end in master.ranges
+            for master in self.masters for start, end in master.slots
         )
         return covered_slots_number >= self.REDIS_CLUSTER_HASH_SLOTS
 
@@ -202,6 +168,16 @@ class ClusterNodesManager:
                 return node
         else:
             return None
+
+    def get_node_by_id(self, node_id):
+        for node in self.nodes:
+            if node_id == node.id:
+                return node
+
+    def get_node_by_address(self, address):
+        for node in self.nodes:
+            if address == node.address:
+                return node
 
     def get_random_node(self):
         return random.choice(self.alive_nodes)
@@ -225,8 +201,7 @@ class ClusterNodesManager:
             return slots.pop()
 
 
-@asyncio.coroutine
-def create_pool_cluster(
+async def create_pool_cluster(
         nodes, *, db=0, password=None, encoding=None,
         minsize=10, maxsize=10, commands_factory=Redis, loop=None):
     """
@@ -250,12 +225,11 @@ def create_pool_cluster(
     cluster = RedisPoolCluster(
         nodes, db, password, encoding=encoding, minsize=minsize,
         maxsize=maxsize, commands_factory=commands_factory, loop=loop)
-    yield from cluster.initialize()
+    await cluster.initialize()
     return cluster
 
 
-@asyncio.coroutine
-def create_cluster(
+async def create_cluster(
         nodes, *, db=0, password=None, encoding=None,
         commands_factory=Redis, loop=None):
     """
@@ -277,7 +251,7 @@ def create_cluster(
     cluster = RedisCluster(
         nodes, db, password, encoding=encoding,
         commands_factory=commands_factory, loop=loop)
-    yield from cluster.initialize()
+    await cluster.initialize()
     return cluster
 
 
@@ -329,12 +303,22 @@ class RedisCluster(RedisClusterMixin):
     def slave_count(self):
         return self._cluster_manager.slaves_count
 
-    def get_nodes_entities(self):
-        return [node.address for node in self._cluster_manager.masters]
+    def get_nodes_entities(self, slaves=False):
+        slave_nodes = []
+        if slaves:
+            slave_nodes = [node.address for node in self.slave_nodes]
+        return [node.address for node in self.master_nodes] + slave_nodes
 
-    @asyncio.coroutine
-    def _get_raw_cluster_info_from_node(self, node):
-        conn = yield from create_redis(
+    @property
+    def master_nodes(self):
+        return self._cluster_manager.masters
+
+    @property
+    def slave_nodes(self):
+        return self._cluster_manager.slaves
+
+    async def _get_raw_cluster_info_from_node(self, node):
+        conn = await create_redis(
             node,
             db=self._db,
             password=self._password,
@@ -342,27 +326,29 @@ class RedisCluster(RedisClusterMixin):
             commands_factory=self._factory,
             loop=self._loop
         )
+
         try:
-            nodes_raw_resp = yield from conn.cluster_nodes()
-            return nodes_raw_resp
+            nodes_resp = await conn.cluster_nodes()
+            return nodes_resp
         finally:
             conn.close()
-            yield from conn.wait_closed()
+            await conn.wait_closed()
 
-    @asyncio.coroutine
-    def fetch_cluster_info(self):
+    async def fetch_cluster_info(self):
         logger.info('Loading cluster info from {}...'.format(self._nodes))
-        tasks = [async_task(self._get_raw_cluster_info_from_node(node),
-                            loop=self._loop) for node in self._nodes]
-
+        tasks = [
+            asyncio.ensure_future(
+                self._get_raw_cluster_info_from_node(node), loop=self._loop
+            ) for node in self._nodes
+        ]
         try:
             for task in asyncio.as_completed(tasks, loop=self._loop):
                 try:
-                    nodes_raw_response = yield from task
+                    nodes_raw_response = await task
                     self._cluster_manager = ClusterNodesManager.create(
                         nodes_raw_response)
                     logger.info('Cluster info loaded successfully: %s',
-                                nodes_raw_response)
+                                list(nodes_raw_response))
                     return
                 except (ReplyError, ProtocolError, ConnectionError) as exc:
                     logger.warning(
@@ -373,32 +359,32 @@ class RedisCluster(RedisClusterMixin):
             for task in tasks:
                 task.cancel()
             # Wait until all tasks have closed their connection
-            yield from asyncio.gather(
+            await asyncio.gather(
                 *tasks, loop=self._loop, return_exceptions=True)
 
         raise RedisClusterError(
             "No cluster info could be loaded from any host")
 
-    @asyncio.coroutine
-    def initialize(self):
+    async def initialize(self):
         logger.info('Initializing cluster...')
         self._moved_count = 0
-        yield from self.fetch_cluster_info()
+        await self.fetch_cluster_info()
         logger.info('Initialized cluster.\n{}'.format(self._cluster_manager))
 
-    @asyncio.coroutine
-    def clear(self):
+    async def clear(self):
         pass  # All connections are created on demand and destroyed afterwards.
 
-    @asyncio.coroutine
-    def create_connection(self, address):
-        conn = yield from create_redis(
+    @property
+    def all_slots_covered(self):
+        return self._cluster_manager.all_slots_covered
+
+    async def create_connection(self, address):
+        conn = await create_redis(
             address, db=self._db, encoding=self._encoding,
             password=self._password, loop=self._loop, )
         return conn
 
-    @asyncio.coroutine
-    def _execute_node(self, address, command, *args, **kwargs):
+    async def _execute_node(self, address, command, *args, **kwargs):
         """Execute redis command and returns Future waiting for the answer.
 
         :param command str
@@ -409,12 +395,12 @@ class RedisCluster(RedisClusterMixin):
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        cmd = decode(command).lower()
+        cmd = decode(command, 'utf-8').lower()
         to_close = []
         try:
-            conn = yield from self.create_connection(address)
+            conn = await self.create_connection(address)
             to_close.append(conn)
-            return (yield from getattr(conn, cmd)(*args, **kwargs))
+            return await getattr(conn, cmd)(*args, **kwargs)
         except ReplyError as err:
             address = parse_moved_response_error(err)
             if address is None:
@@ -422,63 +408,75 @@ class RedisCluster(RedisClusterMixin):
             logger.debug('Got MOVED command: {}'.format(err))
             self._moved_count += 1
             if self._moved_count >= self.MAX_MOVED_COUNT:
-                yield from self.initialize()
+                await self.initialize()
                 node = self.get_node(command, *args, **kwargs)
                 address = node.address
-            conn = yield from self.create_connection(address)
+            conn = await self.create_connection(address)
             to_close.append(conn)
-            return (yield from getattr(conn, cmd)(*args, **kwargs))
+            return await getattr(conn, cmd)(*args, **kwargs)
         finally:
             for conn in to_close:
                 conn.close()
-                yield from conn.wait_closed()
+                await conn.wait_closed()
 
-    @asyncio.coroutine
-    def _execute_nodes(self, command, *args, **kwargs):
+    async def _execute_nodes(self, command, *args, all_=False, **kwargs):
         """
         Execute redis command for all nodes and returns
         Future waiting for the answer.
 
         :param command str
+        :param all_ bool - Execute on all nodes masters + slaves
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        return (yield from asyncio.gather(
-            *[self._execute_node(node.address, command, *args, **kwargs)
-              for node in self._cluster_manager.masters],
-            loop=self._loop))
+        nodes = self.get_nodes_entities(slaves=all_)
+        return await asyncio.gather(*[
+            self._execute_node(node, command, *args, **kwargs)
+            for node in nodes
+        ], loop=self._loop)
 
-    @asyncio.coroutine
-    def execute(self, command, *args, many=False, **kwargs):
+    async def execute(
+            self, command, *args, address=None, many=False, all_=False,
+            **kwargs
+    ):
         """Execute redis command and returns Future waiting for the answer.
 
         :param command str
-        :param many bool - invoke on all nodes
+        :param address tuple - Execute on node with specified address
+            if many specified will be ignored
+        :param many bool - invoke on all master nodes
+        :param all_ boll - if many specified, execute even on slave nodes
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        if not args:
-            many = True
-        if not many:
+
+        # bad hack to prevent execution on many nodes
+        if many or (not args and 'cluster_' not in command):
+            return await self._execute_nodes(
+                command, *args, all_=all_, **kwargs
+            )
+
+        if not address:
             address = self.get_node(command, *args, **kwargs).address
-            return (yield from self._execute_node(
-                address, command, *args, **kwargs))
-        else:
-            return (yield from self._execute_nodes(
-                command, *args, **kwargs))
+
+        return await self._execute_node(address, command, *args, **kwargs)
 
     def __getattr__(self, cmd):
         return partial(self.execute, cmd)
 
 
 class RedisPoolCluster(RedisCluster):
-    """Redis pool cluster."""
+    """
+    Redis pool cluster.
+    Do not use it for cluster management.
+    Will not operate with slaves and target node
+    """
 
     def __init__(self, nodes, db=0, password=None, encoding=None,
                  *, minsize, maxsize, commands_factory, loop=None):
@@ -490,15 +488,14 @@ class RedisPoolCluster(RedisCluster):
         self._maxsize = maxsize
         self._cluster_pool = {}
 
-    def get_nodes_entities(self):
+    def get_nodes_entities(self, **kwargs):
         return self._cluster_pool.values()
 
-    @asyncio.coroutine
-    def get_cluster_pool(self):
+    async def get_cluster_pool(self):
         cluster_pool = {}
         nodes = list(self._cluster_manager.masters)
         tasks = [
-            async_task(create_pool(
+            asyncio.ensure_future(create_redis_pool(
                 node.address, db=self._db, password=self._password,
                 encoding=self._encoding, minsize=self._minsize,
                 maxsize=self._maxsize, commands_factory=self._factory,
@@ -507,43 +504,36 @@ class RedisPoolCluster(RedisCluster):
             )
             for node in nodes
         ]
-        yield from asyncio.gather(*tasks, loop=self._loop)
+        await asyncio.gather(*tasks, loop=self._loop)
 
         for node, task in zip(nodes, tasks):
             cluster_pool[node.id] = task.result()
         return cluster_pool
 
-    @asyncio.coroutine
-    def reload_cluster_pool(self):
+    async def reload_cluster_pool(self):
         logger.info('Reloading cluster...')
-        yield from self.clear()
+        await self.clear()
         self._moved_count = 0
-        yield from self.fetch_cluster_info()
+        await self.fetch_cluster_info()
         logger.info('Connecting to cluster...')
-        self._cluster_pool = yield from self.get_cluster_pool()
+        self._cluster_pool = await self.get_cluster_pool()
         logger.info('Reloaded cluster')
 
-    @asyncio.coroutine
-    def initialize(self):
-        yield from super().initialize()
-        self._cluster_pool = yield from self.get_cluster_pool()
+    async def initialize(self):
+        await super().initialize()
+        self._cluster_pool = await self.get_cluster_pool()
 
-    @asyncio.coroutine
-    def clear(self):
+    async def clear(self):
         """Clear pool connections. Close and remove all free connections."""
-        for pool in self._cluster_pool.values():
-            yield from pool.clear()
+        for pool in self.get_nodes_entities():
+            pool.close()
+            await pool.wait_closed()
 
-    @property
-    def all_slots_covered(self):
-        return self._cluster_manager.all_slots_covered
-
-    def get_pool(self, command, *args, **kwargs):
-        node = self.get_node(command, *args, **kwargs)
+    def get_node(self, command, *args, **kwargs):
+        node = super().get_node(command, *args, **kwargs)
         return self._cluster_pool[node.id]
 
-    @asyncio.coroutine
-    def _execute_node(self, pool, command, *args, **kwargs):
+    async def _execute_node(self, pool, command, *args, **kwargs):
         """Execute redis command and returns Future waiting for the answer.
 
         :param command str
@@ -554,66 +544,44 @@ class RedisPoolCluster(RedisCluster):
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        cmd = decode(command).lower()
+        cmd = decode(command, 'utf-8').lower()
         try:
-            with (yield from pool) as conn:
-                return (yield from getattr(conn, cmd)(*args, **kwargs))
+            with await pool as conn:
+                return await getattr(conn, cmd)(*args, **kwargs)
         except ReplyError as err:
             address = parse_moved_response_error(err)
             if address is None:
                 raise
+
             logger.debug('Got MOVED command: {}'.format(err))
             self._moved_count += 1
             if self._moved_count >= self.MAX_MOVED_COUNT:
-                yield from self.initialize()
-                pool = self.get_pool(command, *args, **kwargs)
-                with (yield from pool) as conn:
-                    return (yield from getattr(conn, cmd)(*args, **kwargs))
+                await self.initialize()
+                pool = self.get_node(command, *args, **kwargs)
+                with await pool as conn:
+                    return await getattr(conn, cmd)(*args, **kwargs)
             else:
-                conn = yield from self.create_connection(address)
-                res = yield from getattr(conn, cmd)(*args, **kwargs)
+                conn = await self.create_connection(address)
+                res = await getattr(conn, cmd)(*args, **kwargs)
                 conn.close()
-                yield from conn.wait_closed()
+                await conn.wait_closed()
                 return res
 
-    @asyncio.coroutine
-    def _execute_nodes(self, command, *args, **kwargs):
-        """
-        Execute redis command for all nodes and returns
-        Future waiting for the answer.
-
-        :param command str
-        Raises:
-        * TypeError if any of args can not be encoded as bytes.
-        * ReplyError on redis '-ERR' responses.
-        * ProtocolError when response can not be decoded meaning connection
-          is broken.
-        """
-        return (yield from asyncio.gather(
-            *[self._execute_node(pool, command, *args, **kwargs)
-              for pool in self._cluster_pool.values()],
-            loop=self._loop))
-
-    @asyncio.coroutine
-    def execute(self, command, *args, many=False, **kwargs):
+    async def execute(self, command, *args, many=False, **kwargs):
         """Execute redis command and returns Future waiting for the answer.
 
         :param command str
-        :param many bool - invoke on all nodes
+        :param many bool - invoke on all master nodes
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        if not args:
-            many = True
-        if not many:
-            pool = self.get_pool(command, *args, **kwargs)
-            return (yield from self._execute_node(
-                pool, command, *args, **kwargs))
-        else:
-            return (yield from self._execute_nodes(command, *args, **kwargs))
 
-    def __getattr__(self, cmd):
-        return partial(self.execute, cmd)
+        # bad hack to prevent execution on many nodes
+        if many or (not args and 'cluster_' not in command):
+            return await self._execute_nodes(command, *args, **kwargs)
+
+        pool = self.get_node(command, *args, **kwargs)
+        return await self._execute_node(pool, command, *args, **kwargs)

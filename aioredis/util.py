@@ -214,3 +214,21 @@ def _parse_uri_options(params, path, password):
     if 'timeout' in params:
         options['timeout'] = float(params['timeout'])
     return options
+
+
+def encode_str(obj):
+    obj_type = type(obj)
+    if obj_type in _converters:
+        return _converters[obj_type](obj)
+
+    return obj
+
+
+class cached_property:
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, instance, cls=None):
+        name = self.func.__name__
+        result = instance.__dict__[name] = self.func(instance)
+        return result

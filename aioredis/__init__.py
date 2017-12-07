@@ -7,6 +7,7 @@ from .commands import (
 from .pool import ConnectionsPool, create_pool
 from .pubsub import Channel
 from .sentinel import RedisSentinel, create_sentinel
+from .cluster import create_cluster, create_pool_cluster
 from .errors import (
     ConnectionClosedError,
     ConnectionForcedCloseError,
@@ -37,6 +38,8 @@ __all__ = [
     'create_redis',
     'create_redis_pool',
     'create_sentinel',
+    'create_cluster',
+    'create_pool_cluster',
     # Classes
     'RedisConnection',
     'ConnectionsPool',
