@@ -1,4 +1,5 @@
 from urllib.parse import urlparse, parse_qsl
+import collections
 
 from .log import logger
 
@@ -214,3 +215,17 @@ def _parse_uri_options(params, path, password):
     if 'timeout' in params:
         options['timeout'] = float(params['timeout'])
     return options
+
+
+class MappingAttributeProxy(collections.Mapping):
+    def __init__(self, getter):
+        self._getter = getter
+
+    def __getitem__(self, item):
+        return self._getter()[item]
+
+    def __iter__(self):
+        return self._getter().__iter__()
+
+    def __len__(self):
+        return len(self._getter())
