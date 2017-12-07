@@ -35,7 +35,8 @@ def main():
         for key in keys:
             await cluster.set(key, value)
         res = await cluster.keys('*')
-        assert set(keys) <= set(res)
+
+        assert len(set(res) - set(keys)) >= 0
         print("get_keys -> {}".format(res))
         await cluster.clear()  # closing all open connections
 
@@ -59,7 +60,7 @@ def main():
         res = []
         for _keys in await cluster.scan(match='key*'):
             res.extend(_keys)
-        assert set(keys) <= set(res)
+        assert len(set(res) - set(keys)) >= 0
         print("scan -> {}".format(res))
         await cluster.clear()  # closing all open connections
 
