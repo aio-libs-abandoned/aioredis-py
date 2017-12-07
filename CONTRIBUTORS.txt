@@ -29,4 +29,5 @@ Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris
 Thomas Steinacher
+Vladyslav Bondar
 Volodymyr Hotsyk
