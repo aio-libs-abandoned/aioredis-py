@@ -34,7 +34,7 @@ def main():
         for key in keys:
             await cluster.set(key, value)
         res = await cluster.keys('*')
-        assert len(set(res) - set(keys)) >= 0
+        assert set(keys).issubset(set(res))
         print("get_keys -> {}".format(res))
 
     async def flush_all(cluster):
@@ -53,11 +53,9 @@ def main():
         value = 'value1'
         for key in keys:
             await cluster.set(key, value)
-        res = []
-        for _keys in (await cluster.scan(match='key*')):
-            for key in _keys:
-                res.append(key)
-        assert len(set(res) - set(keys)) >= 0
+
+        res = await cluster.scan(match='key*')
+        assert set(keys).issubset(set(res))
         print("scan -> {}".format(res))
 
     try:
