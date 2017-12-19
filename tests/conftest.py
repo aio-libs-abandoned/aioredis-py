@@ -557,12 +557,6 @@ def pytest_runtest_setup(item):
         item.fixturenames.append('loop')
 
 
-def pytest_ignore_collect(path, config):
-    if 'py35' in str(path):
-        if sys.version_info < (3, 5, 0):
-            return True
-
-
 def pytest_collection_modifyitems(session, config, items):
     for item in items:
         if 'redis_version' in item.keywords:

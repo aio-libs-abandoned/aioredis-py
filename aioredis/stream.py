@@ -44,17 +44,23 @@ class StreamReader(asyncio.StreamReader):
     get rid of one coroutine step. Data flows from the buffer
     to the Redis parser directly.
     """
+    _parser = None
 
     def set_parser(self, parser):
-        # XXX: we'll get AttributeError unless set_parser is called
         self._parser = parser
+        if self._buffer:
+            self._parser.feed(self._buffer)
+            del self._buffer[:]
 
     def feed_data(self, data):
         assert not self._eof, 'feed_data after feed_eof'
 
         if not data:
             return
-
+        if self._parser is None:
+            # XXX: hopefully it's only a small error message
+            self._buffer.extend(data)
+            return
         self._parser.feed(data)
         self._wakeup_waiter()
 
@@ -67,6 +73,7 @@ class StreamReader(asyncio.StreamReader):
         Return a parsed Redis object or an exception
         when something wrong happened.
         """
+        assert self._parser is not None, "set_parser must be called"
         while True:
             obj = self._parser.gets()
 
