@@ -7,21 +7,6 @@ import pytest
 import asyncio
 
 
-def skip_if_streams_not_present(server_bin):
-    if os.environ.get('STREAMS_AVAILABLE'):
-        return
-    if '/streams/' in server_bin:
-        return
-
-    pytest.skip(
-        "Streams testing is disabled as streams are not yet available "
-        "in Redis 4.0. Set STREAMS_AVAILABLE=1 in your environment "
-        "if you have compiled the Redis 'streams' branch. You will "
-        "probably need specify the --redis-server=path/to/redis-server "
-        " to py.test."
-    )
-
-
 @asyncio.coroutine
 async def add_message_with_sleep(redis, loop, stream, fields):
     await asyncio.sleep(0.2, loop=loop)
@@ -30,9 +15,8 @@ async def add_message_with_sleep(redis, loop, stream, fields):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xadd(redis, server_bin):
-    skip_if_streams_not_present(server_bin)
-
     fields = OrderedDict((
         (b'field1', b'value1'),
         (b'field2', b'value2'),
@@ -57,9 +41,8 @@ async def test_xadd(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xadd_maxlen_exact(redis, server_bin):
-    skip_if_streams_not_present(server_bin)
-
     message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
     sleep(0.001)  # Ensure the millisecond-based message ID increments
     message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
@@ -83,9 +66,8 @@ async def test_xadd_maxlen_exact(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xadd_maxlen_inexact(redis, server_bin):
-    skip_if_streams_not_present(server_bin)
-
     message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
     sleep(0.001)  # Ensure the millisecond-based message ID increments
     message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
@@ -106,9 +88,8 @@ async def test_xadd_maxlen_inexact(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xrange(redis, server_bin):
-    skip_if_streams_not_present(server_bin)
-
     stream = 'test_stream'
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -162,9 +143,8 @@ async def test_xrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xrevrange(redis, server_bin):
-    skip_if_streams_not_present(server_bin)
-
     stream = 'test_stream'
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -218,10 +198,9 @@ async def test_xrevrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
-    skip_if_streams_not_present(server_bin)
-
     stream = 'test_stream'
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -253,10 +232,9 @@ async def test_xread_selection(redis, server_bin):
 
 
 @pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
 async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     """Test the blocking read features"""
-    skip_if_streams_not_present(server_bin)
-
     fields = OrderedDict((
         (b'field1', b'value1'),
         (b'field2', b'value2'),
