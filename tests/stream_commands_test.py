@@ -1,6 +1,5 @@
 from collections import OrderedDict
 
-import os
 from time import sleep
 
 import pytest
@@ -15,7 +14,8 @@ async def add_message_with_sleep(redis, loop, stream, fields):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xadd(redis, server_bin):
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -41,13 +41,15 @@ async def test_xadd(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xadd_maxlen_exact(redis, server_bin):
-    message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
+    message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})  # noqa
     sleep(0.001)  # Ensure the millisecond-based message ID increments
     message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
     sleep(0.001)
-    message_id3 = await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=True)
+    message_id3 = await redis.xadd('test_stream', {'f3': 'v3'},
+                                   max_len=2, exact_len=True)
 
     # Read it back
     messages = await redis.xrange('test_stream')
@@ -66,13 +68,14 @@ async def test_xadd_maxlen_exact(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xadd_maxlen_inexact(redis, server_bin):
-    message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})
+    await redis.xadd('test_stream', {'f1': 'v1'})
     sleep(0.001)  # Ensure the millisecond-based message ID increments
-    message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
+    await redis.xadd('test_stream', {'f2': 'v2'})
     sleep(0.001)
-    message_id3 = await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=False)
+    await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=False)
 
     # Read it back
     messages = await redis.xrange('test_stream')
@@ -88,7 +91,8 @@ async def test_xadd_maxlen_inexact(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -128,13 +132,13 @@ async def test_xrange(redis, server_bin):
 
     # Test start & stop
     messages = await redis.xrange(stream,
-                                       start=message_id1,
-                                       stop=message_id2)
+                                  start=message_id1,
+                                  stop=message_id2)
     assert len(messages) == 2
 
     messages = await redis.xrange(stream,
-                                       start='0000000000000-0',
-                                       stop='9900000000000-0')
+                                  start='0000000000000-0',
+                                  stop='9900000000000-0')
     assert len(messages) == 3
 
     # Test count
@@ -143,7 +147,8 @@ async def test_xrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xrevrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -183,13 +188,13 @@ async def test_xrevrange(redis, server_bin):
 
     # Test start & stop
     messages = await redis.xrevrange(stream,
-                                       start=message_id2,
-                                       stop=message_id1)
+                                     start=message_id2,
+                                     stop=message_id1)
     assert len(messages) == 2
 
     messages = await redis.xrevrange(stream,
-                                       start='9900000000000-0',
-                                       stop='0000000000000-0')
+                                     start='9900000000000-0',
+                                     stop='0000000000000-0')
     assert len(messages) == 3
 
     # Test count
@@ -198,7 +203,8 @@ async def test_xrevrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
     stream = 'test_stream'
@@ -211,28 +217,29 @@ async def test_xread_selection(redis, server_bin):
     message_id3 = await redis.xadd(stream, fields)
 
     messages = await redis.xread([stream],
-                                      timeout=1,
-                                      latest_ids=['0000000000000-0'])
+                                 timeout=1,
+                                 latest_ids=['0000000000000-0'])
     assert len(messages) == 3
 
     messages = await redis.xread([stream],
-                                      timeout=1,
-                                      latest_ids=[message_id1])
+                                 timeout=1,
+                                 latest_ids=[message_id1])
     assert len(messages) == 2
 
     messages = await redis.xread([stream],
-                                      timeout=1,
-                                      latest_ids=[message_id3])
+                                 timeout=1,
+                                 latest_ids=[message_id3])
     assert len(messages) == 0
 
     messages = await redis.xread([stream],
-                                      timeout=1,
-                                      latest_ids=['0000000000000-0'], count=2)
+                                 timeout=1,
+                                 latest_ids=['0000000000000-0'], count=2)
     assert len(messages) == 2
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis unstable branch")
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     """Test the blocking read features"""
     fields = OrderedDict((
