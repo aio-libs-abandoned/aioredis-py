@@ -583,6 +583,10 @@ def test_in_range():
     assert master.in_range(5460)
     assert not master.in_range(5461)
 
+    master.slots = tuple()
+
+    assert not master.in_range(0)
+
 
 def test_all_slots_covered():
     decoded_node_info_ok = list(parse_cluster_nodes(
@@ -619,6 +623,23 @@ def test_determine_slot_multiple_different():
     with pytest.raises(RedisClusterError):
         manager.determine_slot('key:1', 'key:2')
 
+
+def test_get_node_by_id():
+    manager = ClusterNodesManager.create(NODE_INFO_DATA_FAIL)
+    node = manager.get_node_by_id('07c37dfeb235213a872192d90877d0cd55635b91')
+    assert node.address == ('127.0.0.1', 30004)
+
+    no_node = manager.get_node_by_id('xxx')
+    assert no_node is None
+
+
+def test_get_node_by_address():
+    manager = ClusterNodesManager.create(NODE_INFO_DATA_FAIL)
+    node = manager.get_node_by_address(('127.0.0.1', 30004))
+    assert node.id == '07c37dfeb235213a872192d90877d0cd55635b91'
+
+    no_node = manager.get_node_by_address('xxx')
+    assert no_node is None
 
 # Testing redis cluster
 
@@ -659,10 +680,20 @@ async def test_get_node(test_cluster, free_ports):
     # Compare script used to setup the test cluster
     node = test_cluster.get_node('GET', 'key:0')
     assert node.address[1] == free_ports[0]
+
     node = test_cluster.get_node('GET', b'key:1')
     assert node.address[1] == free_ports[1]
+
+    node = test_cluster.get_node('GET', b'{key:1}')
+    assert node.address[1] == free_ports[1]
+
     node = test_cluster.get_node('GET', b'key:3', 'more', 'args')
     assert node.address[1] == free_ports[2]
+
+    # Check that we have random node
+    node = test_cluster.get_node('info')
+    assert node.id
+    assert node.address[1] in free_ports
 
 
 def test_cluster_all_slots_covered(test_cluster):
@@ -679,6 +710,9 @@ async def test_get_node_eval(test_cluster, free_ports):
         test_cluster.get_node(
             'EVAL', keys=['keys', 'in', 'different', 'slots']
         )
+
+    with pytest.raises(TypeError):
+        test_cluster.get_node(b'EVAL', keys=123)
 
 
 @pytest.mark.run_loop
@@ -777,6 +811,7 @@ async def test_execute_command(loop, test_cluster, free_ports):
     expected_connection.execute.assert_called_once_with(
         b'SET', SLOT_ZERO_KEY, 'value'
     )
+
 
 # Testing redis pool cluster
 
@@ -1510,6 +1545,9 @@ async def test_cluster_set_config_epoch_and_reset(test_cluster):
         await test_cluster.cluster_set_config_epoch(
             1, address=other_node.address
         )
+
+    res = await test_cluster.cluster_reset()
+    assert all(res)
 
 
 @pytest.mark.run_loop

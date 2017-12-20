@@ -29,13 +29,6 @@ class ClusterCommandsMixin:
     def cluster_count_key_in_slots(self, slot):
         """Return the number of local keys in the specified hash slot."""
 
-        try:
-            slot = int(slot)
-        except ValueError:
-            raise TypeError(
-                "Expected slot to be of type int, got {}".format(type(slot))
-            )
-
         return self.execute(b'CLUSTER', b'COUNTKEYSINSLOT', slot)
 
     def cluster_del_slots(self, slot, *slots):
@@ -63,14 +56,6 @@ class ClusterCommandsMixin:
 
     def cluster_get_keys_in_slots(self, slot, count, *, encoding=_NOTSET):
         """Return local key names in the specified hash slot."""
-
-        try:
-            slot = int(slot)
-        except ValueError:
-            raise TypeError(
-                "Expected slot to be of type int, got {}".format(type(slot))
-            )
-
         return self.execute(b'CLUSTER', b'GETKEYSINSLOT', slot, count,
                             encoding=encoding)
 

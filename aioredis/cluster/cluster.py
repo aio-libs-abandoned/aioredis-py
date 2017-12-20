@@ -67,10 +67,6 @@ class ClusterNode:
         return self.host, self.port
 
     @cached_property
-    def is_fail(self):
-        return 'fail' in self.flags
-
-    @cached_property
     def is_alive(self):
         return ('fail' not in self.flags and
                 'fail?' not in self.flags and
@@ -180,6 +176,8 @@ class ClusterNodesManager:
         for node in self.nodes:
             if address == node.address:
                 return node
+        else:
+            return None
 
     def get_random_node(self):
         return random.choice(self.alive_nodes)
