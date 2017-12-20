@@ -41,12 +41,12 @@ class ClusterNode:
             self, number, id, host, port, flags, master, status, slots,
             **kwargs
     ):
-        self.id = decode(id, 'utf-8')
-        self.host = decode(host, 'utf-8')
-        self.port = decode(port, 'utf-8')
-        self.flags = tuple(decode(f, 'utf-8') for f in flags)
-        self.master = decode(master, 'utf-8')
-        self.status = decode(status, 'utf-8')
+        self.id = id
+        self.host = host
+        self.port = port
+        self.flags = flags
+        self.master = master
+        self.status = status
         self.slots = slots
         self.number = number
 
@@ -173,6 +173,8 @@ class ClusterNodesManager:
         for node in self.nodes:
             if node_id == node.id:
                 return node
+        else:
+            return None
 
     def get_node_by_address(self, address):
         for node in self.nodes:
@@ -322,7 +324,7 @@ class RedisCluster(RedisClusterMixin):
             node,
             db=self._db,
             password=self._password,
-            encoding=self._encoding,
+            encoding='utf-8',
             commands_factory=self._factory,
             loop=self._loop
         )
@@ -380,8 +382,13 @@ class RedisCluster(RedisClusterMixin):
 
     async def create_connection(self, address):
         conn = await create_redis(
-            address, db=self._db, encoding=self._encoding,
-            password=self._password, loop=self._loop, )
+            address,
+            db=self._db,
+            encoding=self._encoding,
+            password=self._password,
+            commands_factory=self._factory,
+            loop=self._loop,
+        )
         return conn
 
     async def _execute_node(self, address, command, *args, **kwargs):
@@ -448,7 +455,7 @@ class RedisCluster(RedisClusterMixin):
         :param address tuple - Execute on node with specified address
             if many specified will be ignored
         :param many bool - invoke on all master nodes
-        :param all_ boll - if many specified, execute even on slave nodes
+        :param all_ bool - if many specified, execute even on slave nodes
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
@@ -495,19 +502,22 @@ class RedisPoolCluster(RedisCluster):
         cluster_pool = {}
         nodes = list(self._cluster_manager.masters)
         tasks = [
-            asyncio.ensure_future(create_redis_pool(
-                node.address, db=self._db, password=self._password,
-                encoding=self._encoding, minsize=self._minsize,
-                maxsize=self._maxsize, commands_factory=self._factory,
-                loop=self._loop),
+            create_redis_pool(
+                node.address,
+                db=self._db,
+                password=self._password,
+                encoding=self._encoding,
+                minsize=self._minsize,
+                maxsize=self._maxsize,
+                commands_factory=self._factory,
                 loop=self._loop
             )
             for node in nodes
         ]
-        await asyncio.gather(*tasks, loop=self._loop)
+        results = await asyncio.gather(*tasks, loop=self._loop)
 
-        for node, task in zip(nodes, tasks):
-            cluster_pool[node.id] = task.result()
+        for node, connection in zip(nodes, results):
+            cluster_pool[node.id] = connection
         return cluster_pool
 
     async def reload_cluster_pool(self):

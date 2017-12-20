@@ -4,7 +4,6 @@ import pytest
 import socket
 import math
 
-from copy import deepcopy
 from unittest import mock
 
 from aioredis import ReplyError, ProtocolError
@@ -72,6 +71,7 @@ NODE_INFO_DATA_OK = [
         'master': b'e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca',
         'ping-sent': 0,
         'pong-recv': 1426238317239,
+        'config_epoch': 4,
         'status': b'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -85,6 +85,7 @@ NODE_INFO_DATA_OK = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 1426238316232,
+        'config_epoch': 2,
         'status': b'connected',
         'slots': ((5461, 10922),),
         'migrations': (
@@ -109,6 +110,7 @@ NODE_INFO_DATA_OK = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 1426238318243,
+        'config_epoch': 3,
         'status': b'connected',
         'slots': ((0, 0), (10925, 16383)),
         'migrations': (
@@ -133,6 +135,7 @@ NODE_INFO_DATA_OK = [
         'master': b'67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1',
         'ping-sent': 0,
         'pong-recv': 1426238316232,
+        'config_epoch': 5,
         'status': b'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -146,6 +149,7 @@ NODE_INFO_DATA_OK = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 0,
+        'config_epoch': 1,
         'status': b'connected',
         'slots': ((1, 5460), (10923, 10924)),
         'migrations': tuple()
@@ -159,6 +163,7 @@ NODE_INFO_DATA_OK = [
         'master': b'292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f',
         'ping-sent': 0,
         'pong-recv': 1426238317741,
+        'config_epoch': 6,
         'status': b'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -175,6 +180,7 @@ NODE_INFO_DATA_FAIL = [
         'master': 'e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca',
         'ping-sent': 0,
         'pong-recv': 1426238317239,
+        'config_epoch': 4,
         'status': 'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -188,6 +194,7 @@ NODE_INFO_DATA_FAIL = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 1426238316232,
+        'config_epoch': 2,
         'status': 'connected',
         'slots': ((5461, 10922),),
         'migrations': tuple()
@@ -201,6 +208,7 @@ NODE_INFO_DATA_FAIL = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 1426238318243,
+        'config_epoch': 3,
         'status': 'connected',
         'slots': ((10923, 16383),),
         'migrations': tuple()
@@ -214,6 +222,7 @@ NODE_INFO_DATA_FAIL = [
         'master': '67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1',
         'ping-sent': 0,
         'pong-recv': 1426238316232,
+        'config_epoch': 5,
         'status': 'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -227,6 +236,7 @@ NODE_INFO_DATA_FAIL = [
         'master': '292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f',
         'ping-sent': 0,
         'pong-recv': 1426238317741,
+        'config_epoch': 6,
         'status': 'connected',
         'slots': tuple(),
         'migrations': tuple()
@@ -240,6 +250,7 @@ NODE_INFO_DATA_FAIL = [
         'master': None,
         'ping-sent': 0,
         'pong-recv': 0,
+        'config_epoch': 1,
         'status': 'connected',
         'slots': ((0, 5460),),
         'migrations': tuple()
@@ -401,7 +412,7 @@ def free_ports():
     return ports
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture
 def cluster_server(server_bin, free_ports):
     server = setup_test_cluster(
         free_ports, '/tmp/redis-cluster', server_exec=server_bin
@@ -422,14 +433,14 @@ def nodes(free_ports):
 
 
 @pytest.fixture
-def test_cluster(loop, nodes):
+def test_cluster(loop, nodes, cluster_server):
     return loop.run_until_complete(
         create_cluster(nodes, encoding='utf-8', loop=loop)
     )
 
 
 @pytest.fixture
-def test_pool_cluster(loop, nodes):
+def test_pool_cluster(loop, nodes, cluster_server):
     pool_cluster = loop.run_until_complete(
         create_pool_cluster(nodes, encoding='utf-8', loop=loop)
     )
@@ -472,7 +483,7 @@ async def _wait_result(
 
 
 async def _clear_existing_slots(test_cluster, loop):
-    # We deon't know which node will be requested, so it's better to waite
+    # We don't know which node will be requested, so it's better to waite
     # while changes will be applied to all cluster nodes
     slots = await test_cluster.cluster_slots()
     if not slots:
@@ -486,15 +497,7 @@ async def _clear_existing_slots(test_cluster, loop):
 
 
 @pytest.fixture
-def reconfigure_cluster_server(cluster_server, test_cluster, loop):
-    yield
-    loop.run_until_complete(test_cluster.cluster_reset())
-    cluster_server.configure_cluster()
-    loop.run_until_complete(test_cluster.initialize())
-
-
-@pytest.fixture
-def clear_all_slots(test_cluster, loop, reconfigure_cluster_server):
+def clear_all_slots(test_cluster, loop):
     loop.run_until_complete(_clear_existing_slots(test_cluster, loop))
 
 
@@ -582,17 +585,19 @@ def test_in_range():
 
 
 def test_all_slots_covered():
-    manager = ClusterNodesManager.create(NODE_INFO_DATA_OK)
+    decoded_node_info_ok = list(parse_cluster_nodes(
+        RAW_NODE_INFO_DATA_OK.decode('utf-8'), encoding='utf-8'
+    ))
+    manager = ClusterNodesManager.create(decoded_node_info_ok)
     assert manager.all_slots_covered
 
     manager = ClusterNodesManager.create(NODE_INFO_DATA_FAIL)
     assert not manager.all_slots_covered
 
-    modified_data = deepcopy(NODE_INFO_DATA_OK)
-    modified_data[2]['slots'] = list(modified_data[2]['slots'])
-    del modified_data[2]['slots'][0]
+    decoded_node_info_ok[2]['slots'] = list(decoded_node_info_ok[2]['slots'])
+    del decoded_node_info_ok[2]['slots'][0]
 
-    manager = ClusterNodesManager.create(modified_data)
+    manager = ClusterNodesManager.create(decoded_node_info_ok)
     assert not manager.all_slots_covered
 
 
@@ -1008,7 +1013,7 @@ async def test_cluster_nodes(test_cluster):
 
     assert len(info) == NODES_COUNT
     for node in info:
-        assert len(node) == 11
+        assert len(node) == 12
 
         assert 'id' in node
         assert 'flags' in node
@@ -1055,7 +1060,7 @@ async def test_cluster_slaves(test_cluster):
     slave_info = res[0]
     assert slave.id == slave_info['id']
     assert slave.address == (slave_info['host'], slave_info['port'])
-    assert slave.flags == slave_info['flags']
+    assert slave.flags[-1] == slave_info['flags'][-1]
     assert slave.master == slave_info['master']
     assert slave.status == slave_info['status']
 
@@ -1146,7 +1151,6 @@ async def test_count_failure_reports(test_cluster):
 
 
 @pytest.mark.run_loop
-@pytest.mark.usefixtures('reconfigure_cluster_server')
 async def test_del_slots(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
     masters_count = int(NODES_COUNT / 2)
@@ -1395,7 +1399,6 @@ async def test_cluster_setslots_fail(test_cluster, key_and_slot):
 
 
 @pytest.mark.run_loop
-@pytest.mark.usefixtures('reconfigure_cluster_server')
 async def test_cluster_forget_and_replicate(test_cluster):
     master1 = test_cluster.master_nodes[0]
     master2 = test_cluster.master_nodes[1]
@@ -1465,7 +1468,6 @@ async def test_cluster_forget_and_replicate(test_cluster):
 
 
 @pytest.mark.run_loop
-@pytest.mark.usefixtures('reconfigure_cluster_server')
 async def test_cluster_set_config_epoch_and_reset(test_cluster):
     nodes = test_cluster.master_nodes
     node = nodes[0]

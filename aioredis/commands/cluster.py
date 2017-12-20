@@ -192,29 +192,29 @@ def parse_node_slots(raw_slots, encoding=None):
     """
 
     slots, migrations = [], []
-    r_delimiter = _decode(b'->-', encoding)
-    l_delimiter = _decode(b'-<-', encoding)
-    m_delimiter = _decode(b'-', encoding)
+    migration_delimiter = _decode(b'->-', encoding)
+    import_delimiter = _decode(b'-<-', encoding)
+    range_delimiter = _decode(b'-', encoding)
     migrating_state = _decode(b'migrating', encoding)
     importing_state = _decode(b'importing', encoding)
 
     for r in raw_slots.strip().split():
-        if r_delimiter in r:
-            slot_id, dst_node_id = r[1:-1].split(r_delimiter, 1)
+        if migration_delimiter in r:
+            slot_id, dst_node_id = r[1:-1].split(migration_delimiter, 1)
             migrations.append({
                 'slot': int(slot_id),
                 'node_id': dst_node_id,
                 'state': migrating_state
             })
-        elif l_delimiter in r:
-            slot_id, src_node_id = r[1:-1].split(l_delimiter, 1)
+        elif import_delimiter in r:
+            slot_id, src_node_id = r[1:-1].split(import_delimiter, 1)
             migrations.append({
                 'slot': int(slot_id),
                 'node_id': src_node_id,
                 'state': importing_state
             })
-        elif m_delimiter in r:
-            start, end = r.split(m_delimiter)
+        elif range_delimiter in r:
+            start, end = r.split(range_delimiter)
             slots.append((int(start), int(end)))
         else:
             slots.append((int(r), int(r)))
@@ -224,13 +224,13 @@ def parse_node_slots(raw_slots, encoding=None):
 
 def parse_cluster_nodes_lines(lines, encoding=None):
     """
-    @see: http://redis.io/commands/cluster-slaves # list of string
+    @see: https://redis.io/commands/cluster-nodes # list of string
     """
 
     address_splitter = _decode(b':', encoding)
     port_splitter = _decode(b'@', encoding)
     flags_splitter = _decode(b',', encoding)
-    m_delimiter = _decode(b'-', encoding)
+    no_master = _decode(b'-', encoding)
 
     for line in lines:
         parts = line.split(None, 8)
@@ -253,9 +253,10 @@ def parse_cluster_nodes_lines(lines, encoding=None):
             'port': int(port),
             'nat-port': nat_port,
             'flags': tuple(flags.split(flags_splitter)),
-            'master': master_id if master_id != m_delimiter else None,
+            'master': master_id if master_id != no_master else None,
             'ping-sent': int(ping_sent),
             'pong-recv': int(pong_recv),
+            'config_epoch': int(config_epoch),
             'status': link_state,
             'slots': tuple(),
             'migrations': tuple(),
