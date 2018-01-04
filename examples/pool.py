@@ -2,22 +2,17 @@ import asyncio
 import aioredis
 
 
-def main():
-    loop = asyncio.get_event_loop()
-
-    @asyncio.coroutine
-    def go():
-        pool = yield from aioredis.create_pool(
-            ('localhost', 6379),
-            minsize=5, maxsize=10)
-        with (yield from pool) as redis:    # high-level redis API instance
-            yield from redis.set('my-key', 'value')
-            val = yield from redis.get('my-key')
-        print('raw value:', val)
-        yield from pool.clear()    # closing all open connections
-
-    loop.run_until_complete(go())
+async def main():
+    pool = await aioredis.create_pool(
+        'redis://localhost',
+        minsize=5, maxsize=10)
+    with await pool as conn:    # low-level redis connection
+        await conn.execute('set', 'my-key', 'value')
+        val = await conn.execute('get', 'my-key')
+    print('raw value:', val)
+    pool.close()
+    await pool.wait_closed()    # closing all open connections
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.get_event_loop().run_until_complete(main())

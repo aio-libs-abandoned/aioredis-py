@@ -1,6 +1,5 @@
 import types
 import asyncio
-import hiredis
 import socket
 from functools import partial
 from collections import deque
@@ -12,16 +11,24 @@ from .util import (
     _set_result,
     _set_exception,
     coerced_keys_dict,
-    Channel,
     decode,
-    async_task
+    parse_url,
     )
+from .parser import Reader
+from .stream import open_connection, open_unix_connection
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
     RedisError,
     ProtocolError,
-    ReplyError
+    ReplyError,
+    WatchVariableError,
+    ReadOnlyError,
+    MaxClientsError
     )
+from .pubsub import Channel
+from .abc import AbcChannel
+from .abc import AbcConnection
 from .log import logger
 
 
@@ -37,73 +44,123 @@ _PUBSUB_COMMANDS = (
     )
 
 
-@asyncio.coroutine
-def create_connection(address, *, db=None, password=None, ssl=None,
-                      encoding=None, loop=None):
+async def create_connection(address, *, db=None, password=None, ssl=None,
+                            encoding=None, parser=None, loop=None,
+                            timeout=None, connection_cls=None):
     """Creates redis connection.
 
     Opens connection to Redis server specified by address argument.
-    Address argument is similar to socket address argument, ie:
-    * when address is a tuple it represents (host, port) pair;
-    * when address is a str it represents unix domain socket path.
-    (no other address formats supported)
+    Address argument can be one of the following:
+    * A tuple representing (host, port) pair for TCP connections;
+    * A string representing either Redis URI or unix domain socket path.
 
     SSL argument is passed through to asyncio.create_connection.
     By default SSL/TLS is not used.
 
+    By default any timeout is applied at the connection stage, however
+    you can set a limitted time used trying to open a connection via
+    the `timeout` Kw.
+
     Encoding argument can be used to decode byte-replies to strings.
     By default no decoding is done.
 
-    Return value is RedisConnection instance.
+    Parser parameter can be used to pass custom Redis protocol parser class.
+    By default hiredis.Reader is used (unless it is missing or platform
+    is not CPython).
+
+    Return value is RedisConnection instance or a connection_cls if it is
+    given.
 
     This function is a coroutine.
     """
     assert isinstance(address, (tuple, list, str)), "tuple or str expected"
+    if isinstance(address, str):
+        logger.debug("Parsing Redis URI %r", address)
+        address, options = parse_url(address)
+        db = options.setdefault('db', db)
+        password = options.setdefault('password', password)
+        encoding = options.setdefault('encoding', encoding)
+        timeout = options.setdefault('timeout', timeout)
+        if 'ssl' in options:
+            assert options['ssl'] or (not options['ssl'] and not ssl), (
+                "Conflicting ssl options are set", options['ssl'], ssl)
+            ssl = ssl or options['ssl']
+
+    if timeout is not None and timeout <= 0:
+        raise ValueError("Timeout has to be None or a number greater than 0")
+
+    if connection_cls:
+        assert issubclass(connection_cls, AbcConnection),\
+                "connection_class does not meet the AbcConnection contract"
+        cls = connection_cls
+    else:
+        cls = RedisConnection
+
+    if loop is None:
+        loop = asyncio.get_event_loop()
 
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
-        reader, writer = yield from asyncio.open_connection(
-            host, port, ssl=ssl, loop=loop)
+        reader, writer = await asyncio.wait_for(open_connection(
+            host, port, limit=MAX_CHUNK_SIZE, ssl=ssl, loop=loop),
+            timeout, loop=loop)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            address = sock.getpeername()
+        address = tuple(address[:2])
     else:
         logger.debug("Creating unix connection to %r", address)
-        reader, writer = yield from asyncio.open_unix_connection(
-            address, ssl=ssl, loop=loop)
-    conn = RedisConnection(reader, writer, encoding=encoding, loop=loop)
+        reader, writer = await asyncio.wait_for(open_unix_connection(
+            address, ssl=ssl, limit=MAX_CHUNK_SIZE, loop=loop),
+            timeout, loop=loop)
+        sock = writer.transport.get_extra_info('socket')
+        if sock is not None:
+            address = sock.getpeername()
+
+    conn = cls(reader, writer, encoding=encoding,
+               address=address, parser=parser,
+               loop=loop)
 
     try:
         if password is not None:
-            yield from conn.auth(password)
+            await conn.auth(password)
         if db is not None:
-            yield from conn.select(db)
+            await conn.select(db)
     except Exception:
         conn.close()
-        yield from conn.wait_closed()
+        await conn.wait_closed()
         raise
     return conn
 
 
-class RedisConnection:
+class RedisConnection(AbcConnection):
     """Redis connection."""
 
-    def __init__(self, reader, writer, *, encoding=None, loop=None):
+    def __init__(self, reader, writer, *, address, encoding=None,
+                 parser=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
+        if parser is None:
+            parser = Reader
+        assert callable(parser), (
+            "Parser argument is not callable", parser)
         self._reader = reader
         self._writer = writer
+        self._address = address
         self._loop = loop
         self._waiters = deque()
-        self._parser = hiredis.Reader(protocolError=ProtocolError,
-                                      replyError=ReplyError)
-        self._reader_task = async_task(self._read_data(), loop=self._loop)
+        self._reader.set_parser(
+            parser(protocolError=ProtocolError, replyError=ReplyError)
+        )
+        self._reader_task = asyncio.ensure_future(self._read_data(),
+                                                  loop=self._loop)
+        self._close_msg = None
         self._db = 0
-        self._expect_close = False
         self._closing = False
         self._closed = False
-        self._close_waiter = asyncio.Future(loop=self._loop)
+        self._close_waiter = loop.create_future()
         self._reader_task.add_done_callback(self._close_waiter.set_result)
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
@@ -115,53 +172,54 @@ class RedisConnection:
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
 
-    @asyncio.coroutine
-    def _read_data(self):
+    async def _read_data(self):
         """Response reader task."""
+        last_error = ConnectionClosedError(
+            "Connection has been closed by server")
         while not self._reader.at_eof():
             try:
-                data = yield from self._reader.read(MAX_CHUNK_SIZE)
+                obj = await self._reader.readobj()
             except asyncio.CancelledError:
+                # NOTE: reader can get cancelled from `close()` method only.
+                last_error = RuntimeError('this is unexpected')
+                break
+            except ProtocolError as exc:
+                # ProtocolError is fatal
+                # so connection must be closed
+                if self._in_transaction is not None:
+                    self._transaction_error = exc
+                last_error = exc
                 break
             except Exception as exc:
-                logger.error("Exception on data read %r", exc, exc_info=True)
-                if self._expect_close:
-                    # for QUIT command connection error can be received
-                    # before response
+                # NOTE: for QUIT command connection error can be received
+                #       before response
+                last_error = exc
+                break
+            else:
+                if (obj == b'' or obj is None) and self._reader.at_eof():
+                    logger.debug("Connection has been closed by server,"
+                                 " response: %r", obj)
+                    last_error = ConnectionClosedError("Reader at end of file")
                     break
+
+                if isinstance(obj, MaxClientsError):
+                    last_error = obj
+                    break
+                if self._in_pubsub:
+                    self._process_pubsub(obj)
                 else:
-                    # Something unexpected happened to the connection
-                    self._closing = True
-                    self._loop.call_soon(self._do_close, exc)
-                    if self._in_transaction is not None:
-                        self._transaction_error = exc
-                    return
-            self._parser.feed(data)
-            while True:
-                try:
-                    obj = self._parser.gets()
-                except ProtocolError as exc:
-                    # ProtocolError is fatal
-                    # so connection must be closed
-                    self._closing = True
-                    self._loop.call_soon(self._do_close, exc)
-                    if self._in_transaction is not None:
-                        self._transaction_error = exc
-                    return
-                else:
-                    if obj is False:
-                        break
-                    if self._in_pubsub:
-                        self._process_pubsub(obj)
-                    else:
-                        self._process_data(obj)
+                    self._process_data(obj)
         self._closing = True
-        self._loop.call_soon(self._do_close, None)
+        self._loop.call_soon(self._do_close, last_error)
 
     def _process_data(self, obj):
         """Processes command results."""
+        assert len(self._waiters) > 0, (type(obj), obj)
         waiter, encoding, cb = self._waiters.popleft()
         if isinstance(obj, RedisError):
+            if isinstance(obj, ReplyError):
+                if obj.args[0].startswith('READONLY'):
+                    obj = ReadOnlyError(obj.args[0])
             _set_exception(waiter, obj)
             if self._in_transaction is not None:
                 self._transaction_error = obj
@@ -182,36 +240,36 @@ class RedisConnection:
             if self._in_transaction is not None:
                 self._in_transaction.append((encoding, cb))
 
-    def _process_pubsub(self, obj, *, _process_waiters=True):
+    def _process_pubsub(self, obj, *, process_waiters=True):
         """Processes pubsub messages."""
-        kind, *pattern, chan, data = obj
+        kind, *args, data = obj
         if kind in (b'subscribe', b'unsubscribe'):
-            if _process_waiters and self._in_pubsub and self._waiters:
+            chan, = args
+            if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
-            if kind == b'subscribe' and chan not in self._pubsub_channels:
-                self._pubsub_channels[chan] = Channel(chan, is_pattern=False,
-                                                      loop=self._loop)
-            elif kind == b'unsubscribe':
+            if kind == b'unsubscribe':
                 ch = self._pubsub_channels.pop(chan, None)
                 if ch:
                     ch.close()
             self._in_pubsub = data
         elif kind in (b'psubscribe', b'punsubscribe'):
-            if _process_waiters and self._in_pubsub and self._waiters:
+            chan, = args
+            if process_waiters and self._in_pubsub and self._waiters:
                 self._process_data(obj)
-            if kind == b'psubscribe' and chan not in self._pubsub_patterns:
-                self._pubsub_patterns[chan] = Channel(chan, is_pattern=True,
-                                                      loop=self._loop)
-            elif kind == b'punsubscribe':
+            if kind == b'punsubscribe':
                 ch = self._pubsub_patterns.pop(chan, None)
                 if ch:
                     ch.close()
             self._in_pubsub = data
         elif kind == b'message':
+            chan, = args
             self._pubsub_channels[chan].put_nowait(data)
         elif kind == b'pmessage':
-            pattern = pattern[0]
+            pattern, chan = args
             self._pubsub_patterns[pattern].put_nowait((chan, data))
+        elif kind == b'pong':
+            if process_waiters and self._in_pubsub and self._waiters:
+                self._process_data(data or b'PONG')
         else:
             logger.warning("Unknown pubsub message received %r", obj)
 
@@ -225,14 +283,16 @@ class RedisConnection:
           is broken.
         """
         if self._reader is None or self._reader.at_eof():
-            raise ConnectionClosedError("Connection closed or corrupted")
+            msg = self._close_msg or "Connection closed or corrupted"
+            raise ConnectionClosedError(msg)
         if command is None:
             raise TypeError("command must not be None")
-        if None in set(args):
+        if None in args:
             raise TypeError("args must not contain None")
         command = command.upper().strip()
         is_pubsub = command in _PUBSUB_COMMANDS
-        if self._in_pubsub and not is_pubsub:
+        is_ping = command in ('PING', b'PING')
+        if self._in_pubsub and not (is_pubsub or is_ping):
             raise RedisError("Connection in SUBSCRIBE mode")
         elif is_pubsub:
             logger.warning("Deprecated. Use `execute_pubsub` method directly")
@@ -250,9 +310,7 @@ class RedisConnection:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        if command in ('QUIT', b'QUIT'):
-            self._expect_close = True
-        fut = asyncio.Future(loop=self._loop)
+        fut = self._loop.create_future()
         self._writer.write(encode_command(command, *args))
         self._waiters.append((fut, encoding, cb))
         return fut
@@ -271,19 +329,27 @@ class RedisConnection:
         if None in set(channels):
             raise TypeError("args must not contain None")
         if not len(channels):
-            raise ValueError("No channels/patterns supplied")
-        cmd = encode_command(command, *channels)
+            raise TypeError("No channels/patterns supplied")
+        is_pattern = len(command) in (10, 12)
+        mkchannel = partial(Channel, is_pattern=is_pattern, loop=self._loop)
+        channels = [ch if isinstance(ch, AbcChannel) else mkchannel(ch)
+                    for ch in channels]
+        if not all(ch.is_pattern == is_pattern for ch in channels):
+            raise ValueError("Not all channels {} match command {}"
+                             .format(channels, command))
+        cmd = encode_command(command, *(ch.name for ch in channels))
         res = []
         for ch in channels:
-            fut = asyncio.Future(loop=self._loop)
+            fut = self._loop.create_future()
             res.append(fut)
-            self._waiters.append((fut, None, self._update_pubsub))
+            cb = partial(self._update_pubsub, ch=ch)
+            self._waiters.append((fut, None, cb))
         self._writer.write(cmd)
         return asyncio.gather(*res, loop=self._loop)
 
     def close(self):
         """Close connection."""
-        self._do_close(None)
+        self._do_close(ConnectionForcedCloseError())
 
     def _do_close(self, exc):
         if self._closed:
@@ -295,13 +361,17 @@ class RedisConnection:
         self._reader_task = None
         self._writer = None
         self._reader = None
+
+        if exc is not None:
+            self._close_msg = str(exc)
+
         while self._waiters:
             waiter, *spam = self._waiters.popleft()
             logger.debug("Cancelling waiter %r", (waiter, spam))
             if exc is None:
-                waiter.cancel()
+                _set_exception(waiter, ConnectionForcedCloseError())
             else:
-                waiter.set_exception(exc)
+                _set_exception(waiter, exc)
         while self._pubsub_channels:
             _, ch = self._pubsub_channels.popitem()
             logger.debug("Closing pubsub channel %r", ch)
@@ -320,9 +390,9 @@ class RedisConnection:
             self._loop.call_soon(self._do_close, None)
         return closed
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from asyncio.shield(self._close_waiter, loop=self._loop)
+    async def wait_closed(self):
+        """Coroutine waiting until connection is closed."""
+        await asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
     def db(self):
@@ -333,6 +403,11 @@ class RedisConnection:
     def encoding(self):
         """Current set codec or None."""
         return self._encoding
+
+    @property
+    def address(self):
+        """Redis server address, either host-port tuple or str."""
+        return self._address
 
     def select(self, db):
         """Change the selected database for the current connection."""
@@ -364,6 +439,12 @@ class RedisConnection:
         recall.popleft()  # ignore first (its _start_transaction)
         if discard:
             return obj
+        assert isinstance(obj, list) or (obj is None and not discard), (
+            "Unexpected MULTI/EXEC result", obj, recall)
+        # TODO: need to be able to re-try transaction
+        if obj is None:
+            err = WatchVariableError("WATCH variable has changed")
+            obj = [err] * len(recall)
         assert len(obj) == len(recall), (
             "Wrong number of result items in mutli-exec", obj, recall)
         res = []
@@ -380,11 +461,15 @@ class RedisConnection:
             res.append(o)
         return res
 
-    def _update_pubsub(self, obj):
-        *head, subscriptions = obj
+    def _update_pubsub(self, obj, *, ch):
+        kind, *pattern, channel, subscriptions = obj
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
+        if kind == b'subscribe' and channel not in self._pubsub_channels:
+            self._pubsub_channels[channel] = ch
+        elif kind == b'psubscribe' and channel not in self._pubsub_patterns:
+            self._pubsub_patterns[channel] = ch
         if not was_in_pubsub:
-            self._process_pubsub(obj, _process_waiters=False)
+            self._process_pubsub(obj, process_waiters=False)
         return obj
 
     @property
@@ -414,7 +499,3 @@ class RedisConnection:
         """Authenticate to server."""
         fut = self.execute('AUTH', password)
         return wait_ok(fut)
-
-    @asyncio.coroutine
-    def get_atomic_connection(self):
-        return self

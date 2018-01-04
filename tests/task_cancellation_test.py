@@ -1,23 +1,21 @@
+import pytest
+
 import asyncio
 
-from ._testutil import BaseTest, run_until_complete
 
+@pytest.mark.run_loop
+async def test_future_cancellation(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
 
-class TaskCancellationTest(BaseTest):
+    ts = loop.time()
+    fut = conn.execute('BLPOP', 'some-list', 5)
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(fut, 1, loop=loop)
+    assert fut.cancelled()
 
-    @run_until_complete
-    def test_future_cancellation(self):
-        conn = yield from self.create_connection(
-            ('localhost', 6379), loop=self.loop)
-
-        ts = self.loop.time()
-        fut = conn.execute('BLPOP', 'some-list', 5)
-        with self.assertRaises(asyncio.TimeoutError):
-            yield from asyncio.wait_for(fut, 1, loop=self.loop)
-        self.assertTrue(fut.cancelled())
-
-        # NOTE: Connection becomes available only after timeout expires
-        yield from conn.execute('TIME')
-        dt = int(self.loop.time() - ts)
-        self.assertIn(dt, {4, 5, 6})
-        # self.assertAlmostEqual(dt, 5.0, delta=1)  # this fails too often
+    # NOTE: Connection becomes available only after timeout expires
+    await conn.execute('TIME')
+    dt = int(loop.time() - ts)
+    assert dt in {4, 5, 6}
+    # self.assertAlmostEqual(dt, 5.0, delta=1)  # this fails too often

@@ -13,14 +13,67 @@ Descriptions are taken from ``docstrings`` so may not contain proper markup.
 .. autoclass:: aioredis.Redis
    :members:
 
+   :param pool_or_conn: Can be either :class:`~aioredis.RedisConnection`
+      or :class:`~aioredis.ConnectionsPool`.
+   :type pool_or_conn: :class:`~aioredis.abc.AbcConnection`
+
 Generic commands
 ----------------
 
 .. autoclass:: GenericCommandsMixin
    :members:
 
+
+Geo commands
+------------
+
+.. versionadded:: v0.3.0
+
+.. autoclass:: GeoCommandsMixin
+   :members:
+
+Geo commands result wrappers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. class:: GeoPoint(longitude, latitude)
+
+   Bases: :class:`tuple`
+
+   Named tuple representing result returned by ``GEOPOS`` and ``GEORADIUS``
+   commands.
+
+   :param float longitude: longitude value.
+   :param float latitude: latitude value.
+
+.. class:: GeoMember(member, dist, hash, coord)
+
+   Bases: :class:`tuple`
+
+   Named tuple representing result returned by ``GEORADIUS`` and
+   ``GEORADIUSBYMEMBER`` commands.
+
+   :param member: Value of geo sorted set item;
+   :type member: str or bytes
+
+   :param dist: Distance in units passed to call.
+                :class:`None` if ``with_dist`` was not set
+                in :meth:`~GeoCommandsMixin.georadius` call.
+   :type dist: None or float
+
+   :param hash: Geo-hash represented as number.
+                :class:`None` if ``with_hash``
+                was not in :meth:`~GeoCommandsMixin.georadius` call.
+   :type hash: None or int
+
+   :param coord: Coordinate of geospatial index member.
+                 :class:`None` if ``with_coord`` was not set
+                 in :meth:`~GeoCommandsMixin.georadius` call.
+   :type coord: None or GeoPoint
+
+
 Strings commands
 ----------------
+
 .. autoclass:: StringCommandsMixin
    :members:
 
@@ -85,7 +138,7 @@ Transaction commands
                 (uses :func:`asyncio.get_event_loop` if not specified).
    :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
-   .. method:: execute(\*, return_exceptions=False)
+   .. comethod:: execute(\*, return_exceptions=False)
 
       Executes all buffered commands and returns result.
 
@@ -110,7 +163,7 @@ Transaction commands
 
    See :class:`~Pipeline` for parameters description.
 
-   .. method:: execute(\*, return_exceptions=False)
+   .. comethod:: execute(\*, return_exceptions=False)
 
       Executes all buffered commands and returns result.
 
@@ -118,7 +171,8 @@ Transaction commands
 
       :param bool return_exceptions: Raise or return exceptions.
 
-      :raise aioredis.MultiExecError: raised instead of :exc:`aioredis.PipelineError`
+      :raise aioredis.MultiExecError: Raised instead of :exc:`aioredis.PipelineError`
+      :raise aioredis.WatchVariableError: If watched variable is changed
 
 Scripting commands
 ------------------

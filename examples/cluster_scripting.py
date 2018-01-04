@@ -12,24 +12,20 @@ def main():
 
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def connect():
+    async def connect():
         try:
-            return (yield from create_cluster(
-                NODES, loop=loop, encoding='utf8'))
+            return await create_cluster(NODES, loop=loop, encoding='utf8')
         except RedisClusterError:
             raise RedisClusterError(
                 "Could not connect to cluster. Did you start it with "
                 "the setupcluster.py script?"
             )
 
-    @asyncio.coroutine
-    def clear_keys(cluster):
+    async def clear_keys(cluster):
         for key in KEYS:
-            yield from cluster.delete(key)
+            await cluster.delete(key)
 
-    @asyncio.coroutine
-    def use_eval(cluster):
+    async def use_eval(cluster):
         script = """
         if redis.call('setnx', KEYS[1], ARGV[1]) == 1
         then
@@ -40,15 +36,15 @@ def main():
         end
         """
 
-        res = yield from cluster.eval(
+        res = await cluster.eval(
             script, keys=KEYS,
             args=['data'] + ['Stored in {}'.format(key) for key in KEYS])
         print(res)
         for key in KEYS:
-            value = yield from cluster.get(key)
+            value = await cluster.get(key)
             print("{} -> {}".format(key, value))
 
-        yield from cluster.clear()  # closing all open connections
+        await cluster.clear()  # closing all open connections
 
     try:
         cluster = loop.run_until_complete(connect())

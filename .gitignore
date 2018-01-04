@@ -60,6 +60,7 @@ docs/_build/
 
 # Vim
 .vim
+tests/ssl
 
-# IntelliJ config
-*.iml
+# pyenv
+.python-version

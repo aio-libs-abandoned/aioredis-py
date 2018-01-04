@@ -10,7 +10,7 @@ Every example is a correct python program that can be executed.
 .. _aioredis-examples-simple:
 
 Low-level connection usage example
-----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/connection.py>`
 
@@ -18,7 +18,7 @@ Low-level connection usage example
 
 
 Connections pool example
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/pool.py>`
 
@@ -26,7 +26,7 @@ Connections pool example
 
 
 Commands example
-----------------
+~~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/commands.py>`
 
@@ -34,7 +34,7 @@ Commands example
 
 
 Transaction example
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/transaction.py>`
 
@@ -42,7 +42,7 @@ Transaction example
 
 
 Pub/Sub example
----------------
+~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/pubsub.py>`
 
@@ -50,8 +50,16 @@ Pub/Sub example
 
 
 Scan command example
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 :download:`get source code<../examples/scan.py>`
 
 .. literalinclude:: ../examples/scan.py
+
+
+Sentinel client
+~~~~~~~~~~~~~~~
+
+:download:`get source code<../examples/sentinel.py>`
+
+.. literalinclude:: ../examples/sentinel.py

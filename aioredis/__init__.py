@@ -1,32 +1,69 @@
 from .connection import RedisConnection, create_connection
-from .commands import Redis, create_redis, create_reconnecting_redis
-from .pool import RedisPool, create_pool
-from .cluster import (
-    RedisPoolCluster,
-    create_pool_cluster,
-    create_cluster,
-    RedisCluster,
-)
-from .util import Channel
+from .commands import (
+    Redis, create_redis,
+    create_redis_pool,
+    GeoPoint, GeoMember,
+    )
+from .pool import ConnectionsPool, create_pool
+from .pubsub import Channel
+from .sentinel import RedisSentinel, create_sentinel
+from .cluster import create_cluster, create_pool_cluster
 from .errors import (
     ConnectionClosedError,
+    ConnectionForcedCloseError,
+    MasterNotFoundError,
     MultiExecError,
     PipelineError,
     ProtocolError,
+    ReadOnlyError,
     RedisError,
     ReplyError,
-    RedisClusterError,
+    MaxClientsError,
+    AuthError,
+    ChannelClosedError,
+    WatchVariableError,
+    PoolClosedError,
+    SlaveNotFoundError,
+    MasterReplyError,
+    SlaveReplyError,
     )
 
 
-__version__ = '0.2.6'
+__version__ = '1.0.0'
 
-# make pyflakes happy
-(create_connection, RedisConnection,
- create_redis, create_reconnecting_redis, Redis,
- create_pool, RedisPool, Channel,
- create_pool_cluster, RedisPoolCluster, Channel,
- create_cluster, RedisCluster,
- RedisError, ProtocolError, ReplyError,
- PipelineError, MultiExecError, ConnectionClosedError,
- RedisClusterError)
+__all__ = [
+    # Factories
+    'create_connection',
+    'create_pool',
+    'create_redis',
+    'create_redis_pool',
+    'create_sentinel',
+    'create_cluster',
+    'create_pool_cluster',
+    # Classes
+    'RedisConnection',
+    'ConnectionsPool',
+    'Redis',
+    'GeoPoint',
+    'GeoMember',
+    'Channel',
+    'RedisSentinel',
+    # Errors
+    'RedisError',
+    'ReplyError',
+    'MaxClientsError',
+    'AuthError',
+    'ProtocolError',
+    'PipelineError',
+    'MultiExecError',
+    'WatchVariableError',
+    'ConnectionClosedError',
+    'ConnectionForcedCloseError',
+    'PoolClosedError',
+    'ChannelClosedError',
+    'MasterNotFoundError',
+    'SlaveNotFoundError',
+    'ReadOnlyError',
+    'MasterReplyError',
+    'SlaveReplyError',
+]

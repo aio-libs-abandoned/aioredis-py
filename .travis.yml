@@ -1,118 +1,71 @@
 sudo: false
+dist: trusty
+
+language: python
 
 addons:
   apt:
     packages:
     - socat
-
-language: python
-
-python:
-- "3.3"
-- "3.4"
-- "3.5"
+    - enchant
+    - aspell
+    - aspell-en
 
 env:
   global:
-  - REDIS_PORT_1=6379
-  - REDIS_PORT_2=6380
-  - REDIS_SOCKET=/tmp/aioredis.sock
-  - ALL_REDIS_TAGS="2.6.17 2.8.22 3.0.5"
-  matrix:
-  - REDIS_TAG=2.6.17
-  - REDIS_TAG=2.8.22
-  - REDIS_TAG=3.0.5
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.2" INSTALL_DIR=$HOME/redis
 
-cache:
-  directories:
-  - $HOME/redis
-  - $HOME/.cache/pip
-before_cache:
-  - rm -f $HOME/.cache/pip/log/debug.log
+python:
+- "3.5"
+- "3.6"
 
-before_install:
-- export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
-- >
-  if [ ! -x "$REDIS_BIN/redis-server" ]; then
-    # For proper caching we must build all redis versions
-    for TAG in ${ALL_REDIS_TAGS}; do
-      wget -c https://github.com/antirez/redis/archive/${TAG}.tar.gz -O redis-${TAG}.tar.gz
-      tar -xvf redis-${TAG}.tar.gz
-      make -C redis-${TAG} PREFIX=$HOME/redis/${TAG} install
-    done;
-  fi
-# make certificate for ssl/tls test
-- openssl genrsa -out /tmp/server.key 1024
-- openssl req -new -key /tmp/server.key -x509 -out /tmp/server.crt -batch
-- cat /tmp/server.key /tmp/server.crt > /tmp/server.pem
-- export CERT_FILE=/tmp/server.crt
+matrix:
+  include:
+  - python: "3.6"
+    env: DOCS_SPELL_CHECK="y"
+    install:
+    - pip install -r docs/requirements.txt
+    - pip install -e. -c tests/requirements.txt
+    script:
+    - make spelling
+  - python: "pypy3.5-5.8.0"
+    env: PYPY_RELEASE="pypy3-v5.9.0-linux64"
+  - python: "3.6"
+    env: UVLOOP="y"
+  allow_failures:
+  - env: UVLOOP="y"
+  - python: "pypy3.5-5.8.0"
 
 install:
-- pip install hiredis
-- pip install flake8
-- pip install coverage
-- pip install coveralls
+- make -j ci-build-redis
+- |
+    if [ "$TRAVIS_PYTHON_VERSION" = "pypy3.5-5.8.0" ]; then
+      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
+      export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
+      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
+      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
+      source $HOME/virtualenvs/pypy3/bin/activate
+      python --version
+      pip --version
+    fi
+- |
+    if [ "$UVLOOP" = "y" ]; then
+      export TEST_ARGS="$TEST_ARGS --uvloop"
+      pip install uvloop
+    fi;
+- pip install codecov
+- pip install -r tests/requirements.txt
 - pip install -e .
 
-before_script:
-# main redis instance listening port & socket
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server.pid
-  --unixsocket $REDIS_SOCKET
-  --port $REDIS_PORT_1
-  --save ""
-# second redis instance, yet for migrate command tests
-- >
-  $REDIS_BIN/redis-server --daemonize yes
-  --pidfile ./redis-server-2.pid
-  --port $REDIS_PORT_2
-  --save ""
-- sleep 3
-- $REDIS_BIN/redis-cli -s $REDIS_SOCKET PING
-- $REDIS_BIN/redis-cli -p $REDIS_PORT_2 PING
-- export REDIS_VERSION="$(redis-cli -s $REDIS_SOCKET INFO SERVER | sed -n 2p)"
-- echo $REDIS_VERSION
-# running socat
-- socat openssl-listen:6443,cert=/tmp/server.pem,verify=0,fork tcp-connect:localhost:6379 &
-- echo "PING" | socat stdin openssl-connect:localhost:6443,verify=0
-
 script:
-- flake8 aioredis tests
-- >
-  if [[ $REDIS_TAG == 3.* ]]; then
-      REDIS_SERVER_EXEC=$REDIS_BIN/redis-server python setupcluster.py
-      python runtests.py --coverage -v --standalone-and-cluster
-  else
-      python runtests.py --coverage -v
-  fi
+- make flake
+- make ci-test
+- make examples
 
-# checking examples
-- >
-  export EXAMPLES=$(find $PWD/examples/ -name "*.py");
-
-  for example in $EXAMPLES; do
-      if [[ $example == *_3.5_* ]] && python -c "import sys; sys.exit(sys.version_info >= (3, 5))"; then
-          continue
-      fi
-
-      if [[ $example == *cluster* ]] && [[ $REDIS_TAG == 2.* ]]; then
-          continue
-      fi
-
-    echo "Running ${example}";
-    python3 ${example} || exit 1;
-  done;
-
+cache: pip
+before_cache:
+  - rm -rf $HOME/.cache/pip/http  # drop tar.gz cache; keep only wheels
+  - rm -f $HOME/.cache/pip/log/debug.log
 
 after_script:
-- coveralls
-
-# deploy:
-#   provider: pypi
-#   user: popravich
-#   password:
-#   distributions: "sdist bdist_wheel"
-#   on:
-#     tags: true
-#     python: "3.5"
+- codecov

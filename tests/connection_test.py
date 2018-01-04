@@ -1,355 +1,599 @@
-import unittest
+import pytest
 import asyncio
-import os
+import sys
+from unittest import mock
 
-from aioredis.util import async_task
-from ._testutil import (
-    BaseTest, run_until_complete, no_cluster_test, SLOT_ZERO_KEY
-)
+from unittest.mock import patch
+
 from aioredis import (
     ConnectionClosedError,
     ProtocolError,
+    RedisConnection,
     RedisError,
     ReplyError,
+    Channel,
+    MaxClientsError
     )
 
 
-class ConnectionTest(BaseTest):
+@pytest.mark.run_loop
+async def test_connect_tcp(request, create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    assert conn.db == 0
+    assert isinstance(conn.address, tuple)
+    assert conn.address[0] in ('127.0.0.1', '::1')
+    assert conn.address[1] == server.tcp_address.port
+    assert str(conn) == '<RedisConnection [db:0]>'
 
-    @run_until_complete
-    def test_connect_tcp(self):
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
-        self.assertEqual(conn.db, 0)
-        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
+    conn = await create_connection(
+        ['localhost', server.tcp_address.port], loop=loop)
+    assert conn.db == 0
+    assert isinstance(conn.address, tuple)
+    assert conn.address[0] in ('127.0.0.1', '::1')
+    assert conn.address[1] == server.tcp_address.port
+    assert str(conn) == '<RedisConnection [db:0]>'
 
-        conn = yield from self.create_connection(
-            ['localhost', self.redis_port], loop=self.loop)
-        self.assertEqual(conn.db, 0)
-        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
 
-    @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
-    @run_until_complete
-    def test_connect_unixsocket(self):
-        conn = yield from self.create_connection(
-            self.redis_socket, db=0, loop=self.loop)
-        self.assertEqual(conn.db, 0)
-        self.assertEqual(str(conn), '<RedisConnection [db:0]>')
+@pytest.mark.run_loop
+async def test_connect_inject_connection_cls(
+        request,
+        create_connection,
+        loop,
+        server):
 
-    def test_global_loop(self):
-        asyncio.set_event_loop(self.loop)
+    class MyConnection(RedisConnection):
+        pass
 
-        conn = self.loop.run_until_complete(self.create_connection(
-            ('localhost', self.redis_port), db=0))
-        self.assertEqual(conn.db, 0)
-        self.assertIs(conn._loop, self.loop)
+    conn = await create_connection(
+        server.tcp_address, loop=loop, connection_cls=MyConnection)
 
-    @no_cluster_test('SELECT not available on clusters')
-    @run_until_complete
-    def test_select_db(self):
-        address = ('localhost', self.redis_port)
-        conn = yield from self.create_connection(address, loop=self.loop)
-        self.assertEqual(conn.db, 0)
+    assert isinstance(conn, MyConnection)
 
-        with self.assertRaises(ValueError):
-            yield from self.create_connection(address, db=-1, loop=self.loop)
-        with self.assertRaises(TypeError):
-            yield from self.create_connection(address, db=1.0, loop=self.loop)
-        with self.assertRaises(TypeError):
-            yield from self.create_connection(
-                address, db='bad value', loop=self.loop)
-        with self.assertRaises(TypeError):
-            conn = yield from self.create_connection(
-                address, db=None, loop=self.loop)
-            yield from conn.select(None)
-        with self.assertRaises(ReplyError):
-            yield from self.create_connection(
-                address, db=100000, loop=self.loop)
 
-        yield from conn.select(1)
-        self.assertEqual(conn.db, 1)
-        yield from conn.select(2)
-        self.assertEqual(conn.db, 2)
-        yield from conn.execute('select', 0)
-        self.assertEqual(conn.db, 0)
-        yield from conn.execute(b'select', 1)
-        self.assertEqual(conn.db, 1)
+@pytest.mark.run_loop
+async def test_connect_inject_connection_cls_invalid(
+        request,
+        create_connection,
+        loop,
+        server):
 
-    @run_until_complete
-    def test_protocol_error(self):
-        loop = self.loop
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=loop)
+    with pytest.raises(AssertionError):
+        await create_connection(
+            server.tcp_address, loop=loop, connection_cls=type)
 
-        reader = conn._reader
 
-        with self.assertRaises(ProtocolError):
-            reader.feed_data(b'not good redis protocol response')
-            yield from conn.execute('PING')
+@pytest.mark.run_loop
+async def test_connect_tcp_timeout(request, create_connection, loop, server):
+    with patch.object(loop, 'create_connection') as\
+            open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            await create_connection(
+                server.tcp_address, loop=loop, timeout=0.1)
 
-        self.assertEqual(len(conn._waiters), 0)
 
-    def test_close_connection__tcp(self):
-        loop = self.loop
-        conn = loop.run_until_complete(self.create_connection(
-            ('localhost', self.redis_port), loop=loop))
-        conn.close()
-        with self.assertRaises(ConnectionClosedError):
-            loop.run_until_complete(conn.execute('PING'))
+@pytest.mark.run_loop
+async def test_connect_tcp_invalid_timeout(
+        request, create_connection, loop, server):
+    with pytest.raises(ValueError):
+        await create_connection(
+            server.tcp_address, loop=loop, timeout=0)
 
-        conn = loop.run_until_complete(self.create_connection(
-            ('localhost', self.redis_port), loop=loop))
-        with self.assertRaises(ConnectionClosedError):
-            conn.close()
-            fut = conn.execute('PING')
-            loop.run_until_complete(fut)
 
-        conn = loop.run_until_complete(self.create_connection(
-            ('localhost', self.redis_port), loop=loop))
-        conn.close()
-        with self.assertRaises(ConnectionClosedError):
-            conn.execute_pubsub('subscribe', 'channel:1')
+@pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
+async def test_connect_unixsocket(create_connection, loop, server):
+    conn = await create_connection(
+        server.unixsocket, db=0, loop=loop)
+    assert conn.db == 0
+    assert conn.address == server.unixsocket
+    assert str(conn) == '<RedisConnection [db:0]>'
 
-    @unittest.skipIf(not os.environ.get('REDIS_SOCKET'), "no redis socket")
-    @run_until_complete
-    def test_close_connection__socket(self):
-        conn = yield from self.create_connection(
-            self.redis_socket, loop=self.loop)
-        conn.close()
-        with self.assertRaises(ConnectionClosedError):
-            yield from conn.execute('PING')
 
-        conn = yield from self.create_connection(
-            self.redis_socket, loop=self.loop)
-        conn.close()
-        with self.assertRaises(ConnectionClosedError):
-            yield from conn.execute_pubsub('subscribe', 'channel:1')
+@pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
+async def test_connect_unixsocket_timeout(create_connection, loop, server):
+    with patch.object(loop, 'create_unix_connection') as open_conn_mock:
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
+                                                                    loop=loop)
+        with pytest.raises(asyncio.TimeoutError):
+            await create_connection(
+                server.unixsocket, db=0, loop=loop, timeout=0.1)
 
-    @run_until_complete
-    def test_closed_connection_with_none_reader(self):
-        address = ('localhost', self.redis_port)
-        conn = yield from self.create_connection(address, loop=self.loop)
-        stored_reader = conn._reader
-        conn._reader = None
-        with self.assertRaises(ConnectionClosedError):
-            yield from conn.execute('blpop', 'test', 0)
-        conn._reader = stored_reader
-        conn.close()
 
-        conn = yield from self.create_connection(address, loop=self.loop)
-        stored_reader = conn._reader
-        conn._reader = None
-        with self.assertRaises(ConnectionClosedError):
-            yield from conn.execute_pubsub('subscribe', 'channel:1')
-        conn._reader = stored_reader
-        conn.close()
+@pytest.mark.run_loop
+@pytest.redis_version(2, 8, 0, reason="maxclients config setting")
+async def test_connect_maxclients(create_connection, loop, start_server):
+    server = start_server('server-maxclients')
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    await conn.execute(b'CONFIG', b'SET', 'maxclients', 1)
 
-    @run_until_complete
-    def test_wait_closed(self):
-        address = ('localhost', self.redis_port)
-        conn = yield from self.create_connection(address, loop=self.loop)
-        reader_task = conn._reader_task
-        conn.close()
-        self.assertFalse(reader_task.done())
-        yield from conn.wait_closed()
-        self.assertTrue(reader_task.done())
+    with pytest.raises((MaxClientsError, ConnectionError)):
+        conn2 = await create_connection(
+            server.tcp_address, loop=loop)
+        await conn2.execute('ping')
 
-    @run_until_complete
-    def test_cancel_wait_closed(self):
-        # Regression test: Don't throw error if wait_closed() is cancelled.
-        address = ('localhost', self.redis_port)
-        conn = yield from self.create_connection(address, loop=self.loop)
-        reader_task = conn._reader_task
-        conn.close()
-        task = async_task(conn.wait_closed(), loop=self.loop)
 
-        # Make sure the task is cancelled
-        # after it has been started by the loop.
-        self.loop.call_soon(task.cancel)
+def test_global_loop(create_connection, loop, server):
+    asyncio.set_event_loop(loop)
 
-        yield from conn.wait_closed()
-        self.assertTrue(reader_task.done())
+    conn = loop.run_until_complete(create_connection(
+        server.tcp_address, db=0))
+    assert conn.db == 0
+    assert conn._loop is loop
 
-    @run_until_complete
-    def test_auth(self):
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
 
-        res = yield from conn.execute('CONFIG', 'SET', 'requirepass', 'pass')
-        self.assertEqual(res, b'OK')
+@pytest.mark.run_loop
+async def test_select_db(create_connection, loop, server):
+    address = server.tcp_address
+    conn = await create_connection(address, loop=loop)
+    assert conn.db == 0
 
-        conn2 = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
+    with pytest.raises(ValueError):
+        await create_connection(address, db=-1, loop=loop)
+    with pytest.raises(TypeError):
+        await create_connection(address, db=1.0, loop=loop)
+    with pytest.raises(TypeError):
+        await create_connection(
+            address, db='bad value', loop=loop)
+    with pytest.raises(TypeError):
+        conn = await create_connection(
+            address, db=None, loop=loop)
+        await conn.select(None)
+    with pytest.raises(ReplyError):
+        await create_connection(
+            address, db=100000, loop=loop)
 
-        with self.assertRaises(ReplyError):
-            yield from conn2.execute('PING')
+    await conn.select(1)
+    assert conn.db == 1
+    await conn.select(2)
+    assert conn.db == 2
+    await conn.execute('select', 0)
+    assert conn.db == 0
+    await conn.execute(b'select', 1)
+    assert conn.db == 1
 
-        res = yield from conn2.auth('pass')
-        self.assertEqual(res, True)
-        res = yield from conn2.execute('PING')
-        self.assertEqual(res, b'PONG')
 
-        conn3 = yield from self.create_connection(
-            ('localhost', self.redis_port), password='pass', loop=self.loop)
+@pytest.mark.run_loop
+async def test_protocol_error(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
 
-        res = yield from conn3.execute('PING')
-        self.assertEqual(res, b'PONG')
+    reader = conn._reader
 
-        res = yield from conn2.execute('CONFIG', 'SET', 'requirepass', '')
-        self.assertEqual(res, b'OK')
+    with pytest.raises(ProtocolError):
+        reader.feed_data(b'not good redis protocol response')
+        await conn.select(1)
 
-    @run_until_complete
-    def test_decoding(self):
-        key = SLOT_ZERO_KEY
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), encoding='utf-8', loop=self.loop)
-        self.assertEqual(conn.encoding, 'utf-8',)
-        res = yield from conn.execute('set', key, 'value')
-        self.assertEqual(res, 'OK')
-        res = yield from conn.execute('get', key)
-        self.assertEqual(res, 'value')
+    assert len(conn._waiters) == 0
 
-        res = yield from conn.execute('set', key, b'bin-value')
-        self.assertEqual(res, 'OK')
-        res = yield from conn.execute('get', key)
-        self.assertEqual(res, 'bin-value')
 
-        res = yield from conn.execute('get', key, encoding='ascii')
-        self.assertEqual(res, 'bin-value')
-        res = yield from conn.execute('get', key, encoding=None)
-        self.assertEqual(res, b'bin-value')
+def test_close_connection__tcp(create_connection, loop, server):
+    conn = loop.run_until_complete(create_connection(
+        server.tcp_address, loop=loop))
+    conn.close()
+    with pytest.raises(ConnectionClosedError):
+        loop.run_until_complete(conn.select(1))
 
-        yield from conn.execute('set', key, 'значение')
-        with self.assertRaises(UnicodeDecodeError):
-            yield from conn.execute('get', key, encoding='ascii')
+    conn = loop.run_until_complete(create_connection(
+        server.tcp_address, loop=loop))
+    conn.close()
+    fut = None
+    with pytest.raises(ConnectionClosedError):
+        fut = conn.select(1)
+    assert fut is None
 
-        conn2 = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from conn2.execute('get', key, encoding='utf-8')
-        self.assertEqual(res, 'значение')
+    conn = loop.run_until_complete(create_connection(
+        server.tcp_address, loop=loop))
+    conn.close()
+    with pytest.raises(ConnectionClosedError):
+        conn.execute_pubsub('subscribe', 'channel:1')
 
-    @run_until_complete
-    def test_execute_exceptions(self):
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
-        with self.assertRaises(TypeError):
-            yield from conn.execute(None)
-        with self.assertRaises(TypeError):
-            yield from conn.execute("ECHO", None)
-        with self.assertRaises(TypeError):
-            yield from conn.execute("GET", ('a', 'b'))
-        self.assertEqual(len(conn._waiters), 0)
 
-    @run_until_complete
-    def test_subscribe_unsubscribe(self):
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
+@pytest.mark.run_loop
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="No unixsocket on Windows")
+async def test_close_connection__socket(create_connection, loop, server):
+    conn = await create_connection(
+        server.unixsocket, loop=loop)
+    conn.close()
+    with pytest.raises(ConnectionClosedError):
+        await conn.select(1)
 
-        self.assertEqual(conn.in_pubsub, 0)
+    conn = await create_connection(
+        server.unixsocket, loop=loop)
+    conn.close()
+    with pytest.raises(ConnectionClosedError):
+        await conn.execute_pubsub('subscribe', 'channel:1')
 
-        res = yield from conn.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
 
-        self.assertEqual(conn.in_pubsub, 1)
+@pytest.mark.run_loop
+async def test_closed_connection_with_none_reader(
+        create_connection, loop, server):
+    address = server.tcp_address
+    conn = await create_connection(address, loop=loop)
+    stored_reader = conn._reader
+    conn._reader = None
+    with pytest.raises(ConnectionClosedError):
+        await conn.execute('blpop', 'test', 0)
+    conn._reader = stored_reader
+    conn.close()
 
-        res = yield from conn.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
-        self.assertEqual(conn.in_pubsub, 0)
+    conn = await create_connection(address, loop=loop)
+    stored_reader = conn._reader
+    conn._reader = None
+    with pytest.raises(ConnectionClosedError):
+        await conn.execute_pubsub('subscribe', 'channel:1')
+    conn._reader = stored_reader
+    conn.close()
 
-        res = yield from conn.execute('subscribe', 'chan:1', 'chan:2')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1],
-                               [b'subscribe', b'chan:2', 2],
-                               ])
-        self.assertEqual(conn.in_pubsub, 2)
 
-        res = yield from conn.execute('unsubscribe', 'non-existent')
-        self.assertEqual(res, [[b'unsubscribe', b'non-existent', 2]])
-        self.assertEqual(conn.in_pubsub, 2)
+@pytest.mark.run_loop
+async def test_wait_closed(create_connection, loop, server):
+    address = server.tcp_address
+    conn = await create_connection(address, loop=loop)
+    reader_task = conn._reader_task
+    conn.close()
+    assert not reader_task.done()
+    await conn.wait_closed()
+    assert reader_task.done()
 
-        res = yield from conn.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 1]])
-        self.assertEqual(conn.in_pubsub, 1)
 
-    @run_until_complete
-    def test_psubscribe_punsubscribe(self):
-        conn = yield from self.create_connection(
-            ('localhost', 6379), loop=self.loop)
-        res = yield from conn.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
-        self.assertEqual(conn.in_pubsub, 1)
+@pytest.mark.run_loop
+async def test_cancel_wait_closed(create_connection, loop, server):
+    # Regression test: Don't throw error if wait_closed() is cancelled.
+    address = server.tcp_address
+    conn = await create_connection(address, loop=loop)
+    reader_task = conn._reader_task
+    conn.close()
+    task = asyncio.ensure_future(conn.wait_closed(), loop=loop)
 
-    @run_until_complete
-    def test_bad_command_in_pubsub(self):
-        conn = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
+    # Make sure the task is cancelled
+    # after it has been started by the loop.
+    loop.call_soon(task.cancel)
 
-        res = yield from conn.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
+    await conn.wait_closed()
+    assert reader_task.done()
 
-        msg = "Connection in SUBSCRIBE mode"
-        with self.assertRaisesRegex(RedisError, msg):
-            yield from conn.execute('select', 1)
-        with self.assertRaisesRegex(RedisError, msg):
-            conn.execute('get')
 
-    @run_until_complete
-    def test_pubsub_messages(self):
-        sub = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
-        pub = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
-        res = yield from sub.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
+@pytest.mark.run_loop
+async def test_auth(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
 
-        self.assertIn(b'chan:1', sub.pubsub_channels)
-        chan = sub.pubsub_channels[b'chan:1']
-        self.assertEqual(
-            str(chan), "<Channel name:b'chan:1', is_pattern:False, qsize:0>")
-        self.assertEqual(chan.name, b'chan:1')
-        self.assertTrue(chan.is_active)
+    res = await conn.execute('CONFIG', 'SET', 'requirepass', 'pass')
+    assert res == b'OK'
 
-        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
-        self.assertEqual(res, 1)
-        msg = yield from chan.get()
-        self.assertEqual(msg, b'Hello!')
+    conn2 = await create_connection(
+        server.tcp_address, loop=loop)
 
-        res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [[b'psubscribe', b'chan:*', 2]])
-        self.assertIn(b'chan:*', sub.pubsub_patterns)
-        chan2 = sub.pubsub_patterns[b'chan:*']
-        self.assertEqual(chan2.name, b'chan:*')
-        self.assertTrue(chan2.is_active)
+    with pytest.raises(ReplyError):
+        await conn2.select(1)
 
-        res = yield from pub.execute('publish', 'chan:1', 'Hello!')
-        self.assertEqual(res, 2)
+    res = await conn2.auth('pass')
+    assert res is True
+    res = await conn2.select(1)
+    assert res is True
 
-        msg = yield from chan.get()
-        self.assertEqual(msg, b'Hello!')
-        dest_chan, msg = yield from chan2.get()
-        self.assertEqual(dest_chan, b'chan:1')
-        self.assertEqual(msg, b'Hello!')
+    conn3 = await create_connection(
+        server.tcp_address, password='pass', loop=loop)
 
-    @run_until_complete
-    def test_multiple_subscribe_unsubscribe(self):
-        sub = yield from self.create_connection(
-            ('localhost', self.redis_port), loop=self.loop)
+    res = await conn3.select(1)
+    assert res is True
 
-        res = yield from sub.execute('subscribe', 'chan:1')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
-        res = yield from sub.execute('subscribe', b'chan:1')
-        self.assertEqual(res, [[b'subscribe', b'chan:1', 1]])
+    res = await conn2.execute('CONFIG', 'SET', 'requirepass', '')
+    assert res == b'OK'
 
-        res = yield from sub.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
-        res = yield from sub.execute('unsubscribe', 'chan:1')
-        self.assertEqual(res, [[b'unsubscribe', b'chan:1', 0]])
 
-        res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
-        res = yield from sub.execute('psubscribe', 'chan:*')
-        self.assertEqual(res, [[b'psubscribe', b'chan:*', 1]])
+@pytest.mark.run_loop
+async def test_decoding(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, encoding='utf-8', loop=loop)
+    assert conn.encoding == 'utf-8'
+    res = await conn.execute('set', '{prefix}:key1', 'value')
+    assert res == 'OK'
+    res = await conn.execute('get', '{prefix}:key1')
+    assert res == 'value'
 
-        res = yield from sub.execute('punsubscribe', 'chan:*')
-        self.assertEqual(res, [[b'punsubscribe', b'chan:*', 0]])
-        res = yield from sub.execute('punsubscribe', 'chan:*')
-        self.assertEqual(res, [[b'punsubscribe', b'chan:*', 0]])
+    res = await conn.execute('set', '{prefix}:key1', b'bin-value')
+    assert res == 'OK'
+    res = await conn.execute('get', '{prefix}:key1')
+    assert res == 'bin-value'
+
+    res = await conn.execute('get', '{prefix}:key1', encoding='ascii')
+    assert res == 'bin-value'
+    res = await conn.execute('get', '{prefix}:key1', encoding=None)
+    assert res == b'bin-value'
+
+    with pytest.raises(UnicodeDecodeError):
+        await conn.execute('set', '{prefix}:key1', 'значение')
+        await conn.execute('get', '{prefix}:key1', encoding='ascii')
+
+    conn2 = await create_connection(
+        server.tcp_address, loop=loop)
+    res = await conn2.execute('get', '{prefix}:key1', encoding='utf-8')
+    assert res == 'значение'
+
+
+@pytest.mark.run_loop
+async def test_execute_exceptions(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    with pytest.raises(TypeError):
+        await conn.execute(None)
+    with pytest.raises(TypeError):
+        await conn.execute("ECHO", None)
+    with pytest.raises(TypeError):
+        await conn.execute("GET", ('a', 'b'))
+    assert len(conn._waiters) == 0
+
+
+@pytest.mark.run_loop
+async def test_subscribe_unsubscribe(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+
+    assert conn.in_pubsub == 0
+
+    res = await conn.execute('subscribe', 'chan:1')
+    assert res == [[b'subscribe', b'chan:1', 1]]
+
+    assert conn.in_pubsub == 1
+
+    res = await conn.execute('unsubscribe', 'chan:1')
+    assert res == [[b'unsubscribe', b'chan:1', 0]]
+    assert conn.in_pubsub == 0
+
+    res = await conn.execute('subscribe', 'chan:1', 'chan:2')
+    assert res == [[b'subscribe', b'chan:1', 1],
+                   [b'subscribe', b'chan:2', 2],
+                   ]
+    assert conn.in_pubsub == 2
+
+    res = await conn.execute('unsubscribe', 'non-existent')
+    assert res == [[b'unsubscribe', b'non-existent', 2]]
+    assert conn.in_pubsub == 2
+
+    res = await conn.execute('unsubscribe', 'chan:1')
+    assert res == [[b'unsubscribe', b'chan:1', 1]]
+    assert conn.in_pubsub == 1
+
+
+@pytest.mark.run_loop
+async def test_psubscribe_punsubscribe(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+    res = await conn.execute('psubscribe', 'chan:*')
+    assert res == [[b'psubscribe', b'chan:*', 1]]
+    assert conn.in_pubsub == 1
+
+
+@pytest.mark.run_loop
+async def test_bad_command_in_pubsub(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop)
+
+    res = await conn.execute('subscribe', 'chan:1')
+    assert res == [[b'subscribe', b'chan:1', 1]]
+
+    msg = "Connection in SUBSCRIBE mode"
+    with pytest.raises(RedisError, match=msg):
+        await conn.execute('select', 1)
+    with pytest.raises(RedisError, match=msg):
+        conn.execute('get')
+
+
+@pytest.mark.run_loop
+async def test_pubsub_messages(create_connection, loop, server):
+    sub = await create_connection(
+        server.tcp_address, loop=loop)
+    pub = await create_connection(
+        server.tcp_address, loop=loop)
+    res = await sub.execute('subscribe', 'chan:1')
+    assert res == [[b'subscribe', b'chan:1', 1]]
+
+    assert b'chan:1' in sub.pubsub_channels
+    chan = sub.pubsub_channels[b'chan:1']
+    assert str(chan) == "<Channel name:b'chan:1', is_pattern:False, qsize:0>"
+    assert chan.name == b'chan:1'
+    assert chan.is_active is True
+
+    res = await pub.execute('publish', 'chan:1', 'Hello!')
+    assert res == 1
+    msg = await chan.get()
+    assert msg == b'Hello!'
+
+    res = await sub.execute('psubscribe', 'chan:*')
+    assert res == [[b'psubscribe', b'chan:*', 2]]
+    assert b'chan:*' in sub.pubsub_patterns
+    chan2 = sub.pubsub_patterns[b'chan:*']
+    assert chan2.name == b'chan:*'
+    assert chan2.is_active is True
+
+    res = await pub.execute('publish', 'chan:1', 'Hello!')
+    assert res == 2
+
+    msg = await chan.get()
+    assert msg == b'Hello!'
+    dest_chan, msg = await chan2.get()
+    assert dest_chan == b'chan:1'
+    assert msg == b'Hello!'
+
+
+@pytest.mark.run_loop
+async def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
+    sub = await create_connection(server.tcp_address, loop=loop)
+
+    res = await sub.execute_pubsub('subscribe', 'chan:1')
+    ch = sub.pubsub_channels['chan:1']
+    assert res == [[b'subscribe', b'chan:1', 1]]
+    res = await sub.execute_pubsub('subscribe', b'chan:1')
+    assert res == [[b'subscribe', b'chan:1', 1]]
+    assert ch is sub.pubsub_channels['chan:1']
+    res = await sub.execute_pubsub('subscribe', ch)
+    assert res == [[b'subscribe', b'chan:1', 1]]
+    assert ch is sub.pubsub_channels['chan:1']
+
+    res = await sub.execute_pubsub('unsubscribe', 'chan:1')
+    assert res == [[b'unsubscribe', b'chan:1', 0]]
+    res = await sub.execute_pubsub('unsubscribe', 'chan:1')
+    assert res == [[b'unsubscribe', b'chan:1', 0]]
+
+    res = await sub.execute_pubsub('psubscribe', 'chan:*')
+    assert res == [[b'psubscribe', b'chan:*', 1]]
+    res = await sub.execute_pubsub('psubscribe', 'chan:*')
+    assert res == [[b'psubscribe', b'chan:*', 1]]
+
+    res = await sub.execute_pubsub('punsubscribe', 'chan:*')
+    assert res == [[b'punsubscribe', b'chan:*', 0]]
+    res = await sub.execute_pubsub('punsubscribe', 'chan:*')
+    assert res == [[b'punsubscribe', b'chan:*', 0]]
+
+
+@pytest.mark.run_loop
+async def test_execute_pubsub_errors(create_connection, loop, server):
+    sub = await create_connection(
+        server.tcp_address, loop=loop)
+
+    with pytest.raises(TypeError):
+        sub.execute_pubsub('subscribe', "chan:1", None)
+    with pytest.raises(TypeError):
+        sub.execute_pubsub('subscribe')
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'subscribe',
+            Channel('chan:1', is_pattern=True, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'unsubscribe',
+            Channel('chan:1', is_pattern=True, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'psubscribe',
+            Channel('chan:1', is_pattern=False, loop=loop))
+    with pytest.raises(ValueError):
+        sub.execute_pubsub(
+            'punsubscribe',
+            Channel('chan:1', is_pattern=False, loop=loop))
+
+
+@pytest.mark.run_loop
+async def test_multi_exec(create_connection, loop, server):
+    conn = await create_connection(server.tcp_address, loop=loop)
+
+    ok = await conn.execute('set', 'foo', 'bar')
+    assert ok == b'OK'
+
+    ok = await conn.execute("MULTI")
+    assert ok == b'OK'
+    queued = await conn.execute('getset', 'foo', 'baz')
+    assert queued == b'QUEUED'
+    res = await conn.execute("EXEC")
+    assert res == [b'bar']
+
+    ok = await conn.execute("MULTI")
+    assert ok == b'OK'
+    queued = await conn.execute('getset', 'foo', 'baz')
+    assert queued == b'QUEUED'
+    res = await conn.execute("DISCARD")
+    assert res == b'OK'
+
+
+@pytest.mark.run_loop
+async def test_multi_exec__enc(create_connection, loop, server):
+    conn = await create_connection(
+        server.tcp_address, loop=loop, encoding='utf-8')
+
+    ok = await conn.execute('set', 'foo', 'bar')
+    assert ok == 'OK'
+
+    ok = await conn.execute("MULTI")
+    assert ok == 'OK'
+    queued = await conn.execute('getset', 'foo', 'baz')
+    assert queued == 'QUEUED'
+    res = await conn.execute("EXEC")
+    assert res == ['bar']
+
+    ok = await conn.execute("MULTI")
+    assert ok == 'OK'
+    queued = await conn.execute('getset', 'foo', 'baz')
+    assert queued == 'QUEUED'
+    res = await conn.execute("DISCARD")
+    assert res == 'OK'
+
+
+@pytest.mark.run_loop
+async def test_connection_parser_argument(create_connection, server, loop):
+    klass = mock.MagicMock()
+    klass.return_value = reader = mock.Mock()
+    conn = await create_connection(server.tcp_address,
+                                   parser=klass, loop=loop)
+
+    assert klass.mock_calls == [
+        mock.call(protocolError=ProtocolError, replyError=ReplyError),
+    ]
+
+    response = [False]
+
+    def feed_gets(data, **kwargs):
+        response[0] = data
+
+    reader.gets.side_effect = lambda *args, **kwargs: response[0]
+    reader.feed.side_effect = feed_gets
+    assert b'+PONG\r\n' == await conn.execute('ping')
+
+
+@pytest.mark.run_loop
+async def test_connection_idle_close(create_connection, start_server, loop):
+    server = start_server('idle')
+    conn = await create_connection(server.tcp_address, loop=loop)
+    ok = await conn.execute("config", "set", "timeout", 1)
+    assert ok == b'OK'
+
+    await asyncio.sleep(3, loop=loop)
+
+    with pytest.raises(ConnectionClosedError):
+        assert await conn.execute('ping') is None
+
+
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
+@pytest.mark.run_loop
+async def test_create_connection__tcp_url(
+        create_connection, server_tcp_url, loop, kwargs):
+    url = server_tcp_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = await create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert await conn.execute('ping') == pong
+    assert conn.db == db
+    assert conn.encoding == enc
+
+
+@pytest.mark.skipif('sys.platform == "win32"',
+                    reason="No unix sockets on Windows")
+@pytest.mark.parametrize('kwargs', [
+    {},
+    {'db': 1},
+    {'encoding': 'utf-8'},
+], ids=repr)
+@pytest.mark.run_loop
+async def test_create_connection__unix_url(
+        create_connection, server_unix_url, loop, kwargs):
+    url = server_unix_url(**kwargs)
+    db = kwargs.get('db', 0)
+    enc = kwargs.get('encoding', None)
+    conn = await create_connection(url, loop=loop)
+    pong = b'PONG' if not enc else b'PONG'.decode(enc)
+    assert await conn.execute('ping') == pong
+    assert conn.db == db
+    assert conn.encoding == enc

@@ -15,12 +15,12 @@ class ServerCommandsMixin:
 
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""
-        fut = self._conn.execute(b'BGREWRITEAOF')
+        fut = self.execute(b'BGREWRITEAOF')
         return wait_ok(fut)
 
     def bgsave(self):
         """Asynchronously save the dataset to disk."""
-        fut = self._conn.execute(b'BGSAVE')
+        fut = self.execute(b'BGSAVE')
         return wait_ok(fut)
 
     def client_kill(self):
@@ -35,12 +35,12 @@ class ServerCommandsMixin:
 
         Returns list of ClientInfo named tuples.
         """
-        fut = self._conn.execute(b'CLIENT', b'LIST', encoding='utf-8')
+        fut = self.execute(b'CLIENT', b'LIST', encoding='utf-8')
         return wait_convert(fut, to_tuples)
 
     def client_getname(self, encoding=_NOTSET):
         """Get the current connection name."""
-        return self._conn.execute(b'CLIENT', b'GETNAME', encoding=encoding)
+        return self.execute(b'CLIENT', b'GETNAME', encoding=encoding)
 
     def client_pause(self, timeout):
         """Stop processing commands from clients for *timeout* milliseconds.
@@ -52,13 +52,32 @@ class ServerCommandsMixin:
             raise TypeError("timeout argument must be int")
         if timeout < 0:
             raise ValueError("timeout must be greater equal 0")
-        fut = self._conn.execute(b'CLIENT', b'PAUSE', timeout)
+        fut = self.execute(b'CLIENT', b'PAUSE', timeout)
         return wait_ok(fut)
 
     def client_setname(self, name):
         """Set the current connection name."""
-        fut = self._conn.execute(b'CLIENT', b'SETNAME', name)
+        fut = self.execute(b'CLIENT', b'SETNAME', name)
         return wait_ok(fut)
+
+    def command(self):
+        """Get array of Redis commands."""
+        # TODO: convert result
+        return self.execute(b'COMMAND', encoding='utf-8')
+
+    def command_count(self):
+        """Get total number of Redis commands."""
+        return self.execute(b'COMMAND', b'COUNT')
+
+    def command_getkeys(self, command, *args, encoding='utf-8'):
+        """Extract keys given a full Redis command."""
+        return self.execute(b'COMMAND', b'GETKEYS', command, *args,
+                            encoding=encoding)
+
+    def command_info(self, command, *commands):
+        """Get array of specific Redis command details."""
+        return self.execute(b'COMMAND', b'INFO', command, *commands,
+                            encoding='utf-8')
 
     def config_get(self, parameter='*'):
         """Get the value of a configuration parameter(s).
@@ -69,58 +88,71 @@ class ServerCommandsMixin:
         """
         if not isinstance(parameter, str):
             raise TypeError("parameter must be str")
-        fut = self._conn.execute(b'CONFIG', b'GET', parameter,
-                                 encoding='utf-8')
+        fut = self.execute(b'CONFIG', b'GET', parameter, encoding='utf-8')
         return wait_make_dict(fut)
 
     def config_rewrite(self):
         """Rewrite the configuration file with the in memory configuration."""
-        fut = self._conn.execute(b'CONFIG', b'REWRITE')
+        fut = self.execute(b'CONFIG', b'REWRITE')
         return wait_ok(fut)
 
     def config_set(self, parameter, value):
         """Set a configuration parameter to the given value."""
         if not isinstance(parameter, str):
             raise TypeError("parameter must be str")
-        fut = self._conn.execute(b'CONFIG', b'SET', parameter, value)
+        fut = self.execute(b'CONFIG', b'SET', parameter, value)
         return wait_ok(fut)
 
     def config_resetstat(self):
         """Reset the stats returned by INFO."""
-        fut = self._conn.execute(b'CONFIG', b'RESETSTAT')
+        fut = self.execute(b'CONFIG', b'RESETSTAT')
         return wait_ok(fut)
 
     def dbsize(self):
         """Return the number of keys in the selected database."""
-        return self._conn.execute(b'DBSIZE')
+        return self.execute(b'DBSIZE')
+
+    def debug_sleep(self, timeout):
+        """Suspend connection for timeout seconds."""
+        fut = self.execute(b'DEBUG', b'SLEEP', timeout)
+        return wait_ok(fut)
 
     def debug_object(self, key):
         """Get debugging information about a key."""
-        return self._conn.execute(b'DEBUG', b'OBJECT', key)
+        return self.execute(b'DEBUG', b'OBJECT', key)
 
     def debug_segfault(self, key):
         """Make the server crash."""
-        return self._conn.execute(b'DEBUG', 'SEGFAULT')
+        # won't test, this probably works
+        return self.execute(b'DEBUG', 'SEGFAULT')  # pragma: no cover
 
     def flushall(self):
         """Remove all keys from all databases."""
-        fut = self._conn.execute(b'FLUSHALL')
+        fut = self.execute(b'FLUSHALL')
         return wait_ok(fut)
 
     def flushdb(self):
         """Remove all keys from the current database."""
-        fut = self._conn.execute('FLUSHDB')
+        fut = self.execute('FLUSHDB')
         return wait_ok(fut)
 
-    def info(self, section):
-        """Get information and statistics about the server."""
-        # TODO: check section
-        fut = self._conn.execute(b'INFO', section, encoding='utf-8')
+    def info(self, section='default'):
+        """Get information and statistics about the server.
+
+        If called without argument will return default set of sections.
+        For available sections, see http://redis.io/commands/INFO
+
+        :raises ValueError: if section is invalid
+
+        """
+        if not section:
+            raise ValueError("invalid section")
+        fut = self.execute(b'INFO', section, encoding='utf-8')
         return wait_convert(fut, parse_info)
 
     def lastsave(self):
         """Get the UNIX time stamp of the last successful save to disk."""
-        return self._conn.execute(b'LASTSAVE')
+        return self.execute(b'LASTSAVE')
 
     def monitor(self):
         """Listen for all requests received by the server in real time.
@@ -137,23 +169,23 @@ class ServerCommandsMixin:
         Returns named tuples describing role of the instance.
         For fields information see http://redis.io/commands/role#output-format
         """
-        fut = self._conn.execute(b'ROLE', encoding='utf-8')
+        fut = self.execute(b'ROLE', encoding='utf-8')
         return wait_convert(fut, parse_role)
 
     def save(self):
         """Synchronously save the dataset to disk."""
-        return self._conn.execute(b'SAVE')
+        return self.execute(b'SAVE')
 
     def shutdown(self, save=None):
         """Synchronously save the dataset to disk and then
         shut down the server.
         """
         if save is self.SHUTDOWN_SAVE:
-            return self._conn.execute(b'SHUTDOWN', b'SAVE')
+            return self.execute(b'SHUTDOWN', b'SAVE')
         elif save is self.SHUTDOWN_NOSAVE:
-            return self._conn.execute(b'SHUTDOWN', b'NOSAVE')
+            return self.execute(b'SHUTDOWN', b'NOSAVE')
         else:
-            return self._conn.execute(b'SHUTDOWN')
+            return self.execute(b'SHUTDOWN')
 
     def slaveof(self, host=_NOTSET, port=None):
         """Make the server a slave of another instance,
@@ -171,34 +203,35 @@ class ServerCommandsMixin:
             host = None
             # TODO: drop in 0.3.0
         if host is None and port is None:
-            return self._conn.execute(b'SLAVEOF', b'NO', b'ONE')
-        return self._conn.execute(b'SLAVEOF', host, port)
+            return self.execute(b'SLAVEOF', b'NO', b'ONE')
+        return self.execute(b'SLAVEOF', host, port)
 
     def slowlog_get(self, length=None):
         """Returns the Redis slow queries log."""
         if length is not None:
             if not isinstance(length, int):
                 raise TypeError("length must be int or None")
-            return self._conn.execute(b'SLOWLOG', b'GET', length)
+            return self.execute(b'SLOWLOG', b'GET', length)
         else:
-            return self._conn.execute(b'SLOWLOG', b'GET')
+            return self.execute(b'SLOWLOG', b'GET')
 
-    def slowlog_len(self, length=None):
+    def slowlog_len(self):
         """Returns length of Redis slow queries log."""
-        return self._conn.execute(b'SLOWLOG', b'LEN')
+        return self.execute(b'SLOWLOG', b'LEN')
 
     def slowlog_reset(self):
         """Resets Redis slow queries log."""
-        return self._conn.execute(b'SLOWLOG', b'RESET')
+        fut = self.execute(b'SLOWLOG', b'RESET')
+        return wait_ok(fut)
 
     def sync(self):
         """Redis-server internal command used for replication."""
-        return self._conn.execute(b'SYNC')
+        return self.execute(b'SYNC')
 
     def time(self):
         """Return current server time."""
-        fut = self._conn.execute(b'TIME')
-        return wait_convert(fut, lambda obj: float(b'.'.join(obj)))
+        fut = self.execute(b'TIME')
+        return wait_convert(fut, to_time)
 
 
 def _split(s):
@@ -206,9 +239,12 @@ def _split(s):
     return k.replace('-', '_'), v
 
 
+def to_time(obj):
+    return int(obj[0]) + int(obj[1]) * 1e-6
+
+
 def to_tuples(value):
-    lines = iter(value.splitlines(False))
-    line = next(lines)
+    line, *lines = value.splitlines(False)
     line = list(map(_split, line.split(' ')))
     ClientInfo = namedtuple('ClientInfo', ' '.join(k for k, v in line))
     # TODO: parse flags and other known fields
@@ -221,8 +257,8 @@ def to_tuples(value):
 def parse_info(info):
     res = {}
     for block in info.split('\r\n\r\n'):
-        block = iter(block.strip().splitlines())
-        section = next(block)[2:].lower()
+        section, *block = block.strip().splitlines()
+        section = section[2:].lower()
         res[section] = tmp = {}
         for line in block:
             key, value = line.split(':')
@@ -240,7 +276,7 @@ MasterSlaveInfo = namedtuple('MasterSlaveInfo', 'ip port ack_offset')
 SlaveInfo = namedtuple('SlaveInfo',
                        'role master_ip master_port state received')
 
-SentinelInfo = namedtuple('SentinelInfo', 'masters')
+SentinelInfo = namedtuple('SentinelInfo', 'role masters')
 
 
 def parse_role(role):

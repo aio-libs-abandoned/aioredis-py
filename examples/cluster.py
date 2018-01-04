@@ -11,63 +11,57 @@ def main():
 
     loop = asyncio.get_event_loop()
 
-    @asyncio.coroutine
-    def connect():
+    async def connect():
         try:
-            return (yield from create_cluster(
-                NODES, loop=loop, encoding='utf8'))
+            return await  create_cluster(NODES, loop=loop, encoding='utf8')
         except RedisClusterError:
             raise RedisClusterError(
                 "Could not connect to cluster. Did you start it with "
                 "the setupcluster.py script?"
             )
 
-    @asyncio.coroutine
-    def get_key(cluster):
+    async def get_key(cluster):
         key = 'key1'
         value = 'value1'
-        yield from cluster.set(key, value)
-        res = yield from cluster.get(key)
+        await cluster.set(key, value)
+        res = await cluster.get(key)
         assert res == value
         print("get_key {} -> {}".format(key, res))
-        yield from cluster.clear()  # closing all open connections
+        await cluster.clear()  # closing all open connections
 
-    @asyncio.coroutine
-    def get_keys(cluster):
+    async def get_keys(cluster):
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
         for key in keys:
-            yield from cluster.set(key, value)
-        res = yield from cluster.keys('*')
-        assert set(keys) <= set(res)
+            await cluster.set(key, value)
+        res = await cluster.keys('*')
+
+        assert set(keys).issubset(set(res))
         print("get_keys -> {}".format(res))
-        yield from cluster.clear()  # closing all open connections
+        await cluster.clear()  # closing all open connections
 
-    @asyncio.coroutine
-    def flush_all(cluster):
+    async def flush_all(cluster):
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
         for key in keys:
-            yield from cluster.set(key, value)
-        yield from cluster.flushall()
-        res = yield from cluster.keys('*')
+            await cluster.set(key, value)
+        await cluster.flushall()
+        res = await cluster.keys('*')
         assert [] == res
         print("get_keys after flushall -> {}".format(res))
-        yield from cluster.clear()  # closing all open connections
+        await cluster.clear()  # closing all open connections
 
-    @asyncio.coroutine
-    def scan(cluster):
-        yield from cluster.flushall()
+    async def scan(cluster):
+        await cluster.flushall()
         keys = ['key1', 'key2', 'key3']
         value = 'value1'
         for key in keys:
-            yield from cluster.set(key, value)
-        res = []
-        for _keys in (yield from cluster.scan(match='key*')):
-            res.extend(_keys)
-        assert set(keys) <= set(res)
+            await cluster.set(key, value)
+
+        res = await cluster.scan(match='key*')
+        assert set(keys).issubset(set(res))
         print("scan -> {}".format(res))
-        yield from cluster.clear()  # closing all open connections
+        await cluster.clear()  # closing all open connections
 
     try:
         cluster = loop.run_until_complete(connect())

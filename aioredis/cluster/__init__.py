@@ -1,10 +1,14 @@
 from .cluster import (
-    RedisPoolCluster,
-    create_pool_cluster,
     create_cluster,
+    create_pool_cluster,
     RedisCluster,
+    RedisPoolCluster
 )
 
-# make pyflakes happy
-(create_pool_cluster, RedisPoolCluster,
- create_cluster, RedisCluster)
+
+__all__ = [
+    'create_cluster',
+    'create_pool_cluster',
+    'RedisCluster',
+    'RedisPoolCluster'
+]

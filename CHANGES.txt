@@ -1,6 +1,297 @@
 Changes
 -------
 
+1.0.0 (2017-11-17)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* **Important!** Drop Python 3.3, 3.4 support;
+  (see `#321 <https://github.com/aio-libs/aioredis/pull/321>`_,
+  `#323 <https://github.com/aio-libs/aioredis/pull/323>`_
+  and `#326 <https://github.com/aio-libs/aioredis/pull/326>`_);
+
+* **Important!** Connections pool has been refactored; now ``create_redis``
+  function will yield ``Redis`` instance instead of ``RedisPool``
+  (see `#129 <https://github.com/aio-libs/aioredis/pull/129>`_);
+
+* **Important!** Change sorted set commands reply format:
+  return list of tuples instead of plain list for commands
+  accepting ``withscores`` argument
+  (see `#334 <https://github.com/aio-libs/aioredis/pull/334>`_);
+
+* **Important!** Change ``hscan`` command reply format:
+  return list of tuples instead of mixed key-value list
+  (see `#335 <https://github.com/aio-libs/aioredis/pull/335>`_);
+
+* Implement Redis URI support as supported ``address`` argument value
+  (see `#322 <https://github.com/aio-libs/aioredis/pull/322>`_);
+
+* Dropped ``create_reconnecting_redis``, ``create_redis_pool`` should be
+  used instead;
+
+* Implement custom ``StreamReader``
+  (see `#273 <https://github.com/aio-libs/aioredis/pull/273>`_);
+
+* Implement Sentinel support
+  (see `#181 <https://github.com/aio-libs/aioredis/pull/181>`_);
+
+* Implement pure-python parser
+  (see `#212 <https://github.com/aio-libs/aioredis/pull/212>`_);
+
+* Add ``migrate_keys`` command
+  (see `#187 <https://github.com/aio-libs/aioredis/pull/187>`_);
+
+* Add ``zrevrangebylex`` command
+  (see `#201 <https://github.com/aio-libs/aioredis/pull/201>`_);
+
+* Add ``command``, ``command_count``, ``command_getkeys`` and
+  ``command_info`` commands
+  (see `#229 <https://github.com/aio-libs/aioredis/pull/229>`_);
+
+* Add ``ping`` support in pubsub connection
+  (see `#264 <https://github.com/aio-libs/aioredis/pull/264>`_);
+
+* Add ``exist`` parameter to ``zadd`` command
+  (see `#288 <https://github.com/aio-libs/aioredis/pull/288>`_);
+
+* Add ``MaxClientsError`` and implement ``ReplyError`` specialization
+  (see `#325 <https://github.com/aio-libs/aioredis/pull/325>`_);
+
+* Add ``encoding`` parameter to sorted set commands
+  (see `#289 <https://github.com/aio-libs/aioredis/pull/289>`_);
+
+**FIX**:
+
+* Fix ``CancelledError`` in ``conn._reader_task``
+  (see `#301 <https://github.com/aio-libs/aioredis/pull/301>`_);
+
+* Fix pending commands cancellation with ``CancelledError``,
+  use explicit exception instead of calling ``cancel()`` method
+  (see `#316 <https://github.com/aio-libs/aioredis/pull/316>`_);
+
+* Correct error message on Sentinel discovery of master/slave with password
+  (see `#327 <https://github.com/aio-libs/aioredis/pull/327>`_);
+
+* Fix ``bytearray`` support as command argument
+  (see `#329 <https://github.com/aio-libs/aioredis/pull/329>`_);
+
+* Fix critical bug in patched asyncio.Lock
+  (see `#256 <https://github.com/aio-libs/aioredis/pull/256>`_);
+
+* Fix Multi/Exec transaction canceled error
+  (see `#225 <https://github.com/aio-libs/aioredis/pull/225>`_);
+
+* Add missing arguments to ``create_redis`` and ``create_redis_pool``;
+
+* Fix deprecation warning
+  (see `#191 <https://github.com/aio-libs/aioredis/pull/191>`_);
+
+* Make correct ``__aiter__()``
+  (see `#192 <https://github.com/aio-libs/aioredis/pull/192>`_);
+
+* Backward compatibility fix for ``with (yield from pool) as conn:``
+  (see `#205 <https://github.com/aio-libs/aioredis/pull/205>`_);
+
+* Fixed pubsub receiver stop()
+  (see `#211 <https://github.com/aio-libs/aioredis/pull/211>`_);
+
+**MISC**:
+
+* Multiple test fixes;
+
+* Add PyPy3 to build matrix;
+
+* Update dependencies versions;
+
+* Add missing Python 3.6 classifier;
+
+
+0.3.5 (2017-11-08)
+^^^^^^^^^^^^^^^^^^
+
+**FIX**:
+
+* Fix for indistinguishable futures cancellation with
+  ``asyncio.CancelledError``
+  (see `#316 <https://github.com/aio-libs/aioredis/pull/316>`_),
+  cherry-picked from master;
+
+
+0.3.4 (2017-10-25)
+^^^^^^^^^^^^^^^^^^
+
+**FIX**:
+
+* Fix time command result decoding when using connection-wide encoding setting
+  (see `#266 <https://github.com/aio-libs/aioredis/pull/266>`_);
+
+
+0.3.3 (2017-06-30)
+^^^^^^^^^^^^^^^^^^
+
+**FIX**:
+
+* Critical bug fixed in patched asyncio.Lock
+  (see `#256 <https://github.com/aio-libs/aioredis/pull/256>`_);
+
+
+0.3.2 (2017-06-21)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Added ``zrevrangebylex`` command
+  (see `#201 <https://github.com/aio-libs/aioredis/pull/201>`_),
+  cherry-picked from master;
+
+* Add connection timeout
+  (see `#221 <https://github.com/aio-libs/aioredis/pull/221>`_),
+  cherry-picked from master;
+
+**FIX**:
+
+* Fixed pool close warning
+  (see `#239 <https://github.com/aio-libs/aioredis/pull/239>`_
+  and `#236 <https://github.com/aio-libs/aioredis/issues/236>`_),
+  cherry-picked from master;
+
+* Fixed asyncio Lock deadlock issue
+  (see `#231 <https://github.com/aio-libs/aioredis/issues/231>`_
+  and `#241 <https://github.com/aio-libs/aioredis/pull/241>`_);
+
+
+0.3.1 (2017-05-09)
+^^^^^^^^^^^^^^^^^^
+
+**FIX**:
+
+* Fix pubsub Receiver missing iter() method
+  (see `#203 <https://github.com/aio-libs/aioredis/issues/203>`_);
+
+
+0.3.0 (2017-01-11)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Pub/Sub connection commands accept ``Channel`` instances
+  (see `#168 <https://github.com/aio-libs/aioredis/pull/168>`_);
+
+* Implement new Pub/Sub MPSC (multi-producers, single-consumer) Queue --
+  ``aioredis.pubsub.Receiver``
+  (see `#176 <https://github.com/aio-libs/aioredis/pull/176>`_);
+
+* Add ``aioredis.abc`` module providing abstract base classes
+  defining interface for basic lib components;
+  (see `#176 <https://github.com/aio-libs/aioredis/pull/176>`_);
+
+* Implement Geo commands support
+  (see `#177 <https://github.com/aio-libs/aioredis/pull/177>`_
+  and `#179 <https://github.com/aio-libs/aioredis/pull/179>`_);
+
+**FIX**:
+
+* Minor tests fixes;
+
+**MISC**:
+
+* Update examples and docs to use ``async``/``await`` syntax
+  also keeping ``yield from`` examples for history
+  (see `#173 <https://github.com/aio-libs/aioredis/pull/173>`_);
+
+* Reflow Travis CI configuration; add Python 3.6 section
+  (see `#170 <https://github.com/aio-libs/aioredis/pull/170>`_);
+
+* Add AppVeyor integration to run tests on Windows
+  (see `#180 <https://github.com/aio-libs/aioredis/pull/180>`_);
+
+* Update multiple development requirements;
+
+
+0.2.9 (2016-10-24)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Allow multiple keys in ``EXISTS`` command
+  (see `#156 <https://github.com/aio-libs/aioredis/issues/156>`_
+  and `#157 <https://github.com/aio-libs/aioredis/issues/157>`_);
+
+**FIX**:
+
+* Close RedisPool when connection to Redis failed
+  (see `#136 <https://github.com/aio-libs/aioredis/issues/136>`_);
+
+* Add simple ``INFO`` command argument validation
+  (see `#140 <https://github.com/aio-libs/aioredis/issues/140>`_);
+
+* Remove invalid uses of ``next()``
+
+**MISC**:
+
+* Update devel.rst docs; update Pub/Sub Channel docs (cross-refs);
+
+* Update MANIFEST.in to include docs, examples and tests in source bundle;
+
+
+0.2.8 (2016-07-22)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Add ``hmset_dict`` command
+  (see `#130 <https://github.com/aio-libs/aioredis/issues/130>`_);
+
+* Add ``RedisConnection.address`` property;
+
+* RedisPool ``minsize``/``maxsize`` must not be ``None``;
+
+* Implement ``close()``/``wait_closed()``/``closed`` interface for pool
+  (see `#128 <https://github.com/aio-libs/aioredis/issues/128>`_);
+
+**FIX**:
+
+* Add test for ``hstrlen``;
+
+* Test fixes
+
+**MISC**:
+
+* Enable Redis 3.2.0 on Travis;
+
+* Add spell checking when building docs
+  (see `#132 <https://github.com/aio-libs/aioredis/issues/132>`_);
+
+* Documentation updated;
+
+
+0.2.7 (2016-05-27)
+^^^^^^^^^^^^^^^^^^
+
+* ``create_pool()`` minsize default value changed to 1;
+
+* Fixed cancellation of wait_closed
+  (see `#118 <https://github.com/aio-libs/aioredis/issues/118>`_);
+
+* Fixed ``time()`` convertion to float
+  (see `#126 <https://github.com/aio-libs/aioredis/issues/126>`_);
+
+* Fixed ``hmset()`` method to return bool instead of ``b'OK'``
+  (see `#126`_);
+
+* Fixed multi/exec + watch issue (changed watch variable was causing
+  ``tr.execute()`` to fail)
+  (see `#121 <https://github.com/aio-libs/aioredis/issues/121>`_);
+
+* Replace ``asyncio.Future`` uses with utility method
+  (get ready to Python 3.5.2 ``loop.create_future()``);
+
+* Tests switched from unittest to pytest (see `#126`_);
+
+* Documentation updates;
+
+
 0.2.6 (2016-03-30)
 ^^^^^^^^^^^^^^^^^^
 
@@ -67,7 +358,6 @@ Changes
 * Add google groups link to README;
 
 * Bump year in LICENSE and docs;
-
 
 
 0.2.4 (2015-10-13)
@@ -150,3 +440,92 @@ Changes
   (see `#62 <https://github.com/aio-libs/aioredis/pull/62>`_);
 
 * Fixes/tests/docs;
+
+
+0.1.5 (2014-12-09)
+^^^^^^^^^^^^^^^^^^
+
+* AutoConnector added;
+
+* wait_closed method added for clean connections shutdown;
+
+* ``zscore`` command fixed;
+
+* Test fixes;
+
+
+0.1.4 (2014-09-22)
+^^^^^^^^^^^^^^^^^^
+
+* Dropped following Redis methods -- ``Redis.multi()``,
+  ``Redis.exec()``, ``Redis.discard()``;
+
+* ``Redis.multi_exec`` hack'ish property removed;
+
+* ``Redis.multi_exec()`` method added;
+
+* High-level commands implemented:
+
+  * generic commands (tests);
+
+  * transactions commands (api stabilization).
+
+* Backward incompatibilities:
+
+  * Following sorted set commands' API changed:
+
+    ``zcount``, ``zrangebyscore``, ``zremrangebyscore``, ``zrevrangebyscore``;
+
+  * set string command' API changed;
+
+
+
+0.1.3 (2014-08-08)
+^^^^^^^^^^^^^^^^^^
+
+* RedisConnection.execute refactored to support commands pipelining
+  (see `#33 <http://github.com/aio-libs/aioredis/issues/33>`_);
+
+* Several fixes;
+
+* WIP on transactions and commands interface;
+
+* High-level commands implemented and tested:
+
+  * hash commands;
+  * hyperloglog commands;
+  * set commands;
+  * scripting commands;
+  * string commands;
+  * list commands;
+
+
+0.1.2 (2014-07-31)
+^^^^^^^^^^^^^^^^^^
+
+* ``create_connection``, ``create_pool``, ``create_redis`` functions updated:
+  db and password arguments made keyword-only
+  (see `#26 <http://github.com/aio-libs/aioredis/issues/26>`_);
+
+* Fixed transaction handling
+  (see `#32 <http://github.com/aio-libs/aioredis/issues/32>`_);
+
+* Response decoding
+  (see `#16 <http://github.com/aio-libs/aioredis/issues/16>`_);
+
+
+0.1.1 (2014-07-07)
+^^^^^^^^^^^^^^^^^^
+
+* Transactions support (in connection, high-level commands have some issues);
+* Docs & tests updated.
+
+
+0.1.0 (2014-06-24)
+^^^^^^^^^^^^^^^^^^
+
+* Initial release;
+* RedisConnection implemented;
+* RedisPool implemented;
+* Docs for RedisConnection & RedisPool;
+* WIP on high-level API.

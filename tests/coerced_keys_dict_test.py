@@ -1,55 +1,55 @@
-import unittest
+import pytest
 
 from aioredis.util import coerced_keys_dict
 
 
-class CoercedKeysDictTest(unittest.TestCase):
+def test_simple():
+    d = coerced_keys_dict()
+    assert d == {}
 
-    def test_simple(self):
-        d = coerced_keys_dict()
-        self.assertEqual(d, {})
+    d = coerced_keys_dict({b'a': 'b', b'c': 'd'})
+    assert 'a' in d
+    assert b'a' in d
+    assert 'c' in d
+    assert b'c' in d
+    assert d == {b'a': 'b', b'c': 'd'}
 
-        d = coerced_keys_dict({b'a': 'b', b'c': 'd'})
-        self.assertIn('a', d)
-        self.assertIn(b'a', d)
-        self.assertIn('c', d)
-        self.assertIn(b'c', d)
-        self.assertEqual(d, {b'a': 'b', b'c': 'd'})
 
-    def test_invalid_init(self):
-        d = coerced_keys_dict({'foo': 'bar'})
-        self.assertEqual(d, {'foo': 'bar'})
+def test_invalid_init():
+    d = coerced_keys_dict({'foo': 'bar'})
+    assert d == {'foo': 'bar'}
 
-        self.assertNotIn('foo', d)
-        self.assertNotIn(b'foo', d)
-        with self.assertRaises(KeyError):
-            d['foo']
-        with self.assertRaises(KeyError):
-            d[b'foo']
+    assert 'foo' not in d
+    assert b'foo' not in d
+    with pytest.raises(KeyError):
+        d['foo']
+    with pytest.raises(KeyError):
+        d[b'foo']
 
-        d = coerced_keys_dict()
-        d.update({'foo': 'bar'})
-        self.assertEqual(d, {'foo': 'bar'})
+    d = coerced_keys_dict()
+    d.update({'foo': 'bar'})
+    assert d == {'foo': 'bar'}
 
-        self.assertNotIn('foo', d)
-        self.assertNotIn(b'foo', d)
-        with self.assertRaises(KeyError):
-            d['foo']
-        with self.assertRaises(KeyError):
-            d[b'foo']
+    assert 'foo' not in d
+    assert b'foo' not in d
+    with pytest.raises(KeyError):
+        d['foo']
+    with pytest.raises(KeyError):
+        d[b'foo']
 
-    def test_valid_init(self):
-        d = coerced_keys_dict({b'foo': 'bar'})
-        self.assertEqual(d, {b'foo': 'bar'})
-        self.assertIn('foo', d)
-        self.assertIn(b'foo', d)
-        self.assertEqual(d['foo'], 'bar')
-        self.assertEqual(d[b'foo'], 'bar')
 
-        d = coerced_keys_dict()
-        d.update({b'foo': 'bar'})
-        self.assertEqual(d, {b'foo': 'bar'})
-        self.assertIn('foo', d)
-        self.assertIn(b'foo', d)
-        self.assertEqual(d['foo'], 'bar')
-        self.assertEqual(d[b'foo'], 'bar')
+def test_valid_init():
+    d = coerced_keys_dict({b'foo': 'bar'})
+    assert d == {b'foo': 'bar'}
+    assert 'foo' in d
+    assert b'foo' in d
+    assert d['foo'] == 'bar'
+    assert d[b'foo'] == 'bar'
+
+    d = coerced_keys_dict()
+    d.update({b'foo': 'bar'})
+    assert d == {b'foo': 'bar'}
+    assert 'foo' in d
+    assert b'foo' in d
+    assert d['foo'] == 'bar'
+    assert d[b'foo'] == 'bar'
