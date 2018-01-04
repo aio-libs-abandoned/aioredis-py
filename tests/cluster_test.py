@@ -826,7 +826,6 @@ async def test_create_pool(test_pool_cluster):
 
 @pytest.mark.run_loop
 async def test_cluster_pool_get_node(test_pool_cluster, free_ports):
-    # Compare the redis_trib.rb script used to setup the test cluster
     pool = test_pool_cluster.get_node('GET', 'key:0')
     assert pool.address[1] == free_ports[0]
 
@@ -1186,7 +1185,7 @@ async def test_count_failure_reports(test_cluster):
 
 
 @pytest.mark.run_loop
-async def test_del_slots(test_cluster, nodes):
+async def test_del_slots_single(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
     masters_count = int(NODES_COUNT / 2)
     slot_boundaries = [
@@ -1222,21 +1221,31 @@ async def test_del_slots(test_cluster, nodes):
     await test_cluster.cluster_add_slots(*range(2, 5), address=nodes[0])
     await test_cluster.cluster_add_slots(slot_boundaries[1], address=nodes[1])
 
-    # All nodes will be affected
+@pytest.mark.run_loop
+async def test_del_slots_many(test_cluster, nodes):
+    all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
+    masters_count = int(NODES_COUNT / 2)
+    slot_boundaries = [
+        math.floor(i * all_slots / masters_count)
+        for i in range(masters_count + 1)
+    ]
+
     ok = await test_cluster.cluster_del_slots(
-        slot_boundaries[1], *range(0, 4), many=True
+        slot_boundaries[1], *range(0, 4), many=True, slaves=True
     )
     assert ok
 
+    expected_slots = {
+        (4, slot_boundaries[1] - 1): nodes[0],
+        (slot_boundaries[1] + 1, slot_boundaries[2] - 1): nodes[1],
+        (slot_boundaries[2], slot_boundaries[3] - 1): nodes[2]
+    }
     slots = await _wait_result(
         test_cluster.cluster_slots,
-        lambda r: all((0, 1) not in s for s in r),
-        many=True
+        lambda r: all(slots.keys() == expected_slots.keys() for slots in r),
+        many=True, slaves=True
     )
-
-    del expected_node2[(0, slot_boundaries[1] - 1)]
-    expected_node2[(4, slot_boundaries[1] - 1)] = nodes[0]
-    assert slots == [expected_node2] * 3
+    assert slots == [expected_slots] * 6
 
     await test_cluster.initialize()
 
@@ -1269,7 +1278,7 @@ async def test_cluster_meet(test_cluster, nodes):
     res = await test_cluster.cluster_meet(*nodes[0], address=nodes[0])
     assert res
 
-    res = await test_cluster.cluster_meet(*nodes[0], many=True, all_=True)
+    res = await test_cluster.cluster_meet(*nodes[0], many=True, slaves=True)
     assert res == [True] * NODES_COUNT
 
 
@@ -1485,7 +1494,7 @@ async def test_cluster_forget_and_replicate(test_cluster):
     assert len(new_info) == NODES_COUNT - 1
 
     res = await test_cluster.cluster_meet(
-        *slave2.address, many=True, all_=True
+        *slave2.address, many=True, slaves=True
     )
     assert res == [True] * NODES_COUNT
 

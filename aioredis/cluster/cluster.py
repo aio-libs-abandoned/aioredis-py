@@ -12,7 +12,7 @@ from aioredis.util import decode, encode_str, cached_property
 from aioredis.log import logger
 from aioredis.errors import ReplyError, RedisClusterError
 from .crc import crc16
-from .mixin import RedisClusterMixin
+from .base import RedisClusterBase
 
 
 __all__ = (
@@ -255,7 +255,7 @@ async def create_cluster(
     return cluster
 
 
-class RedisCluster(RedisClusterMixin):
+class RedisCluster(RedisClusterBase):
     """Redis cluster."""
 
     MAX_MOVED_COUNT = 10
@@ -424,27 +424,27 @@ class RedisCluster(RedisClusterMixin):
                 conn.close()
                 await conn.wait_closed()
 
-    async def _execute_nodes(self, command, *args, all_=False, **kwargs):
+    async def _execute_nodes(self, command, *args, slaves=False, **kwargs):
         """
         Execute redis command for all nodes and returns
         Future waiting for the answer.
 
         :param command str
-        :param all_ bool - Execute on all nodes masters + slaves
+        :param slaves bool - Execute on all nodes masters + slaves
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        nodes = self.get_nodes_entities(slaves=all_)
+        nodes = self.get_nodes_entities(slaves=slaves)
         return await asyncio.gather(*[
             self._execute_node(node, command, *args, **kwargs)
             for node in nodes
         ], loop=self._loop)
 
     async def execute(
-            self, command, *args, address=None, many=False, all_=False,
+            self, command, *args, address=None, many=False, slaves=False,
             **kwargs
     ):
         """Execute redis command and returns Future waiting for the answer.
@@ -453,7 +453,7 @@ class RedisCluster(RedisClusterMixin):
         :param address tuple - Execute on node with specified address
             if many specified will be ignored
         :param many bool - invoke on all master nodes
-        :param all_ bool - if many specified, execute even on slave nodes
+        :param slaves bool - if many specified, execute even on slave nodes
         Raises:
         * TypeError if any of args can not be encoded as bytes.
         * ReplyError on redis '-ERR' responses.
@@ -464,7 +464,7 @@ class RedisCluster(RedisClusterMixin):
         # bad hack to prevent execution on many nodes
         if many or (not args and 'cluster_' not in command):
             return await self._execute_nodes(
-                command, *args, all_=all_, **kwargs
+                command, *args, slaves=slaves, **kwargs
             )
 
         if not address:

@@ -4,8 +4,9 @@ from aioredis.errors import RedisClusterError
 from aioredis.util import _NOTSET
 
 
-class RedisClusterMixin:
-    """Redis cluster mixin."""
+class RedisClusterBase:
+    """By default Redis commands will simply be sent to the appropriate node of
+    the cluster. This class overwrites some commands with special handling"""
 
     async def keys(self, pattern, *, encoding=_NOTSET):
         res = await self._execute_nodes('keys', pattern, encoding=encoding)
@@ -60,7 +61,7 @@ class RedisClusterMixin:
 
         if many:
             return await self._execute_nodes(
-                'cluster_del_slots', slot, *slots, all_=slaves
+                'cluster_del_slots', slot, *slots, slaves=slaves
             )
 
         slots = set((slot,) + slots)
@@ -100,7 +101,7 @@ class RedisClusterMixin:
         """Reset a Redis Cluster node. Or all nodes in address not provided"""
         if not address:
             return await self._execute_nodes(
-                'cluster_reset', all_=True, hard=hard
+                'cluster_reset', slaves=True, hard=hard
             )
 
         return await self._execute_node(
