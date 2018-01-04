@@ -303,7 +303,7 @@ class RedisCluster(RedisClusterBase):
     def slave_count(self):
         return self._cluster_manager.slaves_count
 
-    def get_nodes_entities(self, slaves=False):
+    def _get_nodes_entities(self, slaves=False):
         slave_nodes = []
         if slaves:
             slave_nodes = [node.address for node in self.slave_nodes]
@@ -437,7 +437,7 @@ class RedisCluster(RedisClusterBase):
         * ProtocolError when response can not be decoded meaning connection
           is broken.
         """
-        nodes = self.get_nodes_entities(slaves=slaves)
+        nodes = self._get_nodes_entities(slaves=slaves)
         return await asyncio.gather(*[
             self._execute_node(node, command, *args, **kwargs)
             for node in nodes
@@ -493,7 +493,7 @@ class RedisPoolCluster(RedisCluster):
         self._maxsize = maxsize
         self._cluster_pool = {}
 
-    def get_nodes_entities(self, **kwargs):
+    def _get_nodes_entities(self, **kwargs):
         return self._cluster_pool.values()
 
     async def get_cluster_pool(self):
@@ -533,7 +533,7 @@ class RedisPoolCluster(RedisCluster):
 
     async def clear(self):
         """Clear pool connections. Close and remove all free connections."""
-        for pool in self.get_nodes_entities():
+        for pool in self._get_nodes_entities():
             pool.close()
             await pool.wait_closed()
 

@@ -363,7 +363,7 @@ class PoolConnectionMock:
                 'No connection expected for port {}.'.format(port)
             )
 
-        for pool in cluster.get_nodes_entities():
+        for pool in cluster._get_nodes_entities():
             port = pool.address[1]
             if port in self.connections:
                 create_future = functools.partial(
@@ -468,9 +468,7 @@ def zero_slot_key(test_cluster, loop):
     loop.run_until_complete(test_cluster.delete(SLOT_ZERO_KEY))
 
 
-async def _wait_result(
-        func, cmp=lambda r: len(r) > 0, attempts=60, sleep_time=0.5, **kwargs
-):
+async def _wait_result(func, cmp=bool, attempts=60, sleep_time=0.5, **kwargs):
     attempts_count = 0
     while attempts_count < attempts:
         res = await func(**kwargs)
@@ -1221,6 +1219,7 @@ async def test_del_slots_single(test_cluster, nodes):
     await test_cluster.cluster_add_slots(*range(2, 5), address=nodes[0])
     await test_cluster.cluster_add_slots(slot_boundaries[1], address=nodes[1])
 
+
 @pytest.mark.run_loop
 async def test_del_slots_many(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
@@ -1570,21 +1569,58 @@ async def test_cluster_failover_fail(test_cluster):
 @pytest.mark.run_loop
 @pytest.mark.parametrize('force', [True, False])
 async def test_cluster_failover_ok(force, test_cluster):
-    slave = None
-    while not slave:
-        my_master = test_cluster.master_nodes[2]
+    my_master = test_cluster.master_nodes[2]
 
+    async def find_slave_or_reload():
         for node in test_cluster.slave_nodes:
             if node.master == my_master.id:
-                slave = node
-                break
-        if not slave:
-            await test_cluster.initialize()
+                return node
+
+        await test_cluster.initialize()
+        return None
+
+    slave = await _wait_result(find_slave_or_reload)
 
     res = await test_cluster.cluster_failover(slave.address, force)
     assert res
 
     # Waiting for failover
-    await asyncio.sleep(0.5)
-    res = await test_cluster.cluster_failover(my_master.address, force)
-    assert res
+    while True:
+        await asyncio.sleep(0.3)
+        await test_cluster.initialize()
+        for node in test_cluster.master_nodes:
+            if node.id == slave.id:
+                return
+
+
+@pytest.mark.run_loop
+async def test_normal_commands_on_cluster(test_cluster):
+    await test_cluster.set('mykey', 123)
+    res = await test_cluster.get('mykey')
+    assert res == '123'
+
+    await test_cluster.set('otherkey', 456)
+    assert set(await test_cluster.keys('*')) == {'mykey', 'otherkey'}
+
+
+@pytest.mark.run_loop
+async def test_error_on_cluster(test_cluster):
+    await test_cluster.set('nohash', 123)
+    with pytest.raises(ReplyError):
+        await test_cluster.hset('nohash', 1, 2)
+
+
+@pytest.mark.run_loop
+async def test_multi_key_commands_on_cluster(test_cluster):
+    await test_cluster.set('my{key}', 1)
+    await test_cluster.set('other{key}', 2)
+    await test_cluster.set('otherkey', 3)
+
+    with pytest.raises(ReplyError):
+        # these keys map to different slots
+        await test_cluster.delete('my{key}', 'otherkey')
+
+    await test_cluster.delete('my{key}', 'other{key}')
+
+    assert await test_cluster.get('my{key}') is None
+    assert await test_cluster.get('other{key}') is None

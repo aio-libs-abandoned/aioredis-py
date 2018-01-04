@@ -43,7 +43,7 @@ class RedisClusterBase:
             return ks
 
         result = await asyncio.gather(*[
-            scan_coroutine(e, cur=cursor) for e in self.get_nodes_entities()
+            scan_coroutine(e, cur=cursor) for e in self._get_nodes_entities()
         ], loop=self._loop)
 
         flatten_result = []
@@ -129,7 +129,7 @@ class RedisClusterBase:
                 address, 'cluster_forget', node_id
             )
 
-        nodes = self.get_nodes_entities()
+        nodes = self._get_nodes_entities()
         for node in self._cluster_manager.slaves:
             if node.id == node_id:
                 continue
