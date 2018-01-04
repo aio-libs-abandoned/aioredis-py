@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+import aioredis
 
 
 async def _reader(channel, output, waiter, conn):
@@ -62,6 +63,30 @@ async def test_subscribe(redis):
                    [b'unsubscribe', b'chan:2', 0]]
 
 
+@pytest.mark.parametrize('create_redis', [
+    pytest.param(aioredis.create_redis_pool, id='pool'),
+])
+@pytest.mark.run_loop
+async def test_subscribe_empty_pool(create_redis, server, loop, _closable):
+    redis = await create_redis(server.tcp_address, loop=loop)
+    _closable(redis)
+    await redis.connection.clear()
+
+    res = await redis.subscribe('chan:1', 'chan:2')
+    assert redis.in_pubsub == 2
+
+    ch1 = redis.channels['chan:1']
+    ch2 = redis.channels['chan:2']
+
+    assert res == [ch1, ch2]
+    assert ch1.is_pattern is False
+    assert ch2.is_pattern is False
+
+    res = await redis.unsubscribe('chan:1', 'chan:2')
+    assert res == [[b'unsubscribe', b'chan:1', 1],
+                   [b'unsubscribe', b'chan:2', 0]]
+
+
 @pytest.mark.run_loop
 async def test_psubscribe(redis, create_redis, server, loop):
     sub = redis
@@ -74,6 +99,34 @@ async def test_psubscribe(redis, create_redis, server, loop):
 
     pub = await create_redis(
         server.tcp_address, loop=loop)
+    await pub.publish_json('chan:123', {"Hello": "World"})
+    res = await pat2.get_json()
+    assert res == (b'chan:123', {"Hello": "World"})
+
+    res = await sub.punsubscribe('patt:*', 'patt:*', 'chan:*')
+    assert res == [[b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'patt:*', 1],
+                   [b'punsubscribe', b'chan:*', 0],
+                   ]
+
+
+@pytest.mark.parametrize('create_redis', [
+    pytest.param(aioredis.create_redis_pool, id='pool'),
+])
+@pytest.mark.run_loop
+async def test_psubscribe_empty_pool(create_redis, server, loop, _closable):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+    _closable(sub)
+    _closable(pub)
+    await sub.connection.clear()
+    res = await sub.psubscribe('patt:*', 'chan:*')
+    assert sub.in_pubsub == 2
+
+    pat1 = sub.patterns['patt:*']
+    pat2 = sub.patterns['chan:*']
+    assert res == [pat1, pat2]
+
     await pub.publish_json('chan:123', {"Hello": "World"})
     res = await pat2.get_json()
     assert res == (b'chan:123', {"Hello": "World"})

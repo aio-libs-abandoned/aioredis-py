@@ -29,7 +29,7 @@ class PubSubCommandsMixin:
         conn = self._pool_or_conn
         return wait_return_channels(
             conn.execute_pubsub(b'SUBSCRIBE', channel, *channels),
-            conn.pubsub_channels)
+            conn, 'pubsub_channels')
 
     def unsubscribe(self, channel, *channels):
         """Unsubscribe from specific channels.
@@ -52,7 +52,7 @@ class PubSubCommandsMixin:
         conn = self._pool_or_conn
         return wait_return_channels(
             conn.execute_pubsub(b'PSUBSCRIBE', pattern, *patterns),
-            conn.pubsub_patterns)
+            conn, 'pubsub_patterns')
 
     def punsubscribe(self, pattern, *patterns):
         """Unsubscribe from specific patterns.
@@ -103,6 +103,7 @@ class PubSubCommandsMixin:
         return self._pool_or_conn.in_pubsub
 
 
-async def wait_return_channels(fut, channels_dict):
-    return [channels_dict[name]
-            for cmd, name, count in await fut]
+async def wait_return_channels(fut, conn, field):
+    res = await fut
+    channels_dict = getattr(conn, field)
+    return [channels_dict[name] for cmd, name, count in res]
