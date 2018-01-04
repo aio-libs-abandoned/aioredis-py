@@ -53,7 +53,7 @@ class RedisClusterBase:
     async def cluster_del_slots(self, slot, *slots, many=False, slaves=False):
         """
         Set hash slots as unbound in the cluster.
-        It determines by it self what node the slot is in and sends it there
+        It determines by itself what node the slot is in and sends it there
 
         If many = True wil be applied to all master nodes, with slaves = True
         it will affect all nodes

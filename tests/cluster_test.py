@@ -483,7 +483,7 @@ async def _wait_result(
 
 
 async def _clear_existing_slots(test_cluster, loop):
-    # We don't know which node will be requested, so it's better to waite
+    # We don't know which node will be requested, so it's better to wait
     # while changes will be applied to all cluster nodes
     slots = await test_cluster.cluster_slots()
     if not slots:
