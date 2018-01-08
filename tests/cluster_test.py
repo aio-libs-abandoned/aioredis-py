@@ -413,9 +413,10 @@ def free_ports():
 
 
 @pytest.fixture
-def cluster_server(server_bin, free_ports):
+def cluster_server(server_bin, free_ports, tmpdir):
+    cluster_directory = tmpdir.mkdir('redisclustertest')
     server = setup_test_cluster(
-        free_ports, '/tmp/redis-cluster', server_exec=server_bin
+        free_ports, cluster_directory.dirpath(), server_exec=server_bin
     )
 
     yield server
