@@ -62,8 +62,11 @@ class TestCluster:
 
     def clear_directories(self):
         for directory in self._new_directories:
-            self._delete_directory_contents(directory)
-            os.rmdir(directory)
+            try:
+                self._delete_directory_contents(directory)
+                os.rmdir(directory)
+            except PermissionError as error:
+                print(error)
 
     def stop_redis(self, port):
         if port not in self.processes:
