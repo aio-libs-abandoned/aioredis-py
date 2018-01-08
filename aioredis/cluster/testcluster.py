@@ -38,7 +38,7 @@ class TestCluster:
 
     """
     def __init__(self, ports, directory, node_timeout=3000,
-                 server_exec=REDIS_SERVER_EXEC):
+                 server_exec=REDIS_SERVER_EXEC, assign_slots=True):
         self.redis_count = len(ports)
         self.ports = ports
         self.directory = os.path.abspath(directory)
@@ -46,6 +46,7 @@ class TestCluster:
         self.processes = {}
         self._new_directories = set()
         self._exec = server_exec
+        self._assign_slots_in_setup = assign_slots
 
     def setup(self):
         self._setup_directory()
@@ -118,12 +119,16 @@ class TestCluster:
         master_node_ids = [self._determine_node_id(master, address)
                            for master, address in zip(masters, addresses)]
 
-        self._assign_slots(masters, master_addresses)
+        if self._assign_slots_in_setup:
+            self._assign_slots(masters, master_addresses)
         self._send_meet_messages_to_all(sockets, addresses)
         # MEET messages need some time to propagate
         time.sleep(_ATTEMPT_INTERVAL)
         self._send_replicate_messages(slaves, master_node_ids)
-        self._wait_until_cluster_state_ok(sockets)
+
+        if self._assign_slots_in_setup:
+            # cluster never becomes 'ok' if slots are unbound
+            self._wait_until_cluster_state_ok(sockets)
 
         for sock in sockets:
             sock.close()

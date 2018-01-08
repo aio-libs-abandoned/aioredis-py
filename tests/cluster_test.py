@@ -414,9 +414,23 @@ def free_ports():
 
 @pytest.fixture
 def cluster_server(server_bin, free_ports, tmpdir):
+    yield from _cluster_server(
+        server_bin, free_ports, tmpdir, assign_slots=True)
+
+
+@pytest.fixture
+def cluster_server_no_slots_assigned(server_bin, free_ports, tmpdir):
+    yield from _cluster_server(
+        server_bin, free_ports, tmpdir, assign_slots=False)
+
+
+def _cluster_server(server_bin, free_ports, tmpdir, assign_slots):
     cluster_directory = tmpdir.mkdir('redisclustertest')
     server = setup_test_cluster(
-        free_ports, str(cluster_directory), server_exec=server_bin
+        free_ports,
+        str(cluster_directory),
+        server_exec=server_bin,
+        assign_slots=assign_slots
     )
 
     yield server
@@ -435,6 +449,14 @@ def nodes(free_ports):
 
 @pytest.fixture
 def test_cluster(loop, nodes, cluster_server):
+    return loop.run_until_complete(
+        create_cluster(nodes, encoding='utf-8', loop=loop)
+    )
+
+
+@pytest.fixture
+def test_cluster_no_slots_assigned(
+        loop, nodes, cluster_server_no_slots_assigned):
     return loop.run_until_complete(
         create_cluster(nodes, encoding='utf-8', loop=loop)
     )
@@ -1113,8 +1135,12 @@ async def test_readwrite_readonly(test_cluster):
 
 
 @pytest.mark.run_loop
-@pytest.mark.usefixtures('clear_all_slots')
-async def test_add_slots(test_cluster, nodes):
+async def test_add_slots(test_cluster_no_slots_assigned, nodes):
+    test_cluster = test_cluster_no_slots_assigned
+    for address in nodes:
+        slots = await test_cluster.cluster_slots(address=address)
+        assert slots == {}
+
     res = await test_cluster.cluster_add_slots(0, address=nodes[0])
     assert res
 
@@ -1132,7 +1158,7 @@ async def test_add_slots(test_cluster, nodes):
     }
 
     res = await test_cluster.cluster_add_slots(
-        3, *range(4, 6), address=nodes[0]
+        3, 4, 5, address=nodes[0]
     )
     assert res
 
@@ -1142,7 +1168,7 @@ async def test_add_slots(test_cluster, nodes):
     }
 
     res = await test_cluster.cluster_add_slots(
-        7, *range(7, 8), address=nodes[0]
+        7, 7, address=nodes[0]
     )
     assert res
 
@@ -1197,7 +1223,7 @@ async def test_del_slots_single(test_cluster, nodes):
     assert ok
 
     # Two nodes will be affected
-    ok = await test_cluster.cluster_del_slots(slot_boundaries[1], *range(2, 4))
+    ok = await test_cluster.cluster_del_slots(slot_boundaries[1], 2, 3)
     assert ok
 
     node1_slots = await test_cluster.cluster_slots(address=nodes[0])
@@ -1217,7 +1243,7 @@ async def test_del_slots_single(test_cluster, nodes):
     }
     assert node2_slots == expected_node2
 
-    await test_cluster.cluster_add_slots(*range(2, 5), address=nodes[0])
+    await test_cluster.cluster_add_slots(2, 3, 4, address=nodes[0])
     await test_cluster.cluster_add_slots(slot_boundaries[1], address=nodes[1])
 
 

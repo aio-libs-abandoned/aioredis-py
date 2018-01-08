@@ -350,7 +350,8 @@ class RedisCluster(RedisClusterBase):
                     logger.info('Cluster info loaded successfully: %s',
                                 list(nodes_raw_response))
                     return
-                except (ReplyError, ProtocolError, ConnectionError, OSError) as exc:
+                except (ReplyError, ProtocolError,
+                        ConnectionError, OSError) as exc:
                     logger.warning(
                         "Loading cluster info from a node failed with {}"
                         .format(repr(exc))
