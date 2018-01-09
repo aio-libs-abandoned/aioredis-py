@@ -9,9 +9,6 @@ class ClusterCommandsMixin:
     For commands details see: http://redis.io/commands#cluster
     """
 
-    SLOT_MIGRATING_STATES = {'IMPORTING', 'MIGRATING', 'NODE'}
-    SLOT_STABLE_STATE = 'STABLE'
-
     def cluster_add_slots(self, slot, *slots):
         """Assign new hash slots to receiving node."""
         slots = set((slot, ) + slots)
@@ -111,23 +108,7 @@ class ClusterCommandsMixin:
 
     def cluster_setslot(self, slot, command, node_id=None):
         """Bind a hash slot to specified node."""
-
-        try:
-            slot = int(slot)
-        except ValueError:
-            raise TypeError(
-                "Expected slot to be of type int, got {}".format(type(slot))
-            )
-
-        if command.upper() in self.SLOT_MIGRATING_STATES and \
-                node_id is not None:
-            fut = self.execute(b'CLUSTER', b'SETSLOT', slot, command, node_id)
-        elif command.upper() == self.SLOT_STABLE_STATE:
-            fut = self.execute(b'CLUSTER', b'SETSLOT', slot, command)
-        else:
-            raise ValueError('Invalid slot state: {0}'.format(command))
-
-        return wait_ok(fut)
+        raise NotImplementedError()
 
     def cluster_slaves(self, node_id):
         """List slave nodes of the specified master node."""
