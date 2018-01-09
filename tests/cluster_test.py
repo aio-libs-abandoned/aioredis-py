@@ -491,21 +491,24 @@ def zero_slot_key(test_cluster, loop):
     loop.run_until_complete(test_cluster.delete(SLOT_ZERO_KEY))
 
 
-async def _wait_result(func, cmp=bool, attempts=60, sleep_time=0.5, **kwargs):
+async def _wait_result(func, attempts=60, sleep_time=0.5, **kwargs):
     attempts_count = 0
     while attempts_count < attempts:
-        res = await func(**kwargs)
-        if cmp(res):
-            break
+        try:
+            return await func(**kwargs)
+
+        except AssertionError:
+            if attempts_count >= attempts:
+                raise
 
         attempts_count += 1
         await asyncio.sleep(sleep_time)
-    return res
+
+    assert False
 
 
-def cluster_test(f):
-    return pytest.redis_version(
-        3, 0, 0, reason='Cluster support was added in version 3')(f)
+cluster_test = pytest.redis_version(
+    3, 0, 0, reason='Cluster support was added in version 3')
 
 
 def test_parse_moved_response_error():
@@ -1184,17 +1187,15 @@ async def test_add_slots(test_cluster_no_slots_assigned, nodes):
     res = await test_cluster.cluster_add_slots(8, address=nodes[1])
     assert res
 
-    slots = await _wait_result(
-        test_cluster.cluster_slots,
-        lambda r: len(r) == 3,
-        address=nodes[1]
-    )
+    async def check_slots():
+        slots = await test_cluster.cluster_slots(address=nodes[1])
+        assert slots == {
+            (0, 5): nodes[0],
+            (7, 7): nodes[0],
+            (8, 8): nodes[1]
+        }
 
-    assert slots == {
-        (0, 5): nodes[0],
-        (7, 7): nodes[0],
-        (8, 8): nodes[1]
-    }
+    await _wait_result(check_slots)
 
     with pytest.raises(ReplyError):
         await test_cluster.cluster_add_slots(0, address=nodes[0])
@@ -1266,17 +1267,16 @@ async def test_del_slots_many(test_cluster, nodes):
     )
     assert ok
 
-    expected_slots = {
-        (4, slot_boundaries[1] - 1): nodes[0],
-        (slot_boundaries[1] + 1, slot_boundaries[2] - 1): nodes[1],
-        (slot_boundaries[2], slot_boundaries[3] - 1): nodes[2]
-    }
-    slots = await _wait_result(
-        test_cluster.cluster_slots,
-        lambda r: all(slots.keys() == expected_slots.keys() for slots in r),
-        many=True, slaves=True
-    )
-    assert slots == [expected_slots] * 6
+    async def check_slots():
+        slots = await test_cluster.cluster_slots(many=True, slaves=True)
+        expected_slots = {
+            (4, slot_boundaries[1] - 1): nodes[0],
+            (slot_boundaries[1] + 1, slot_boundaries[2] - 1): nodes[1],
+            (slot_boundaries[2], slot_boundaries[3] - 1): nodes[2]
+        }
+        assert slots == [expected_slots] * 6
+
+    await _wait_result(check_slots)
 
     await test_cluster.initialize()
 
@@ -1519,14 +1519,11 @@ async def test_cluster_forget_and_replicate(test_cluster):
     res = await test_cluster.cluster_forget(slave2.id)
     assert res == [True] * (NODES_COUNT - 1)
 
-    async def _nodes():
-        return list(await  test_cluster.cluster_nodes())
+    async def check_nodes():
+        nodes = list(await test_cluster.cluster_nodes())
+        assert len(nodes) == NODES_COUNT - 1
 
-    new_info = list(await _wait_result(
-        _nodes,
-        lambda r: len(r) == NODES_COUNT - 1
-    ))
-    assert len(new_info) == NODES_COUNT - 1
+    await _wait_result(check_nodes)
 
     res = await test_cluster.cluster_meet(
         *slave2.address, many=True, slaves=True
@@ -1616,7 +1613,7 @@ async def test_cluster_failover_ok(force, test_cluster):
                 return node
 
         await test_cluster.initialize()
-        return None
+        assert False
 
     slave = await _wait_result(find_slave_or_reload)
 
