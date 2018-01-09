@@ -66,7 +66,7 @@ aioredis.egg-info:
 ifdef TRAVIS
 examples: .start-redis $(EXAMPLES)
 else
-examples: $(EXAMPLES)
+examples: .start-redis $(EXAMPLES)
 endif
 
 $(EXAMPLES):
@@ -76,9 +76,16 @@ $(EXAMPLES):
 .start-redis: $(lastword $(REDIS_TARGETS))
 	$< ./examples/redis.conf
 	$< ./examples/redis-sentinel.conf --sentinel
+	python create_cluster_for_examples.py
 	sleep 5s
 	echo "QUIT" | nc localhost 6379
 	echo "QUIT" | nc localhost 26379
+	echo "QUIT" | nc localhost 7001
+	echo "QUIT" | nc localhost 7002
+	echo "QUIT" | nc localhost 7003
+	echo "QUIT" | nc localhost 7004
+	echo "QUIT" | nc localhost 7005
+	echo "QUIT" | nc localhost 7006
 
 .PHONY: $(EXAMPLES)
 
