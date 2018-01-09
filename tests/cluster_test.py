@@ -503,26 +503,9 @@ async def _wait_result(func, cmp=bool, attempts=60, sleep_time=0.5, **kwargs):
     return res
 
 
-async def _clear_existing_slots(test_cluster, loop):
-    # We don't know which node will be requested, so it's better to wait
-    # while changes will be applied to all cluster nodes
-    slots = await test_cluster.cluster_slots()
-    if not slots:
-        return
-
-    all_slots = [list(range(k[0], k[1] + 1)) for k in slots.keys()]
-    all_numbers = []
-    list(map(all_numbers.extend, all_slots))
-
-    await test_cluster.cluster_del_slots(*all_numbers, many=True, slaves=True)
-
-
-@pytest.fixture
-def clear_all_slots(test_cluster, loop):
-    loop.run_until_complete(_clear_existing_slots(test_cluster, loop))
-
-
-# Parse tests
+def cluster_test(f):
+    return pytest.redis_version(
+        3, 0, 0, reason='Cluster support was added in version 3')(f)
 
 
 def test_parse_moved_response_error():
@@ -552,9 +535,6 @@ def test_slave_info_lines_parse():
 def test_slots_info_parse():
     data = dict(parse_cluster_slots(RAW_SLOTS_INFO))
     assert data == SLOTS_INFO
-
-
-# Testing node manager
 
 
 def test_key_slot():
@@ -662,9 +642,8 @@ def test_get_node_by_address():
     no_node = manager.get_node_by_address('xxx')
     assert no_node is None
 
-# Testing redis cluster
 
-
+@cluster_test
 @pytest.mark.run_loop
 async def test_create_cluster(test_cluster):
     assert isinstance(test_cluster, RedisCluster)
@@ -673,6 +652,7 @@ async def test_create_cluster(test_cluster):
         await create_cluster('abc')
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_create_fails(loop, nodes, free_ports):
     expected_connections = {
@@ -689,6 +669,7 @@ async def test_create_fails(loop, nodes, free_ports):
             await create_cluster(nodes, encoding='utf-8', loop=loop)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_counts(test_cluster):
     assert test_cluster.node_count() == NODES_COUNT
@@ -696,6 +677,7 @@ async def test_counts(test_cluster):
     assert test_cluster.slave_count() == NODES_COUNT / 2
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_get_node(test_cluster, free_ports):
     # Compare script used to setup the test cluster
@@ -717,10 +699,12 @@ async def test_get_node(test_cluster, free_ports):
     assert node.address[1] in free_ports
 
 
+@cluster_test
 def test_cluster_all_slots_covered(test_cluster):
     assert test_cluster.all_slots_covered
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_get_node_eval(test_cluster, free_ports):
     node = test_cluster.get_node(
@@ -736,6 +720,7 @@ async def test_get_node_eval(test_cluster, free_ports):
         test_cluster.get_node(b'EVAL', keys=123)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute(loop, test_cluster, free_ports):
     expected_connection = FakeConnection(free_ports[0], loop)
@@ -749,6 +734,7 @@ async def test_execute(loop, test_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute_with_moved(loop, test_cluster, free_ports):
     expected_connections = {
@@ -774,6 +760,7 @@ async def test_execute_with_moved(loop, test_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute_with_reply_error(loop, test_cluster, free_ports):
     expected_connection = FakeConnection(
@@ -789,6 +776,7 @@ async def test_execute_with_reply_error(loop, test_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute_with_protocol_error(loop, test_cluster, free_ports):
     expected_connection = FakeConnection(
@@ -804,6 +792,7 @@ async def test_execute_with_protocol_error(loop, test_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute_many(loop, test_cluster, free_ports):
     expected_connections = {
@@ -821,6 +810,7 @@ async def test_execute_many(loop, test_cluster, free_ports):
         )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_execute_command(loop, test_cluster, free_ports):
     expected_connection = FakeConnection(free_ports[0], loop)
@@ -834,9 +824,7 @@ async def test_execute_command(loop, test_cluster, free_ports):
     )
 
 
-# Testing redis pool cluster
-
-
+@cluster_test
 @pytest.mark.run_loop
 async def test_create_pool(test_pool_cluster):
     assert isinstance(test_pool_cluster, RedisPoolCluster)
@@ -845,6 +833,7 @@ async def test_create_pool(test_pool_cluster):
         await create_pool_cluster('abc')
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_pool_get_node(test_pool_cluster, free_ports):
     pool = test_pool_cluster.get_node('GET', 'key:0')
@@ -857,6 +846,7 @@ async def test_cluster_pool_get_node(test_pool_cluster, free_ports):
     assert pool.address[1] == free_ports[2]
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute(loop, test_pool_cluster, free_ports):
     expected_connection = FakeConnection(free_ports[0], loop)
@@ -872,6 +862,7 @@ async def test_pool_execute(loop, test_pool_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute_with_moved(loop, test_pool_cluster, free_ports):
     expected_pool_connection = FakeConnection(
@@ -901,6 +892,7 @@ async def test_pool_execute_with_moved(loop, test_pool_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute_with_reply_error(
         loop, test_pool_cluster, free_ports
@@ -919,6 +911,7 @@ async def test_pool_execute_with_reply_error(
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute_with_protocol_error(
         loop, test_pool_cluster, free_ports
@@ -937,6 +930,7 @@ async def test_pool_execute_with_protocol_error(
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute_command(loop, test_pool_cluster, free_ports):
     expected_connection = FakeConnection(free_ports[0], loop)
@@ -952,6 +946,7 @@ async def test_pool_execute_command(loop, test_pool_cluster, free_ports):
     )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_pool_execute_many(loop, test_pool_cluster, free_ports):
     expected_connections = {
@@ -970,6 +965,7 @@ async def test_pool_execute_many(loop, test_pool_cluster, free_ports):
         )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_reload_cluster_pool(test_pool_cluster):
     old_pools = list(test_pool_cluster._cluster_pool.values())
@@ -984,8 +980,7 @@ async def test_reload_cluster_pool(test_pool_cluster):
     await test_pool_cluster.clear()
 
 
-# Test cluster commands
-
+@cluster_test
 @pytest.mark.run_loop
 async def test_keys_command(test_cluster, key_and_slot, zero_slot_key):
     key, _ = key_and_slot
@@ -997,6 +992,7 @@ async def test_keys_command(test_cluster, key_and_slot, zero_slot_key):
     assert sorted(keys) == sorted([key, zero_slot_key])
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_scan_command(test_cluster, key_and_slot, zero_slot_key):
     key, _ = key_and_slot
@@ -1005,9 +1001,7 @@ async def test_scan_command(test_cluster, key_and_slot, zero_slot_key):
     assert sorted(res) == sorted([key, zero_slot_key])
 
 
-# Test cluster management commands
-
-
+@cluster_test
 @pytest.mark.run_loop
 async def test_get_keys_in_slots(test_cluster, key_and_slot):
     key, slot_for_key = key_and_slot
@@ -1023,6 +1017,7 @@ async def test_get_keys_in_slots(test_cluster, key_and_slot):
         )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_count_key_in_slot(test_cluster, key_and_slot):
     key, slot_for_key = key_and_slot
@@ -1034,6 +1029,7 @@ async def test_cluster_count_key_in_slot(test_cluster, key_and_slot):
         await test_cluster.cluster_count_key_in_slots('a')
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_keyslot(test_cluster, key_and_slot):
     key, slot_for_key = key_and_slot
@@ -1042,6 +1038,7 @@ async def test_cluster_keyslot(test_cluster, key_and_slot):
     assert res == slot_for_key
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_info(test_cluster):
     info = await test_cluster.cluster_info()
@@ -1060,6 +1057,7 @@ async def test_cluster_info(test_cluster):
     assert 'cluster_stats_messages_received' in info
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_nodes(test_cluster):
     info = list(await test_cluster.cluster_nodes())
@@ -1095,12 +1093,14 @@ async def test_cluster_nodes(test_cluster):
             assert 'master' in node['flags']
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_save_config(test_cluster):
     res = await test_cluster.cluster_save_config()
     assert res
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_slaves(test_cluster):
     my_master = test_cluster.master_nodes[0]
@@ -1123,6 +1123,7 @@ async def test_cluster_slaves(test_cluster):
         await test_cluster.cluster_slaves(slave.id)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_readwrite_readonly(test_cluster):
     slave = test_cluster.slave_nodes[0]
@@ -1134,6 +1135,7 @@ async def test_readwrite_readonly(test_cluster):
     assert res
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_add_slots(test_cluster_no_slots_assigned, nodes):
     test_cluster = test_cluster_no_slots_assigned
@@ -1201,6 +1203,7 @@ async def test_add_slots(test_cluster_no_slots_assigned, nodes):
         await test_cluster.cluster_add_slots('a')
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_count_failure_reports(test_cluster):
     node = test_cluster.master_nodes[0]
@@ -1209,6 +1212,7 @@ async def test_count_failure_reports(test_cluster):
     assert res == 0
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_del_slots_single(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
@@ -1247,6 +1251,7 @@ async def test_del_slots_single(test_cluster, nodes):
     await test_cluster.cluster_add_slots(slot_boundaries[1], address=nodes[1])
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_del_slots_many(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
@@ -1293,6 +1298,7 @@ async def test_del_slots_many(test_cluster, nodes):
         await test_cluster.cluster_del_slots('a', many=True)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_meet(test_cluster, nodes):
     res = await test_cluster.cluster_meet(*nodes[0])
@@ -1308,6 +1314,7 @@ async def test_cluster_meet(test_cluster, nodes):
     assert res == [True] * NODES_COUNT
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_setslots_ok(test_cluster):
     """
@@ -1415,6 +1422,7 @@ async def test_cluster_setslots_ok(test_cluster):
     assert not node['migrations']
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_setslots_fail(test_cluster, key_and_slot):
     _, slot_with_key = key_and_slot
@@ -1468,6 +1476,7 @@ async def test_cluster_setslots_fail(test_cluster, key_and_slot):
         )
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_forget_and_replicate(test_cluster):
     master1 = test_cluster.master_nodes[0]
@@ -1537,6 +1546,7 @@ async def test_cluster_forget_and_replicate(test_cluster):
             break
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_set_config_epoch_and_reset(test_cluster):
     nodes = test_cluster.master_nodes
@@ -1585,6 +1595,7 @@ async def test_cluster_set_config_epoch_and_reset(test_cluster):
     assert all(res)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_cluster_failover_fail(test_cluster):
     my_master = test_cluster.master_nodes[0]
@@ -1593,6 +1604,7 @@ async def test_cluster_failover_fail(test_cluster):
         await  test_cluster.cluster_failover(my_master.address)
 
 
+@cluster_test
 @pytest.mark.run_loop
 @pytest.mark.parametrize('force', [True, False])
 async def test_cluster_failover_ok(force, test_cluster):
@@ -1620,6 +1632,7 @@ async def test_cluster_failover_ok(force, test_cluster):
                 return
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_normal_commands_on_cluster(test_cluster):
     await test_cluster.set('mykey', 123)
@@ -1630,6 +1643,7 @@ async def test_normal_commands_on_cluster(test_cluster):
     assert set(await test_cluster.keys('*')) == {'mykey', 'otherkey'}
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_error_on_cluster(test_cluster):
     await test_cluster.set('nohash', 123)
@@ -1637,6 +1651,7 @@ async def test_error_on_cluster(test_cluster):
         await test_cluster.hset('nohash', 1, 2)
 
 
+@cluster_test
 @pytest.mark.run_loop
 async def test_multi_key_commands_on_cluster(test_cluster):
     await test_cluster.set('my{key}', 1)
