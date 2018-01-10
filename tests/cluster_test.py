@@ -1253,7 +1253,7 @@ async def test_del_slots_single(test_cluster, nodes):
 
 
 @cluster_test
-@pytest.mark.run_loop
+@pytest.mark.run_loop(timeout=30)
 async def test_del_slots_many(test_cluster, nodes):
     all_slots = ClusterNodesManager.REDIS_CLUSTER_HASH_SLOTS
     masters_count = int(NODES_COUNT / 2)
@@ -1274,6 +1274,7 @@ async def test_del_slots_many(test_cluster, nodes):
             (slot_boundaries[1] + 1, slot_boundaries[2] - 1): nodes[1],
             (slot_boundaries[2], slot_boundaries[3] - 1): nodes[2]
         }
+        print(slots)
         assert slots == [expected_slots] * 6
 
     await _wait_result(check_slots)
