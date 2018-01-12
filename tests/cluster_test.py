@@ -12,7 +12,7 @@ from aioredis.commands.cluster import (
     parse_cluster_nodes, parse_cluster_slots, parse_cluster_nodes_lines
 )
 from aioredis.cluster import RedisCluster, RedisPoolCluster
-from aioredis.cluster.testcluster import setup_test_cluster
+from aioredis.cluster.testcluster import TestCluster
 from aioredis.cluster.cluster import (
     parse_moved_response_error,
     ClusterNodesManager,
@@ -426,12 +426,13 @@ def cluster_server_no_slots_assigned(server_bin, free_ports, tmpdir):
 
 def _cluster_server(server_bin, free_ports, tmpdir, assign_slots):
     cluster_directory = tmpdir.mkdir('redisclustertest')
-    server = setup_test_cluster(
+    server = TestCluster(
         free_ports,
         str(cluster_directory),
         server_exec=server_bin,
         assign_slots=assign_slots
     )
+    server.setup()
 
     yield server
 

@@ -15,15 +15,6 @@ _MAX_RETRY_ERRORS = 4
 _ATTEMPT_INTERVAL = 0.3
 
 
-__all__ = ['setup_test_cluster']
-
-
-def setup_test_cluster(*args, **kwargs):
-    cluster = TestCluster(*args, **kwargs)
-    cluster.setup()
-    return cluster
-
-
 class TestCluster:
     """This class allows to create a local Redis cluster for test purposes.
     It also includes methods to stop and restart nodes to test failover
