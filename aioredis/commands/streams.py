@@ -84,7 +84,7 @@ class StreamCommandsMixin:
     not currently released.
     """
 
-    def xadd(self, stream, fields, max_len=None, exact_len=False):
+    def xadd(self, stream, fields, message_id=None, max_len=None, exact_len=False):
         """ Add a message to the specified stream
         """
         args = []
@@ -94,12 +94,10 @@ class StreamCommandsMixin:
             else:
                 args.extend((b'MAXLEN', b'~', max_len))
 
-        if fields:
-            args.append('*')
+        args.append(message_id or b'*')
 
-            for k, v in fields.items():
-                args.extend([k, v])
-
+        for k, v in fields.items():
+            args.extend([k, v])
         return self.execute(b'XADD', stream, *args)
 
     def xrange(self, stream, start='-', stop='+', count=None):

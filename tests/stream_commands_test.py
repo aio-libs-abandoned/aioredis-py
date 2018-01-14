@@ -70,6 +70,19 @@ async def test_xadd_maxlen_exact(redis, server_bin):
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
+async def test_xadd_manual_message_ids(redis, server_bin):
+    await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-0')
+    await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-1')
+    await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958772000-0')
+
+    messages = await redis.xrange('test_stream')
+    message_ids = [message_id for message_id, _ in messages]
+    assert message_ids == [b'1515958771000-0', b'1515958771000-1', b'1515958772000-0']
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xadd_maxlen_inexact(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'})
     sleep(0.001)  # Ensure the millisecond-based message ID increments
