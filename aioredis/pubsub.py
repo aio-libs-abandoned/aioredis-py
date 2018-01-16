@@ -135,7 +135,7 @@ class Channel(AbcChannel):
             fut, self._waiter = self._waiter, None
             _set_result(fut, None, self)
 
-    def close(self):
+    def close(self, exc=None):
         """Marks channel as inactive.
 
         Internal method, will be called from connection
@@ -200,14 +200,19 @@ class Receiver:
     >>> # any message received after stop() will be ignored.
     """
 
-    def __init__(self, loop=None):
+    def __init__(self, loop=None, on_close=None):
+        assert on_close is None or callable(on_close), (
+            "on_close must be None or callable", on_close)
         if loop is None:
             loop = asyncio.get_event_loop()
+        if on_close is None:
+            on_close = self.check_stop
         self._queue = asyncio.Queue(loop=loop)
         self._refs = {}
         self._waiter = None
         self._running = True
         self._loop = loop
+        self._on_close = on_close
 
     def __repr__(self):
         return ('<Receiver is_active:{}, senders:{}, qsize:{}>'
@@ -332,6 +337,15 @@ class Receiver:
                            encoding=encoding,
                            decoder=decoder)
 
+    def check_stop(self, channel, exc=None):
+        """TBD"""
+        # NOTE: this is a fast-path implementation,
+        # if overridden, implementation should use public API:
+        #
+        # if self.is_active and not (self.channels or self.patterns):
+        if self._running and not self._refs:
+            self.stop()
+
     # internal methods
 
     def _put_nowait(self, data, *, sender):
@@ -347,8 +361,9 @@ class Receiver:
             fut, self._waiter = self._waiter, None
             _set_result(fut, None, self)
 
-    def _close(self, sender):
+    def _close(self, sender, exc=None):
         self._refs.pop((sender.name, sender.is_pattern))
+        self._on_close(sender, exc=exc)
 
 
 class _Sender(AbcChannel):
@@ -389,11 +404,11 @@ class _Sender(AbcChannel):
     def put_nowait(self, data):
         self._receiver._put_nowait(data, sender=self)
 
-    def close(self):
+    def close(self, exc=None):
         # TODO: close() is exclusive so we can not share same _Sender
         # between different connections.
         # This needs to be fixed.
         if self._closed:
             return
         self._closed = True
-        self._receiver._close(self)
+        self._receiver._close(self, exc=exc)
