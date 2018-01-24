@@ -5,7 +5,7 @@ import sys
 
 from unittest import mock
 
-from aioredis import ChannelClosedError
+# from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
 
@@ -87,9 +87,9 @@ def test_sender_close():
     loop = mock.Mock()
     sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
     sender.close()
-    assert receiver.mock_calls == [mock.call._close(sender)]
+    assert receiver.mock_calls == [mock.call._close(sender, exc=None)]
     sender.close()
-    assert receiver.mock_calls == [mock.call._close(sender)]
+    assert receiver.mock_calls == [mock.call._close(sender, exc=None)]
     receiver.reset_mock()
     assert receiver.mock_calls == []
     sender.close()
@@ -185,13 +185,13 @@ async def test_stopped(create_connection, server, loop):
     warn_messaege = (
         "WARNING:aioredis:Pub/Sub listener message after stop: "
         "sender: <_Sender name:b'channel:1', is_pattern:False, receiver:"
-        "<Receiver is_active:True, senders:1, qsize:1>>, data: b'Hello'"
+        "<Receiver is_active:False, senders:1, qsize:0>>, data: b'Hello'"
     )
     assert cm.output == [warn_messaege]
 
     assert (await mpsc.get()) is None
-    with pytest.raises(ChannelClosedError):
-        await mpsc.get()
+    # with pytest.raises(ChannelClosedError):
+    #     await mpsc.get()
     res = await mpsc.wait_message()
     assert res is False
 
@@ -363,6 +363,6 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
     assert await q.get() == (b'channel:*', (b'channel:2', '["hello"]'))
 
     # XXX: need to implement `client kill`
-    assert await pub.execute('client', 'kill', 'id', sub_info.id) == 1
+    assert await pub.execute('client', 'kill', sub_info.addr) in (b'OK', 1)
     await asyncio.wait_for(tsk, timeout=1, loop=loop)
     assert await q.get() is EOF
