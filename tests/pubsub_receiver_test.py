@@ -7,7 +7,7 @@ from unittest import mock
 
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
-from aioredis.pubsub import Receiver, _Sender
+from aioredis.pubsub import Receiver, _Sender, Channel
 
 
 def test_listener_channel(loop):
@@ -327,3 +327,58 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
     dt = loop.time() - now
     assert dt <= 1.5
     assert not mpsc.is_active
+
+
+@pytest.mark.run_loop(timeout=5)
+async def test_two_receivers_same_channel(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    mpsc1 = Receiver(loop=loop)
+    mpsc2 = Receiver(loop=loop)
+    chA = mpsc1.channel('channel:1')
+    chB = mpsc2.channel('channel:1')
+    outA, outB = await sub.subscribe(chA, chB)
+    # NOTE: this will as we only store first channel instance.
+    assert outA is chA
+    assert outB is chB
+    res = await pub.publish("channel:1", "Hello world")
+    assert res == 1
+    assert mpsc1.is_active
+    assert mpsc2.is_active
+
+    ch, msg = await mpsc1.get()
+    assert ch.name == b'channel:1'
+    assert not ch.is_pattern
+    assert msg == b"Hello world"
+
+    ch, msg = await mpsc2.get()
+    assert ch.name == b'channel:1'
+    assert not ch.is_pattern
+    assert msg == b"Hello world"
+
+
+@pytest.mark.run_loop(timeout=5)
+async def test_different_subscribers_same_channel(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    mpsc = Receiver(loop=loop)
+    chA = mpsc.channel('channel:1')
+    chB = Channel('channel:1', is_pattern=False, loop=loop)
+
+    outA, outB = await sub.subscribe(chA, chB)
+    assert outA is chA
+    assert outB is chB
+    res = await pub.publish('channel:1', 'Hello world')
+    assert res == 1
+
+    ch, msg = await mpsc.get()
+    assert ch.name == b'channel:1'
+    assert not ch.is_pattern
+    assert msg == b"Hello world"
+
+    ch, msg = await chB.get()
+    assert ch.name == b'channel:1'
+    assert not ch.is_pattern
+    assert msg == b"Hello world"
