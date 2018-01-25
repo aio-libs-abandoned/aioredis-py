@@ -5,7 +5,7 @@ import sys
 
 from unittest import mock
 
-# from aioredis import ChannelClosedError
+from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
 
@@ -66,7 +66,7 @@ def test_listener_pattern(loop):
 async def test_sender(loop):
     receiver = mock.Mock()
 
-    sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
+    sender = _Sender(receiver, 'name', is_pattern=False)
     assert isinstance(sender, AbcChannel)
     assert sender.name == b'name'
     assert sender.is_pattern is False
@@ -84,8 +84,7 @@ async def test_sender(loop):
 
 def test_sender_close():
     receiver = mock.Mock()
-    loop = mock.Mock()
-    sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
+    sender = _Sender(receiver, 'name', is_pattern=False)
     sender.close()
     assert receiver.mock_calls == [mock.call._close(sender, exc=None)]
     sender.close()
@@ -160,10 +159,10 @@ async def test_unsubscribe(create_connection, server, loop):
     assert not ch.is_pattern
     assert msg == b"message"
 
+    waiter = asyncio.ensure_future(mpsc.get(), loop=loop)
     await sub.execute_pubsub('unsubscribe', 'channel:3')
     assert not mpsc.is_active
-    res = await mpsc.get()
-    assert res is None
+    assert await waiter is None
 
 
 @pytest.mark.run_loop
@@ -189,9 +188,9 @@ async def test_stopped(create_connection, server, loop):
     )
     assert cm.output == [warn_messaege]
 
-    assert (await mpsc.get()) is None
-    # with pytest.raises(ChannelClosedError):
-    #     await mpsc.get()
+    # assert (await mpsc.get()) is None
+    with pytest.raises(ChannelClosedError):
+        await mpsc.get()
     res = await mpsc.wait_message()
     assert res is False
 

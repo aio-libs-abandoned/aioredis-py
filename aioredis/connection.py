@@ -464,6 +464,11 @@ class RedisConnection(AbcConnection):
     def _update_pubsub(self, obj, *, ch):
         kind, *pattern, channel, subscriptions = obj
         self._in_pubsub, was_in_pubsub = subscriptions, self._in_pubsub
+        # XXX: the channels/patterns storage should be refactored.
+        #   if code which supposed to read from channel/pattern
+        #   failed (exception in reader or else) than
+        #   the channel object will still reside in memory
+        #   and leak memory (messages will be put in queue).
         if kind == b'subscribe' and channel not in self._pubsub_channels:
             self._pubsub_channels[channel] = ch
         elif kind == b'psubscribe' and channel not in self._pubsub_patterns:

@@ -5,7 +5,7 @@ import collections
 
 from .abc import AbcChannel
 from .util import _converters   # , _set_result
-# from .errors import ChannelClosedError
+from .errors import ChannelClosedError
 from .log import logger
 
 __all__ = [
@@ -26,7 +26,6 @@ class Channel(AbcChannel):
         self._queue = ClosableQueue(loop=loop)
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
-        self._loop = loop
 
     def __repr__(self):
         return "<{} name:{!r}, is_pattern:{}, qsize:{}>".format(
@@ -55,7 +54,7 @@ class Channel(AbcChannel):
         ...     msg = await ch.get()   # may stuck for a long time
 
         """
-        return not (self._queue.empty() and self._queue.closed)
+        return not self._queue.exhausted
 
     async def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
@@ -63,15 +62,9 @@ class Channel(AbcChannel):
         :raises aioredis.ChannelClosedError: If channel is unsubscribed
             and has no messages.
         """
-        # NOTE: this method does not raise ChannelClosedError any more.
         assert decoder is None or callable(decoder), decoder
-        if not self.is_active:
-            return
-            # if self._queue.qsize() == 1:
-            #     msg = self._queue.get_nowait()
-            #     assert msg is None, msg
-            #     return
-            # raise ChannelClosedError()
+        if self._queue.exhausted:
+            raise ChannelClosedError()
         msg = await self._queue.get()
         if msg is EndOfStream:
             # TODO: maybe we need an explicit marker for "end of stream"
@@ -201,7 +194,6 @@ class Receiver:
             on_close = self.check_stop
         self._queue = ClosableQueue(loop=loop)
         self._refs = {}
-        self._loop = loop
         self._on_close = on_close
 
     def __repr__(self):
@@ -217,8 +209,7 @@ class Receiver:
         enc_name = _converters[type(name)](name)
         if (enc_name, False) not in self._refs:
             ch = _Sender(self, enc_name,
-                         is_pattern=False,
-                         loop=self._loop)
+                         is_pattern=False)
             self._refs[(enc_name, False)] = ch
             return ch
         return self._refs[(enc_name, False)]
@@ -232,8 +223,7 @@ class Receiver:
         enc_pattern = _converters[type(pattern)](pattern)
         if (enc_pattern, True) not in self._refs:
             ch = _Sender(self, enc_pattern,
-                         is_pattern=True,
-                         loop=self._loop)
+                         is_pattern=True)
             self._refs[(enc_pattern, True)] = ch
         return self._refs[(enc_pattern, True)]
 
@@ -265,12 +255,19 @@ class Receiver:
         :raises aioredis.ChannelClosedError: If listener is stopped
             and all messages have been received.
         """
+        # TODO: add note about raised exception and end marker.
+        #   Flow before ClosableQueue:
+        #   - ch.get() -> message
+        #   - ch.close() -> ch.put(None)
+        #   - ch.get() -> None
+        #   - ch.get() -> ChannelClosedError
+        #   Current flow:
+        #   - ch.get() -> message
+        #   - ch.close() -> ch._closed = True
+        #   - ch.get() -> ChannelClosedError
         assert decoder is None or callable(decoder), decoder
-        if not self.is_active:
-            # XXX: this probably not needed
-            # if self._queue.closed:
-            #     raise ChannelClosedError()
-            return
+        if self._queue.exhausted:
+            raise ChannelClosedError()
         obj = await self._queue.get()
         if obj is EndOfStream:
             return
@@ -297,18 +294,9 @@ class Receiver:
     @property
     def is_active(self):
         """Returns True if listener has any active subscription."""
-        # XXX: after stop() call Receiver pretend to be active,
-        #   because EndOfStream marker
-
         if self._queue.exhausted:
             return False
         return any(ch.is_active for ch in self._refs.values())
-        # if not self._queue.empty():
-        #     return True
-        # # NOTE: this expression requires at least one subscriber
-        # #   to return True;
-        # return (self._running and
-        #         any(ch.is_active for ch in self._refs.values()))
 
     def stop(self):
         """Stop receiving messages.
@@ -317,6 +305,10 @@ class Receiver:
         so you must call unsubscribe before stopping this listener.
         """
         self._queue.close()
+        # TODO: discard all senders as they might still be active.
+        #   Channels storage in Connection should be refactored:
+        #   if we drop _Senders here they will still be subscribed
+        #   and will reside in memory although messages will be discarded.
 
     def iter(self, *, encoding=None, decoder=None):
         """Returns async iterator.
@@ -361,11 +353,10 @@ class _Sender(AbcChannel):
     Does not allow direct ``.get()`` calls.
     """
 
-    def __init__(self, receiver, name, is_pattern, *, loop):
+    def __init__(self, receiver, name, is_pattern):
         self._receiver = receiver
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
-        self._loop = loop
         self._closed = False
 
     def __repr__(self):
@@ -411,14 +402,11 @@ class ClosableQueue:
         self._closed = False
 
     async def wait(self):
-        # loop until queue is empty or not closed
         while not (self._queue or self._closed):
             await self._event.wait()
         return True
 
     async def get(self):
-        if self._closed and not self._queue:
-            return EndOfStream
         await self.wait()
         assert self._queue or self._closed, (
             "Unexpected queue state", self._queue, self._closed)
@@ -455,5 +443,5 @@ class ClosableQueue:
         return len(self._queue)
 
     def __repr__(self):
-        closed = 'closed ' if self._closed else ''
-        return '<Pipe {}size:{}>'.format(closed, len(self._queue))
+        closed = 'closed' if self._closed else 'open'
+        return '<Queue {} size:{}>'.format(closed, len(self._queue))
