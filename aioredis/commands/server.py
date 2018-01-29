@@ -126,14 +126,30 @@ class ServerCommandsMixin:
         # won't test, this probably works
         return self.execute(b'DEBUG', 'SEGFAULT')  # pragma: no cover
 
-    def flushall(self):
-        """Remove all keys from all databases."""
-        fut = self.execute(b'FLUSHALL')
+    def flushall(self, async_op=False):
+        """
+        Remove all keys from all databases.
+
+        :param async_op: lets the entire dataset to be freed asynchronously. \
+        Defaults to False
+        """
+        if async_op:
+            fut = self.execute(b'FLUSHALL', b'ASYNC')
+        else:
+            fut = self.execute(b'FLUSHALL')
         return wait_ok(fut)
 
-    def flushdb(self):
-        """Remove all keys from the current database."""
-        fut = self.execute('FLUSHDB')
+    def flushdb(self, async_op=False):
+        """
+        Remove all keys from the current database.
+
+        :param async_op: lets a single database to be freed asynchronously. \
+        Defaults to False
+        """
+        if async_op:
+            fut = self.execute(b'FLUSHDB', b'ASYNC')
+        else:
+            fut = self.execute(b'FLUSHDB')
         return wait_ok(fut)
 
     def info(self, section='default'):
