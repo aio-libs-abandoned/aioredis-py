@@ -1,7 +1,7 @@
 hiredis==0.2.0
 flake8==3.5.0
 coverage==4.4.2
-pytest==3.3.2
+pytest==3.4.0
 pytest-cov==2.5.1
 pytest-xdist==1.22.0
 async-timeout==2.0.0
