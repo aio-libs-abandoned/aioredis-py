@@ -440,7 +440,7 @@ class ConnectionsPool(AbcPool):
         '''Return async context manager for working with connection.
 
         async with pool.get() as conn:
-            await conn.get(key)
+            await conn.execute('get', 'my-key')
         '''
         return _AsyncConnectionContextManager(self)
 
