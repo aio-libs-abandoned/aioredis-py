@@ -268,18 +268,12 @@ async def test_channel_get_after_close(create_redis, loop, server):
         server.tcp_address, loop=loop)
     ch, = await sub.subscribe('chan:1')
 
-    async def waiter():
-        while True:
-            msg = await ch.get()
-            if msg is None:
-                break
-            assert msg == b'message'
-
-    tsk = asyncio.ensure_future(waiter(), loop=loop)
-
     await pub.publish('chan:1', 'message')
-    sub.close()
-    await tsk
+    assert await ch.get() == b'message'
+    loop.call_soon(sub.close)
+    assert await ch.get() is None
+    with pytest.raises(aioredis.ChannelClosedError):
+        assert await ch.get()
 
 
 @pytest.mark.run_loop
