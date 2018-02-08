@@ -99,3 +99,19 @@ async def test_yield_from_backwards_compatability(create_redis, server, loop):
         assert isinstance(client, Redis)
         assert client is not redis
         assert await client.ping()
+
+
+@pytest.mark.run_loop
+async def test_swapdb(create_redis, start_server, loop):
+    server = start_server('swapdb_1')
+    cli1 = await create_redis(server.tcp_address, db=0, loop=loop)
+    cli2 = await create_redis(server.tcp_address, db=1, loop=loop)
+
+    await cli1.flushall()
+    assert await cli1.set('key', 'val') is True
+    assert await cli1.exists('key')
+    assert not await cli2.exists('key')
+
+    assert await cli1.swapdb(0, 1) is True
+    assert not await cli1.exists('key')
+    assert await cli2.exists('key')
