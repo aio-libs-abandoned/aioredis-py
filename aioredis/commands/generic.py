@@ -272,6 +272,9 @@ class GenericCommandsMixin:
             args += [b'STORE', store]
         return self.execute(b'SORT', key, *args)
 
+    def touch(self, key, *keys):
+        raise NotImplementedError()
+
     def ttl(self, key):
         """Returns time-to-live for a key, in seconds.
 
@@ -289,3 +292,9 @@ class GenericCommandsMixin:
         """
         # NOTE: for non-existent keys TYPE returns b'none'
         return self.execute(b'TYPE', key)
+
+    def unlink(self, key, *keys):
+        raise NotImplementedError()
+
+    def wait(self, numslaves, timeout):
+        raise NotImplementedError()

@@ -55,6 +55,9 @@ class ServerCommandsMixin:
         fut = self.execute(b'CLIENT', b'PAUSE', timeout)
         return wait_ok(fut)
 
+    def client_reply(self):
+        raise NotImplementedError()
+
     def client_setname(self, name):
         """Set the current connection name."""
         fut = self.execute(b'CLIENT', b'SETNAME', name)

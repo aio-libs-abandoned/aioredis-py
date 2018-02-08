@@ -124,6 +124,9 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._pool_or_conn.select(db)
 
+    def swapdb(self, from_index, to_index):
+        raise NotImplementedError
+
     def __await__(self):
         if isinstance(self._pool_or_conn, AbcPool):
             conn = yield from self._pool_or_conn.acquire().__await__()
