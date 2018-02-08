@@ -745,3 +745,22 @@ async def test_iscan(redis):
     ret = await coro(redis.iscan(match='key:scan:*', count=2))
     assert 10 == len(ret)
     assert set(ret) == full
+
+
+@pytest.redis_version(4, 0, 0, reason="UNLINK is available since redis>=4.0.0")
+@pytest.mark.run_loop
+async def test_unlink(redis):
+    await add(redis, 'my-key', 123)
+    await add(redis, 'other-key', 123)
+
+    res = await redis.unlink('my-key', 'non-existent-key')
+    assert res == 1
+
+    res = await redis.unlink('other-key', 'other-key')
+    assert res == 1
+
+    with pytest.raises(TypeError):
+        await redis.unlink(None)
+
+    with pytest.raises(TypeError):
+        await redis.unlink('my-key', 'my-key', None)

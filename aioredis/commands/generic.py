@@ -294,7 +294,8 @@ class GenericCommandsMixin:
         return self.execute(b'TYPE', key)
 
     def unlink(self, key, *keys):
-        raise NotImplementedError()
+        """Delete a key asynchronously in another thread."""
+        return wait_convert(self.execute(b'UNLINK', key, *keys), int)
 
     def wait(self, numslaves, timeout):
         raise NotImplementedError()
