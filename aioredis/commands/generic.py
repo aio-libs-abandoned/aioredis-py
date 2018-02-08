@@ -273,7 +273,11 @@ class GenericCommandsMixin:
         return self.execute(b'SORT', key, *args)
 
     def touch(self, key, *keys):
-        raise NotImplementedError()
+        """Alters the last access time of a key(s).
+
+        Returns the number of keys that were touched.
+        """
+        return self.execute(b'TOUCH', key, *keys)
 
     def ttl(self, key):
         """Returns time-to-live for a key, in seconds.

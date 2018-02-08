@@ -660,6 +660,19 @@ async def test_sort(redis):
     assert res == [b'10', b'30', b'20']
 
 
+@pytest.mark.run_loop(timeout=20)
+async def test_touch(redis, loop):
+    await add(redis, 'key', 'val')
+    res = 0
+    while not res:
+        res = await redis.object_idletime('key')
+        await asyncio.sleep(.5, loop=loop)
+    assert res > 0
+    assert await redis.touch('key', 'key', 'key') == 3
+    res2 = await redis.object_idletime('key')
+    assert 0 <= res2 < res
+
+
 @pytest.mark.run_loop
 async def test_ttl(redis, server):
     await add(redis, 'key', 'val')
