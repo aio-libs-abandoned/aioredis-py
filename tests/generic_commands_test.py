@@ -777,3 +777,20 @@ async def test_unlink(redis):
 
     with pytest.raises(TypeError):
         await redis.unlink('my-key', 'my-key', None)
+
+
+@pytest.mark.run_loop
+async def test_wait(redis, loop):
+    await add(redis, 'key', 'val1')
+    start = await redis.time()
+    res = await redis.wait(1, 400)
+    end = await redis.time()
+    assert res == 0
+    assert end - start >= .4
+
+    await add(redis, 'key', 'val2')
+    start = await redis.time()
+    res = await redis.wait(0, 400)
+    end = await redis.time()
+    assert res == 0
+    assert end - start < .4

@@ -302,4 +302,7 @@ class GenericCommandsMixin:
         return wait_convert(self.execute(b'UNLINK', key, *keys), int)
 
     def wait(self, numslaves, timeout):
-        raise NotImplementedError()
+        """Wait for the synchronous replication of all the write
+        commands sent in the context of the current connection.
+        """
+        return self.execute(b'WAIT', numslaves, timeout)
