@@ -272,6 +272,13 @@ class GenericCommandsMixin:
             args += [b'STORE', store]
         return self.execute(b'SORT', key, *args)
 
+    def touch(self, key, *keys):
+        """Alters the last access time of a key(s).
+
+        Returns the number of keys that were touched.
+        """
+        return self.execute(b'TOUCH', key, *keys)
+
     def ttl(self, key):
         """Returns time-to-live for a key, in seconds.
 
@@ -289,3 +296,13 @@ class GenericCommandsMixin:
         """
         # NOTE: for non-existent keys TYPE returns b'none'
         return self.execute(b'TYPE', key)
+
+    def unlink(self, key, *keys):
+        """Delete a key asynchronously in another thread."""
+        return wait_convert(self.execute(b'UNLINK', key, *keys), int)
+
+    def wait(self, numslaves, timeout):
+        """Wait for the synchronous replication of all the write
+        commands sent in the context of the current connection.
+        """
+        return self.execute(b'WAIT', numslaves, timeout)
