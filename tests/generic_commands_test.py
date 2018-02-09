@@ -660,6 +660,7 @@ async def test_sort(redis):
     assert res == [b'10', b'30', b'20']
 
 
+@pytest.redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
 @pytest.mark.run_loop(timeout=20)
 async def test_touch(redis, loop):
     await add(redis, 'key', 'val')
@@ -779,6 +780,7 @@ async def test_unlink(redis):
         await redis.unlink('my-key', 'my-key', None)
 
 
+@pytest.redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
 @pytest.mark.run_loop
 async def test_wait(redis, loop):
     await add(redis, 'key', 'val1')

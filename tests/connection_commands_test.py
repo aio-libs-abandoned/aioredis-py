@@ -101,6 +101,7 @@ async def test_yield_from_backwards_compatability(create_redis, server, loop):
         assert await client.ping()
 
 
+@pytest.redis_version(4, 0, 0, reason="SWAPDB is available since redis>=4.0.0")
 @pytest.mark.run_loop
 async def test_swapdb(create_redis, start_server, loop):
     server = start_server('swapdb_1')
