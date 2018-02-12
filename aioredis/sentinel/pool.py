@@ -193,7 +193,7 @@ class SentinelPool:
         assert self._close_waiter is not None
         await asyncio.shield(self._close_waiter, loop=self._loop)
 
-    async def discover(self, timeout=0.2):    # TODO: better name?
+    async def discover(self, timeout=None):    # TODO: better name?
         """Discover sentinels and all monitored services within given timeout.
 
         If no sentinels discovered within timeout: TimeoutError is raised.
@@ -204,6 +204,8 @@ class SentinelPool:
         """
         # TODO: check not closed
         # TODO: discovery must be done with some customizable timeout.
+        if timeout is None:
+            timeout = self.discover_timeout
         tasks = []
         pools = []
         for addr in self._sentinels:    # iterate over unordered set
