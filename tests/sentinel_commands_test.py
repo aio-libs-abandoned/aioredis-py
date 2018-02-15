@@ -5,6 +5,7 @@ import sys
 from aioredis import RedisError, ReplyError, PoolClosedError
 from aioredis.errors import MasterReplyError
 from aioredis.sentinel.commands import RedisSentinel
+from aioredis.abc import AbcPool
 
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == 'win32':
@@ -286,3 +287,22 @@ async def test_monitor(redis_sentinel, start_server, loop, unused_port):
 
     _, port = await redis_sentinel.master_address('master-to-monitor')
     assert port == m1.tcp_address.port
+
+
+@pytest.mark.run_loop(timeout=5)
+async def test_sentinel_master_pool_size(sentinel, create_sentinel):
+    redis_s = await create_sentinel([sentinel.tcp_address], timeout=1,
+                                    minsize=10, maxsize=10)
+    master = redis_s.master_for('master-no-fail')
+    assert isinstance(master.connection, AbcPool)
+    assert master.connection.size == 0
+
+    with pytest.logs('aioredis.sentinel', 'DEBUG') as cm:
+        assert await master.ping()
+    assert len(cm.output) == 1
+    assert cm.output == [
+        "DEBUG:aioredis.sentinel:Discoverred new address {}"
+        " for master-no-fail".format(master.address),
+    ]
+    assert master.connection.size == 10
+    assert master.connection.freesize == 10
