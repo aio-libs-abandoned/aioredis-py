@@ -25,7 +25,8 @@ async def test_auto_failover(start_sentinel, start_server,
     sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2)
 
     sp = await create_sentinel([sentinel1.tcp_address,
-                                sentinel2.tcp_address])
+                                sentinel2.tcp_address],
+                               timeout=1)
 
     _, old_port = await sp.master_address(server1.name)
     # ignoring host
@@ -51,7 +52,7 @@ async def test_auto_failover(start_sentinel, start_server,
 
 @pytest.mark.run_loop
 async def test_sentinel_normal(sentinel, create_sentinel):
-    redis_sentinel = await create_sentinel([sentinel.tcp_address])
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
     redis = redis_sentinel.master_for('masterA')
 
     info = await redis.role()
@@ -72,7 +73,7 @@ async def test_sentinel_normal(sentinel, create_sentinel):
 @pytest.mark.xfail(reason="same sentinel; single master;")
 @pytest.mark.run_loop
 async def test_sentinel_slave(sentinel, create_sentinel):
-    redis_sentinel = await create_sentinel([sentinel.tcp_address])
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
     redis = redis_sentinel.slave_for('masterA')
 
     info = await redis.role()
@@ -92,7 +93,7 @@ async def test_sentinel_slave(sentinel, create_sentinel):
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
 @pytest.mark.run_loop       # (timeout=600)
 async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
-    redis_sentinel = await create_sentinel([sentinel.tcp_address])
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
     key, field, value = b'key:hset', b'bar', b'zap'
 
@@ -128,7 +129,7 @@ async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
 @pytest.mark.run_loop
 async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
-    redis_sentinel = await create_sentinel([sentinel.tcp_address])
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
     key, field, value = b'key:hset', b'bar', b'zap'
     redis = redis_sentinel.master_for('masterA')
@@ -161,7 +162,7 @@ async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
 @pytest.mark.run_loop
 async def test_failover_command(sentinel, create_sentinel, loop):
     master_name = 'masterA'
-    redis_sentinel = await create_sentinel([sentinel.tcp_address])
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
     orig_master = await redis_sentinel.master_address(master_name)
     ret = await redis_sentinel.failover(master_name)

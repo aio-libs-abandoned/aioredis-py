@@ -105,6 +105,8 @@ def create_sentinel(_closable, loop):
 
     async def f(*args, **kw):
         kw.setdefault('loop', loop)
+        # make it fail fast on slow CIs (if timeout argument is ommitted)
+        kw.setdefault('timeout', .001)
         client = await aioredis.sentinel.create_sentinel(*args, **kw)
         _closable(client)
         return client
@@ -132,7 +134,7 @@ def redis(create_redis, server, loop):
 def redis_sentinel(create_sentinel, sentinel, loop):
     """Returns Redis Sentinel client instance."""
     redis_sentinel = loop.run_until_complete(
-        create_sentinel([sentinel.tcp_address], loop=loop))
+        create_sentinel([sentinel.tcp_address], timeout=2, loop=loop))
     assert loop.run_until_complete(redis_sentinel.ping()) == b'PONG'
     return redis_sentinel
 
