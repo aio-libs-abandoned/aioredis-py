@@ -11,6 +11,8 @@ pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 
+BPO_30399 = sys.version_info >= (3, 7, 0, 'alpha', 3)
+
 
 @pytest.mark.run_loop
 async def test_client_close(redis_sentinel):
@@ -102,8 +104,13 @@ async def test_master__auth(create_sentinel, start_sentinel,
     with pytest.raises(MasterReplyError) as exc_info:
         m2 = client2.master_for(master.name)
         await m2.set('mykey', 'myval')
-    assert str(exc_info.value) == (
-        "('Service master_1 error', AuthError('ERR invalid password',))")
+    if BPO_30399:
+        expected = (
+            "('Service master_1 error', AuthError('ERR invalid password'))")
+    else:
+        expected = (
+            "('Service master_1 error', AuthError('ERR invalid password',))")
+    assert str(exc_info.value) == expected
 
     with pytest.raises(MasterReplyError):
         m3 = client3.master_for(master.name)
