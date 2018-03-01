@@ -57,6 +57,7 @@ Connection usage is as simple as:
       Can be one of the following:
 
       * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+        ``"redis://:password@host:6379/0?encoding=utf-8"``;
 
       * a (host, port) tuple --- ``('localhost', 6379)``;
 
