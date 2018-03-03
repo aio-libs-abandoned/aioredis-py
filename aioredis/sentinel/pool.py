@@ -372,9 +372,11 @@ class SentinelPool:
 
     def _need_rediscover(self, service):
         sentinel_logger.debug("Must redisover service %s", service)
-        for service, pool in self._masters.items():
+        pool = self._masters.get(service)
+        if pool:
             pool.need_rediscover()
-        for service, pool in self._slaves.items():
+        pool = self._slaves.get(service)
+        if pool:
             pool.need_rediscover()
 
 
@@ -391,7 +393,7 @@ class ManagedPool(ConnectionsPool):
         self._sentinel = sentinel
         self._service = service
         self._is_master = is_master
-        self._discover_timeout = .2
+        # self._discover_timeout = .2
 
     @property
     def address(self):
