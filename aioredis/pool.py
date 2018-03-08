@@ -381,11 +381,11 @@ class ConnectionsPool(AbcPool):
     async def _fill_free(self, *, override_min):
         # drop closed connections first
         self._drop_closed()
-        address = self._address
+        # address = self._address
         while self.size < self.minsize:
             self._acquiring += 1
             try:
-                conn = await self._create_new_connection(address)
+                conn = await self._create_new_connection(self._address)
                 # check the healthy of that connection, if
                 # something went wrong just trigger the Exception
                 await conn.execute('ping')
@@ -400,7 +400,7 @@ class ConnectionsPool(AbcPool):
             while not self._pool and self.size < self.maxsize:
                 self._acquiring += 1
                 try:
-                    conn = await self._create_new_connection(address)
+                    conn = await self._create_new_connection(self._address)
                     self._pool.append(conn)
                 finally:
                     self._acquiring -= 1
@@ -440,7 +440,7 @@ class ConnectionsPool(AbcPool):
         '''Return async context manager for working with connection.
 
         async with pool.get() as conn:
-            await conn.get(key)
+            await conn.execute('get', 'my-key')
         '''
         return _AsyncConnectionContextManager(self)
 

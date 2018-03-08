@@ -18,6 +18,7 @@ env:
 python:
 - "3.5"
 - "3.6"
+- "nightly"
 
 matrix:
   include:
@@ -29,7 +30,7 @@ matrix:
     script:
     - make spelling
   - python: "pypy3.5-5.8.0"
-    env: PYPY_RELEASE="pypy3-v5.9.0-linux64"
+    env: PYPY_RELEASE="pypy3-v5.10.1-linux64"
   - python: "3.6"
     env: UVLOOP="y"
   allow_failures:

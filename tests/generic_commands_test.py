@@ -660,6 +660,20 @@ async def test_sort(redis):
     assert res == [b'10', b'30', b'20']
 
 
+@pytest.redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
+@pytest.mark.run_loop(timeout=20)
+async def test_touch(redis, loop):
+    await add(redis, 'key', 'val')
+    res = 0
+    while not res:
+        res = await redis.object_idletime('key')
+        await asyncio.sleep(.5, loop=loop)
+    assert res > 0
+    assert await redis.touch('key', 'key', 'key') == 3
+    res2 = await redis.object_idletime('key')
+    assert 0 <= res2 < res
+
+
 @pytest.mark.run_loop
 async def test_ttl(redis, server):
     await add(redis, 'key', 'val')
@@ -745,3 +759,40 @@ async def test_iscan(redis):
     ret = await coro(redis.iscan(match='key:scan:*', count=2))
     assert 10 == len(ret)
     assert set(ret) == full
+
+
+@pytest.redis_version(4, 0, 0, reason="UNLINK is available since redis>=4.0.0")
+@pytest.mark.run_loop
+async def test_unlink(redis):
+    await add(redis, 'my-key', 123)
+    await add(redis, 'other-key', 123)
+
+    res = await redis.unlink('my-key', 'non-existent-key')
+    assert res == 1
+
+    res = await redis.unlink('other-key', 'other-key')
+    assert res == 1
+
+    with pytest.raises(TypeError):
+        await redis.unlink(None)
+
+    with pytest.raises(TypeError):
+        await redis.unlink('my-key', 'my-key', None)
+
+
+@pytest.redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
+@pytest.mark.run_loop
+async def test_wait(redis, loop):
+    await add(redis, 'key', 'val1')
+    start = await redis.time()
+    res = await redis.wait(1, 400)
+    end = await redis.time()
+    assert res == 0
+    assert end - start >= .4
+
+    await add(redis, 'key', 'val2')
+    start = await redis.time()
+    res = await redis.wait(0, 400)
+    end = await redis.time()
+    assert res == 0
+    assert end - start < .4

@@ -29,6 +29,9 @@ class StringCommandsMixin:
             args = ()
         return self.execute(b'BITCOUNT', key, *args)
 
+    def bitfield(self):
+        raise NotImplementedError()
+
     def bitop_and(self, dest, key, *keys):
         """Perform bitwise AND operations between strings."""
         return self.execute(b'BITOP', b'AND', dest, key, *keys)

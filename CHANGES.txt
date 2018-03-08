@@ -1,6 +1,45 @@
 Changes
 -------
 
+1.1.0 (2018-02-16)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Implement new commands: ``wait``, ``touch``, ``swapdb``, ``unlink``
+  (see `#376 <https://github.com/aio-libs/aioredis/pull/376>`_);
+
+* Add ``async_op`` argument to ``flushall`` and ``flushdb`` commands
+  (see `#364 <https://github.com/aio-libs/aioredis/pull/364>`_,
+  and `#370 <https://github.com/aio-libs/aioredis/pull/370>`_);
+
+**FIX**:
+
+* **Important!** Fix Sentinel sentinel client with pool ``minsize``
+  greater than 1
+  (see `#380 <https://github.com/aio-libs/aioredis/pull/380>`_);
+
+* Fix ``SentinelPool.discover_timeout`` usage
+  (see `#379 <https://github.com/aio-libs/aioredis/pull/379>`_);
+
+* Fix ``Receiver`` hang on disconnect
+  (see `#354 <https://github.com/aio-libs/aioredis/pull/354>`_,
+  and `#366 <https://github.com/aio-libs/aioredis/pull/366>`_);
+
+* Fix an issue with ``subscribe``/``psubscribe`` with empty pool
+  (see `#351 <https://github.com/aio-libs/aioredis/pull/351>`_,
+  and `#355 <https://github.com/aio-libs/aioredis/pull/355>`_);
+
+* Fix an issue when ``StreamReader``'s feed_data is called before set_parser
+  (see `#347 <https://github.com/aio-libs/aioredis/pull/347>`_);
+
+**MISC**:
+
+* Update dependencies versions;
+
+* Multiple test fixes;
+
+
 1.0.0 (2017-11-17)
 ^^^^^^^^^^^^^^^^^^
 

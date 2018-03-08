@@ -57,6 +57,7 @@ Connection usage is as simple as:
       Can be one of the following:
 
       * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+        ``"redis://:password@host:6379/0?encoding=utf-8"``;
 
       * a (host, port) tuple --- ``('localhost', 6379)``;
 
@@ -484,7 +485,7 @@ Pub/Sub Channel object
 
       Coroutine that waits for and returns a message.
 
-      Return value is message received or None signifying that channel has
+      Return value is message received or ``None`` signifying that channel has
       been unsubscribed and no more messages will be received.
 
       :param str encoding: If not None used to decode resulting bytes message.
@@ -501,7 +502,8 @@ Pub/Sub Channel object
 
    .. comethod:: wait_message()
 
-      Waits for message to become available in channel.
+      Waits for message to become available in channel
+      or channel is closed (unsubscribed).
 
       Main idea is to use it in loops:
 
@@ -509,7 +511,9 @@ Pub/Sub Channel object
       >>> while await ch.wait_message():
       ...     msg = await ch.get()
 
-   .. comethod:: iter()
+      :rtype: bool
+
+   .. comethod:: iter(, \*, encoding=None, decoder=None)
       :async-for:
       :coroutine:
 

@@ -1,9 +1,10 @@
 import asyncio
 import json
 import types
+import collections
 
 from .abc import AbcChannel
-from .util import _converters, _set_result
+from .util import _converters   # , _set_result
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -20,18 +21,11 @@ EndOfStream = object()
 
 class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
-    # doesn't make much sense with inheritance
-    # __slots__ = ('_queue', '_name',
-    #              '_closed', '_waiter',
-    #              '_is_pattern', '_loop')
 
     def __init__(self, name, is_pattern, loop=None):
-        self._queue = asyncio.Queue(loop=loop)
+        self._queue = ClosableQueue(loop=loop)
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
-        self._loop = loop
-        self._closed = False
-        self._waiter = None
 
     def __repr__(self):
         return "<{} name:{!r}, is_pattern:{}, qsize:{}>".format(
@@ -60,7 +54,7 @@ class Channel(AbcChannel):
         ...     msg = await ch.get()   # may stuck for a long time
 
         """
-        return not (self._queue.qsize() <= 1 and self._closed)
+        return not self._queue.exhausted
 
     async def get(self, *, encoding=None, decoder=None):
         """Coroutine that waits for and returns a message.
@@ -69,14 +63,10 @@ class Channel(AbcChannel):
             and has no messages.
         """
         assert decoder is None or callable(decoder), decoder
-        if not self.is_active:
-            if self._queue.qsize() == 1:
-                msg = self._queue.get_nowait()
-                assert msg is None, msg
-                return
+        if self._queue.exhausted:
             raise ChannelClosedError()
         msg = await self._queue.get()
-        if msg is None:
+        if msg is EndOfStream:
             # TODO: maybe we need an explicit marker for "end of stream"
             #       currently, returning None may overlap with
             #       possible return value from `decoder`
@@ -111,7 +101,8 @@ class Channel(AbcChannel):
                            decoder=decoder)
 
     async def wait_message(self):
-        """Waits for message to become available in channel.
+        """Waits for message to become available in channel
+        or channel is closed (unsubscribed).
 
         Possible usage:
 
@@ -122,28 +113,22 @@ class Channel(AbcChannel):
             return False
         if not self._queue.empty():
             return True
-        if self._waiter is None:
-            self._waiter = self._loop.create_future()
-        await self._waiter
+        await self._queue.wait()
         return self.is_active
 
     # internal methods
 
     def put_nowait(self, data):
-        self._queue.put_nowait(data)
-        if self._waiter is not None:
-            fut, self._waiter = self._waiter, None
-            _set_result(fut, None, self)
+        self._queue.put(data)
 
-    def close(self):
+    def close(self, exc=None):
         """Marks channel as inactive.
 
         Internal method, will be called from connection
         on `unsubscribe` command.
         """
-        if not self._closed:
-            self.put_nowait(None)
-        self._closed = True
+        if not self._queue.closed:
+            self._queue.close()
 
 
 class _IterHelper:
@@ -200,14 +185,16 @@ class Receiver:
     >>> # any message received after stop() will be ignored.
     """
 
-    def __init__(self, loop=None):
+    def __init__(self, loop=None, on_close=None):
+        assert on_close is None or callable(on_close), (
+            "on_close must be None or callable", on_close)
         if loop is None:
             loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(loop=loop)
+        if on_close is None:
+            on_close = self.check_stop
+        self._queue = ClosableQueue(loop=loop)
         self._refs = {}
-        self._waiter = None
-        self._running = True
-        self._loop = loop
+        self._on_close = on_close
 
     def __repr__(self):
         return ('<Receiver is_active:{}, senders:{}, qsize:{}>'
@@ -222,8 +209,7 @@ class Receiver:
         enc_name = _converters[type(name)](name)
         if (enc_name, False) not in self._refs:
             ch = _Sender(self, enc_name,
-                         is_pattern=False,
-                         loop=self._loop)
+                         is_pattern=False)
             self._refs[(enc_name, False)] = ch
             return ch
         return self._refs[(enc_name, False)]
@@ -237,8 +223,7 @@ class Receiver:
         enc_pattern = _converters[type(pattern)](pattern)
         if (enc_pattern, True) not in self._refs:
             ch = _Sender(self, enc_pattern,
-                         is_pattern=True,
-                         loop=self._loop)
+                         is_pattern=True)
             self._refs[(enc_pattern, True)] = ch
         return self._refs[(enc_pattern, True)]
 
@@ -270,11 +255,19 @@ class Receiver:
         :raises aioredis.ChannelClosedError: If listener is stopped
             and all messages have been received.
         """
+        # TODO: add note about raised exception and end marker.
+        #   Flow before ClosableQueue:
+        #   - ch.get() -> message
+        #   - ch.close() -> ch.put(None)
+        #   - ch.get() -> None
+        #   - ch.get() -> ChannelClosedError
+        #   Current flow:
+        #   - ch.get() -> message
+        #   - ch.close() -> ch._closed = True
+        #   - ch.get() -> ChannelClosedError
         assert decoder is None or callable(decoder), decoder
-        if not self.is_active:
-            if not self._running:   # inactive but running
-                raise ChannelClosedError()
-            return
+        if self._queue.exhausted:
+            raise ChannelClosedError()
         obj = await self._queue.get()
         if obj is EndOfStream:
             return
@@ -293,22 +286,17 @@ class Receiver:
         """Blocks until new message appear."""
         if not self._queue.empty():
             return True
-        if not self._running:
+        if self._queue.closed:
             return False
-        if self._waiter is None:
-            self._waiter = self._loop.create_future()
-        await self._waiter
+        await self._queue.wait()
         return self.is_active
 
     @property
     def is_active(self):
         """Returns True if listener has any active subscription."""
-        if not self._queue.empty():
-            return True
-        # NOTE: this expression requires at least one subscriber
-        #   to return True;
-        return (self._running and
-                any(ch.is_active for ch in self._refs.values()))
+        if self._queue.exhausted:
+            return False
+        return any(ch.is_active for ch in self._refs.values())
 
     def stop(self):
         """Stop receiving messages.
@@ -316,8 +304,11 @@ class Receiver:
         All new messages after this call will be ignored,
         so you must call unsubscribe before stopping this listener.
         """
-        self._running = False
-        self._put_nowait(EndOfStream, sender=None)
+        self._queue.close()
+        # TODO: discard all senders as they might still be active.
+        #   Channels storage in Connection should be refactored:
+        #   if we drop _Senders here they will still be subscribed
+        #   and will reside in memory although messages will be discarded.
 
     def iter(self, *, encoding=None, decoder=None):
         """Returns async iterator.
@@ -328,27 +319,32 @@ class Receiver:
         ...     print(ch, msg)
         """
         return _IterHelper(self,
-                           is_active=lambda r: r.is_active or r._running,
+                           is_active=lambda r: not r._queue.exhausted,
                            encoding=encoding,
                            decoder=decoder)
+
+    def check_stop(self, channel, exc=None):
+        """TBD"""
+        # NOTE: this is a fast-path implementation,
+        # if overridden, implementation should use public API:
+        #
+        # if self.is_active and not (self.channels or self.patterns):
+        if not self._refs:
+            self.stop()
 
     # internal methods
 
     def _put_nowait(self, data, *, sender):
-        if not self._running and data is not EndOfStream:
+        if self._queue.closed:
             logger.warning("Pub/Sub listener message after stop:"
                            " sender: %r, data: %r",
                            sender, data)
             return
-        if data is not EndOfStream:
-            data = (sender, data)
-        self._queue.put_nowait(data)
-        if self._waiter is not None:
-            fut, self._waiter = self._waiter, None
-            _set_result(fut, None, self)
+        self._queue.put((sender, data))
 
-    def _close(self, sender):
+    def _close(self, sender, exc=None):
         self._refs.pop((sender.name, sender.is_pattern))
+        self._on_close(sender, exc=exc)
 
 
 class _Sender(AbcChannel):
@@ -357,11 +353,10 @@ class _Sender(AbcChannel):
     Does not allow direct ``.get()`` calls.
     """
 
-    def __init__(self, receiver, name, is_pattern, *, loop):
+    def __init__(self, receiver, name, is_pattern):
         self._receiver = receiver
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
-        self._loop = loop
         self._closed = False
 
     def __repr__(self):
@@ -389,11 +384,64 @@ class _Sender(AbcChannel):
     def put_nowait(self, data):
         self._receiver._put_nowait(data, sender=self)
 
-    def close(self):
+    def close(self, exc=None):
         # TODO: close() is exclusive so we can not share same _Sender
         # between different connections.
         # This needs to be fixed.
         if self._closed:
             return
         self._closed = True
-        self._receiver._close(self)
+        self._receiver._close(self, exc=exc)
+
+
+class ClosableQueue:
+
+    def __init__(self, *, loop=None):
+        self._queue = collections.deque()
+        self._event = asyncio.Event(loop=loop)
+        self._closed = False
+
+    async def wait(self):
+        while not (self._queue or self._closed):
+            await self._event.wait()
+        return True
+
+    async def get(self):
+        await self.wait()
+        assert self._queue or self._closed, (
+            "Unexpected queue state", self._queue, self._closed)
+        if not self._queue and self._closed:
+            return EndOfStream
+        item = self._queue.popleft()
+        if not self._queue:
+            self._event.clear()
+        return item
+
+    def put(self, item):
+        if self._closed:
+            return
+        self._queue.append(item)
+        self._event.set()
+
+    def close(self):
+        """Mark queue as closed and notify all waiters."""
+        self._closed = True
+        self._event.set()
+
+    @property
+    def closed(self):
+        return self._closed
+
+    @property
+    def exhausted(self):
+        return self._closed and not self._queue
+
+    def empty(self):
+        return not self._queue
+
+    def qsize(self):
+        return len(self._queue)
+
+    def __repr__(self):
+        closed = 'closed' if self._closed else 'open'
+        return '<Queue {} size:{}>'.format(closed, len(self._queue))

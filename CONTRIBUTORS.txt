@@ -15,6 +15,7 @@ Ihor Liubymov
 James Hilliard
 Jan Špaček
 Jeff Moser
+Kyrylo Dehtyarenko
 SeungHyun Hwang
 Leonid Shvechikov
 Manuel Miranda
