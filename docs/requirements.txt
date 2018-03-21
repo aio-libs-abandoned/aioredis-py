@@ -1,4 +1,4 @@
-sphinx==1.7.1
+sphinx==1.7.2
 sphinxcontrib-asyncio==0.2.0
 sphinxcontrib-spelling==4.1.0
 pyenchant==2.0.0
