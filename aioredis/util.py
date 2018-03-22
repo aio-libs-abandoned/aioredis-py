@@ -10,15 +10,10 @@ _NOTSET = object()
 _converters = {
     bytes: lambda val: val,
     bytearray: lambda val: val,
-    str: lambda val: val.encode('utf-8'),
-    int: lambda val: str(val).encode('utf-8'),
-    float: lambda val: str(val).encode('utf-8'),
+    str: lambda val: val.encode(),
+    int: lambda val: b'%d' % val,
+    float: lambda val: b'%r' % val,
 }
-
-
-def _bytes_len(sized):
-    return str(len(sized)).encode('utf-8')
-
 
 def encode_command(*args):
     """Encodes arguments into redis bulk-strings array.
@@ -26,22 +21,16 @@ def encode_command(*args):
     Raises TypeError if any of args not of bytearray, bytes, float, int, or str
     type.
     """
-    buf = bytearray()
+    buf = bytearray(b'*%d\r\n' % len(args))
 
-    def add(data):
-        return buf.extend(data + b'\r\n')
-
-    add(b'*' + _bytes_len(args))
-    for arg in args:
-        if type(arg) in _converters:
+    try:
+        for arg in args:
             barg = _converters[type(arg)](arg)
-            add(b'$' + _bytes_len(barg))
-            add(barg)
-        else:
-            raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
-                            " float, int, or str type".format(arg))
+            buf.extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
+    except:
+        raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
+                        " float, int, or str type".format(arg))
     return buf
-
 
 def decode(obj, encoding):
     if isinstance(obj, bytes):
