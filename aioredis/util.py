@@ -15,6 +15,7 @@ _converters = {
     float: lambda val: b'%r' % val,
 }
 
+
 def encode_command(*args):
     """Encodes arguments into redis bulk-strings array.
 
@@ -27,10 +28,11 @@ def encode_command(*args):
         for arg in args:
             barg = _converters[type(arg)](arg)
             buf.extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
-    except:
+    except KeyError as exc:
         raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
                         " float, int, or str type".format(arg))
     return buf
+
 
 def decode(obj, encoding):
     if isinstance(obj, bytes):
