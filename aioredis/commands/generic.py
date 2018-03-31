@@ -123,12 +123,12 @@ class GenericCommandsMixin:
         """Move key from currently selected database to specified destination.
 
         :raises TypeError: if db is not int
-        :raises ValueError: if db is less then 0
+        :raises ValueError: if db is less than 0
         """
         if not isinstance(db, int):
             raise TypeError("db argument must be int, not {!r}".format(db))
         if db < 0:
-            raise ValueError("db argument must be not less then 0, {!r}"
+            raise ValueError("db argument must be not less than 0, {!r}"
                              .format(db))
         fut = self.execute(b'MOVE', key, db)
         return wait_convert(fut, bool)
