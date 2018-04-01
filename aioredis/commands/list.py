@@ -12,7 +12,7 @@ class ListCommandsMixin:
         one is available.
 
         :raises TypeError: if timeout is not int
-        :raises ValueError: if timeout is less then 0
+        :raises ValueError: if timeout is less than 0
         """
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
@@ -26,7 +26,7 @@ class ListCommandsMixin:
         is available.
 
         :raises TypeError: if timeout is not int
-        :raises ValueError: if timeout is less then 0
+        :raises ValueError: if timeout is less than 0
         """
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
@@ -40,7 +40,7 @@ class ListCommandsMixin:
         is available.
 
         :raises TypeError: if timeout is not int
-        :raises ValueError: if timeout is less then 0
+        :raises ValueError: if timeout is less than 0
         """
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
