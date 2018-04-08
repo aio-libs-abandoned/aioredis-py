@@ -328,25 +328,148 @@ async def test_xgroup_delgroup(redis, server_bin):
     assert not info
 
 
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xread_group(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+
+    messages = await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=[0]
+    )
+    assert len(messages) == 1
+    stream, message_id, fields = messages[0]
+    assert stream == b'test_stream'
+    assert message_id
+    assert fields == {b'a': b'1'}
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xack_and_xpending(redis):
+    # Test a full xread -> xack cycle, using xpending to check the status
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+
+    # Nothing pending as we haven't claimed anything yet
+    pending_count, min_id, max_id, count = await redis.xpending('test_stream', 'test_group')
+    assert pending_count == 0
+
+    # Read the message
+    await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=[0]
+    )
+
+    # It is now pending
+    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    assert pending_count == 1
+    assert min_id == message_id
+    assert max_id == message_id
+    assert pel == [[b'test_consumer', b'1']]
+
+    # Acknowledge the message
+    await redis.xack('test_stream', 'test_group', message_id)
+
+    # It is no longer pending
+    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    assert pending_count == 0
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xclaim_simple(redis):
+    # Put a message in a pending state then reclaim it is XCLAIM
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+    await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=[0]
+    )
+
+    # Message is now pending
+    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    assert pending_count == 1
+    assert pel == [[b'test_consumer', b'1']]
+
+    # Now claim it for another consumer
+    result = await redis.xclaim('test_stream', 'test_group', 'new_consumer',
+                                min_idle_time=0, id=message_id)
+    assert result
+    claimed_message_id, fields = result[0]
+    assert claimed_message_id == message_id
+    assert fields == {b'a': b'1'}
+
+    # Ok, no see how things look
+    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    assert pending_count == 1
+    assert pel == [[b'new_consumer', b'1']]
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xclaim_min_idle_time_includes_messages(redis):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+    await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=[0]
+    )
+
+    # Message is now pending. Wait 100ms
+    await asyncio.sleep(0.1)
+
+    # Now reclaim any messages which have been idle for > 50ms
+    result = await redis.xclaim('test_stream', 'test_group', 'new_consumer',
+                                min_idle_time=50, id=message_id)
+    assert result
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xclaim_min_idle_time_excludes_messages(redis):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+    await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=[0]
+    )
+    # Message is now pending. Wait no time at all
+
+    # Now reclaim any messages which have been idle for > 50ms
+    result = await redis.xclaim('test_stream', 'test_group', 'new_consumer',
+                                min_idle_time=50, id=message_id)
+    # Nothing to claim
+    assert not result
+
+
 @pytest.mark.skip('DELCONSUMER not yet implemented in redis')
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
 async def test_xgroup_delconsumer(redis, create_redis, server):
-    redis_consumer_client = await create_redis(server.tcp_address)
-
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
-    consumer = asyncio.ensure_future(
-        redis_consumer_client.xread_group('test_group', 'test_consumer', ['test_stream'], timeout=1000)
-    )
-    await asyncio.sleep(0.05)
 
-    await redis.xgroup_delconsumer('test_stream', 'test_group', 'test_consumer')
+    # Note that consumers are only created once they read a message,
+    # not when they first connect. So make sure we consume from ID 0
+    # so we get the messages we just XADDed (above)
+    await redis.xread_group(
+        'test_group', 'test_consumer',
+        streams=['test_stream'], latest_ids=[0]
+    )
+
+    response = await redis.xgroup_delconsumer('test_stream', 'test_group', 'test_consumer')
+    assert response is True
     info = await redis.xinfo_consumers('test_stream', 'test_group')
     assert info
-
-    consumer.cancel()
+    assert isinstance(info[0], dict)
 
 
 @pytest.mark.run_loop

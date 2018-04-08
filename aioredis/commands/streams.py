@@ -134,7 +134,6 @@ class StreamCommandsMixin:
         return wait_convert(fut, parse_messages_by_stream)
 
     def xread_group(self, group_name, consumer_name, streams, timeout=0, count=None, latest_ids=None):
-        # TODO: test
         args = self._xread(streams, timeout, count, latest_ids)
         fut = self.execute(b'XREADGROUP', b'GROUP', group_name, consumer_name, *args)
         return wait_convert(fut, parse_messages_by_stream)
@@ -144,22 +143,19 @@ class StreamCommandsMixin:
         return wait_ok(fut)
 
     def xgroup_setid(self, stream, group_name, latest_id='$'):
-        # TODO: test
         fut = self.execute(b'XGROUP', b'SETID', stream, group_name, latest_id)
         return wait_ok(fut)
 
     def xgroup_delgroup(self, stream, group_name):
-        # TODO: test
         fut = self.execute(b'XGROUP', b'DELGROUP', stream, group_name)
         return wait_ok(fut)
 
     def xgroup_delconsumer(self, stream, consumer_name):
-        # TODO: test
         fut = self.execute(b'XGROUP', b'DELCONSUMER', stream, consumer_name)
         return wait_ok(fut)
 
     def xpending(self, stream, group_name, start=None, stop=None, count=None, consumer=None):
-        # TODO: test
+        # Returns: total pel messages, min id, max id, count
         ssc = [start, stop, count]
         if any(ssc) and not all(ssc):
             raise ValueError('Either specify non or all of the start/stop/count arguments')
@@ -172,11 +168,10 @@ class StreamCommandsMixin:
         return self.execute(b'XPENDING', *args)
 
     def xclaim(self, stream, group_name, consumer_name, min_idle_time, id, *ids):
-        # TODO: test
-        return self.execute(b'XCLAIM', stream, group_name, consumer_name, min_idle_time, id, *ids)
+        fut = self.execute(b'XCLAIM', stream, group_name, consumer_name, min_idle_time, id, *ids)
+        return wait_convert(fut, parse_messages)
 
     def xack(self, stream, group_name, id, *ids):
-        # TODO: test
         return self.execute(b'XACK', stream, group_name, id, *ids)
 
     def xinfo(self, stream):
