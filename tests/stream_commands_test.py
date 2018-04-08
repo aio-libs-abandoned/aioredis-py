@@ -5,6 +5,8 @@ from time import sleep
 import pytest
 import asyncio
 
+from aioredis import ConnectionForcedCloseError
+
 
 @asyncio.coroutine
 async def add_message_with_sleep(redis, loop, stream, fields):
@@ -286,3 +288,114 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     assert results == []
 
     other_redis.close()
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xgroup_create(redis, server_bin):
+    # Also tests xinfo_groups()
+    # TODO: Remove xadd() if resolved: https://github.com/antirez/redis/issues/4824
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+    info = await redis.xinfo_groups('test_stream')
+    assert info ==[{
+        b'name': b'test_group',
+        b'pending': 0,
+        b'consumers': 0
+    }]
+
+
+@pytest.mark.skip('SETID not yet implemented in redis')
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xgroup_setid(redis, server_bin):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+    await redis.xgroup_setid('test_stream', 'test_group', '$')
+
+
+@pytest.mark.skip('DELGROUP not yet implemented in redis')
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xgroup_delgroup(redis, server_bin):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+    await redis.xgroup_delgroup('test_stream', 'test_group')
+    info = await redis.xinfo_groups('test_stream')
+    assert not info
+
+
+@pytest.mark.skip('DELCONSUMER not yet implemented in redis')
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xgroup_delconsumer(redis, create_redis, server):
+    redis_consumer_client = await create_redis(server.tcp_address)
+
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+    consumer = asyncio.ensure_future(
+        redis_consumer_client.xread_group('test_group', 'test_consumer', ['test_stream'], timeout=1000)
+    )
+    await asyncio.sleep(0.05)
+
+    await redis.xgroup_delconsumer('test_stream', 'test_group', 'test_consumer')
+    info = await redis.xinfo_consumers('test_stream', 'test_group')
+    assert info
+
+    consumer.cancel()
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xinfo_consumers(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+
+    # Note that consumers are only created once they read a message,
+    # not when they first connect. So make sure we consume from ID 0
+    # so we get the messages we just XADDed (above)
+    await redis.xread_group(
+        'test_group', 'test_consumer',
+        streams=['test_stream'], latest_ids=[0]
+    )
+
+    info = await redis.xinfo_consumers('test_stream', 'test_group')
+    assert info
+    assert isinstance(info[0], dict)
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xinfo_stream(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+
+    # Note that consumers are only created once they read a message,
+    # not when they first connect. So make sure we consume from ID 0
+    # so we get the messages we just XADDed (above)
+    await redis.xread_group(
+        'test_group', 'test_consumer',
+        streams=['test_stream'], latest_ids=[0]
+    )
+
+    info = await redis.xinfo_stream('test_stream')
+    assert info
+    assert isinstance(info, dict)
+
+    info = await redis.xinfo('test_stream')
+    assert info
+    assert isinstance(info, dict)
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xinfo_help(redis):
+    info = await redis.xinfo_help()
+    assert info
