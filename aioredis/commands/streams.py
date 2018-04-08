@@ -120,8 +120,61 @@ class StreamCommandsMixin:
 
     def xread(self, streams, timeout=0, count=None, latest_ids=None):
         """Perform a blocking read on the given stream"""
-        # QUESTION: Should we combine streams & starting_ids
-        # into a single parameter?
+        args = self._xread(streams, timeout, count, latest_ids)
+        fut = self.execute(b'XREAD', *args)
+        return wait_convert(fut, parse_messages_by_stream)
+
+    def xread_group(self, group_name, consumer_name, streams, timeout=0, count=None, latest_ids=None):
+        args = self._xread(streams, timeout, count, latest_ids)
+        fut = self.execute(b'XREAD-GROUP', b'GROUP', group_name, b'NAME', consumer_name, *args)
+        return wait_convert(fut, parse_messages_by_stream)
+
+    def xgroup_create(self, stream, group_name, latest_id='$'):
+        return self.execute(b'XGROUP', b'CREATE', stream, group_name, latest_id)
+
+    def xgroup_setid(self, stream, latest_id='$'):
+        return self.execute(b'XGROUP', b'SETID', stream, latest_id)
+
+    def xgroup_delgroup(self, stream, group_name):
+        return self.execute(b'XGROUP', b'DELGROUP', stream, group_name)
+
+    def xgroup_delconsumer(self, stream, consumer_name):
+        return self.execute(b'XGROUP', b'DELCONSUMER', stream, consumer_name)
+
+    def xpending(self, stream, group_name, start=None, stop=None, count=None, consumer=None):
+        ssc = [start, stop, count]
+        if any(ssc) and not all(ssc):
+            raise ValueError('Either specify non or all of the start/stop/count arguments')
+        if not any(ssc):
+            ssc = []
+
+        args = [stream, group_name] + ssc
+        if consumer:
+            args.append(consumer)
+        return self.execute(b'XPENDING', *args)
+
+    def xclaim(self, stream, group_name, consumer_name, min_idle_time, id, *ids):
+        return self.execute(b'XCLAIM', stream, group_name, consumer_name, min_idle_time, id, *ids)
+
+    def xack(self, stream, group_name, id, *ids):
+        return self.execute(b'XACK', stream, group_name, id, *ids)
+
+    def xinfo(self, stream):
+        return self.xinfo(stream)
+
+    def xinfo_consumers(self, stream, group_name):
+        return self.execute(b'XINFO', b'CONSUMERS', stream, group_name)
+
+    def xinfo_groups(self, stream):
+        return self.execute(b'XINFO', b'GROUPS', stream)
+
+    def xinfo_stream(self, stream):
+        return self.execute(b'XINFO', b'STREAM', stream)
+
+    def xinfo_help(self):
+        return self.execute(b'XINFO', b'HELP')
+
+    def _xread(self, streams, timeout=0, count=None, latest_ids=None):
         if latest_ids is None:
             latest_ids = ['$'] * len(streams)
         if len(streams) != len(latest_ids):
@@ -131,6 +184,8 @@ class StreamCommandsMixin:
             )
 
         count_args = [b'COUNT', count] if count else []
-        args = count_args + [b'STREAMS'] + streams + latest_ids
-        fut = self.execute(b'XREAD', b'BLOCK', timeout, *args)
-        return wait_convert(fut, parse_messages_by_stream)
+        if timeout is None:
+            block_args = []
+        else:
+            block_args = [b'BLOCK', timeout]
+        return block_args + count_args + [b'STREAMS'] + streams + latest_ids
