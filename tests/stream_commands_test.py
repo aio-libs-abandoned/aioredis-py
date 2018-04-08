@@ -5,8 +5,6 @@ from time import sleep
 import pytest
 import asyncio
 
-from aioredis import ConnectionForcedCloseError
-
 
 @asyncio.coroutine
 async def add_message_with_sleep(redis, loop, stream, fields):
@@ -79,7 +77,11 @@ async def test_xadd_manual_message_ids(redis, server_bin):
 
     messages = await redis.xrange('test_stream')
     message_ids = [message_id for message_id, _ in messages]
-    assert message_ids == [b'1515958771000-0', b'1515958771000-1', b'1515958772000-0']
+    assert message_ids == [
+        b'1515958771000-0',
+        b'1515958771000-1',
+        b'1515958772000-0'
+    ]
 
 
 @pytest.mark.run_loop
@@ -295,11 +297,12 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
                                             "unstable branch")
 async def test_xgroup_create(redis, server_bin):
     # Also tests xinfo_groups()
-    # TODO: Remove xadd() if resolved: https://github.com/antirez/redis/issues/4824
+    # TODO: Remove xadd() if resolved:
+    #       https://github.com/antirez/redis/issues/4824
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
     info = await redis.xinfo_groups('test_stream')
-    assert info ==[{
+    assert info == [{
         b'name': b'test_group',
         b'pending': 0,
         b'consumers': 0
@@ -355,7 +358,8 @@ async def test_xack_and_xpending(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
 
     # Nothing pending as we haven't claimed anything yet
-    pending_count, min_id, max_id, count = await redis.xpending('test_stream', 'test_group')
+    pending_count, min_id, max_id, count = \
+        await redis.xpending('test_stream', 'test_group')
     assert pending_count == 0
 
     # Read the message
@@ -365,7 +369,8 @@ async def test_xack_and_xpending(redis):
     )
 
     # It is now pending
-    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    pending_count, min_id, max_id, pel = \
+        await redis.xpending('test_stream', 'test_group')
     assert pending_count == 1
     assert min_id == message_id
     assert max_id == message_id
@@ -375,7 +380,8 @@ async def test_xack_and_xpending(redis):
     await redis.xack('test_stream', 'test_group', message_id)
 
     # It is no longer pending
-    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    pending_count, min_id, max_id, pel = \
+        await redis.xpending('test_stream', 'test_group')
     assert pending_count == 0
 
 
@@ -392,7 +398,8 @@ async def test_xclaim_simple(redis):
     )
 
     # Message is now pending
-    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    pending_count, min_id, max_id, pel = \
+        await redis.xpending('test_stream', 'test_group')
     assert pending_count == 1
     assert pel == [[b'test_consumer', b'1']]
 
@@ -405,7 +412,8 @@ async def test_xclaim_simple(redis):
     assert fields == {b'a': b'1'}
 
     # Ok, no see how things look
-    pending_count, min_id, max_id, pel = await redis.xpending('test_stream', 'test_group')
+    pending_count, min_id, max_id, pel = \
+        await redis.xpending('test_stream', 'test_group')
     assert pending_count == 1
     assert pel == [[b'new_consumer', b'1']]
 
@@ -465,7 +473,9 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
         streams=['test_stream'], latest_ids=[0]
     )
 
-    response = await redis.xgroup_delconsumer('test_stream', 'test_group', 'test_consumer')
+    response = await redis.xgroup_delconsumer(
+        'test_stream', 'test_group', 'test_consumer'
+    )
     assert response is True
     info = await redis.xinfo_consumers('test_stream', 'test_group')
     assert info

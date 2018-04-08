@@ -93,7 +93,8 @@ class StreamCommandsMixin:
     not currently released.
     """
 
-    def xadd(self, stream, fields, message_id=b'*', max_len=None, exact_len=False):
+    def xadd(self, stream, fields, message_id=b'*', max_len=None,
+             exact_len=False):
         """ Add a message to the specified stream
         """
         args = []
@@ -133,9 +134,12 @@ class StreamCommandsMixin:
         fut = self.execute(b'XREAD', *args)
         return wait_convert(fut, parse_messages_by_stream)
 
-    def xread_group(self, group_name, consumer_name, streams, timeout=0, count=None, latest_ids=None):
+    def xread_group(self, group_name, consumer_name, streams, timeout=0,
+                    count=None, latest_ids=None):
         args = self._xread(streams, timeout, count, latest_ids)
-        fut = self.execute(b'XREADGROUP', b'GROUP', group_name, consumer_name, *args)
+        fut = self.execute(
+            b'XREADGROUP', b'GROUP', group_name, consumer_name, *args
+        )
         return wait_convert(fut, parse_messages_by_stream)
 
     def xgroup_create(self, stream, group_name, latest_id='$'):
@@ -154,11 +158,14 @@ class StreamCommandsMixin:
         fut = self.execute(b'XGROUP', b'DELCONSUMER', stream, consumer_name)
         return wait_ok(fut)
 
-    def xpending(self, stream, group_name, start=None, stop=None, count=None, consumer=None):
+    def xpending(self, stream, group_name, start=None, stop=None, count=None,
+                 consumer=None):
         # Returns: total pel messages, min id, max id, count
         ssc = [start, stop, count]
         if any(ssc) and not all(ssc):
-            raise ValueError('Either specify non or all of the start/stop/count arguments')
+            raise ValueError(
+                'Either specify non or all of the start/stop/count arguments'
+            )
         if not any(ssc):
             ssc = []
 
@@ -167,8 +174,12 @@ class StreamCommandsMixin:
             args.append(consumer)
         return self.execute(b'XPENDING', *args)
 
-    def xclaim(self, stream, group_name, consumer_name, min_idle_time, id, *ids):
-        fut = self.execute(b'XCLAIM', stream, group_name, consumer_name, min_idle_time, id, *ids)
+    def xclaim(self, stream, group_name, consumer_name, min_idle_time,
+               id, *ids):
+        fut = self.execute(
+            b'XCLAIM', stream, group_name, consumer_name, min_idle_time,
+            id, *ids
+        )
         return wait_convert(fut, parse_messages)
 
     def xack(self, stream, group_name, id, *ids):
