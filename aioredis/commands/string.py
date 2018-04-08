@@ -86,7 +86,7 @@ class StringCommandsMixin:
         """Returns the bit value at offset in the string value stored at key.
 
         :raises TypeError: if offset is not int
-        :raises ValueError: if offset is less then 0
+        :raises ValueError: if offset is less than 0
         """
         if not isinstance(offset, int):
             raise TypeError("offset argument must be int")
@@ -193,7 +193,7 @@ class StringCommandsMixin:
         """Sets or clears the bit at offset in the string value stored at key.
 
         :raises TypeError: if offset is not int
-        :raises ValueError: if offset is less then 0 or value is not 0 or 1
+        :raises ValueError: if offset is less than 0 or value is not 0 or 1
         """
         if not isinstance(offset, int):
             raise TypeError("offset argument must be int")
@@ -227,7 +227,7 @@ class StringCommandsMixin:
         """Overwrite part of a string at key starting at the specified offset.
 
         :raises TypeError: if offset is not int
-        :raises ValueError: if offset less then 0
+        :raises ValueError: if offset less than 0
         """
         if not isinstance(offset, int):
             raise TypeError("offset argument must be int")

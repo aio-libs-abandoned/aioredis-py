@@ -216,7 +216,7 @@ Connection usage is as simple as:
       :param int db: New redis database index.
 
       :raise TypeError: When ``db`` parameter is not int.
-      :raise ValueError: When ``db`` parameter is less then 0.
+      :raise ValueError: When ``db`` parameter is less than 0.
 
       :return True: Always returns True or raises exception.
 
@@ -305,7 +305,7 @@ The library provides connections pool. The basic usage is as follows:
 
    :param int maxsize: Maximum number of connection to keep in pool.
                        ``10`` by default.
-                       Must be greater then ``0``. ``None`` is disallowed.
+                       Must be greater than ``0``. ``None`` is disallowed.
 
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.

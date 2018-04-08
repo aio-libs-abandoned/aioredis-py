@@ -54,14 +54,14 @@ class SortedSetCommandsMixin:
         within the given values.
 
         :raises TypeError: min or max is not float or int
-        :raises ValueError: if min grater then max
+        :raises ValueError: if min greater than max
         """
         if not isinstance(min, (int, float)):
             raise TypeError("min argument must be int or float")
         if not isinstance(max, (int, float)):
             raise TypeError("max argument must be int or float")
         if min > max:
-            raise ValueError("min could not be grater then max")
+            raise ValueError("min could not be greater than max")
         return self.execute(b'ZCOUNT', key,
                             *_encode_min_max(exclude, min, max))
 
