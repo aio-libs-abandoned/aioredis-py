@@ -5,6 +5,8 @@ from time import sleep
 import pytest
 import asyncio
 
+from aioredis import ReplyError
+
 
 @asyncio.coroutine
 async def add_message_with_sleep(redis, loop, stream, fields):
@@ -307,6 +309,16 @@ async def test_xgroup_create(redis, server_bin):
         b'pending': 0,
         b'consumers': 0
     }]
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
+async def test_xgroup_create_already_exists(redis, server_bin):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group')
+    with pytest.raises(ReplyError):
+        await redis.xgroup_create('test_stream', 'test_group')
 
 
 @pytest.mark.skip('SETID not yet implemented in redis')
