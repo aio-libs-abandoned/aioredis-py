@@ -151,7 +151,7 @@ class AbcChannel(ABC):
         """
 
     @abc.abstractmethod
-    def close(self):
+    def close(self, exc=None):
         """Marks Channel as closed, no more messages will be sent to it.
 
         Called by RedisConnection when channel is unsubscribed

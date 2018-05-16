@@ -41,8 +41,8 @@ async def pubsub():
     for msg in ("Hello", ",", "world!"):
         for ch in ('channel:1', 'channel:2'):
             await pub.publish(ch, msg)
-    pub.close()
-    sub.close()
+    asyncio.get_event_loop().call_soon(pub.close)
+    asyncio.get_event_loop().call_soon(sub.close)
     await asyncio.sleep(0)
     await pub.wait_closed()
     await sub.wait_closed()

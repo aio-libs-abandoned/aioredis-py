@@ -66,7 +66,7 @@ def test_listener_pattern(loop):
 async def test_sender(loop):
     receiver = mock.Mock()
 
-    sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
+    sender = _Sender(receiver, 'name', is_pattern=False)
     assert isinstance(sender, AbcChannel)
     assert sender.name == b'name'
     assert sender.is_pattern is False
@@ -84,12 +84,11 @@ async def test_sender(loop):
 
 def test_sender_close():
     receiver = mock.Mock()
-    loop = mock.Mock()
-    sender = _Sender(receiver, 'name', is_pattern=False, loop=loop)
+    sender = _Sender(receiver, 'name', is_pattern=False)
     sender.close()
-    assert receiver.mock_calls == [mock.call._close(sender)]
+    assert receiver.mock_calls == [mock.call._close(sender, exc=None)]
     sender.close()
-    assert receiver.mock_calls == [mock.call._close(sender)]
+    assert receiver.mock_calls == [mock.call._close(sender, exc=None)]
     receiver.reset_mock()
     assert receiver.mock_calls == []
     sender.close()
@@ -160,10 +159,10 @@ async def test_unsubscribe(create_connection, server, loop):
     assert not ch.is_pattern
     assert msg == b"message"
 
+    waiter = asyncio.ensure_future(mpsc.get(), loop=loop)
     await sub.execute_pubsub('unsubscribe', 'channel:3')
     assert not mpsc.is_active
-    res = await mpsc.get()
-    assert res is None
+    assert await waiter is None
 
 
 @pytest.mark.run_loop
@@ -185,11 +184,11 @@ async def test_stopped(create_connection, server, loop):
     warn_messaege = (
         "WARNING:aioredis:Pub/Sub listener message after stop: "
         "sender: <_Sender name:b'channel:1', is_pattern:False, receiver:"
-        "<Receiver is_active:True, senders:1, qsize:1>>, data: b'Hello'"
+        "<Receiver is_active:False, senders:1, qsize:0>>, data: b'Hello'"
     )
     assert cm.output == [warn_messaege]
 
-    assert (await mpsc.get()) is None
+    # assert (await mpsc.get()) is None
     with pytest.raises(ChannelClosedError):
         await mpsc.get()
     res = await mpsc.wait_message()
@@ -327,3 +326,42 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
     dt = loop.time() - now
     assert dt <= 1.5
     assert not mpsc.is_active
+
+
+@pytest.mark.run_loop
+async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
+    pub = await create_redis(server.tcp_address, loop=loop)
+    sub = await create_redis(server.tcp_address, loop=loop)
+    sub_name = 'sub-{:X}'.format(id(sub))
+    await sub.client_setname(sub_name)
+    for sub_info in await pub.client_list():
+        if sub_info.name == sub_name:
+            break
+    assert sub_info.name == sub_name
+
+    mpsc = Receiver(loop=loop)
+    await sub.subscribe(mpsc.channel('channel:1'))
+    await sub.subscribe(mpsc.channel('channel:2'))
+    await sub.psubscribe(mpsc.pattern('channel:*'))
+
+    q = asyncio.Queue(loop=loop)
+    EOF = object()
+
+    async def reader():
+        async for ch, msg in mpsc.iter(encoding='utf-8'):
+            await q.put((ch.name, msg))
+        await q.put(EOF)
+
+    tsk = asyncio.ensure_future(reader(), loop=loop)
+    await pub.publish_json('channel:1', ['hello'])
+    await pub.publish_json('channel:2', ['hello'])
+    # receive all messages
+    assert await q.get() == (b'channel:1', '["hello"]')
+    assert await q.get() == (b'channel:*', (b'channel:1', '["hello"]'))
+    assert await q.get() == (b'channel:2', '["hello"]')
+    assert await q.get() == (b'channel:*', (b'channel:2', '["hello"]'))
+
+    # XXX: need to implement `client kill`
+    assert await pub.execute('client', 'kill', sub_info.addr) in (b'OK', 1)
+    await asyncio.wait_for(tsk, timeout=1, loop=loop)
+    assert await q.get() is EOF
