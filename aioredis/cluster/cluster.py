@@ -1,19 +1,18 @@
-import random
 import asyncio
+import random
 from functools import partial
 
-from aioredis.errors import ProtocolError
 from aioredis.commands import (
     create_redis,
     Redis,
     create_redis_pool
 )
-from aioredis.util import decode, encode_str, cached_property
-from aioredis.log import logger
+from aioredis.errors import ProtocolError
 from aioredis.errors import ReplyError, RedisClusterError
-from .crc import crc16
+from aioredis.log import logger
+from aioredis.util import decode, encode_str, cached_property
 from .base import RedisClusterBase
-
+from .crc import crc16
 
 __all__ = (
     'create_pool_cluster',
@@ -344,11 +343,12 @@ class RedisCluster(RedisClusterBase):
         try:
             for task in asyncio.as_completed(tasks, loop=self._loop):
                 try:
-                    nodes_raw_response = await task
+                    nodes_raw_response = list(await task)
                     self._cluster_manager = ClusterNodesManager.create(
-                        nodes_raw_response)
+                        nodes_raw_response
+                    )
                     logger.info('Cluster info loaded successfully: %s',
-                                list(nodes_raw_response))
+                                nodes_raw_response)
                     return
                 except (ReplyError, ProtocolError,
                         ConnectionError, OSError) as exc:
