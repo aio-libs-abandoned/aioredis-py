@@ -462,8 +462,7 @@ class RedisCluster(RedisClusterBase):
           is broken.
         """
 
-        # bad hack to prevent execution on many nodes
-        if many or (not args and 'cluster_' not in command):
+        if many:
             return await self._execute_nodes(
                 command, *args, slaves=slaves, **kwargs
             )
@@ -588,8 +587,7 @@ class RedisPoolCluster(RedisCluster):
           is broken.
         """
 
-        # bad hack to prevent execution on many nodes
-        if many or (not args and 'cluster_' not in command):
+        if many:
             return await self._execute_nodes(command, *args, **kwargs)
 
         pool = self.get_node(command, *args, **kwargs)
