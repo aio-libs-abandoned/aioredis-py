@@ -280,7 +280,7 @@ def parse_info(info):
         section = section[2:].lower()
         res[section] = tmp = {}
         for line in block:
-            key, value = line.split(':')
+            key, value = line.split(':', 1)
             if ',' in line and '=' in line:
                 value = dict(map(lambda i: i.split('='), value.split(',')))
             tmp[key] = value
