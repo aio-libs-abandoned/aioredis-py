@@ -46,7 +46,7 @@ class ServerCommandsMixin:
         """Stop processing commands from clients for *timeout* milliseconds.
 
         :raises TypeError: if timeout is not int
-        :raises ValueError: if timeout is less then 0
+        :raises ValueError: if timeout is less than 0
         """
         if not isinstance(timeout, int):
             raise TypeError("timeout argument must be int")
@@ -54,6 +54,9 @@ class ServerCommandsMixin:
             raise ValueError("timeout must be greater equal 0")
         fut = self.execute(b'CLIENT', b'PAUSE', timeout)
         return wait_ok(fut)
+
+    def client_reply(self):
+        raise NotImplementedError()
 
     def client_setname(self, name):
         """Set the current connection name."""
@@ -126,14 +129,30 @@ class ServerCommandsMixin:
         # won't test, this probably works
         return self.execute(b'DEBUG', 'SEGFAULT')  # pragma: no cover
 
-    def flushall(self):
-        """Remove all keys from all databases."""
-        fut = self.execute(b'FLUSHALL')
+    def flushall(self, async_op=False):
+        """
+        Remove all keys from all databases.
+
+        :param async_op: lets the entire dataset to be freed asynchronously. \
+        Defaults to False
+        """
+        if async_op:
+            fut = self.execute(b'FLUSHALL', b'ASYNC')
+        else:
+            fut = self.execute(b'FLUSHALL')
         return wait_ok(fut)
 
-    def flushdb(self):
-        """Remove all keys from the current database."""
-        fut = self.execute('FLUSHDB')
+    def flushdb(self, async_op=False):
+        """
+        Remove all keys from the current database.
+
+        :param async_op: lets a single database to be freed asynchronously. \
+        Defaults to False
+        """
+        if async_op:
+            fut = self.execute(b'FLUSHDB', b'ASYNC')
+        else:
+            fut = self.execute(b'FLUSHDB')
         return wait_ok(fut)
 
     def info(self, section='default'):
@@ -261,7 +280,7 @@ def parse_info(info):
         section = section[2:].lower()
         res[section] = tmp = {}
         for line in block:
-            key, value = line.split(':')
+            key, value = line.split(':', 1)
             if ',' in line and '=' in line:
                 value = dict(map(lambda i: i.split('='), value.split(',')))
             tmp[key] = value

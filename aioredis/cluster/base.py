@@ -98,7 +98,7 @@ class RedisClusterBase:
         ], loop=self._loop)
 
     async def cluster_reset(self, *, hard=False, address=None):
-        """Reset a Redis Cluster node. Or all nodes in address not provided"""
+        """Reset a Redis Cluster node. Or all nodes if address not provided"""
         if not address:
             return await self._execute_nodes(
                 'cluster_reset', slaves=True, hard=hard

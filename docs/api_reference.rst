@@ -57,6 +57,7 @@ Connection usage is as simple as:
       Can be one of the following:
 
       * a Redis URI --- ``"redis://host:6379/0?encoding=utf-8"``;
+        ``"redis://:password@host:6379/0?encoding=utf-8"``;
 
       * a (host, port) tuple --- ``('localhost', 6379)``;
 
@@ -215,7 +216,7 @@ Connection usage is as simple as:
       :param int db: New redis database index.
 
       :raise TypeError: When ``db`` parameter is not int.
-      :raise ValueError: When ``db`` parameter is less then 0.
+      :raise ValueError: When ``db`` parameter is less than 0.
 
       :return True: Always returns True or raises exception.
 
@@ -304,7 +305,7 @@ The library provides connections pool. The basic usage is as follows:
 
    :param int maxsize: Maximum number of connection to keep in pool.
                        ``10`` by default.
-                       Must be greater then ``0``. ``None`` is disallowed.
+                       Must be greater than ``0``. ``None`` is disallowed.
 
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.
@@ -484,7 +485,7 @@ Pub/Sub Channel object
 
       Coroutine that waits for and returns a message.
 
-      Return value is message received or None signifying that channel has
+      Return value is message received or ``None`` signifying that channel has
       been unsubscribed and no more messages will be received.
 
       :param str encoding: If not None used to decode resulting bytes message.
@@ -501,7 +502,8 @@ Pub/Sub Channel object
 
    .. comethod:: wait_message()
 
-      Waits for message to become available in channel.
+      Waits for message to become available in channel
+      or channel is closed (unsubscribed).
 
       Main idea is to use it in loops:
 
@@ -509,7 +511,9 @@ Pub/Sub Channel object
       >>> while await ch.wait_message():
       ...     msg = await ch.get()
 
-   .. comethod:: iter()
+      :rtype: bool
+
+   .. comethod:: iter(, \*, encoding=None, decoder=None)
       :async-for:
       :coroutine:
 

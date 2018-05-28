@@ -41,7 +41,7 @@ async def pubsub():
 
 def main():
     loop = asyncio.get_event_loop()
-    tsk = asyncio.async(pubsub(), loop=loop)
+    tsk = asyncio.ensure_future(pubsub(), loop=loop)
 
     async def publish():
         pub = await aioredis.create_redis(

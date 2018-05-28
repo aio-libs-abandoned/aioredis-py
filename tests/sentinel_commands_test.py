@@ -5,10 +5,13 @@ import sys
 from aioredis import RedisError, ReplyError, PoolClosedError
 from aioredis.errors import MasterReplyError
 from aioredis.sentinel.commands import RedisSentinel
+from aioredis.abc import AbcPool
 
 pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
+
+BPO_30399 = sys.version_info >= (3, 7, 0, 'alpha', 3)
 
 
 @pytest.mark.run_loop
@@ -29,7 +32,8 @@ async def test_global_loop(sentinel, create_sentinel, loop):
     asyncio.set_event_loop(loop)
 
     # force global loop
-    client = await create_sentinel([sentinel.tcp_address], loop=None)
+    client = await create_sentinel([sentinel.tcp_address],
+                                   timeout=1, loop=None)
     assert client._pool._loop is loop
 
     asyncio.set_event_loop(None)
@@ -86,13 +90,13 @@ async def test_master__auth(create_sentinel, start_sentinel,
 
     sentinel = start_sentinel('auth_sentinel_1', master)
     client1 = await create_sentinel(
-        [sentinel.tcp_address], password='123', loop=loop)
+        [sentinel.tcp_address], password='123', timeout=1, loop=loop)
 
     client2 = await create_sentinel(
-        [sentinel.tcp_address], password='111', loop=loop)
+        [sentinel.tcp_address], password='111', timeout=1, loop=loop)
 
     client3 = await create_sentinel(
-        [sentinel.tcp_address], loop=loop)
+        [sentinel.tcp_address], timeout=1, loop=loop)
 
     m1 = client1.master_for(master.name)
     await m1.set('mykey', 'myval')
@@ -100,8 +104,13 @@ async def test_master__auth(create_sentinel, start_sentinel,
     with pytest.raises(MasterReplyError) as exc_info:
         m2 = client2.master_for(master.name)
         await m2.set('mykey', 'myval')
-    assert str(exc_info.value) == (
-        "('Service master_1 error', AuthError('ERR invalid password',))")
+    if BPO_30399:
+        expected = (
+            "('Service master_1 error', AuthError('ERR invalid password'))")
+    else:
+        expected = (
+            "('Service master_1 error', AuthError('ERR invalid password',))")
+    assert str(exc_info.value) == expected
 
     with pytest.raises(MasterReplyError):
         m3 = client3.master_for(master.name)
@@ -111,7 +120,7 @@ async def test_master__auth(create_sentinel, start_sentinel,
 @pytest.mark.run_loop
 async def test_master__no_auth(create_sentinel, sentinel, loop):
     client = await create_sentinel(
-        [sentinel.tcp_address], password='123', loop=loop)
+        [sentinel.tcp_address], password='123', timeout=1, loop=loop)
 
     master = client.master_for('masterA')
     with pytest.raises(MasterReplyError):
@@ -210,7 +219,8 @@ async def test_sentinels__exist(create_sentinel, start_sentinel,
     s2 = start_sentinel('peer-sentinel-2', m1, quorum=2, noslaves=True)
 
     redis_sentinel = await create_sentinel(
-        [s1.tcp_address, s2.tcp_address])
+        [s1.tcp_address, s2.tcp_address],
+        timeout=1)
 
     while True:
         info = await redis_sentinel.master('master-two-sentinels')
@@ -284,3 +294,22 @@ async def test_monitor(redis_sentinel, start_server, loop, unused_port):
 
     _, port = await redis_sentinel.master_address('master-to-monitor')
     assert port == m1.tcp_address.port
+
+
+@pytest.mark.run_loop(timeout=5)
+async def test_sentinel_master_pool_size(sentinel, create_sentinel):
+    redis_s = await create_sentinel([sentinel.tcp_address], timeout=1,
+                                    minsize=10, maxsize=10)
+    master = redis_s.master_for('master-no-fail')
+    assert isinstance(master.connection, AbcPool)
+    assert master.connection.size == 0
+
+    with pytest.logs('aioredis.sentinel', 'DEBUG') as cm:
+        assert await master.ping()
+    assert len(cm.output) == 1
+    assert cm.output == [
+        "DEBUG:aioredis.sentinel:Discoverred new address {}"
+        " for master-no-fail".format(master.address),
+    ]
+    assert master.connection.size == 10
+    assert master.connection.freesize == 10

@@ -1,6 +1,6 @@
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
-from aioredis.util import _NOTSET
+from aioredis.util import _NOTSET, wait_ok
 from aioredis.abc import AbcPool
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
@@ -123,6 +123,9 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         This method wraps call to :meth:`aioredis.RedisConnection.select()`
         """
         return self._pool_or_conn.select(db)
+
+    def swapdb(self, from_index, to_index):
+        return wait_ok(self.execute(b'SWAPDB', from_index, to_index))
 
     def __await__(self):
         if isinstance(self._pool_or_conn, AbcPool):
