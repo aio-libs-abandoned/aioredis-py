@@ -805,7 +805,7 @@ async def test_execute_many(loop, test_cluster, free_ports):
     }
 
     with CreateConnectionMock(expected_connections):
-        ok = await test_cluster.execute('PING')
+        ok = await test_cluster.execute('PING', many=True)
 
     assert ok == [b'OK'] * 3
     for connection in expected_connections.values():
@@ -959,7 +959,7 @@ async def test_pool_execute_many(loop, test_pool_cluster, free_ports):
     }
 
     with PoolConnectionMock(test_pool_cluster, loop, expected_connections):
-        ok = await test_pool_cluster.execute('PING')
+        ok = await test_pool_cluster.execute('PING', many=True)
 
     assert ok == [b'OK'] * 3
 
