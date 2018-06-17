@@ -414,9 +414,10 @@ async def test_xpending_get_messages(redis):
     # It is now pending
     response = await redis.xpending('test_stream', 'test_group', '-', '+', 10)
     assert len(response) == 1
-    message_id, consumer_name, \
-    milliseconds_since_last_delivery, num_deliveries = \
-        response[0]
+    (
+        message_id, consumer_name,
+        milliseconds_since_last_delivery, num_deliveries
+    ) = response[0]
 
     assert message_id
     assert consumer_name == b'test_consumer'
