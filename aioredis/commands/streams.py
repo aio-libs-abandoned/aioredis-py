@@ -3,7 +3,7 @@ from collections import OrderedDict
 from aioredis.util import wait_convert, wait_make_dict, wait_ok
 
 
-def fields_to_dict(fields):
+def fields_to_dict(fields, type_=OrderedDict):
     """Convert a flat list of key/values into an OrderedDict"""
     fields_iterator = iter(fields)
     return OrderedDict(zip(fields_iterator, fields_iterator))
@@ -73,11 +73,7 @@ def parse_messages_by_stream(messages_by_stream):
 
 def parse_lists_to_dicts(lists):
     """ Convert [[a, 1, b, 2], ...] into [{a:1, b: 2}, ...]"""
-    def _list_to_dict(list_):
-        it = iter(list_)
-        return dict(zip(it, it))
-
-    return [_list_to_dict(l) for l in lists]
+    return [fields_to_dict(l, type_=dict) for l in lists]
 
 
 class StreamCommandsMixin:
