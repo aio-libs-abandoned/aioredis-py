@@ -1,7 +1,5 @@
 from collections import OrderedDict
 
-from time import sleep
-
 import pytest
 import asyncio
 
@@ -47,9 +45,9 @@ async def test_xadd(redis, server_bin):
                                             "unstable branch")
 async def test_xadd_maxlen_exact(redis, server_bin):
     message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})  # noqa
-    sleep(0.001)  # Ensure the millisecond-based message ID increments
+    await asyncio.sleep(0.001)  # Ensure the millisecond-based message ID increments
     message_id2 = await redis.xadd('test_stream', {'f2': 'v2'})
-    sleep(0.001)
+    await asyncio.sleep(0.001)
     message_id3 = await redis.xadd('test_stream', {'f3': 'v3'},
                                    max_len=2, exact_len=True)
 
@@ -91,9 +89,9 @@ async def test_xadd_manual_message_ids(redis, server_bin):
                                             "unstable branch")
 async def test_xadd_maxlen_inexact(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'})
-    sleep(0.001)  # Ensure the millisecond-based message ID increments
+    await asyncio.sleep(0.001)  # Ensure the millisecond-based message ID increments
     await redis.xadd('test_stream', {'f2': 'v2'})
-    sleep(0.001)
+    await asyncio.sleep(0.001)
     await redis.xadd('test_stream', {'f3': 'v3'}, max_len=2, exact_len=False)
 
     # Read it back
