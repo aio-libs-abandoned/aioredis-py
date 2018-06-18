@@ -319,7 +319,6 @@ async def test_xgroup_create_already_exists(redis, server_bin):
         await redis.xgroup_create('test_stream', 'test_group')
 
 
-@pytest.mark.skip('SETID not yet implemented in redis')
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
@@ -329,14 +328,13 @@ async def test_xgroup_setid(redis, server_bin):
     await redis.xgroup_setid('test_stream', 'test_group', '$')
 
 
-@pytest.mark.skip('DELGROUP not yet implemented in redis')
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
-async def test_xgroup_delgroup(redis, server_bin):
+async def test_xgroup_destroy(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
-    await redis.xgroup_delgroup('test_stream', 'test_group')
+    await redis.xgroup_destroy('test_stream', 'test_group')
     info = await redis.xinfo_groups('test_stream')
     assert not info
 
@@ -504,7 +502,6 @@ async def test_xclaim_min_idle_time_excludes_messages(redis):
     assert not result
 
 
-@pytest.mark.skip('DELCONSUMER not yet implemented in redis')
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
@@ -523,10 +520,9 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
     response = await redis.xgroup_delconsumer(
         'test_stream', 'test_group', 'test_consumer'
     )
-    assert response is True
+    assert response == 0
     info = await redis.xinfo_consumers('test_stream', 'test_group')
-    assert info
-    assert isinstance(info[0], dict)
+    assert not info
 
 
 @pytest.mark.run_loop

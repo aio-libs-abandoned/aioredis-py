@@ -148,15 +148,15 @@ class StreamCommandsMixin:
         fut = self.execute(b'XGROUP', b'SETID', stream, group_name, latest_id)
         return wait_ok(fut)
 
-    def xgroup_delgroup(self, stream, group_name):
+    def xgroup_destroy(self, stream, group_name):
         """Delete a consumer group"""
-        fut = self.execute(b'XGROUP', b'DELGROUP', stream, group_name)
+        fut = self.execute(b'XGROUP', b'DESTROY', stream, group_name)
         return wait_ok(fut)
 
     def xgroup_delconsumer(self, stream, group_name, consumer_name):
         """Delete a specific consumer from a group"""
         fut = self.execute(b'XGROUP', b'DELCONSUMER', stream, group_name, consumer_name)
-        return wait_ok(fut)
+        return wait_convert(fut, int)
 
     def xpending(self, stream, group_name, start=None, stop=None, count=None,
                  consumer=None):
