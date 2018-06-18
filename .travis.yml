@@ -13,7 +13,7 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.2" INSTALL_DIR=$HOME/redis
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.2 unstable" INSTALL_DIR=$HOME/redis
 
 python:
 - "3.5"
