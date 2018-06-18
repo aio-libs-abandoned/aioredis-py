@@ -1,12 +1,6 @@
-import sys
 from collections import OrderedDict
 
 from aioredis.util import wait_convert, wait_make_dict, wait_ok
-
-PY_VER = sys.version_info
-
-if PY_VER < (3, 0):
-    from itertools import izip as zip
 
 
 def fields_to_dict(fields):
