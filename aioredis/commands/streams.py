@@ -120,7 +120,8 @@ class StreamCommandsMixin:
     def xread(self, streams, timeout=0, count=None, latest_ids=None):
         """Perform a blocking read on the given stream
 
-        :raises ValueError: if the length of streams and latest_ids do not match
+        :raises ValueError: if the length of streams and latest_ids do
+                            not match
         """
         args = self._xread(streams, timeout, count, latest_ids)
         fut = self.execute(b'XREAD', *args)
@@ -130,7 +131,8 @@ class StreamCommandsMixin:
                     count=None, latest_ids=None):
         """Perform a blocking read on the given stream as part of a consumer group
 
-        :raises ValueError: if the length of streams and latest_ids do not match
+        :raises ValueError: if the length of streams and latest_ids do
+                            not match
         """
         args = self._xread(streams, timeout, count, latest_ids)
         fut = self.execute(
@@ -155,7 +157,9 @@ class StreamCommandsMixin:
 
     def xgroup_delconsumer(self, stream, group_name, consumer_name):
         """Delete a specific consumer from a group"""
-        fut = self.execute(b'XGROUP', b'DELCONSUMER', stream, group_name, consumer_name)
+        fut = self.execute(
+            b'XGROUP', b'DELCONSUMER', stream, group_name, consumer_name
+        )
         return wait_convert(fut, int)
 
     def xpending(self, stream, group_name, start=None, stop=None, count=None,
@@ -166,7 +170,8 @@ class StreamCommandsMixin:
         of the start/stop/count parameters. For more details see:
         https://redis.io/commands/xpending
 
-        :raises ValueError: if the start/stop/count parameters are only partially specified
+        :raises ValueError: if the start/stop/count parameters are only
+                            partially specified
         """
         # Returns: total pel messages, min id, max id, count
         ssc = [start, stop, count]
