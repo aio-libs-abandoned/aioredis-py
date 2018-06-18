@@ -152,7 +152,8 @@ class StreamCommandsMixin:
                  consumer=None):
         # Returns: total pel messages, min id, max id, count
         ssc = [start, stop, count]
-        if any(ssc) and not all(ssc):
+        ssc_count = len([v for v in ssc if v is not None])
+        if ssc_count != 3 and ssc_count != 0:
             raise ValueError(
                 'Either specify non or all of the start/stop/count arguments'
             )

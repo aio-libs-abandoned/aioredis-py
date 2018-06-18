@@ -428,6 +428,15 @@ async def test_xpending_get_messages(redis):
 @pytest.mark.run_loop
 @pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
                                             "unstable branch")
+async def test_xpending_start_of_zero(redis):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+    response = await redis.xpending('test_stream', 'test_group', 0, '+', 10)
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
+                                            "unstable branch")
 async def test_xclaim_simple(redis):
     # Put a message in a pending state then reclaim it is XCLAIM
     message_id = await redis.xadd('test_stream', {'a': 1})
