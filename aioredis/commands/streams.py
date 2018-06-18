@@ -6,7 +6,7 @@ from aioredis.util import wait_convert, wait_make_dict, wait_ok
 def fields_to_dict(fields, type_=OrderedDict):
     """Convert a flat list of key/values into an OrderedDict"""
     fields_iterator = iter(fields)
-    return OrderedDict(zip(fields_iterator, fields_iterator))
+    return type_(zip(fields_iterator, fields_iterator))
 
 
 def parse_messages(messages):
