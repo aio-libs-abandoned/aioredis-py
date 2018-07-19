@@ -538,7 +538,7 @@ async def test_await(create_pool, server, loop):
         server.tcp_address,
         minsize=10, loop=loop)
 
-    with await pool as conn:
+    with (await pool) as conn:
         msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
 
