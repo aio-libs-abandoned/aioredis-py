@@ -1,7 +1,8 @@
-from collections import OrderedDict
-
 import pytest
 import asyncio
+
+from collections import OrderedDict
+from unittest import mock
 
 from aioredis import ReplyError
 
@@ -307,6 +308,7 @@ async def test_xgroup_create(redis, server_bin):
     info = await redis.xinfo_groups('test_stream')
     assert info == [{
         b'name': b'test_group',
+        b'last-delivered-id': mock.ANY,
         b'pending': 0,
         b'consumers': 0
     }]
