@@ -130,7 +130,7 @@ class ConnectionsPool(AbcPool):
 
         Close and remove all free connections.
         """
-        with (await self._cond):
+        async with self._cond:
             await self._do_clear()
 
     async def _do_clear(self):
@@ -143,7 +143,7 @@ class ConnectionsPool(AbcPool):
 
     async def _do_close(self):
         await self._close_state.wait()
-        with (await self._cond):
+        async with self._cond:
             assert not self._acquiring, self._acquiring
             waiters = []
             while self._pool:
@@ -269,7 +269,7 @@ class ConnectionsPool(AbcPool):
             raise PoolClosedError("Pool is closed")
         assert self._pubsub_conn is None or self._pubsub_conn.closed, (
             "Expected no or closed connection", self._pubsub_conn)
-        with (await self._cond):
+        async with self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
             if self._pubsub_conn is None or self._pubsub_conn.closed:
@@ -284,7 +284,7 @@ class ConnectionsPool(AbcPool):
         All previously acquired connections will be closed when released.
         """
         res = True
-        with (await self._cond):
+        async with self._cond:
             for i in range(self.freesize):
                 res = res and (await self._pool[i].select(db))
             else:
@@ -293,7 +293,7 @@ class ConnectionsPool(AbcPool):
 
     async def auth(self, password):
         self._password = password
-        with (await self._cond):
+        async with self._cond:
             for i in range(self.freesize):
                 await self._pool[i].auth(password)
 
@@ -322,7 +322,7 @@ class ConnectionsPool(AbcPool):
         """
         if self.closed:
             raise PoolClosedError("Pool is closed")
-        with await self._cond:
+        async with self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
             while True:
@@ -419,7 +419,7 @@ class ConnectionsPool(AbcPool):
                                  loop=self._loop)
 
     async def _wakeup(self, closing_conn=None):
-        with (await self._cond):
+        async with self._cond:
             self._cond.notify()
         if closing_conn is not None:
             await closing_conn.wait_closed()
