@@ -560,7 +560,8 @@ def pytest_runtest_setup(item):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    for item in items:
+    skip_by_version = []
+    for item in items[:]:
         if 'redis_version' in item.keywords:
             marker = item.keywords['redis_version']
             try:
@@ -569,12 +570,16 @@ def pytest_collection_modifyitems(session, config, items):
                 # TODO: throw noisy warning
                 continue
             if version < marker.kwargs['version']:
+                skip_by_version.append(item)
                 item.add_marker(pytest.mark.skip(
                     reason=marker.kwargs['reason']))
         if 'ssl_proxy' in item.fixturenames:
             item.add_marker(pytest.mark.skipif(
                 "not os.path.exists('/usr/bin/socat')",
                 reason="socat package required (apt-get install socat)"))
+    if len(items) != len(skip_by_version):
+        for i in skip_by_version:
+            items.remove(i)
 
 
 def pytest_configure(config):
