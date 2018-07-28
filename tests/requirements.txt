@@ -3,5 +3,5 @@ flake8==3.5.0
 coverage==4.5.1
 pytest==3.6.3
 pytest-cov==2.5.1
-pytest-xdist==1.22.2
+pytest-xdist==1.22.5
 async-timeout==3.0.0
