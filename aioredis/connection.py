@@ -196,7 +196,10 @@ class RedisConnection(AbcConnection):
                 last_error = exc
                 break
             else:
-                if (obj == b'' or obj is None) and self._reader.at_eof():
+                if (
+                    (obj == b'' or obj is None) and
+                    (self._reader is None or self._reader.at_eof())
+                ):
                     logger.debug("Connection has been closed by server,"
                                  " response: %r", obj)
                     last_error = ConnectionClosedError("Reader at end of file")
