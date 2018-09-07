@@ -11,8 +11,8 @@ if platform.python_implementation() == 'CPython':
 
 PY_VER = sys.version_info
 
-if PY_VER < (3, 5):
-    raise RuntimeError("aioredis doesn't support Python version prior 3.5")
+if PY_VER < (3, 5, 3):
+    raise RuntimeError("aioredis doesn't support Python version prior 3.5.3")
 
 
 def read(*parts):
@@ -61,6 +61,7 @@ setup(name='aioredis',
       url="https://github.com/aio-libs/aioredis",
       license="MIT",
       packages=find_packages(exclude=["tests"]),
+      python_requires=">=3.5.3",
       install_requires=install_requires,
       include_package_data=True,
       )
