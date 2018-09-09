@@ -35,6 +35,8 @@ async def test_client_list(redis, server, request):
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
+    if server.version >= (5, ):
+        expected['qbuf'] = '26'
     assert expected in res
 
 
@@ -68,6 +70,8 @@ async def test_client_list__unixsocket(create_redis, loop, server, request):
         }
     if server.version >= (2, 8, 12):
         expected['id'] = mock.ANY
+    if server.version >= (5, ):
+        expected['qbuf'] = '26'
     assert expected in info
 
 
