@@ -54,6 +54,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
                loop=loop)
     try:
         await pool._fill_free(override_min=False)
+        pool._drop_closed()
     except Exception as ex:
         pool.close()
         await pool.wait_closed()
@@ -327,6 +328,7 @@ class ConnectionsPool(AbcPool):
                 raise PoolClosedError("Pool is closed")
             while True:
                 await self._fill_free(override_min=True)
+                self._drop_closed()
                 if self.freesize:
                     conn = self._pool.popleft()
                     assert not conn.closed, conn
@@ -392,8 +394,6 @@ class ConnectionsPool(AbcPool):
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1
-                # connection may be closed at yield point
-                self._drop_closed()
         if self.freesize:
             return
         if override_min:
@@ -404,8 +404,6 @@ class ConnectionsPool(AbcPool):
                     self._pool.append(conn)
                 finally:
                     self._acquiring -= 1
-                    # connection may be closed at yield point
-                    self._drop_closed()
 
     def _create_new_connection(self, address):
         return create_connection(address,
