@@ -552,3 +552,32 @@ async def test_async_with(create_pool, server, loop):
     async with pool.get() as conn:
         msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
+
+
+@pytest.mark.run_loop
+async def test_pool__drop_closed(create_pool, server, loop):
+    pool = await create_pool(server.tcp_address,
+                             minsize=3,
+                             maxsize=3,
+                             loop=loop)
+    assert pool.size == 3
+    assert pool.freesize == 3
+    assert not pool._pool[0].closed
+    assert not pool._pool[1].closed
+    assert not pool._pool[2].closed
+
+    pool._pool[1].close()
+    pool._pool[2].close()
+    await pool._pool[1].wait_closed()
+    await pool._pool[2].wait_closed()
+
+    assert not pool._pool[0].closed
+    assert pool._pool[1].closed
+    assert pool._pool[2].closed
+
+    assert pool.size == 3
+    assert pool.freesize == 3
+
+    pool._drop_closed()
+    assert pool.freesize == 1
+    assert pool.size == 1
