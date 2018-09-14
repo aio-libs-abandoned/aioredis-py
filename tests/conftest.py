@@ -523,7 +523,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
         if not callable(obj):
             return
         item = pytest.Function(name, parent=collector)
-        if 'run_loop' in item.keywords:
+        if item.get_closest_marker('run_loop') is not None:
             # TODO: re-wrap with asyncio.coroutine if not native coroutine
             return list(collector._genfunctions(name, obj))
 
@@ -534,8 +534,8 @@ def pytest_pyfunc_call(pyfuncitem):
     Run asyncio marked test functions in an event loop instead of a normal
     function call.
     """
-    if 'run_loop' in pyfuncitem.keywords:
-        marker = pyfuncitem.keywords['run_loop']
+    marker = pyfuncitem.get_closest_marker('run_loop')
+    if marker is not None:
         funcargs = pyfuncitem.funcargs
         loop = funcargs['loop']
         testargs = {arg: funcargs[arg]
@@ -554,7 +554,8 @@ async def _wait_coro(corofunc, kwargs, timeout, loop):
 
 
 def pytest_runtest_setup(item):
-    if 'run_loop' in item.keywords and 'loop' not in item.fixturenames:
+    run_loop = item.get_closest_marker('run_loop')
+    if run_loop and 'loop' not in item.fixturenames:
         # inject an event loop fixture for all async tests
         item.fixturenames.append('loop')
 
@@ -562,8 +563,8 @@ def pytest_runtest_setup(item):
 def pytest_collection_modifyitems(session, config, items):
     skip_by_version = []
     for item in items[:]:
-        if 'redis_version' in item.keywords:
-            marker = item.keywords['redis_version']
+        marker = item.get_closest_marker('redis_version')
+        if marker is not None:
             try:
                 version = VERSIONS[item.callspec.getparam('server_bin')]
             except (KeyError, ValueError, AttributeError):
