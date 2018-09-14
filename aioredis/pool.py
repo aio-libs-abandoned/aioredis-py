@@ -376,7 +376,7 @@ class ConnectionsPool(AbcPool):
             if conn.closed:
                 self._pool.popleft()
             else:
-                self._pool.rotate(1)
+                self._pool.rotate(-1)
 
     async def _fill_free(self, *, override_min):
         # drop closed connections first
