@@ -13,7 +13,7 @@ from .util import (
     coerced_keys_dict,
     decode,
     parse_url,
-    )
+)
 from .parser import Reader
 from .stream import open_connection, open_unix_connection
 from .errors import (
@@ -25,7 +25,7 @@ from .errors import (
     WatchVariableError,
     ReadOnlyError,
     MaxClientsError
-    )
+)
 from .pubsub import Channel
 from .abc import AbcChannel
 from .abc import AbcConnection
@@ -41,7 +41,7 @@ _PUBSUB_COMMANDS = (
     'PSUBSCRIBE', b'PSUBSCRIBE',
     'UNSUBSCRIBE', b'UNSUBSCRIBE',
     'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
-    )
+)
 
 
 async def create_connection(address, *, db=None, password=None, ssl=None,
@@ -91,7 +91,7 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
 
     if connection_cls:
         assert issubclass(connection_cls, AbcConnection),\
-                "connection_class does not meet the AbcConnection contract"
+            "connection_class does not meet the AbcConnection contract"
         cls = connection_cls
     else:
         cls = RedisConnection
@@ -272,6 +272,32 @@ class RedisConnection(AbcConnection):
                 self._process_data(data or b'PONG')
         else:
             logger.warning("Unknown pubsub message received %r", obj)
+
+    def execute_pipeline(self, pipeline_cmds, encoding=_NOTSET):
+        cmds = []
+        cb = None
+        futures = []
+        if encoding is _NOTSET:
+            encoding = self._encoding
+
+        for _, cmd, args, kw in pipeline_cmds:
+            fut = self._loop.create_future()
+            futures.append(fut)
+            command = cmd.upper().strip()
+            encoded = encode_command(command, *args)
+            cmds.append(encoded)
+
+            if encoding is _NOTSET:
+                encoding = self._encoding
+            elif 'encoding' in kw:
+                encoding = kw['encoding']
+
+            self._waiters.append((fut, encoding, cb))
+
+        pipeline = b''.join(cmds)
+
+        self._writer.write(pipeline)
+        return futures
 
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
