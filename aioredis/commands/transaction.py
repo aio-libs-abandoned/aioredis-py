@@ -7,11 +7,11 @@ from ..errors import (
     PipelineError,
     MultiExecError,
     ConnectionClosedError,
-    )
+)
 from ..util import (
     wait_ok,
     _set_exception,
-    )
+)
 
 
 class TransactionsCommandsMixin:
@@ -197,15 +197,14 @@ class Pipeline:
         return results
 
     def _send_pipeline(self, conn):
-        for fut, cmd, args, kw in self._pipeline:
-            try:
-                result_fut = conn.execute(cmd, *args, **kw)
-                result_fut.add_done_callback(
-                    functools.partial(self._check_result, waiter=fut))
-            except Exception as exc:
-                fut.set_exception(exc)
-            else:
-                yield result_fut
+        result_futures = conn.execute_pipeline(self._pipeline)
+        for result_future, cmd_future in zip(
+                result_futures, map(lambda e: e[0], self._pipeline)):
+            result_future.add_done_callback(
+                functools.partial(self._check_result,
+                                  waiter=cmd_future)
+            )
+        return result_futures
 
     def _check_result(self, fut, waiter):
         if fut.cancelled():
@@ -252,6 +251,17 @@ class MultiExec(Pipeline):
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
     error_class = MultiExecError
+
+    def _send_pipeline(self, conn):
+        for fut, cmd, args, kw in self._pipeline:
+            try:
+                result_fut = conn.execute(cmd, *args, **kw)
+                result_fut.add_done_callback(
+                    functools.partial(self._check_result, waiter=fut))
+            except Exception as exc:
+                fut.set_exception(exc)
+            else:
+                yield result_fut
 
     async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
