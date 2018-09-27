@@ -197,15 +197,16 @@ class Pipeline:
         return results
 
     def _send_pipeline(self, conn):
-        for fut, cmd, args, kw in self._pipeline:
-            try:
-                result_fut = conn.execute(cmd, *args, **kw)
-                result_fut.add_done_callback(
-                    functools.partial(self._check_result, waiter=fut))
-            except Exception as exc:
-                fut.set_exception(exc)
-            else:
-                yield result_fut
+        with conn._buffered():
+            for fut, cmd, args, kw in self._pipeline:
+                try:
+                    result_fut = conn.execute(cmd, *args, **kw)
+                    result_fut.add_done_callback(
+                        functools.partial(self._check_result, waiter=fut))
+                except Exception as exc:
+                    fut.set_exception(exc)
+                else:
+                    yield result_fut
 
     def _check_result(self, fut, waiter):
         if fut.cancelled():
@@ -255,9 +256,10 @@ class MultiExec(Pipeline):
 
     async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
-        multi = conn.execute('MULTI')
-        coros = list(self._send_pipeline(conn))
-        exec_ = conn.execute('EXEC')
+        with conn._buffered():
+            multi = conn.execute('MULTI')
+            coros = list(self._send_pipeline(conn))
+            exec_ = conn.execute('EXEC')
         gather = asyncio.gather(multi, *coros, loop=self._loop,
                                 return_exceptions=True)
         last_error = None
