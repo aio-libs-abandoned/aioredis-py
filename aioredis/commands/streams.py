@@ -3,13 +3,17 @@ from collections import OrderedDict
 from aioredis.util import wait_convert, wait_make_dict, wait_ok
 
 
-def fields_to_dict(fields, type_=OrderedDict):
+def fields_to_dict(fields, type_=OrderedDict, encoding=None):
     """Convert a flat list of key/values into an OrderedDict"""
+    if encoding is not None:
+        fields = [field.decode(encoding) for field in fields]
+
     fields_iterator = iter(fields)
+
     return type_(zip(fields_iterator, fields_iterator))
 
 
-def parse_messages(messages):
+def parse_messages(messages, encoding=None):
     """ Parse messages as returned by Redis into something useful
 
     Messages returned by XRANGE arrive in the form:
@@ -33,10 +37,10 @@ def parse_messages(messages):
     """
     if messages is None:
         return []
-    return [(mid, fields_to_dict(values)) for mid, values in messages]
+    return [(mid, fields_to_dict(values, encoding=encoding)) for mid, values in messages]
 
 
-def parse_messages_by_stream(messages_by_stream):
+def parse_messages_by_stream(messages_by_stream, encoding=None):
     """ Parse messages returned by stream
 
     Messages returned by XREAD arrive in the form:
@@ -63,10 +67,16 @@ def parse_messages_by_stream(messages_by_stream):
     """
     if messages_by_stream is None:
         return []
-
+    print(messages_by_stream)
     parsed = []
     for stream, messages in messages_by_stream:
-        for message_id, fields in parse_messages(messages):
+        for message_id, fields in parse_messages(messages, encoding=encoding):
+
+            if encoding is not None:
+                print(stream)
+                stream = stream.decode(encoding)
+                message_id = message_id.decode(encoding)
+
             parsed.append((stream, message_id, fields))
     return parsed
 
@@ -117,7 +127,7 @@ class StreamCommandsMixin:
         fut = self.execute(b'XREVRANGE', stream, start, stop, *extra)
         return wait_convert(fut, parse_messages)
 
-    def xread(self, streams, timeout=0, count=None, latest_ids=None):
+    def xread(self, streams, timeout=0, count=None, latest_ids=None, encoding=None):
         """Perform a blocking read on the given stream
 
         :raises ValueError: if the length of streams and latest_ids do
@@ -125,10 +135,10 @@ class StreamCommandsMixin:
         """
         args = self._xread(streams, timeout, count, latest_ids)
         fut = self.execute(b'XREAD', *args)
-        return wait_convert(fut, parse_messages_by_stream)
+        return wait_convert(fut, parse_messages_by_stream, encoding=encoding)
 
     def xread_group(self, group_name, consumer_name, streams, timeout=0,
-                    count=None, latest_ids=None):
+                    count=None, latest_ids=None, encoding=None):
         """Perform a blocking read on the given stream as part of a consumer group
 
         :raises ValueError: if the length of streams and latest_ids do
@@ -138,7 +148,7 @@ class StreamCommandsMixin:
         fut = self.execute(
             b'XREADGROUP', b'GROUP', group_name, consumer_name, *args
         )
-        return wait_convert(fut, parse_messages_by_stream)
+        return wait_convert(fut, parse_messages_by_stream, encoding=encoding)
 
     def xgroup_create(self, stream, group_name, latest_id='$'):
         """Create a consumer group"""

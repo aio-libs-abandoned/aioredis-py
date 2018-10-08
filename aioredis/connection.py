@@ -31,7 +31,6 @@ from .abc import AbcChannel
 from .abc import AbcConnection
 from .log import logger
 
-
 __all__ = ['create_connection', 'RedisConnection']
 
 MAX_CHUNK_SIZE = 65536
