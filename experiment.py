@@ -4,9 +4,10 @@ import aioredis
 """
 docker run --rm -it -p 6379:6379 redis:5.0-rc5-alpine
 
-you can use the redis cli from the container to create new messages
+you can use docker exec inside the redis container
+use the redis-cli to create messages and groups.
 
-then from anothr terminal
+then from another terminal
 AIOREDIS_DEBUG=1 python experiment.py
 """
 
