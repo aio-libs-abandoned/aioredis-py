@@ -22,7 +22,7 @@ async def stream():
 
 async def with_group():
     redis = await aioredis.create_redis('redis://localhost')
-    streams = redis.streams.consumer_as_group(["mystream"], group_name="mygroup", consumer_name="Alice", encoding='utf-8')
+    streams = redis.streams.consumer_with_group(["mystream"], group_name="mygroup", consumer_name="Alice", encoding='utf-8')
 
     while True:
         msg = await streams.get()

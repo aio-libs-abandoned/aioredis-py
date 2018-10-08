@@ -39,7 +39,7 @@ class ReadStreams:
         return self
 
 
-    def consumer_as_group(self, streams, *, group_name, consumer_name, latest_ids=None, count=10, check_pending=True, encoding=None):
+    def consumer_with_group(self, streams, *, group_name, consumer_name, latest_ids=None, count=10, check_pending=True, encoding=None):
         if len(streams) > 1:
             raise ValueError("We support only 1 stream when using group reads")
 
