@@ -5,7 +5,7 @@ from .errors import ReplyError
 
 class ReadStreams:
     """
-    Redis Stream pretty interface
+    Redis Streams pretty interface
 
     """
     def __init__(self, redis):
