@@ -94,7 +94,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     @property
     def streams(self):
-        """Currently selected db index."""
+        """Get access to Redis Streams utils."""
         return ReadStreams(self)
 
     def auth(self, password):
