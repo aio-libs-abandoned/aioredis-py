@@ -1,6 +1,7 @@
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
 from aioredis.util import _NOTSET, wait_ok
+from aioredis.streams_utils import ReadStreams
 from aioredis.abc import AbcPool
 from .generic import GenericCommandsMixin
 from .string import StringCommandsMixin
@@ -92,6 +93,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
     def closed(self):
         """True if connection is closed."""
         return self._pool_or_conn.closed
+
+    @property
+    def streams(self):
+        """Currently selected db index."""
+        return ReadStreams(self)
 
     def auth(self, password):
         """Authenticate to server.

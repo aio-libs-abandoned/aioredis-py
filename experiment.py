@@ -1,18 +1,34 @@
 import asyncio
 import aioredis
 
+"""
+docker run --rm -it -p 6379:6379 redis:5.0-rc5-alpine
 
-async def main():
+you can use the redis cli from the container to create new messages
+
+then from anothr terminal
+AIOREDIS_DEBUG=1 python experiment.py
+"""
+
+async def stream():
     redis = await aioredis.create_redis('redis://localhost')
-    streams = aioredis.ReadGroupStream(["mystream"], True, "group", "one", redis)
-    await streams.create_group()
+    streams = redis.streams.consumer(["mystream"], encoding='utf-8')
 
     while True:
         msg = await streams.get()
-        # ... process message ...
+        print(msg)
+
+        await asyncio.sleep(5)
+
+async def with_group():
+    redis = await aioredis.create_redis('redis://localhost')
+    streams = redis.streams.consumer_as_group(["mystream"], group_name="mygroup", consumer_name="Alice", encoding='utf-8')
+
+    while True:
+        msg = await streams.get()
         print(msg)
         await streams.ack_message(msg[1])
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
 
 async def another_task():
     while True:
@@ -23,6 +39,6 @@ async def another_task():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    #loop.create_task(another_task())
+    loop.create_task(with_group())
+    loop.create_task(another_task())
     loop.run_forever()
