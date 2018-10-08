@@ -5,17 +5,7 @@ from .errors import ReplyError
 
 class ReadStreams:
     """
-    sub = await aioredis.create_redis(
-     'redis://localhost')
-
-    async def async_reader2(channel):
-    while True:
-        msg = await channel.get(encoding='utf-8')
-        if msg is None:
-            break
-        # ... process message ...
-        print("message in {}: {}".format(channel.name, msg))
-
+    Redis Stream pretty interface
 
     """
     def __init__(self, redis):
