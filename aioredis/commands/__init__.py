@@ -18,7 +18,6 @@ from .cluster import ClusterCommandsMixin
 from .geo import GeoCommandsMixin, GeoPoint, GeoMember
 from .streams import StreamCommandsMixin
 
-
 __all__ = [
     'create_redis',
     'create_redis_pool',
@@ -36,8 +35,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             SortedSetCommandsMixin, ListCommandsMixin,
             ScriptingCommandsMixin, ServerCommandsMixin,
             PubSubCommandsMixin, ClusterCommandsMixin,
-            GeoCommandsMixin, StreamCommandsMixin,
-            ):
+            GeoCommandsMixin, StreamCommandsMixin):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
