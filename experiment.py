@@ -34,7 +34,7 @@ async def another_task():
     while True:
         print("Tired")
         await asyncio.sleep(2)
-        print("Sleeped")
+        print("Rested")
 
 
 if __name__ == '__main__':
