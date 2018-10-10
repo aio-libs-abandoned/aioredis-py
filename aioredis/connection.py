@@ -150,6 +150,12 @@ class RedisConnection(AbcConnection):
         self._writer = writer
         self._address = address
         self._loop = loop
+
+        if not hasattr(self._loop, 'create_future'):
+            def create_future():
+                return asyncio.Future(loop=self._loop)
+            self._loop.create_future = create_future
+
         self._waiters = deque()
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)
