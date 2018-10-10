@@ -41,6 +41,11 @@ class TransactionsCommandsMixin:
     def watch(self, key, *keys):
         """Watch the given keys to determine execution of the MULTI/EXEC block.
         """
+        # FIXME: we can send watch through one connection and then issue
+        #   'multi/exec' command through other.
+        # Possible fix:
+        #   "Remember" a connection that was used for 'watch' command
+        #   and then send 'multi / exec / discard' through it.
         fut = self._pool_or_conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
 
