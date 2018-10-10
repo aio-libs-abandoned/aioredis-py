@@ -399,6 +399,7 @@ class RedisConnection(AbcConnection):
         self._reader_task = None
         self._writer = None
         self._reader = None
+        self._pipeline_buffer = None
 
         if exc is not None:
             self._close_msg = str(exc)
