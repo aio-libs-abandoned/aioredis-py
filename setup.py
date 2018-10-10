@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 
 install_requires = ['async-timeout']
-if platform.python_implementation() == 'CPython':
+if platform.python_implementation() == 'CPython' and not os.environ.get("WITHOUT_HIREDIS"):
     install_requires.append('hiredis')
 
 PY_VER = sys.version_info
