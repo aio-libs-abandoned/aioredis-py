@@ -16,19 +16,21 @@ _converters = {
 }
 
 
-def encode_command(*args):
+def encode_command(*args, buf=None):
     """Encodes arguments into redis bulk-strings array.
 
     Raises TypeError if any of args not of bytearray, bytes, float, int, or str
     type.
     """
-    buf = bytearray(b'*%d\r\n' % len(args))
+    if buf is None:
+        buf = bytearray()
+    buf.extend(b'*%d\r\n' % len(args))
 
     try:
         for arg in args:
             barg = _converters[type(arg)](arg)
             buf.extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
-    except KeyError as exc:
+    except KeyError:
         raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
                         " float, int, or str type".format(arg))
     return buf
