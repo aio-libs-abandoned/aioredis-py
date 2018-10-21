@@ -60,6 +60,8 @@ class ReadStreams:
     ):
         if latest_ids is None:
             self._latest_ids = ["$"]
+        else:
+            self._latest_ids = latest_ids
 
         self._count = count
         self._encoding = encoding
@@ -103,6 +105,7 @@ class ReadStreams:
         stream = self._streams[0]
         group_name = self._group_name
         await self._redis.xack(stream=stream, group_name=group_name, id=id)
+        logger.debug("<message:%s, stream:%s group_name:%s> acknowleged" % (id, stream, group_name))
 
     def _stream_with_latest_ids(self):
         streams = []
