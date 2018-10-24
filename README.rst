@@ -3,8 +3,8 @@ aioredis
 
 asyncio (PEP 3156) Redis client library.
 
-.. image:: https://travis-ci.org/aio-libs/aioredis.svg?branch=master
-   :target: https://travis-ci.org/aio-libs/aioredis
+.. image:: https://travis-ci.com/aio-libs/aioredis.svg?branch=master
+   :target: https://travis-ci.com/aio-libs/aioredis
 
 
 .. image:: https://codecov.io/gh/aio-libs/aioredis/branch/master/graph/badge.svg
@@ -162,4 +162,4 @@ The aioredis is offered under MIT license.
 
 .. _Python: https://www.python.org
 .. _hiredis: https://pypi.python.org/pypi/hiredis
-.. _travis: https://travis-ci.org/aio-libs/aioredis
+.. _travis: https://travis-ci.com/aio-libs/aioredis
