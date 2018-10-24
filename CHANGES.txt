@@ -1,6 +1,42 @@
 Changes
 -------
 
+1.2.0 (2018-10-24)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Implemented new Stream command support
+  (see `#299 <https://github.com/aio-libs/aioredis/pull/299>`_);
+
+* Reduce ``encode_command()`` cost about 60%
+  (see `#397 <https://github.com/aio-libs/aioredis/pull/397>`_);
+
+
+**FIX**:
+
+* Fix pipeline commands buffering was causing multiple ``sendto`` syscalls
+  (see `#464 <https://github.com/aio-libs/aioredis/pull/464>`_
+  and  `#473 <https://github.com/aio-libs/aioredis/pull/473>`_);
+
+* Python 3.7 compatibility fixes
+  (see `#426 <https://github.com/aio-libs/aioredis/pull/426>`_);
+
+* Fix typos in documentation
+  (see `#400 <https://github.com/aio-libs/aioredis/pull/400>`_);
+
+* Fix ``INFO`` command result parsing
+  (see `#405 <https://github.com/aio-libs/aioredis/pull/405>`_);
+
+* Fix bug in ``ConnectionsPool._drop_closed`` method
+  (see `#461 <https://github.com/aio-libs/aioredis/pull/461>`_);
+
+**MISC**:
+
+* Update dependencies versions;
+
+* Multiple tests improvements;
+
 1.1.0 (2018-02-16)
 ^^^^^^^^^^^^^^^^^^
 

@@ -109,6 +109,7 @@ srandmember
 ssl
 str
 substring
+syscalls
 TBD
 TCP
 timestamp
