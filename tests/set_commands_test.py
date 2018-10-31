@@ -250,24 +250,38 @@ async def test_smove(redis):
 @pytest.mark.run_loop
 async def test_spop(redis):
     key = b'key:spop:1'
-    members = b'one', b'two', b'three'
-    await redis.sadd(key, *members)
+    members1 = b'one', b'two', b'three'
+    await redis.sadd(key, *members1)
 
-    for _ in members:
+    for _ in members1:
         test_result = await redis.spop(key)
-        assert test_result in members
+        assert test_result in members1
 
     # test with encoding
-    members = 'four', 'five', 'six'
-    await redis.sadd(key, *members)
+    members2 = 'four', 'five', 'six'
+    await redis.sadd(key, *members2)
 
-    for _ in members:
+    for _ in members2:
         test_result = await redis.spop(key, encoding='utf-8')
-        assert test_result in members
+        assert test_result in members2
 
     # make sure set is empty, after all values poped
     test_result = await redis.smembers(key)
     assert test_result == []
+
+    await redis.sadd(key, *members1)
+
+    # fetch 3 random members
+    test_result1 = await redis.spop(key, 3)
+    assert len(test_result1) == 3
+    assert set(test_result1).issubset(members1) is True
+
+    await redis.sadd(key, *members2)
+
+    # test with encoding, fetch 3 random members
+    test_result2 = await redis.spop(key, 3, encoding='utf-8')
+    assert len(test_result2) == 3
+    assert set(test_result2).issubset(members2) is True
 
     # try to pop data from empty set
     test_result = await redis.spop(b'not:' + key)
