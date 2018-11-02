@@ -1,5 +1,7 @@
 import pytest
 
+from aioredis import ReplyError
+
 
 async def add(redis, key, members):
     ok = await redis.connection.execute(b'sadd', key, members)
@@ -275,6 +277,42 @@ async def test_spop(redis):
 
     with pytest.raises(TypeError):
         await redis.spop(None)
+
+
+@pytest.redis_version(
+    3, 2, 0,
+    reason="The count argument in SPOP is available since redis>=3.2.0"
+)
+@pytest.mark.run_loop
+async def test_spop_count(redis):
+    key = b'key:spop:1'
+    members1 = b'one', b'two', b'three'
+    await redis.sadd(key, *members1)
+
+    # fetch 3 random members
+    test_result1 = await redis.spop(key, 3)
+    assert len(test_result1) == 3
+    assert set(test_result1).issubset(members1) is True
+
+    members2 = 'four', 'five', 'six'
+    await redis.sadd(key, *members2)
+
+    # test with encoding, fetch 3 random members
+    test_result2 = await redis.spop(key, 3, encoding='utf-8')
+    assert len(test_result2) == 3
+    assert set(test_result2).issubset(members2) is True
+
+    # try to pop data from empty set
+    test_result = await redis.spop(b'not:' + key, 2)
+    assert len(test_result) == 0
+
+    # test with negative counter
+    with pytest.raises(ReplyError):
+        await redis.spop(key, -2)
+
+    # test with counter is zero
+    test_result3 = await redis.spop(key, 0)
+    assert len(test_result3) == 0
 
 
 @pytest.mark.run_loop
