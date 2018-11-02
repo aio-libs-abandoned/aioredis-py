@@ -1,5 +1,7 @@
 import pytest
 
+from aioredis import ReplyError
+
 
 async def add(redis, key, members):
     ok = await redis.connection.execute(b'sadd', key, members)
@@ -250,25 +252,41 @@ async def test_smove(redis):
 @pytest.mark.run_loop
 async def test_spop(redis):
     key = b'key:spop:1'
-    members1 = b'one', b'two', b'three'
-    await redis.sadd(key, *members1)
+    members = b'one', b'two', b'three'
+    await redis.sadd(key, *members)
 
-    for _ in members1:
+    for _ in members:
         test_result = await redis.spop(key)
-        assert test_result in members1
+        assert test_result in members
 
     # test with encoding
-    members2 = 'four', 'five', 'six'
-    await redis.sadd(key, *members2)
+    members = 'four', 'five', 'six'
+    await redis.sadd(key, *members)
 
-    for _ in members2:
+    for _ in members:
         test_result = await redis.spop(key, encoding='utf-8')
-        assert test_result in members2
+        assert test_result in members
 
     # make sure set is empty, after all values poped
     test_result = await redis.smembers(key)
     assert test_result == []
 
+    # try to pop data from empty set
+    test_result = await redis.spop(b'not:' + key)
+    assert test_result is None
+
+    with pytest.raises(TypeError):
+        await redis.spop(None)
+
+
+@pytest.redis_version(
+    3, 2, 0,
+    reason="The count argument in SPOP is available since redis>=3.2.0"
+)
+@pytest.mark.run_loop
+async def test_spop_count(redis):
+    key = b'key:spop:1'
+    members1 = b'one', b'two', b'three'
     await redis.sadd(key, *members1)
 
     # fetch 3 random members
@@ -276,6 +294,7 @@ async def test_spop(redis):
     assert len(test_result1) == 3
     assert set(test_result1).issubset(members1) is True
 
+    members2 = 'four', 'five', 'six'
     await redis.sadd(key, *members2)
 
     # test with encoding, fetch 3 random members
@@ -284,11 +303,16 @@ async def test_spop(redis):
     assert set(test_result2).issubset(members2) is True
 
     # try to pop data from empty set
-    test_result = await redis.spop(b'not:' + key)
-    assert test_result is None
+    test_result = await redis.spop(b'not:' + key, 2)
+    assert len(test_result) == 0
 
-    with pytest.raises(TypeError):
-        await redis.spop(None)
+    # test with negative counter
+    with pytest.raises(ReplyError):
+        await redis.spop(key, -2)
+
+    # test with counter is zero
+    test_result3 = await redis.spop(key, 0)
+    assert len(test_result3) == 0
 
 
 @pytest.mark.run_loop

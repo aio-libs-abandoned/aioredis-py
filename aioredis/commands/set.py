@@ -46,7 +46,8 @@ class SetCommandsMixin:
     def spop(self, key, count=None, *, encoding=_NOTSET):
         """Remove and return one or multiple random members from a set."""
         args = [key]
-        count is not None and args.append(count)
+        if count is not None:
+            args.append(count)
         return self.execute(b'SPOP', *args, encoding=encoding)
 
     def srandmember(self, key, count=None, *, encoding=_NOTSET):
