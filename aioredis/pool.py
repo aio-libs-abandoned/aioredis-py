@@ -54,7 +54,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
                loop=loop)
     try:
         await pool._fill_free(override_min=False)
-    except Exception as ex:
+    except Exception:
         pool.close()
         await pool.wait_closed()
         raise
