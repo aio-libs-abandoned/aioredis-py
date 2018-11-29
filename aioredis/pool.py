@@ -161,7 +161,12 @@ class ConnectionsPool(AbcPool):
         """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
-            self._close_waiter = asyncio.ensure_future(self._do_close(),
+            async def close():
+                try:
+                    await self._do_close()
+                finally:
+                    self._close_waiter = None
+            self._close_waiter = asyncio.ensure_future(close(),
                                                        loop=self._loop)
             self._close_state.set()
 
@@ -172,6 +177,8 @@ class ConnectionsPool(AbcPool):
 
     async def wait_closed(self):
         """Wait until pool gets closed."""
+        if self._close_state.is_set():
+            return
         await self._close_state.wait()
         assert self._close_waiter is not None
         await asyncio.shield(self._close_waiter, loop=self._loop)
