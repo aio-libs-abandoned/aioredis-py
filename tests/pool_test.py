@@ -19,7 +19,7 @@ def _assert_defaults(pool):
     assert pool.maxsize == 10
     assert pool.size == 1
     assert pool.freesize == 1
-    assert pool._close_waiter is None
+    assert not pool._close_state.is_set()
 
 
 def test_connect(pool):
