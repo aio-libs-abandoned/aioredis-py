@@ -337,3 +337,28 @@ async def test_pubsub_channel_iter(create_redis, server, loop):
     await asyncio.sleep(0, loop=loop)
     ch.close()
     assert await tsk == [b'{"Hello": "World"}', b'["message"]']
+
+
+@pytest.mark.run_loop
+@pytest.redis_version(
+    2, 8, 12, reason="extended `client kill` format required")
+async def test_pubsub_disconnection_notification(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    async def coro(ch):
+        lst = []
+        async for msg in ch.iter():
+            assert ch.is_active
+            lst.append(msg)
+        return lst
+
+    ch, = await sub.subscribe('chan:1')
+    tsk = asyncio.ensure_future(coro(ch), loop=loop)
+    assert ch.is_active
+    await pub.publish_json('chan:1', {'Hello': 'World'})
+    assert ch.is_active
+    assert await pub.execute('client', 'kill', 'type', 'pubsub') >= 1
+    assert await pub.publish_json('chan:1', ['message']) == 0
+    assert await tsk == [b'{"Hello": "World"}']
+    assert not ch.is_active
