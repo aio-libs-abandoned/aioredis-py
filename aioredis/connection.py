@@ -161,8 +161,8 @@ class RedisConnection(AbcConnection):
         self._db = 0
         self._closing = False
         self._closed = False
-        self._close_waiter = loop.create_future()
-        self._reader_task.add_done_callback(self._close_waiter.set_result)
+        self._close_state = asyncio.Event()
+        self._reader_task.add_done_callback(lambda x: self._close_state.set())
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
         self._in_pubsub = 0
@@ -431,7 +431,7 @@ class RedisConnection(AbcConnection):
 
     async def wait_closed(self):
         """Coroutine waiting until connection is closed."""
-        await asyncio.shield(self._close_waiter, loop=self._loop)
+        await self._close_state.wait()
 
     @property
     def db(self):

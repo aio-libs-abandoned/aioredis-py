@@ -15,6 +15,7 @@ from ..errors import (
     MasterReplyError,
     SlaveReplyError,
 )
+from ..util import CloseEvent
 
 
 # Address marker for discovery
@@ -75,7 +76,7 @@ class SentinelPool:
         self._redis_encoding = encoding
         self._redis_minsize = minsize
         self._redis_maxsize = maxsize
-        self._close_state = asyncio.Event(loop=loop)
+        self._close_state = CloseEvent(self._do_close, loop=loop)
         self._close_waiter = None
         self._monitor = monitor = Receiver(loop=loop)
 
@@ -162,12 +163,9 @@ class SentinelPool:
     def close(self):
         """Close all controlled connections (both sentinel and redis)."""
         if not self._close_state.is_set():
-            self._close_waiter = asyncio.ensure_future(self._do_close(),
-                                                       loop=self._loop)
             self._close_state.set()
 
     async def _do_close(self):
-        await self._close_state.wait()
         # TODO: lock
         tasks = []
         task, self._monitor_task = self._monitor_task, None
@@ -190,8 +188,6 @@ class SentinelPool:
     async def wait_closed(self):
         """Wait until pool gets closed."""
         await self._close_state.wait()
-        assert self._close_waiter is not None
-        await asyncio.shield(self._close_waiter, loop=self._loop)
 
     async def discover(self, timeout=None):    # TODO: better name?
         """Discover sentinels and all monitored services within given timeout.
