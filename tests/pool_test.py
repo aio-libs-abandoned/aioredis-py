@@ -529,6 +529,9 @@ async def test_pool_idle_close(create_pool, start_server, loop):
 
     await asyncio.sleep(2, loop=loop)
 
+    # On CI this test fails from time to time.
+    # It is possible to pick 'unclosed' connection and send command,
+    # however on the same loop iteration it gets closed and exception is raised
     assert (await conn.execute('ping')) == b'PONG'
 
 

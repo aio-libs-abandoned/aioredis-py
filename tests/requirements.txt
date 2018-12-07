@@ -1,7 +1,7 @@
-hiredis==0.2.0
-flake8==3.5.0
-coverage==4.5.1
-pytest==3.8.0
+hiredis==0.3.0
+flake8==3.6.0
+coverage==4.5.2
+pytest==4.0.1
 pytest-cov==2.6.0
-pytest-xdist==1.23.0
-async-timeout==3.0.0
+pytest-xdist==1.24.1
+async-timeout==3.0.1
