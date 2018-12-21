@@ -67,9 +67,6 @@ script:
 - make examples
 
 cache: pip
-before_cache:
-  - rm -rf $HOME/.cache/pip/http  # drop tar.gz cache; keep only wheels
-  - rm -f $HOME/.cache/pip/log/debug.log
 
 after_script:
 - codecov
