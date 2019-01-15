@@ -117,7 +117,7 @@ class StreamCommandsMixin:
         fut = self.execute(b'XREVRANGE', stream, start, stop, *extra)
         return wait_convert(fut, parse_messages)
 
-    def xread(self, streams, timeout=0, count=None, latest_ids=None):
+    def xread(self, streams, timeout=None, count=None, latest_ids=None):
         """Perform a blocking read on the given stream
 
         :raises ValueError: if the length of streams and latest_ids do
@@ -127,7 +127,7 @@ class StreamCommandsMixin:
         fut = self.execute(b'XREAD', *args)
         return wait_convert(fut, parse_messages_by_stream)
 
-    def xread_group(self, group_name, consumer_name, streams, timeout=0,
+    def xread_group(self, group_name, consumer_name, streams, timeout=None,
                     count=None, latest_ids=None):
         """Perform a blocking read on the given stream as part of a consumer group
 
@@ -229,7 +229,7 @@ class StreamCommandsMixin:
         fut = self.execute(b'XINFO', b'HELP')
         return wait_convert(fut, lambda l: b'\n'.join(l))
 
-    def _xread(self, streams, timeout=0, count=None, latest_ids=None):
+    def _xread(self, streams, timeout=None, count=None, latest_ids=None):
         """Wraps up common functionality between ``xread()``
         and ``xread_group()``
 
