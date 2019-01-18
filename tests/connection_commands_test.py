@@ -12,14 +12,14 @@ async def test_repr(create_redis, loop, server):
         server.tcp_address, db=1, loop=loop)
     assert repr(redis) in {
         '<Redis <RedisConnection [db:1]>>',
-        '<Redis <ConnectionsPool [db:1, size:[1:10], free:1]>>',
+        '<Redis <ConnectionsPool [db:1, size:1/[1:10], free:1]>>',
         }
 
     redis = await create_redis(
         server.tcp_address, db=0, loop=loop)
     assert repr(redis) in {
         '<Redis <RedisConnection [db:0]>>',
-        '<Redis <ConnectionsPool [db:0, size:[1:10], free:1]>>',
+        '<Redis <ConnectionsPool [db:0, size:1/[1:10], free:1]>>',
         }
 
 

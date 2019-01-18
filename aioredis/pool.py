@@ -97,9 +97,9 @@ class ConnectionsPool(AbcPool):
         self._connection_cls = connection_cls
 
     def __repr__(self):
-        return '<{} [db:{}, size:[{}:{}], free:{}]>'.format(
+        return '<{} [db:{}, size:{}/[{}:{}], free:{}]>'.format(
             self.__class__.__name__, self.db,
-            self.minsize, self.maxsize, self.freesize)
+            self.size, self.minsize, self.maxsize, self.freesize)
 
     @property
     def minsize(self):
