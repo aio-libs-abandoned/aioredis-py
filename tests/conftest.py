@@ -609,6 +609,11 @@ def pytest_configure(config):
                 "Can not import uvloop, make sure it is installed")
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
+    # Stopgap for removed pytest_namespace hook.
+    pytest.assert_almost_equal = assert_almost_equal
+    pytest.logs = logs
+    pytest.redis_version = redis_version
+
 
 def logs(logger, level=None):
     """Catches logs for given logger and level.
@@ -696,11 +701,3 @@ def assert_almost_equal(first, second, places=None, msg=None, delta=None):
         assert abs(first - second) <= delta
     else:
         assert round(abs(first - second), places) == 0
-
-
-def pytest_namespace():
-    return {
-        'assert_almost_equal': assert_almost_equal,
-        'redis_version': redis_version,
-        'logs': logs,
-        }
