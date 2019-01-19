@@ -1,6 +1,6 @@
 PYTHON ?= python3
 FLAKE ?= flake8
-PYTEST ?= py.test
+PYTEST ?= pytest
 
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1
@@ -88,11 +88,11 @@ certificate:
 
 ci-test: $(REDIS_TARGETS)
 	@$(call echo, "Tests run")
-	py.test -rsxX --cov \
+	pytest --cov \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server
-	py.test -rsxX --cov --redis-server=$< $(TEST_ARGS)
+	pytest --cov --redis-server=$< $(TEST_ARGS)
 
 ci-build-redis: $(REDIS_TARGETS)
 
