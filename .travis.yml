@@ -35,6 +35,7 @@ matrix:
   allow_failures:
   - env: UVLOOP="y"
   - python: "pypy3.5-5.8.0"
+  - python: "nightly"
 
 install:
 - make -j ci-build-redis
