@@ -60,7 +60,7 @@ async def blocking_pop(pool, val, loop):
         with await pool as redis:
             # here v0.3 has bound connection, v1.0 does not;
             res = await redis.blpop(
-                'list-key', timeout=2, encoding='utf-8')
+                'list-key', timeout=5, encoding='utf-8')
             assert res == ['list-key', 'val'], res
     await asyncio.gather(blpop(), lpush(), loop=loop)
 
