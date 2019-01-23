@@ -6,15 +6,9 @@ import aioredis
 
 @pytest.fixture
 def pool_or_redis(_closable, server, loop):
-    version = tuple(map(int, aioredis.__version__.split('.')[:2]))
-    if version >= (1, 0):
-        factory = aioredis.create_redis_pool
-    else:
-        factory = aioredis.create_pool
-
     async def redis_factory(maxsize):
-        redis = await factory(server.tcp_address, loop=loop,
-                              minsize=1, maxsize=maxsize)
+        redis = await aioredis.create_redis_pool(
+            server.tcp_address, loop=loop, minsize=1, maxsize=maxsize)
         _closable(redis)
         return redis
     return redis_factory
