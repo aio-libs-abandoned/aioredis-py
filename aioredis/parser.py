@@ -63,9 +63,9 @@ class Parser:
         yield from self.waitsome(len(self.buf) + 1)
 
     def readone(self):
-        if not self.buf[self.pos:1]:
+        if not self.buf[self.pos:self.pos + 1]:
             yield from self.waitany()
-        val = self.buf[self.pos:1]
+        val = self.buf[self.pos:self.pos + 1]
         self.pos += 1
         return val
 

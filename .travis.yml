@@ -1,4 +1,6 @@
+sudo: false
 dist: xenial
+
 language: python
 
 addons:
@@ -18,37 +20,38 @@ python:
 - "3.6"
 - "3.7"
 - "nightly"
+- "pypy3.5-6.0"
 
-matrix:
+stages:
+- lint
+- test
+
+jobs:
   include:
-  - python: "3.6"
+  - stage: lint
+    python: "3.6"
     env: DOCS_SPELL_CHECK="y"
     install:
     - pip install -r docs/requirements.txt
     - pip install -e. -c tests/requirements.txt
+    script: make spelling
+  - &FLAKE
+    python: "3.6"
+    install:
+    - pip install -r tests/requirements.txt
     script:
-    - make spelling
-  - python: "pypy3.5-5.8.0"
-    env: PYPY_RELEASE="pypy3-v6.0.0-linux64"
-  - python: "3.6"
+    - make flake
+  - <<: *FLAKE
+    python: "3.7"
+  - &UVLOOP
+    stage: test
     env: UVLOOP="y"
-  allow_failures:
-  - env: UVLOOP="y"
-  - python: "pypy3.5-5.8.0"
-  - python: "nightly"
+    python: "3.6"
+  - <<: *UVLOOP
+    python: "3.7"
 
 install:
 - make -j ci-build-redis
-- |
-    if [ "$TRAVIS_PYTHON_VERSION" = "pypy3.5-5.8.0" ]; then
-      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
-      export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
-      source $HOME/virtualenvs/pypy3/bin/activate
-      python --version
-      pip --version
-    fi
 - |
     if [ "$UVLOOP" = "y" ]; then
       export TEST_ARGS="$TEST_ARGS --uvloop"
@@ -59,7 +62,7 @@ install:
 - pip install -e .
 
 script:
-- make flake
+# - make flake
 - make ci-test
 - make examples
 
