@@ -17,6 +17,7 @@ python:
 - "3.5"
 - "3.6"
 - "3.7"
+- "pypy3.5-6.0"
 - "nightly"
 
 matrix:
@@ -28,8 +29,6 @@ matrix:
     - pip install -e. -c tests/requirements.txt
     script:
     - make spelling
-  - python: "pypy3.5-5.8.0"
-    env: PYPY_RELEASE="pypy3-v6.0.0-linux64"
   - python: "3.6"
     env: UVLOOP="y"
   allow_failures:
@@ -39,16 +38,6 @@ matrix:
 
 install:
 - make -j ci-build-redis
-- |
-    if [ "$TRAVIS_PYTHON_VERSION" = "pypy3.5-5.8.0" ]; then
-      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
-      export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
-      source $HOME/virtualenvs/pypy3/bin/activate
-      python --version
-      pip --version
-    fi
 - |
     if [ "$UVLOOP" = "y" ]; then
       export TEST_ARGS="$TEST_ARGS --uvloop"
