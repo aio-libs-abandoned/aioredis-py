@@ -1,15 +1,10 @@
-sudo: false
 dist: xenial
-
 language: python
 
 addons:
   apt:
     packages:
     - socat
-    - enchant
-    - aspell
-    - aspell-en
 
 env:
   global:
@@ -29,13 +24,20 @@ stages:
 jobs:
   include:
   - stage: lint
+    name: documentation spell check
     python: "3.6"
-    env: DOCS_SPELL_CHECK="y"
+    addons:
+      apt:
+        packages:
+        - enchant
+        - aspell
+        - aspell-en
     install:
     - pip install -r docs/requirements.txt
     - pip install -e. -c tests/requirements.txt
     script: make spelling
   - &FLAKE
+    name: flake
     python: "3.6"
     install:
     - pip install -r tests/requirements.txt
