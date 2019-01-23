@@ -33,7 +33,6 @@ matrix:
     env: UVLOOP="y"
   allow_failures:
   - env: UVLOOP="y"
-  - python: "pypy3.5-5.8.0"
   - python: "nightly"
 
 install:
