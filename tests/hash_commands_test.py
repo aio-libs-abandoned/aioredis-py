@@ -1,6 +1,7 @@
 import pytest
 
 from aioredis import ReplyError
+from _testutils import redis_version
 
 
 async def add(redis, key, field, value):
@@ -359,7 +360,7 @@ async def test_hvals(redis):
         await redis.hvals(None)
 
 
-@pytest.redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_hscan(redis):
     key = b'key:hscan'
@@ -418,7 +419,7 @@ async def test_hgetall_enc(create_redis, loop, server):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
+@redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
 async def test_hstrlen(redis):
     ok = await redis.hset('myhash', 'str_field', 'some value')
     assert ok == 1
@@ -442,7 +443,7 @@ async def test_hstrlen(redis):
     assert l == 0
 
 
-@pytest.redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_ihscan(redis):
     key = b'key:hscan'

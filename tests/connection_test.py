@@ -14,6 +14,7 @@ from aioredis import (
     Channel,
     MaxClientsError,
     )
+from _testutils import redis_version
 
 
 @pytest.mark.run_loop
@@ -106,7 +107,7 @@ async def test_connect_unixsocket_timeout(create_connection, loop, server):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(2, 8, 0, reason="maxclients config setting")
+@redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_connect_maxclients(create_connection, loop, start_server):
     server = start_server('server-maxclients')
     conn = await create_connection(

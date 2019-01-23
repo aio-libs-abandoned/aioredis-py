@@ -11,6 +11,7 @@ from aioredis import (
     ConnectionsPool,
     MaxClientsError,
     )
+from _testutils import redis_version, logs
 
 
 def _assert_defaults(pool):
@@ -199,7 +200,7 @@ async def test_release_pending(create_pool, loop, server):
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with pytest.logs('aioredis', 'WARNING') as cm:
+    with logs('aioredis', 'WARNING') as cm:
         with (await pool) as conn:
             try:
                 await asyncio.wait_for(
@@ -458,7 +459,7 @@ async def test_pool_close__used(create_pool, server, loop):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(2, 8, 0, reason="maxclients config setting")
+@redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_pool_check_closed_when_exception(
         create_pool, create_redis, start_server, loop):
     server = start_server('server-small')
@@ -466,7 +467,7 @@ async def test_pool_check_closed_when_exception(
     await redis.config_set('maxclients', 2)
 
     errors = (MaxClientsError, ConnectionClosedError, ConnectionError)
-    with pytest.logs('aioredis', 'DEBUG') as cm:
+    with logs('aioredis', 'DEBUG') as cm:
         with pytest.raises(errors):
             await create_pool(address=tuple(server.tcp_address),
                               minsize=3, loop=loop)
