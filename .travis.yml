@@ -8,7 +8,7 @@ addons:
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1" INSTALL_DIR=$HOME/redis
+  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1" INSTALL_DIR=$HOME/redis TEST_ARGS="-n 4"
 
 python:
 - "3.5"
