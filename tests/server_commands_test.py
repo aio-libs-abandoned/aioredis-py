@@ -5,6 +5,7 @@ import sys
 from unittest import mock
 
 from aioredis import ReplyError
+from _testutils import redis_version, assert_almost_equal
 
 
 @pytest.mark.run_loop
@@ -76,7 +77,7 @@ async def test_client_list__unixsocket(create_redis, loop, server, request):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(
+@redis_version(
     2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 async def test_client_pause(redis):
     ts = time.time()
@@ -104,7 +105,7 @@ async def test_client_getname(redis):
     assert res == 'TestClient'
 
 
-@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@redis_version(2, 8, 13, reason="available since Redis 2.8.13")
 @pytest.mark.run_loop
 async def test_command(redis):
     res = await redis.command()
@@ -112,14 +113,14 @@ async def test_command(redis):
     assert len(res) > 0
 
 
-@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@redis_version(2, 8, 13, reason="available since Redis 2.8.13")
 @pytest.mark.run_loop
 async def test_command_count(redis):
     res = await redis.command_count()
     assert res > 0
 
 
-@pytest.redis_version(3, 0, 0, reason="available since Redis 3.0.0")
+@redis_version(3, 0, 0, reason="available since Redis 3.0.0")
 @pytest.mark.run_loop
 async def test_command_getkeys(redis):
     res = await redis.command_getkeys('get', 'key')
@@ -137,7 +138,7 @@ async def test_command_getkeys(redis):
         assert not (await redis.command_getkeys(None))
 
 
-@pytest.redis_version(2, 8, 13, reason="available since Redis 2.8.13")
+@redis_version(2, 8, 13, reason="available since Redis 2.8.13")
 @pytest.mark.run_loop
 async def test_command_info(redis):
     res = await redis.command_info('get')
@@ -249,7 +250,7 @@ async def test_lastsave(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
+@redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
 async def test_role(redis):
     res = await redis.role()
     assert dict(res._asdict()) == {
@@ -274,7 +275,7 @@ async def test_save(redis):
 async def test_time(redis):
     res = await redis.time()
     assert isinstance(res, float)
-    pytest.assert_almost_equal(int(res), int(time.time()), delta=10)
+    assert_almost_equal(int(res), int(time.time()), delta=10)
 
 
 @pytest.mark.run_loop
@@ -283,7 +284,7 @@ async def test_time_with_encoding(create_redis, server, loop):
                                encoding='utf-8')
     res = await redis.time()
     assert isinstance(res, float)
-    pytest.assert_almost_equal(int(res), int(time.time()), delta=10)
+    assert_almost_equal(int(res), int(time.time()), delta=10)
 
 
 @pytest.mark.run_loop

@@ -6,9 +6,10 @@ from aioredis import (
     SlaveNotFoundError,
     ReadOnlyError,
     )
+from _testutils import redis_version
 
 
-pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
+pytestmark = redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 

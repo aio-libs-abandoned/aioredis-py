@@ -1,6 +1,8 @@
 import itertools
 import pytest
 
+from _testutils import redis_version
+
 
 @pytest.mark.run_loop
 async def test_zadd(redis):
@@ -29,7 +31,7 @@ async def test_zadd(redis):
         await redis.zadd(key, 3, b'three', 'four', 4)
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 2, reason='ZADD options is available since redis>=3.0.2',
 )
 @pytest.mark.run_loop
@@ -196,7 +198,7 @@ async def test_zinterstore(redis):
     assert res == [(b'one', 10)]
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZLEXCOUNT is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zlexcount(redis):
@@ -253,7 +255,7 @@ async def test_zrange(redis, encoding):
         await redis.zrange(key, 0, 'last')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zrangebylex(redis):
@@ -391,7 +393,7 @@ async def test_zrem(redis):
         await redis.zrem(None, b'one')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZREMRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zremrangebylex(redis):
@@ -664,7 +666,7 @@ async def test_zrevrangebyscore(redis, encoding):
         await redis.zrevrangebyscore(key, 1, 7, offset=1, count='one')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZREVRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zrevrangebylex(redis):
@@ -712,7 +714,7 @@ async def test_zrevrangebylex(redis):
                                    offset=1, count='one')
 
 
-@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_zscan(redis):
     key = b'key:zscan'
@@ -746,7 +748,7 @@ async def test_zscan(redis):
         await redis.zscan(None)
 
 
-@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_izscan(redis):
     key = b'key:zscan'
