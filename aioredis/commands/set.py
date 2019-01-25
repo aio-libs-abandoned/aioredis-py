@@ -43,9 +43,12 @@ class SetCommandsMixin:
         """Move a member from one set to another."""
         return self.execute(b'SMOVE', sourcekey, destkey, member)
 
-    def spop(self, key, *, encoding=_NOTSET):
-        """Remove and return a random member from a set."""
-        return self.execute(b'SPOP', key, encoding=encoding)
+    def spop(self, key, count=None, *, encoding=_NOTSET):
+        """Remove and return one or multiple random members from a set."""
+        args = [key]
+        if count is not None:
+            args.append(count)
+        return self.execute(b'SPOP', *args, encoding=encoding)
 
     def srandmember(self, key, count=None, *, encoding=_NOTSET):
         """Get one or multiple random members from a set."""

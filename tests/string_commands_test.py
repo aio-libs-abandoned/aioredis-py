@@ -2,6 +2,7 @@ import asyncio
 import pytest
 
 from aioredis import ReplyError
+from _testutils import redis_version
 
 
 async def add(redis, key, value):
@@ -139,7 +140,7 @@ async def test_bitop_not(redis):
         await redis.bitop_not(destkey, None)
 
 
-@pytest.redis_version(2, 8, 0, reason='BITPOS is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='BITPOS is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_bitpos(redis):
     key, value = b'key:bitop', b'\xff\xf0\x00'

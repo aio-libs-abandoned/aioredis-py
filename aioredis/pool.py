@@ -4,7 +4,7 @@ import types
 
 from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
-from .util import parse_url
+from .util import parse_url, CloseEvent
 from .errors import PoolClosedError
 from .abc import AbcPool
 from .locks import Lock
@@ -54,8 +54,9 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
                loop=loop)
     try:
         await pool._fill_free(override_min=False)
-    except Exception as ex:
+    except Exception:
         pool.close()
+        await pool.wait_closed()
         await pool.wait_closed()
         raise
     return pool
@@ -91,8 +92,7 @@ class ConnectionsPool(AbcPool):
         self._used = set()
         self._acquiring = 0
         self._cond = asyncio.Condition(lock=Lock(loop=loop), loop=loop)
-        self._close_state = asyncio.Event(loop=loop)
-        self._close_waiter = None
+        self._close_state = CloseEvent(self._do_close, loop=loop)
         self._pubsub_conn = None
         self._connection_cls = connection_cls
 
@@ -142,7 +142,6 @@ class ConnectionsPool(AbcPool):
         await asyncio.gather(*waiters, loop=self._loop)
 
     async def _do_close(self):
-        await self._close_state.wait()
         async with self._cond:
             assert not self._acquiring, self._acquiring
             waiters = []
@@ -161,8 +160,6 @@ class ConnectionsPool(AbcPool):
         """Close all free and in-progress connections and mark pool as closed.
         """
         if not self._close_state.is_set():
-            self._close_waiter = asyncio.ensure_future(self._do_close(),
-                                                       loop=self._loop)
             self._close_state.set()
 
     @property
@@ -173,8 +170,6 @@ class ConnectionsPool(AbcPool):
     async def wait_closed(self):
         """Wait until pool gets closed."""
         await self._close_state.wait()
-        assert self._close_waiter is not None
-        await asyncio.shield(self._close_waiter, loop=self._loop)
 
     @property
     def db(self):

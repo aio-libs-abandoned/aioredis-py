@@ -269,3 +269,15 @@ async def test_multi_exec_and_pool_release(redis):
     ret, = await tr.execute()
     assert ret is None
     assert (await fut1) is None
+
+
+@pytest.mark.run_loop
+async def test_multi_exec_db_select(redis):
+    await redis.set('foo', 'bar')
+
+    tr = redis.multi_exec()
+    f1 = tr.get('foo', encoding='utf-8')
+    f2 = tr.get('foo')
+    await tr.execute()
+    assert await f1 == 'bar'
+    assert await f2 == b'bar'

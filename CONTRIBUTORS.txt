@@ -1,14 +1,18 @@
 Contributors
 ------------
 
+Adam Charnock
 Adam Rothman
 Aider Ibragimov
+Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
 Anton Verinov
 <cynecx>
+David Francos
 Dima Kruk
+<fuchaoqun>
 Hugo <hugovk>
 Ihor Gorobets
 Ihor Liubymov
@@ -16,16 +20,18 @@ James Hilliard
 Jan Špaček
 Jeff Moser
 Kyrylo Dehtyarenko
-SeungHyun Hwang
 Leonid Shvechikov
 Manuel Miranda
+Marek Szapiel
 Marijn Giesen
 Martin <the-panda>
+Michael Käufl
 Nickolai Novik
 Pau Freixes
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
+SeungHyun Hwang
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris

@@ -204,7 +204,7 @@ class StreamCommandsMixin:
     def xinfo(self, stream):
         """Retrieve information about the given stream.
 
-        An alias for xinfo_stream()
+        An alias for ``xinfo_stream()``
         """
         return self.xinfo_stream(stream)
 
@@ -225,14 +225,15 @@ class StreamCommandsMixin:
         return wait_make_dict(fut)
 
     def xinfo_help(self):
-        """Retrieve help regarding the XINFO sub-commands"""
+        """Retrieve help regarding the ``XINFO`` sub-commands"""
         fut = self.execute(b'XINFO', b'HELP')
         return wait_convert(fut, lambda l: b'\n'.join(l))
 
     def _xread(self, streams, timeout=0, count=None, latest_ids=None):
-        """Wraps up common functionality between xread() and xread_group()
+        """Wraps up common functionality between ``xread()``
+        and ``xread_group()``
 
-        You should probably be using xread() or xread_group() directly.
+        You should probably be using ``xread()`` or ``xread_group()`` directly.
         """
         if latest_ids is None:
             latest_ids = ['$'] * len(streams)
