@@ -7,8 +7,10 @@ addons:
     - socat
 
 env:
-  global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1" INSTALL_DIR=$HOME/redis TEST_ARGS="-n 4"
+- &ENV
+  REDIS_TAGS: "2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1"
+  INSTALL_DIR: $HOME/redis
+  PYTEST_ADDOPTS: '"-n auto"'
 
 python:
 - "3.5"
@@ -20,12 +22,20 @@ python:
 stages:
 - lint
 - test
+- examples
 
 jobs:
   include:
+  # Add two extra tests with uvloop
+  - &UVLOOP
+    env: UVLOOP="y"
+    python: "3.6"
+  - <<: *UVLOOP
+    python: "3.7"
+  # Lint and spell-check docs
   - stage: lint
     name: documentation spell check
-    python: "3.6"
+    python: "3.7"
     addons:
       apt:
         packages:
@@ -45,28 +55,30 @@ jobs:
     - make flake
   - <<: *FLAKE
     python: "3.7"
-  - &UVLOOP
-    stage: test
-    env: UVLOOP="y"
-    python: "3.6"
-  - <<: *UVLOOP
+  # Run examples Python 3.6, 3.7 and system Redis
+  - &EXAMPLES
+    stage: examples
+    python: 3.6
+    install:
+    - pip install -e. -c tests/requirements.txt
+    script:
+    - make examples
+  - <<: *EXAMPLES
     python: "3.7"
 
 install:
 - make -j ci-build-redis
 - |
     if [ "$UVLOOP" = "y" ]; then
-      export TEST_ARGS="$TEST_ARGS --uvloop"
+      export PYTEST_ADDOPTS="$PYTEST_ADDOPTS --uvloop"
       pip install uvloop
     fi;
 - pip install codecov
 - pip install -r tests/requirements.txt
-- pip install -e .
+- pip install -e. -c tests/requirements.txt
 
 script:
-# - make flake
 - make ci-test
-- make examples
 
 cache: pip
 
