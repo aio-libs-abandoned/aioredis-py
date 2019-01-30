@@ -119,6 +119,7 @@ tuple
 tuples
 TypeError
 TypeErrors
+Ubuntu
 unclosed
 unittest
 unix

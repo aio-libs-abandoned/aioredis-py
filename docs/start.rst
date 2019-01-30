@@ -13,7 +13,7 @@ Commands pipelining is built-in.
 Every command is sent to transport at-once
 (ofcourse if no ``TypeError``/``ValueError`` was raised)
 
-When you making a call with ``await`` / ``yield from`` you will be waiting result,
+When you making a call with ``await`` you will be waiting result,
 and then gather results.
 
 Simple example show both cases (:download:`get source code<../examples/pipeline.py>`):

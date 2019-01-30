@@ -22,6 +22,7 @@ all: aioredis.egg-info flake doc cov
 
 doc: spelling
 	make -C docs html
+	@echo "open file://`pwd`/docs/_build/html/index.html"
 man-doc: spelling
 	make -C docs man
 spelling:
