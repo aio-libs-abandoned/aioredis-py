@@ -1,6 +1,7 @@
+import asyncio
+
 from asyncio.locks import Lock as _Lock
 from asyncio import coroutine
-from asyncio import futures
 
 # Fixes an issue with all Python versions that leaves pending waiters
 # without being awakened when the first waiter is canceled.
@@ -28,7 +29,7 @@ class Lock(_Lock):
             yield from fut
             self._locked = True
             return True
-        except futures.CancelledError:
+        except asyncio.CancelledError:
             if not self._locked:  # pragma: no cover
                 self._wake_up_first()
             raise
