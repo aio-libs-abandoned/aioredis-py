@@ -50,6 +50,12 @@ class AuthError(ReplyError):
     MATCH_REPLY = ("NOAUTH ", "ERR invalid password")
 
 
+class BusyGroupError(ReplyError):
+    """Raised if Consumer Group name already exists."""
+
+    MATCH_REPLY = "BUSYGROUP Consumer Group name already exists"
+
+
 class PipelineError(RedisError):
     """Raised if command within pipeline raised error."""
 
