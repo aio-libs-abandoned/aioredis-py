@@ -47,7 +47,11 @@ class MaxClientsError(ReplyError):
 class AuthError(ReplyError):
     """Raised when authentication errors occurs."""
 
-    MATCH_REPLY = ("NOAUTH ", "ERR invalid password")
+    MATCH_REPLY = (
+        "NOAUTH ",
+        "ERR invalid password",
+        "ERR Client sent AUTH, but no password is set",
+    )
 
 
 class BusyGroupError(ReplyError):
