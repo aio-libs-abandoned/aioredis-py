@@ -37,6 +37,7 @@ jobs:
     python: "3.7"
   # Lint and spell-check docs
   - stage: lint
+    cache: false
     name: documentation spell check
     python: "3.7"
     addons:
@@ -51,6 +52,7 @@ jobs:
     script: make spelling
   - &FLAKE
     name: flake
+    cache: false
     python: "3.6"
     install:
     - pip install -r tests/requirements.txt
@@ -61,6 +63,7 @@ jobs:
   # Run examples Python 3.6, 3.7 and system Redis
   - &EXAMPLES
     stage: examples
+    cache: false
     python: 3.6
     install:
     - pip install -e. -c tests/requirements.txt
@@ -82,6 +85,10 @@ install:
 
 script:
 - make ci-test
+
+cache:
+  directories:
+  - $HOME/redis/
 
 after_script:
 - codecov
