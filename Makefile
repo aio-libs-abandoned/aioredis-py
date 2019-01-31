@@ -74,8 +74,8 @@ $(EXAMPLES):
 	$(PYTHON) $@
 
 .start-redis: $(lastword $(REDIS_TARGETS))
-	$(call $<-server,  ./examples/redis.conf)
-	$(call $<-server,  ./examples/redis-sentinel.conf --sentinel)
+	$<-server ./examples/redis.conf
+	$<-server ./examples/redis-sentinel.conf --sentinel
 	sleep 5s
 	echo "QUIT" | nc localhost 6379
 	echo "QUIT" | nc localhost 26379
