@@ -94,9 +94,12 @@ ci-test-%: $(INSTALL_DIR)/%/redis-server
 
 ci-build-redis: $(REDIS_TARGETS)
 
-$(INSTALL_DIR)/%/redis-server:
+$(INSTALL_DIR)/%/redis-server: /tmp/redis-%/src/redis-server
+	mkdir -p $(abspath $(INSTALL_DIR))/$*
+	cp -p /tmp/redis-$*/src/redis-server $(abspath $(INSTALL_DIR))/$*/
+	@echo "Done building redis-$*"
+
+/tmp/redis-%/src/redis-server:
 	@echo "Building redis-$*..."
 	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
-	$(MAKE) -j -C /tmp/redis-$* \
-		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
-	@echo "Done building redis-$*"
+	$(MAKE) -j -C $(dir $@) redis-server >/dev/null 2>/dev/null
