@@ -88,11 +88,11 @@ certificate:
 
 ci-test: $(REDIS_TARGETS)
 	@$(call echo, "Tests run")
-	pytest --cov -v \
+	pytest --cov \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server
-	pytest --cov -v --redis-server=$< $(TEST_ARGS)
+	pytest --cov --redis-server=$< $(TEST_ARGS)
 
 ci-build-redis: $(REDIS_TARGETS)
 
