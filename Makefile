@@ -92,18 +92,17 @@ ci-test: $(REDIS_TARGETS)
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T-server) $(TEST_ARGS)
 
 ci-test-%: $(INSTALL_DIR)/%/redis
-	pytest --cov --redis-server=$(abspath $(INSTALL_DIR))/$*/redis-server $(TEST_ARGS)
+	pytest --cov --redis-server=$(abspath $(INSTALL_DIR))/$*/redis-server $(TEST_ARGS) 
 
 ci-build-redis: $(REDIS_TARGETS)
-
 
 
 $(INSTALL_DIR)/%/redis:
 	@echo "Building redis-$*..."
 	@if [ -d "$(abspath $(INSTALL_DIR))/$*" ]; then \
 		echo 'Сache building: $(abspath $(INSTALL_DIR))/$*'; \
-		echo '$(abspath $(INSTALL_DIR))/$*/redis-cli FLUSHALL'; \
-		$(abspath $(INSTALL_DIR))/$*/redis-cli FLUSHALL; \
+		echo 'ls -la $(abspath $(INSTALL_DIR))/$*/'; \
+		ls -la $(abspath $(INSTALL_DIR))/$*/; \
 	else \
 		echo 'Instal building: $(abspath $(INSTALL_DIR))/$*'; \
 		echo 'wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp;'; \
