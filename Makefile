@@ -3,7 +3,7 @@ FLAKE ?= flake8
 PYTEST ?= pytest
 
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
-REDIS_TAGS ?= 2.6.17
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
@@ -62,7 +62,6 @@ devel: aioredis.egg-info
 aioredis.egg-info:
 	pip install -Ue .
 
-
 ifdef TRAVIS
 examples: .start-redis $(EXAMPLES)
 else
@@ -70,7 +69,7 @@ examples: $(EXAMPLES)
 endif
 
 $(EXAMPLES):
-	@export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
+	$(eval export REDIS_VERSION=$(shell redis-cli INFO SERVER | sed -n 2p))
 	$(PYTHON) $@
 
 .start-redis: $(lastword $(REDIS_TARGETS))
