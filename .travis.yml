@@ -66,7 +66,7 @@ script:
 cache:
   directories:
   - $HOME/.cache/pip
-  - $INSTALL_DIR
+  - $HOME/redis
 
 before_cache:
 - rm -f $HOME/.cache/pip/log/debug.log
