@@ -83,7 +83,5 @@ install:
 script:
 - make ci-test
 
-cache: pip
-
 after_script:
 - codecov
