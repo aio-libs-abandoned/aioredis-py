@@ -88,17 +88,26 @@ certificate:
 
 ci-test: $(REDIS_TARGETS)
 	@$(call echo, "Tests run")
-	pytest --cov \
+	pytest --cov -v \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server
-	pytest --cov --redis-server=$< $(TEST_ARGS)
+	pytest --cov -v --redis-server=$< $(TEST_ARGS)
 
 ci-build-redis: $(REDIS_TARGETS)
 
+
+
 $(INSTALL_DIR)/%/redis-server:
 	@echo "Building redis-$*..."
-	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
-	make -j -C /tmp/redis-$* \
-		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
+	@if [ -d "$(abspath $(INSTALL_DIR))/$*" ]; then \
+		echo 'Сache building: $(abspath $(INSTALL_DIR))/$*'; \
+	else \
+		echo 'Instal building: $(abspath $(INSTALL_DIR))/$*'; \
+		echo 'wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp;'; \
+		wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp; \
+		echo 'make -j -C /tmp/redis-$* INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null'; \
+		make -j -C /tmp/redis-$* INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null; \
+	fi
+
 	@echo "Done building redis-$*"

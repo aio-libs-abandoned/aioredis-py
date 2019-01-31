@@ -63,7 +63,13 @@ script:
 - make ci-test
 - make examples
 
-cache: pip
+cache:
+  directories:
+  - $HOME/.cache/pip
+  - $INSTALL_DIR
+
+before_cache:
+- rm -f $HOME/.cache/pip/log/debug.log
 
 after_script:
 - codecov
