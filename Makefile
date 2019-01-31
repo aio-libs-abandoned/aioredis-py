@@ -3,14 +3,14 @@ FLAKE ?= flake8
 PYTEST ?= pytest
 
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1
+REDIS_TAGS ?= 2.6.17
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
 
 TEST_ARGS ?= "-n 4"
 
-REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
+REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis)
 
 # Python implementation
 PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
@@ -91,17 +91,19 @@ ci-test: $(REDIS_TARGETS)
 	pytest --cov \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
 
-ci-test-%: $(INSTALL_DIR)/%/redis-server
+ci-test-%: $(INSTALL_DIR)/%/redis
 	pytest --cov --redis-server=$< $(TEST_ARGS)
 
 ci-build-redis: $(REDIS_TARGETS)
 
 
 
-$(INSTALL_DIR)/%/redis-server:
+$(INSTALL_DIR)/%/redis:
 	@echo "Building redis-$*..."
 	@if [ -d "$(abspath $(INSTALL_DIR))/$*" ]; then \
 		echo 'Сache building: $(abspath $(INSTALL_DIR))/$*'; \
+		echo '$(abspath $(INSTALL_DIR))/$*/redis-cli FLUSHALL'; \
+		$(abspath $(INSTALL_DIR))/$*/redis-cli FLUSHALL; \
 	else \
 		echo 'Instal building: $(abspath $(INSTALL_DIR))/$*'; \
 		echo 'wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp;'; \
