@@ -5,65 +5,90 @@ addons:
   apt:
     packages:
     - socat
-    - enchant
-    - aspell
-    - aspell-en
 
 env:
   global:
-  - REDIS_TAGS="2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1" INSTALL_DIR=$HOME/redis
+    REDIS_TAGS: >-
+      '2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1'
+    INSTALL_DIR: >-
+      $HOME/redis
+    PYTEST_ADDOPTS: >-
+      '-n auto'
 
 python:
 - "3.5"
 - "3.6"
 - "3.7"
 - "nightly"
+- "pypy3.5-6.0"
 
-matrix:
+stages:
+- lint
+- test
+- examples
+
+jobs:
   include:
-  - python: "3.6"
-    env: DOCS_SPELL_CHECK="y"
+  # Add two extra tests with uvloop
+  - &UVLOOP
+    env: UVLOOP="y"
+    python: "3.6"
+  - <<: *UVLOOP
+    python: "3.7"
+  # Lint and spell-check docs
+  - stage: lint
+    cache: false
+    name: documentation spell check
+    python: "3.7"
+    addons:
+      apt:
+        packages:
+        - enchant
+        - aspell
+        - aspell-en
     install:
     - pip install -r docs/requirements.txt
     - pip install -e. -c tests/requirements.txt
+    script: make spelling
+  - &FLAKE
+    name: flake
+    cache: false
+    python: "3.6"
+    install:
+    - pip install -r tests/requirements.txt
     script:
-    - make spelling
-  - python: "pypy3.5-5.8.0"
-    env: PYPY_RELEASE="pypy3-v6.0.0-linux64"
-  - python: "3.6"
-    env: UVLOOP="y"
-  allow_failures:
-  - env: UVLOOP="y"
-  - python: "pypy3.5-5.8.0"
-  - python: "nightly"
+    - make flake
+  - <<: *FLAKE
+    python: "3.7"
+  # Run examples Python 3.6, 3.7 and system Redis
+  - &EXAMPLES
+    stage: examples
+    cache: false
+    python: 3.6
+    install:
+    - pip install -e. -c tests/requirements.txt
+    script:
+    - make examples
+  - <<: *EXAMPLES
+    python: "3.7"
 
 install:
 - make -j ci-build-redis
 - |
-    if [ "$TRAVIS_PYTHON_VERSION" = "pypy3.5-5.8.0" ]; then
-      wget -nv -c "https://bitbucket.org/pypy/pypy/downloads/$PYPY_RELEASE.tar.bz2" -O - | tar -xjC $HOME
-      export PYPY_VERSION="$($HOME/$PYPY_RELEASE/bin/pypy3 -V | grep PyPy | cut -d ' ' -f2)"
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv --clear $HOME/virtualenvs/pypy3
-      $HOME/$PYPY_RELEASE/bin/pypy3 -m venv $HOME/virtualenvs/pypy3
-      source $HOME/virtualenvs/pypy3/bin/activate
-      python --version
-      pip --version
-    fi
-- |
     if [ "$UVLOOP" = "y" ]; then
-      export TEST_ARGS="$TEST_ARGS --uvloop"
+      export PYTEST_ADDOPTS="$PYTEST_ADDOPTS --uvloop"
       pip install uvloop
     fi;
 - pip install codecov
 - pip install -r tests/requirements.txt
-- pip install -e .
+- pip install -e. -c tests/requirements.txt
 
 script:
-- make flake
 - make ci-test
-- make examples
 
-cache: pip
+cache:
+  directories:
+  - $HOME/redis/
 
 after_script:
 - codecov
