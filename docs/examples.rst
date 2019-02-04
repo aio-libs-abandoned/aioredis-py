@@ -63,3 +63,18 @@ Sentinel client
 :download:`get source code<../examples/sentinel.py>`
 
 .. literalinclude:: ../examples/sentinel.py
+
+
+Integration with aiohttp
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+
+    Tested with aiohttp 3.5.4, aioredis 1.2.0
+
+Run script (``$ python aiohttp.py``) and open http://0.0.0.0:8080
+
+
+:download:`get source code<../examples/aiohttp.py>`
+
+.. literalinclude:: ../examples/aiohttp.py
