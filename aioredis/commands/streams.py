@@ -79,8 +79,7 @@ def parse_lists_to_dicts(lists):
 class StreamCommandsMixin:
     """Stream commands mixin
 
-    Streams are under development in Redis and
-    not currently released.
+    Streams are available in Redis since v5.0
     """
 
     def xadd(self, stream, fields, message_id=b'*', max_len=None,
@@ -140,9 +139,12 @@ class StreamCommandsMixin:
         )
         return wait_convert(fut, parse_messages_by_stream)
 
-    def xgroup_create(self, stream, group_name, latest_id='$'):
+    def xgroup_create(self, stream, group_name, latest_id='$', mkstream=False):
         """Create a consumer group"""
-        fut = self.execute(b'XGROUP', b'CREATE', stream, group_name, latest_id)
+        args = [b'CREATE', stream, group_name, latest_id]
+        if mkstream:
+            args.append(b'MKSTREAM')
+        fut = self.execute(b'XGROUP', *args)
         return wait_ok(fut)
 
     def xgroup_setid(self, stream, group_name, latest_id='$'):
