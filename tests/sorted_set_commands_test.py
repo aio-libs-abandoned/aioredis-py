@@ -802,6 +802,9 @@ async def test_zpopmax(redis):
     assert await redis.zpopmax(key) == [b'f', b'9']
     assert await redis.zpopmax(key, 3) == [b'e', b'8', b'c', b'5', b'g', b'3']
 
+    with pytest.raises(TypeError):
+        await redis.zpopmax(key, b'b')
+
 
 @redis_version(5, 0, 0, reason='ZPOPMIN is available since redis>=5.0.0')
 @pytest.mark.run_loop
@@ -815,3 +818,6 @@ async def test_zpopmin(redis):
 
     assert await redis.zpopmin(key) == [b'a', b'0']
     assert await redis.zpopmin(key, 3) == [b'd', b'2', b'g', b'3', b'c', b'5']
+
+    with pytest.raises(TypeError):
+        await redis.zpopmin(key, b'b')
