@@ -1,6 +1,7 @@
 import pytest
 
 from aioredis import ReplyError
+from _testutils import redis_version
 
 
 async def add(redis, key, members):
@@ -279,7 +280,7 @@ async def test_spop(redis):
         await redis.spop(None)
 
 
-@pytest.redis_version(
+@redis_version(
     3, 2, 0,
     reason="The count argument in SPOP is available since redis>=3.2.0"
 )
@@ -438,7 +439,7 @@ async def test_sunionstore(redis):
         await redis.sunionstore(destkey, key1, None)
 
 
-@pytest.redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_sscan(redis):
     key = b'key:sscan'
@@ -469,7 +470,7 @@ async def test_sscan(redis):
         await redis.sscan(None)
 
 
-@pytest.redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_isscan(redis):
     key = b'key:sscan'

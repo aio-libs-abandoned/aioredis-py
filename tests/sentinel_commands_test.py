@@ -6,8 +6,9 @@ from aioredis import RedisError, ReplyError, PoolClosedError
 from aioredis.errors import MasterReplyError
 from aioredis.sentinel.commands import RedisSentinel
 from aioredis.abc import AbcPool
+from _testutils import redis_version, logs
 
-pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
+pytestmark = redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 
@@ -304,7 +305,7 @@ async def test_sentinel_master_pool_size(sentinel, create_sentinel):
     assert isinstance(master.connection, AbcPool)
     assert master.connection.size == 0
 
-    with pytest.logs('aioredis.sentinel', 'DEBUG') as cm:
+    with logs('aioredis.sentinel', 'DEBUG') as cm:
         assert await master.ping()
     assert len(cm.output) == 1
     assert cm.output == [
