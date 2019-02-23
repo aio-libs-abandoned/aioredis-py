@@ -90,7 +90,7 @@ async def test_encoding(create_redis, loop, server):
 
 
 @pytest.mark.run_loop
-async def test_yield_from_backwards_compatability(create_redis, server, loop):
+async def test_yield_from_backwards_compatibility(create_redis, server, loop):
     redis = await create_redis(server.tcp_address, loop=loop)
 
     assert isinstance(redis, Redis)
