@@ -310,7 +310,7 @@ async def test_select_and_create(create_pool, loop, server):
     # trying to model situation when select and acquire
     # called simultaneously
     # but acquire freezes on _wait_select and
-    # then continues with propper db
+    # then continues with proper db
 
     # TODO: refactor this test as there's no _wait_select any more.
     with async_timeout.timeout(10, loop=loop):
