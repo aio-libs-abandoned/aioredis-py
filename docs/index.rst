@@ -22,19 +22,16 @@ Low-level & High-level APIs         Yes
 Connections Pool                    Yes
 Pipelining support                  Yes
 Pub/Sub support                     Yes
-Sentinel support                    Yes [1]_
+Sentinel support                    Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested CPython versions             `3.5, 3.6 <travis_>`_ [2]_
+Tested CPython versions             `3.5, 3.6, 3.7 <travis_>`_ [1]_
 Tested PyPy3 versions               `5.9.0 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
-.. [1] Sentinel support is available in master branch.
-   This feature is not yet stable and may have some issues.
-
-.. [2] For Python 3.3, 3.4 support use aioredis v0.3.
+.. [1] For Python 3.3, 3.4 support use aioredis v0.3.
 
 Installation
 ------------
@@ -58,6 +55,8 @@ Contribute
 ----------
 
 - Issue Tracker: https://github.com/aio-libs/aioredis/issues
+- Google Group: https://groups.google.com/forum/#!forum/aio-libs
+- Gitter: https://gitter.im/aio-libs/Lobby
 - Source Code: https://github.com/aio-libs/aioredis
 - Contributor's guide: :doc:`devel`
 
@@ -97,4 +96,4 @@ Indices and tables
 * :ref:`search`
 
 .. _MIT license: https://github.com/aio-libs/aioredis/blob/master/LICENSE
-.. _travis: https://travis-ci.org/aio-libs/aioredis
+.. _travis: https://travis-ci.com/aio-libs/aioredis
