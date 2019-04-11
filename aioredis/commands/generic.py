@@ -1,3 +1,4 @@
+from aioredis.locks import RedisLock
 from aioredis.util import wait_convert, wait_ok, _NOTSET, _ScanIter
 
 
@@ -305,3 +306,10 @@ class GenericCommandsMixin:
         commands sent in the context of the current connection.
         """
         return self.execute(b'WAIT', numslaves, timeout)
+
+    def lock(self, key, timeout=30, wait_timeout=30):
+        """Obtain a distributed lock on the key.
+
+        This lock is not the 'redlock' algorithm and is the simpler,
+        single-node locking mechanism."""
+        return RedisLock(self, key, timeout, wait_timeout)
