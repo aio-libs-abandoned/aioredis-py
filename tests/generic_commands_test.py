@@ -7,6 +7,7 @@ import sys
 from unittest import mock
 
 from aioredis import ReplyError
+from aioredis.locks import UnableToLockError
 from _testutils import redis_version, assert_almost_equal
 
 
@@ -797,3 +798,15 @@ async def test_wait(redis, loop):
     end = await redis.time()
     assert res == 0
     assert end - start < .4
+
+
+@pytest.mark.run_loop
+async def test_lock(redis):
+
+    with pytest.raises(UnableToLockError):
+        async with redis.lock("key", timeout=5):
+            async with redis.lock("key", wait_timeout=2):
+                pass
+            assert False
+
+    assert redis.get("key") is None
