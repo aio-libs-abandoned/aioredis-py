@@ -807,4 +807,4 @@ async def test_lock(redis):
                 pass
             assert False
 
-    assert redis.get("key") is None
+    assert (await redis.get("key")) is None
