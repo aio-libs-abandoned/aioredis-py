@@ -808,3 +808,11 @@ async def test_lock(redis):
             assert False
 
     assert (await redis.get("key")) is None
+
+    # ensure the lock is not deleted by the release if it's changed
+    async with redis.lock("key"):
+        await redis.set("key", "some_other_string")
+
+    assert (await redis.get("key")) == b"some_other_string"
+
+    await redis.delete("key")
