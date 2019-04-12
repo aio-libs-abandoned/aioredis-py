@@ -152,7 +152,7 @@ class RedisLock:
             if await self._script_exec(
                 self._acquire_script,
                 keys=[self._key],
-                args=[self._token, timeout * 1_000]
+                args=[self._token, timeout * 1000]
             ):
                 return True
 
@@ -171,7 +171,7 @@ class RedisLock:
         return await self._script_exec(
             self._extend_script,
             keys=[self._key],
-            args=[self._token, added_time * 1_000],
+            args=[self._token, added_time * 1000],
         )
 
     async def release(self):
