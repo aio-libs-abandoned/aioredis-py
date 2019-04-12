@@ -151,7 +151,7 @@ class RedisLock:
         while True:
             if await self._script_exec(
                 self._acquire_script,
-                keys=[self._key],
+                keys=[key],
                 args=[self._token, timeout * 1000]
             ):
                 return True
