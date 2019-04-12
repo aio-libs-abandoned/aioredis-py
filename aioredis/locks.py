@@ -116,11 +116,17 @@ class RedisLock:
         Register the required scripts with redis
         """
         if self._acquire_script is None:
-            self._acquire_script = await self._pool_or_conn.script_load(self.ACQUIRE_SCRIPT)
+            self._acquire_script = (
+                await self._pool_or_conn.script_load(self.ACQUIRE_SCRIPT)
+            )
         if self._release_script is None:
-            self._release_script = await self._pool_or_conn.script_load(self.RELEASE_SCRIPT)
+            self._release_script = (
+                await self._pool_or_conn.script_load(self.RELEASE_SCRIPT)
+            )
         if self._extend_script is None:
-            self._extend_script = await self._pool_or_conn.script_load(self.EXTEND_SCRIPT)
+            self._extend_script = (
+                await self._pool_or_conn.script_load(self.EXTEND_SCRIPT)
+            )
 
     async def __aenter__(self):
         await self.register_scripts()

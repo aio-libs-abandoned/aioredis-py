@@ -16,7 +16,7 @@ __all__ = [
     'MasterNotFoundError',
     'SlaveNotFoundError',
     'ReadOnlyError',
-    'LoLockTimeoutError',
+    'LockTimeoutError',
     ]
 
 
