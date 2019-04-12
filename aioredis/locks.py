@@ -1,6 +1,6 @@
 import asyncio
-import secrets
 import time
+import uuid
 
 from asyncio.locks import Lock as _Lock
 from asyncio import coroutine
@@ -105,7 +105,7 @@ class RedisLock:
         self._key = key
         self._timeout = timeout
         self._wait_timeout = wait_timeout
-        self._token = secrets.token_hex(6)
+        self._token = str(uuid.uuid4())
 
         self._acquire_script = None
         self._extend_script = None
