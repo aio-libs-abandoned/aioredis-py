@@ -16,6 +16,7 @@ __all__ = [
     'MasterNotFoundError',
     'SlaveNotFoundError',
     'ReadOnlyError',
+    'LoLockTimeoutError',
     ]
 
 
@@ -112,3 +113,7 @@ class ConnectionForcedCloseError(ConnectionClosedError):
 
 class PoolClosedError(RedisError):
     """Raised if pool is closed."""
+
+
+class LockTimeoutError(Exception):
+    """Raised if a lock is unable to be acquired within the timeout"""

@@ -25,6 +25,7 @@ from .errors import (
     SlaveNotFoundError,
     MasterReplyError,
     SlaveReplyError,
+    LockTimeoutError,
     )
 
 
@@ -63,4 +64,5 @@ __all__ = [
     'ReadOnlyError',
     'MasterReplyError',
     'SlaveReplyError',
+    'LockTimeoutError',
 ]

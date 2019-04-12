@@ -5,6 +5,8 @@ import time
 from asyncio.locks import Lock as _Lock
 from asyncio import coroutine
 
+from .errors import LockTimeoutError
+
 # Fixes an issue with all Python versions that leaves pending waiters
 # without being awakened when the first waiter is canceled.
 # Code adapted from the PR https://github.com/python/cpython/pull/1031
@@ -44,10 +46,6 @@ class Lock(_Lock):
             if not fut.done():
                 fut.set_result(True)
                 break
-
-
-class UnableToLockError(Exception):
-    pass
 
 
 class RedisLock:
@@ -130,7 +128,7 @@ class RedisLock:
         if await self.acquire(self._key, self._timeout, self._wait_timeout):
             return self
 
-        raise UnableToLockError("Unable to acquire lock within timeout")
+        raise LockTimeoutError("Unable to acquire lock within timeout")
 
     async def __aexit__(self, *args, **kwargs):
         await self.release()
