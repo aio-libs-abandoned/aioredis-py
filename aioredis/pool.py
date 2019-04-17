@@ -192,7 +192,8 @@ class ConnectionsPool(AbcPool):
         """
         conn, address = self.get_connection(command, args)
         if conn is not None:
-            fut = asyncio.ensure_future(self._execute_with_conn(conn, command, *args, **kw), loop=self._loop)
+            coro = self._execute_with_conn(conn, command, *args, **kw)
+            fut = asyncio.ensure_future(coro, loop=self._loop)
             return self._check_result(fut, command, args, kw)
         else:
             coro = self._wait_execute(address, command, args, kw)
