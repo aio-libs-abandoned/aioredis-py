@@ -341,8 +341,10 @@ async def test_select_free_connection(create_pool, loop, server):
         await pool.execute("rpush", "somequeue", 42, 100500)
         blpop = pool.execute("blpop", "someotherqueue", 0)
         await pool.execute("blpop", "somequeue", 0)
-        # At this point, one of connections should already be released and used immediately.
+        # At this point, one of connections should already
+        # be released and used immediately.
         await pool.execute("blpop", "somequeue", 0)
+        blpop.cancel()
 
 
 @pytest.mark.run_loop
