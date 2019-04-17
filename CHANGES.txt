@@ -12,7 +12,6 @@ Changes
 * Reduce ``encode_command()`` cost about 60%
   (see `#397 <https://github.com/aio-libs/aioredis/pull/397>`_);
 
-
 **FIX**:
 
 * Fix pipeline commands buffering was causing multiple ``sendto`` syscalls
@@ -30,6 +29,9 @@ Changes
 
 * Fix bug in ``ConnectionsPool._drop_closed`` method
   (see `#461 <https://github.com/aio-libs/aioredis/pull/461>`_);
+
+* Fix hanging in specific scenario with long-blocking operations
+  (see `#575 <https://github.com/aio-libs/aioredis/pull/575>`_);
 
 **MISC**:
 
