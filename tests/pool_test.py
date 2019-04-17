@@ -332,6 +332,20 @@ async def test_select_and_create(create_pool, loop, server):
 
 
 @pytest.mark.run_loop
+async def test_select_free_connection(create_pool, loop, server):
+    with async_timeout.timeout(10, loop=loop):
+        pool = await create_pool(
+            server.tcp_address,
+            minsize=2, db=0,
+            loop=loop)
+        await pool.execute("rpush", "somequeue", 42, 100500)
+        blpop = pool.execute("blpop", "someotherqueue", 0)
+        await pool.execute("blpop", "somequeue", 0)
+        # At this point, one of connections should already be released and used immediately.
+        await pool.execute("blpop", "somequeue", 0)
+
+
+@pytest.mark.run_loop
 async def test_response_decoding(create_pool, loop, server):
     pool = await create_pool(
         server.tcp_address,
