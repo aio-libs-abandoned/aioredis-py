@@ -192,11 +192,17 @@ class ConnectionsPool(AbcPool):
         """
         conn, address = self.get_connection(command, args)
         if conn is not None:
-            fut = conn.execute(command, *args, **kw)
+            fut = asyncio.ensure_future(self._execute_with_conn(conn, command, *args, **kw), loop=self._loop)
             return self._check_result(fut, command, args, kw)
         else:
             coro = self._wait_execute(address, command, args, kw)
             return self._check_result(coro, command, args, kw)
+
+    async def _execute_with_conn(self, conn, command, *args, **kw):
+        try:
+            return await conn.execute(command, *args, **kw)
+        finally:
+            self.release(conn)
 
     def execute_pubsub(self, command, *channels):
         """Executes Redis (p)subscribe/(p)unsubscribe commands.
@@ -229,18 +235,17 @@ class ConnectionsPool(AbcPool):
         if is_pubsub and self._pubsub_conn:
             if not self._pubsub_conn.closed:
                 return self._pubsub_conn, self._pubsub_conn.address
+            self._used.remove(self._pubsub_conn)
             self._pubsub_conn = None
-        for i in range(self.freesize):
-            conn = self._pool[0]
-            self._pool.rotate(1)
-            if conn.closed:  # or conn._waiters: (eg: busy connection)
+        while self._pool:
+            conn = self._pool.popleft()
+            if conn.closed:
                 continue
             if conn.in_pubsub:
                 continue
             if is_pubsub:
                 self._pubsub_conn = conn
-                self._pool.remove(conn)
-                self._used.add(conn)
+            self._used.add(conn)
             return conn, conn.address
         return None, self._address  # figure out
 
@@ -255,15 +260,13 @@ class ConnectionsPool(AbcPool):
         """Acquire connection and execute command."""
         conn = await self.acquire(command, args)
         try:
-            return (await conn.execute(command, *args, **kw))
+            return await conn.execute(command, *args, **kw)
         finally:
             self.release(conn)
 
     async def _wait_execute_pubsub(self, address, command, args, kw):
         if self.closed:
             raise PoolClosedError("Pool is closed")
-        assert self._pubsub_conn is None or self._pubsub_conn.closed, (
-            "Expected no or closed connection", self._pubsub_conn)
         async with self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
