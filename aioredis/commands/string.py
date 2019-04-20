@@ -1,3 +1,5 @@
+from itertools import chain
+
 from aioredis.util import wait_convert, wait_ok, _NOTSET
 
 
@@ -146,9 +148,7 @@ class StringCommandsMixin:
         if len(args) == 1:
             if not isinstance(args[0], dict):
                 raise TypeError("if one arg it should be a dict")
-            data = []
-            for key, value in args[0].items():
-                data.extend([key, value, ])
+            data = chain.from_iterable(args[0].items())
         elif len(args) % 2 != 0:
             raise TypeError("length of pairs must be even number")
         fut = self.execute(b'MSET', *data)
