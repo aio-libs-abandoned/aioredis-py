@@ -588,7 +588,8 @@ def pytest_configure(config):
     if not bins:
         path = os.popen(cmd).read().rstrip()
         assert path, (
-            "There is no redis-server on your computer. Please install it first")
+            "There is no redis-server on your computer."
+            " Please install it first")
         REDIS_SERVERS[:] = [path]
     else:
         REDIS_SERVERS[:] = bins
