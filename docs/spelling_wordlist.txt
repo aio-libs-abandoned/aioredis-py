@@ -3,6 +3,7 @@ aioredis
 api
 APIs
 AppVeyor
+args
 ASC
 async
 asyncio
@@ -119,6 +120,7 @@ tuple
 tuples
 TypeError
 TypeErrors
+Ubuntu
 unclosed
 unittest
 unix
