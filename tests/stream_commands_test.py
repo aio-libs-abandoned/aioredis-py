@@ -287,10 +287,20 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
 @pytest.mark.run_loop
 async def test_xgroup_create(redis, server_bin):
     # Also tests xinfo_groups()
-    # TODO: Remove xadd() if resolved:
-    #       https://github.com/antirez/redis/issues/4824
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
+    info = await redis.xinfo_groups('test_stream')
+    assert info == [{
+        b'name': b'test_group',
+        b'last-delivered-id': mock.ANY,
+        b'pending': 0,
+        b'consumers': 0
+    }]
+
+
+@pytest.mark.run_loop
+async def test_xgroup_create_mkstream(redis, server_bin):
+    await redis.xgroup_create('test_stream', 'test_group', mkstream=True)
     info = await redis.xinfo_groups('test_stream')
     assert info == [{
         b'name': b'test_group',

@@ -424,6 +424,38 @@ class SortedSetCommandsMixin:
                                                 match=match,
                                                 count=count))
 
+    def zpopmin(self, key, count=None, *, encoding=_NOTSET):
+        """Removes and returns up to count members with the lowest scores
+        in the sorted set stored at key.
+
+        :raises TypeError: if count is not int
+        """
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if count is not None:
+            args.extend([count])
+
+        fut = self.execute(b'ZPOPMIN', key, *args, encoding=encoding)
+        return fut
+
+    def zpopmax(self, key, count=None, *, encoding=_NOTSET):
+        """Removes and returns up to count members with the highest scores
+        in the sorted set stored at key.
+
+        :raises TypeError: if count is not int
+        """
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if count is not None:
+            args.extend([count])
+
+        fut = self.execute(b'ZPOPMAX', key, *args, encoding=encoding)
+        return fut
+
 
 def _encode_min_max(flag, min, max):
     if flag is SortedSetCommandsMixin.ZSET_EXCLUDE_MIN:

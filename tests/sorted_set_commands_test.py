@@ -1,4 +1,5 @@
 import itertools
+
 import pytest
 
 from _testutils import redis_version
@@ -786,3 +787,37 @@ async def test_izscan(redis):
 
     with pytest.raises(TypeError):
         await redis.izscan(None)
+
+
+@redis_version(5, 0, 0, reason='ZPOPMAX is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_zpopmax(redis):
+    key = b'key:zpopmax'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key, *itertools.chain.from_iterable(pairs))
+
+    assert await redis.zpopmax(key) == [b'f', b'9']
+    assert await redis.zpopmax(key, 3) == [b'e', b'8', b'c', b'5', b'g', b'3']
+
+    with pytest.raises(TypeError):
+        await redis.zpopmax(key, b'b')
+
+
+@redis_version(5, 0, 0, reason='ZPOPMIN is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_zpopmin(redis):
+    key = b'key:zpopmin'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key, *itertools.chain.from_iterable(pairs))
+
+    assert await redis.zpopmin(key) == [b'a', b'0']
+    assert await redis.zpopmin(key, 3) == [b'd', b'2', b'g', b'3', b'c', b'5']
+
+    with pytest.raises(TypeError):
+        await redis.zpopmin(key, b'b')
