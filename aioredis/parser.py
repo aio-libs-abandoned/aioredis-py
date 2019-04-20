@@ -49,13 +49,13 @@ class Parser:
     def __init__(self, protocolError: Callable,
                  replyError: Callable, encoding: Optional[str] ):
 
-        self.buf: bytearray = bytearray()
-        self.pos: int = 0
-        self.protocolError: Callable = protocolError
-        self.replyError: Callable = replyError
-        self.encoding: Optional[str] = encoding
+        self.buf = bytearray()  # type: bytearray
+        self.pos = 0  # type: int
+        self.protocolError = protocolError  # type: Callable
+        self.replyError = replyError  # type: Callable
+        self.encoding = encoding  # type: Optional[str]
         self._err = None
-        self._gen: Optional[Generator] = None
+        self._gen = None # type: Optional[Generator]
 
     def waitsome(self, size: int) -> Iterator[bool]:
         # keep yielding false until at least `size` bytes added to buf.
