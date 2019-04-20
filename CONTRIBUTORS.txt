@@ -27,6 +27,7 @@ Marijn Giesen
 Martin <the-panda>
 Michael Käufl
 Nickolai Novik
+Oleg Butuzov
 Pau Freixes
 Paul Colomiets
 Samuel Colvin

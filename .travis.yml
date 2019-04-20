@@ -58,6 +58,14 @@ jobs:
     - pip install -r tests/requirements.txt
     script:
     - make flake
+ - &MYPY
+    name: mypy
+    cache: false
+    python: "3.6"
+    install:
+    - pip install -r tests/requirements.txt
+    script:
+    - make mypy
   - <<: *FLAKE
     python: "3.7"
   # Run examples Python 3.6, 3.7 and system Redis

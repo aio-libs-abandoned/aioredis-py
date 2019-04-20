@@ -1,6 +1,7 @@
 PYTHON ?= python3
 FLAKE ?= flake8
 PYTEST ?= pytest
+MYPY ?= mypy
 
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
 REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1
@@ -33,6 +34,9 @@ else
 flake:
 	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."
 endif
+
+mypy:
+	$(MYPY) aioredis --ignore-missing-imports
 
 test:
 	$(PYTEST)

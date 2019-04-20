@@ -5,3 +5,4 @@ pytest==4.1.1
 pytest-cov==2.6.1
 pytest-xdist==1.26.0
 async-timeout==3.0.1
+mypy
