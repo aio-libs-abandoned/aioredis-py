@@ -435,6 +435,20 @@ async def test_mset(redis):
 
 
 @pytest.mark.run_loop
+async def test_mset_with_dict(redis):
+    array = [str(n) for n in range(10)]
+    _dict = dict.fromkeys(array, 'default value', )
+
+    await redis.mset(_dict)
+
+    test_values = await redis.mget(*_dict.keys())
+    assert test_values == [str.encode(val) for val in _dict.values()]
+
+    with pytest.raises(TypeError):
+        await redis.mset('param', )
+
+
+@pytest.mark.run_loop
 async def test_msetnx(redis):
     key1, value1 = b'key:msetnx:1', b'Hello'
     key2, value2 = b'key:msetnx:2', b'there'
