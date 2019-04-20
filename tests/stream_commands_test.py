@@ -4,7 +4,7 @@ import asyncio
 from collections import OrderedDict
 from unittest import mock
 
-from aioredis import ReplyError
+from aioredis.errors import BusyGroupError
 from _testutils import redis_version
 
 pytestmark = redis_version(
@@ -314,7 +314,7 @@ async def test_xgroup_create_mkstream(redis, server_bin):
 async def test_xgroup_create_already_exists(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
-    with pytest.raises(ReplyError):
+    with pytest.raises(BusyGroupError):
         await redis.xgroup_create('test_stream', 'test_group')
 
 
