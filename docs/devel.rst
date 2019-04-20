@@ -23,6 +23,28 @@ this command will install:
 * ``flake8`` for code linting;
 * and few other packages.
 
+Make sure you have provided a towncrier note. Just add short description running
+following commands::
+
+    $ echo "Short description" > aioredis/newsfragments/filename.type
+
+This will create new file in 'newsfragments' directory. Filename should consist of
+the ticket ID or other unique identifier. Five default types are:
+
+* .feature - signifying new feature
+* .bugfix - signifying a bug fix
+* .doc - documentation improvement
+* .removal - deprecation or removal of public API
+* .misc - a ticket has been closed, but not in interest of users
+
+You can check if everything is correct by typing::
+
+    $ towncrier --draft
+
+To produce the news file::
+
+    $ towncrier
+
 Code style
 ----------
 
@@ -47,7 +69,6 @@ You can run tests in any of the following ways::
    $ make cov
    # or
    $ pytest --cov
-
 
 SSL tests
 ~~~~~~~~~
