@@ -1,4 +1,4 @@
 [tool.towncrier]
     package = "aioredis"
     package_dir = ""
-    filename = "NEWS.rst"
+    filename = "CHANGES.txt"

@@ -1,1 +1,1 @@
-Implemented towncrier (now changelogs will be displayed in aioredis/NEWS.rst)
+Implemented towncrier: changelogs are now stored in CHANGES.txt
