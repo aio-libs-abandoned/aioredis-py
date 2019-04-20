@@ -9,6 +9,7 @@ Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
 Anton Verinov
+Artem Mazur
 <cynecx>
 David Francos
 Dima Kruk
