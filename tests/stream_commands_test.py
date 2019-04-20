@@ -549,3 +549,10 @@ async def test_xinfo_stream(redis):
 async def test_xinfo_help(redis):
     info = await redis.xinfo_help()
     assert info
+
+
+@pytest.mark.run_loop
+@pytest.mark.parametrize('param', [0.1, '1')
+async def test_xread_param_types(redis, param):
+    with pytest.raises(TypeError):
+        await redis.xread(["system_event_stream"], timeout=param, latest_ids=[0])
