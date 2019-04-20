@@ -23,13 +23,14 @@ this command will install:
 * ``flake8`` for code linting;
 * and few other packages.
 
-Make sure you have provided a towncrier note. Just add short description running
-following commands::
+Make sure you have provided a ``towncrier`` note.
+Just add short description running following commands::
 
     $ echo "Short description" > aioredis/newsfragments/filename.type
 
-This will create new file in 'newsfragments' directory. Filename should consist of
-the ticket ID or other unique identifier. Five default types are:
+This will create new file in ``newsfragments`` directory.
+Filename should consist of the ticket ID or other unique identifier.
+Five default types are:
 
 * .feature - signifying new feature
 * .bugfix - signifying a bug fix

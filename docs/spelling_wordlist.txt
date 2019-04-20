@@ -16,6 +16,7 @@ blpop
 bool
 brpop
 brpoplpush
+bugfix
 cardinality
 ClientInfo
 CPython

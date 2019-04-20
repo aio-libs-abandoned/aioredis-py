@@ -1,9 +1,10 @@
 from .errors import ProtocolError, ReplyError
-from typing import Optional, Generator, Callable, Iterator
+from typing import Optional, Generator, Callable, Iterator  # noqa
 
 __all__ = [
     'Reader', 'PyReader',
 ]
+
 
 class PyReader:
     """Pure-Python Redis protocol parser that follows hiredis.Reader
@@ -36,7 +37,7 @@ class PyReader:
         """
         return self._parser.parse_one()
 
-    def setmaxbuf(self, size: Optional[int] ) -> None:
+    def setmaxbuf(self, size: Optional[int]) -> None:
         """No-op."""
         pass
 
@@ -47,7 +48,7 @@ class PyReader:
 
 class Parser:
     def __init__(self, protocolError: Callable,
-                 replyError: Callable, encoding: Optional[str] ):
+                 replyError: Callable, encoding: Optional[str]):
 
         self.buf = bytearray()  # type: bytearray
         self.pos = 0  # type: int
@@ -55,7 +56,7 @@ class Parser:
         self.replyError = replyError  # type: Callable
         self.encoding = encoding  # type: Optional[str]
         self._err = None
-        self._gen = None # type: Optional[Generator]
+        self._gen = None  # type: Optional[Generator]
 
     def waitsome(self, size: int) -> Iterator[bool]:
         # keep yielding false until at least `size` bytes added to buf.
@@ -158,6 +159,7 @@ class Parser:
             raise
         else:
             return False
+
 
 try:
     import hiredis

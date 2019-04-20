@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence   # noqa
 
 __all__ = [
     'RedisError',
@@ -37,7 +37,6 @@ class ReplyError(RedisError):
             if msg and klass.MATCH_REPLY and msg.startswith(klass.MATCH_REPLY):
                 return klass(msg, *args)
         return super().__new__(cls, msg, *args)
-
 
 
 class MaxClientsError(ReplyError):
