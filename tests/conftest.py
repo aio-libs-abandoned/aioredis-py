@@ -584,7 +584,12 @@ def pytest_collection_modifyitems(session, config, items):
 
 def pytest_configure(config):
     bins = config.getoption('--redis-server')[:]
-    REDIS_SERVERS[:] = bins or ['/usr/bin/redis-server']
+    cmd = 'which redis-server'
+    path = os.popen(cmd).read().rstrip()
+    assert path, (
+        "There is no redis-server on your computer. Please install it first")
+
+    REDIS_SERVERS[:] = bins or [path]
     VERSIONS.update({srv: _read_server_version(srv)
                      for srv in REDIS_SERVERS})
     assert VERSIONS, ("Expected to detect redis versions", REDIS_SERVERS)
