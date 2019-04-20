@@ -248,9 +248,9 @@ class StreamCommandsMixin:
         count_args = [b'COUNT', count] if count else []
         if timeout is None:
             block_args = []
+        elif not isinstance(timeout, int):
+            raise TypeError(
+                "timeout argument must be int, not {!r}".format(timeout))
         else:
             block_args = [b'BLOCK', timeout]
-            if not isinstance(timeout, int):
-                raise TypeError(
-                    "timeout argument must be int, not {!r}".format(timeout))
         return block_args + count_args + [b'STREAMS'] + streams + latest_ids
