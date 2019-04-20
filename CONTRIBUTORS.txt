@@ -25,6 +25,7 @@ Manuel Miranda
 Marek Szapiel
 Marijn Giesen
 Martin <the-panda>
+Maxim Dodonchuk
 Michael Käufl
 Nickolai Novik
 Pau Freixes
