@@ -1,7 +1,28 @@
+Aioredis 1.2.0 (2019-04-20)
+===========================
+
+Features
+--------
+
+- Implemented towncrier: changelogs are now stored in CHANGES.txt (#576)
+
+
 Changes
 -------
 
 .. towncrier release notes start
+
+Aioredis 1.2.0 (2019-04-20)
+===========================
+
+Features
+--------
+
+- Implemented towncrier: changelogs are now stored in CHANGES.txt
+
+
+  .. towncrier release notes start (#576)
+
 
 1.2.0 (2018-10-24)
 ^^^^^^^^^^^^^^^^^^
