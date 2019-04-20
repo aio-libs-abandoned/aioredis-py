@@ -8,6 +8,7 @@ Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
+Anton Salii
 Anton Verinov
 <cynecx>
 David Francos
