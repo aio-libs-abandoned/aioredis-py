@@ -30,6 +30,7 @@ Martin <the-panda>
 Maxim Dodonchuk
 Michael Käufl
 Nickolai Novik
+Oleg Butuzov
 Pau Freixes
 Paul Colomiets
 Samuel Colvin

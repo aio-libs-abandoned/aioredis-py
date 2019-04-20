@@ -1,3 +1,5 @@
+from typing import Optional, Sequence
+
 __all__ = [
     'RedisError',
     'ProtocolError',
@@ -28,13 +30,14 @@ class ProtocolError(RedisError):
 class ReplyError(RedisError):
     """Raised for redis error replies (-ERR)."""
 
-    MATCH_REPLY = None
+    MATCH_REPLY: Optional[Sequence[str]] = None
 
     def __new__(cls, msg, *args):
         for klass in cls.__subclasses__():
             if msg and klass.MATCH_REPLY and msg.startswith(klass.MATCH_REPLY):
                 return klass(msg, *args)
         return super().__new__(cls, msg, *args)
+
 
 
 class MaxClientsError(ReplyError):
