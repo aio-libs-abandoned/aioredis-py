@@ -16,7 +16,7 @@ PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
 
 EXAMPLES = $(shell find examples -name "*.py")
 
-.PHONY: all flake doc man-doc spelling test cov dist devel clean
+.PHONY: all flake doc man-doc spelling test cov dist devel clean mypy
 all: aioredis.egg-info flake doc cov
 
 doc: spelling

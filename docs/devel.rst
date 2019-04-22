@@ -26,9 +26,9 @@ this command will install:
 Make sure you have provided a ``towncrier`` note.
 Just add short description running following commands::
 
-    $ echo "Short description" > aioredis/newsfragments/filename.type
+    $ echo "Short description" > CHANGES/filename.type
 
-This will create new file in ``newsfragments`` directory.
+This will create new file in ``CHANGES`` directory.
 Filename should consist of the ticket ID or other unique identifier.
 Five default types are:
 
