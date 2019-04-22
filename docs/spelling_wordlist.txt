@@ -36,11 +36,13 @@ EventLoop
 failover
 fallback
 favour
+Filename
 geo
 geohash
 geospatial
 getrange
 getset
+Gitter
 google
 hack'ish
 hgetall
