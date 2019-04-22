@@ -2,4 +2,4 @@ sphinx==2.0.1
 sphinxcontrib-asyncio==0.2.0
 sphinxcontrib-spelling==4.2.1
 pyenchant==2.0.0
-towncrier
+towncrier==19.2.0
