@@ -1,4 +1,7 @@
 [tool.towncrier]
-    package = "aioredis"
-    package_dir = ""
-    filename = "CHANGES.txt"
+package = "aioredis"
+directory = "CHANGES/"
+filename = "CHANGES.txt"
+title_format = "{version} ({project_date})"
+
+underlines = [ '^', '~', '"' ]
