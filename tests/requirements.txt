@@ -5,4 +5,4 @@ pytest==4.4.1
 pytest-cov==2.6.1
 pytest-xdist==1.28.0
 async-timeout==3.0.1
-mypy==0.701
+mypy==0.701; implementation_name == "cpython"
