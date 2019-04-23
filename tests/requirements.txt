@@ -1,8 +1,8 @@
 hiredis==1.0.0
-flake8==3.6.0
-coverage==4.5.2
-pytest==4.1.1
+flake8==3.7.7
+coverage==4.5.3
+pytest==4.4.1
 pytest-cov==2.6.1
-pytest-xdist==1.26.0
+pytest-xdist==1.28.0
 async-timeout==3.0.1
-mypy
+mypy==0.701; implementation_name == "cpython"
