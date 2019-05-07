@@ -130,6 +130,19 @@ def redis(create_redis, server, loop):
 
 
 @pytest.fixture
+def redis_url(request):
+    return request.config.getoption("--redis-url")
+
+@pytest.fixture
+def redis_(create_redis, loop, redis_url):
+    """Returns Redis client instance."""
+    redis = loop.run_until_complete(
+        create_redis(redis_url, loop=loop))
+    loop.run_until_complete(redis.flushall())
+    return redis
+
+
+@pytest.fixture
 def redis_sentinel(create_sentinel, sentinel, loop):
     """Returns Redis Sentinel client instance."""
     redis_sentinel = loop.run_until_complete(
@@ -210,6 +223,10 @@ def pytest_addoption(parser):
     parser.addoption('--redis-server', default=[],
                      action="append",
                      help="Path to redis-server executable,"
+                          " defaults to `%(default)s`")
+    parser.addoption('--redis-url', default='redis://localhost:6379/0',
+                     action="store",
+                     help="Redis connection string,"
                           " defaults to `%(default)s`")
     parser.addoption('--ssl-cafile', default='tests/ssl/cafile.crt',
                      help="Path to testing SSL CA file")

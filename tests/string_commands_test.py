@@ -232,6 +232,12 @@ async def test_get(redis):
     with pytest.raises(TypeError):
         await redis.get(None)
 
+@pytest.mark.run_loop
+async def test_get(redis_):
+    await add(redis_, 'my-key', 'value')
+    ret = await redis_.get('my-key')
+    assert ret == b'value'
+
 
 @pytest.mark.run_loop
 async def test_getbit(redis):
