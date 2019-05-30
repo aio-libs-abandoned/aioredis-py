@@ -29,4 +29,5 @@
     * `.doc`: Signifying a documentation improvement.
     * `.removal`: Signifying a deprecation or removal of public API.
     * `.misc`: A ticket has been closed, but it is not of interest to users.
-  * Make sure to use full sentences with correct case and punctuation, for example: `Fix issue with non-ascii contents in doctest text files.`
+  * Make sure to use full sentences with correct case and punctuation, for example:
+   `Fix issue with non-ascii contents in doctest text files.`
