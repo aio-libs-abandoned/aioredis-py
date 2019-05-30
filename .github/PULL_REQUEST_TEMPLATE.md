@@ -20,7 +20,7 @@
 - [ ] If you provide code modification, please add yourself to `CONTRIBUTORS.txt`
   * The format is `<Name> <Surname>`.
   * Please keep alphabetical order, the file is sorted by names. 
-- [ ] Add a new news fragment into the `CHANGES` folder
+- [ ] Add a new news fragment into the [`CHANGES/`](../tree/master/CHANGES) folder
   * name it `<issue_id>.<type>` (e.g. `588.bugfix`)
   * if you don't have an `issue_id` change it to the pr id after creating the PR
   * ensure type is one of the following:
