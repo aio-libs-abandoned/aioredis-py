@@ -567,8 +567,15 @@ def test_parse_messages_ok():
     assert parse_messages(message) == [(b'123', {b'f1': b'v1', b'f2': b'v2'})]
 
 
-def test_parse_messages_null():
+def test_parse_messages_null_fields():
     # Redis can sometimes respond with a fields value of 'null',
     # so ensure we handle that sensibly
     message = [(b'123', None)]
+    assert parse_messages(message) == []
+
+
+def test_parse_messages_null_message():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [None]
     assert parse_messages(message) == []
