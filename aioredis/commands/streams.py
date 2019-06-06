@@ -33,7 +33,7 @@ def parse_messages(messages):
     """
     if messages is None:
         return []
-    return [(mid, fields_to_dict(values)) for mid, values in messages]
+    return [(mid, fields_to_dict(values)) for mid, values in messages if values is not None]
 
 
 def parse_messages_by_stream(messages_by_stream):
