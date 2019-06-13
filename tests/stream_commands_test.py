@@ -519,7 +519,6 @@ async def test_xtrim_stream(redis, server_bin):
     await redis.xadd('test_stream', {'b': 1})
     await redis.xadd('test_stream', {'c': 1})
     response = await redis.xtrim('test_stream', max_len=2, exact_len=False)
-    
     assert response == 1
 
 
