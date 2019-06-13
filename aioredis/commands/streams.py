@@ -210,6 +210,7 @@ class StreamCommandsMixin:
     def xtrim(self, stream, max_len, exact_len=False):
         """trims the stream to a given number of items, evicting older items"""
         args = []
+        
         if exact_len:
             args.extend((b'MAXLEN', max_len))
         else:

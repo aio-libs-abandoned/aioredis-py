@@ -506,6 +506,24 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
 
 
 @pytest.mark.run_loop
+async def test_xdel_stream(redis, server_bin):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    response = await redis.xdel('test_stream', id=message_id)
+
+    assert response == 1
+
+
+@pytest.mark.run_loop
+async def test_xtrim_stream(redis, server_bin):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xadd('test_stream', {'b': 1})
+    await redis.xadd('test_stream', {'c': 1})
+    response = await redis.xtrim('test_stream', max_len=2, exact_len=False)
+    
+    assert response == 1
+
+
+@pytest.mark.run_loop
 async def test_xinfo_consumers(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
