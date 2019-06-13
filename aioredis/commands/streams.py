@@ -216,6 +216,10 @@ class StreamCommandsMixin:
             args.extend((b'MAXLEN', b'~', max_len))
         return self.execute(b'XTRIM', stream, *args)
 
+    def xlen(self, stream, id):
+        """Removes the specified entries(IDs) from a stream"""
+        return self.execute(b'XDEL', stream, id)
+
     def xinfo(self, stream):
         """Retrieve information about the given stream.
 
