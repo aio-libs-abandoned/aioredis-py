@@ -3,6 +3,6 @@ flake8==3.7.7
 coverage==4.5.3
 pytest==4.6.3
 pytest-cov==2.7.1
-pytest-xdist==1.28.0
+pytest-xdist==1.29.0
 async-timeout==3.0.1
 mypy==0.701; implementation_name == "cpython"
