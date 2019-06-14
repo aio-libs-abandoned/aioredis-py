@@ -520,6 +520,7 @@ async def test_xtrim_stream(redis):
     response = await redis.xtrim('test_stream', max_len=1, exact_len=False)
     assert response >= 0
 
+    
 @pytest.mark.run_loop
 async def test_xlen_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
