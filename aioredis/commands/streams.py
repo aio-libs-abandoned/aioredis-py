@@ -203,6 +203,23 @@ class StreamCommandsMixin:
         """Acknowledge a message for a given consumer group"""
         return self.execute(b'XACK', stream, group_name, id, *ids)
 
+    def xdel(self, stream, id):
+        """Removes the specified entries(IDs) from a stream"""
+        return self.execute(b'XDEL', stream, id)
+
+    def xtrim(self, stream, max_len, exact_len=False):
+        """trims the stream to a given number of items, evicting older items"""
+        args = []
+        if exact_len:
+            args.extend((b'MAXLEN', max_len))
+        else:
+            args.extend((b'MAXLEN', b'~', max_len))
+        return self.execute(b'XTRIM', stream, *args)
+
+    def xlen(self, stream):
+        """Returns the number of entries inside a stream"""
+        return self.execute(b'XLEN', stream)
+
     def xinfo(self, stream):
         """Retrieve information about the given stream.
 
