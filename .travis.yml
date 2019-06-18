@@ -65,7 +65,7 @@ jobs:
     cache: false
     python: "3.6"
     install:
-    - pip install -r tests/requirements.txt
+    - pip install -r tests/requirements.txt -r tests/requirements-mypy.txt
     script:
     - make mypy
   - <<: *MYPY
