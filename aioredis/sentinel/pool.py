@@ -5,7 +5,7 @@ from concurrent.futures import ALL_COMPLETED
 from async_timeout import timeout as async_timeout
 
 from ..log import sentinel_logger
-from ..pubsub import Receiver
+from ..pubsub import Channel
 from ..pool import create_pool, ConnectionsPool
 from ..errors import (
     MasterNotFoundError,
@@ -78,32 +78,9 @@ class SentinelPool:
         self._redis_maxsize = maxsize
         self._close_state = CloseEvent(self._do_close, loop=loop)
         self._close_waiter = None
-        self._monitor = monitor = Receiver(loop=loop)
-
-        async def echo_events():
-            try:
-                while await monitor.wait_message():
-                    ch, (ev, data) = await monitor.get(encoding='utf-8')
-                    ev = ev.decode('utf-8')
-                    _logger.debug("%s: %s", ev, data)
-                    if ev in ('+odown',):
-                        typ, name, *tail = data.split(' ')
-                        if typ == 'master':
-                            self._need_rediscover(name)
-                # TODO: parse messages;
-                #   watch +new-epoch which signals `failover in progres`
-                #   freeze reconnection
-                #   wait / discover new master (find proper way)
-                #   unfreeze reconnection
-                #
-                #   discover master in default way
-                #       get-master-addr...
-                #       connnect
-                #       role
-                #       etc...
-            except asyncio.CancelledError:
-                pass
-        self._monitor_task = asyncio.ensure_future(echo_events(), loop=loop)
+        self._monitor = EventsMonitor(self, loop=loop)
+        self._monitor_task = asyncio.ensure_future(
+            self._monitor.run(), loop=loop)
 
     @property
     def discover_timeout(self):
@@ -224,8 +201,7 @@ class SentinelPool:
 
         # TODO: discover peer sentinels
         for pool in self._pools:
-            await pool.execute_pubsub(
-                b'psubscribe', self._monitor.pattern('*'))
+            await self._monitor.watch_pool(pool)
 
     async def _connect_sentinel(self, address, timeout, pools):
         """Try to connect to specified Sentinel returning either
@@ -469,3 +445,54 @@ class UnknownService(DiscoverError):
 
 class RoleMismatch(DiscoverError):
     """Service reported to have other Role."""
+
+
+class EventsMonitor:
+    def __init__(self, sentinel, loop=None):
+        self._sentinel = sentinel
+        self._queue = asyncio.Queue(loop=loop)
+        self._loop = loop
+        self._tasks = []
+        self._handlers = {
+            b'+odown': self._handle_odown,
+            b'+switch-master': self._handle_switch_master,
+        }
+
+    async def watch_pool(self, pool):
+        assert self._handlers, "Expected to have some handlers"
+        channels = [Channel(name, False) for name in self._handlers]
+        await pool.execute_pubsub('subscribe', *channels)
+        for ch in channels:
+            task = asyncio.ensure_future(
+                self._read_stream(ch), loop=self._loop)
+            self._tasks.append(task)
+            task.add_done_callback(self._tasks.remove)
+
+    async def run(self):
+        try:
+            while True:
+                event_type, data = await self._queue.get()
+                _logger.debug("Event %s: %r", event_type, data)
+                handler = self._handlers[event_type]
+                handler(data)
+        except asyncio.CancelledError:
+            for task in self._tasks:
+                task.cancel()
+
+    async def _read_stream(self, channel):
+        try:
+            async for data in channel.iter(encoding='utf-8'):
+                await self._queue.put((channel.name, data))
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            _logger.exception("Error reading channel")
+
+    def _handle_odown(self, data):
+        typ, name, *tail = data.split(' ')
+        if typ == 'master':
+            self._sentinel._need_rediscover(name)
+
+    def _handle_switch_master(self, data):
+        name, *details = data
+        self._sentinel._need_rediscover(name)
