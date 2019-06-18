@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 import async_timeout
+import logging
 
 from unittest.mock import patch
 
@@ -522,13 +523,21 @@ async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
 
 
 @pytest.mark.run_loop
-async def test_pool_idle_close(create_pool, start_server, loop):
+async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     server = start_server('idle')
     conn = await create_pool(server.tcp_address, minsize=2, loop=loop)
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    await asyncio.sleep(2, loop=loop)
+    caplog.clear()
+    with caplog.at_level('DEBUG', 'aioredis'):
+        await asyncio.sleep(3, loop=loop)
+    assert caplog.record_tuples == [
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+    ]
 
     # On CI this test fails from time to time.
     # It is possible to pick 'unclosed' connection and send command,
