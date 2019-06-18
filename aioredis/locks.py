@@ -1,20 +1,19 @@
 import asyncio
 import sys
 
-__all__ = ['Lock']
+from asyncio.locks import Lock as _Lock
+from asyncio import coroutine
 
-if sys.version_info < (3, 7, 0):
-    from asyncio.locks import Lock as _Lock
-    from asyncio import coroutine
+# Fixes an issue with all Python versions that leaves pending waiters
+# without being awakened when the first waiter is canceled.
+# Code adapted from the PR https://github.com/python/cpython/pull/1031
+# Waiting once it is merged to make a proper condition to relay on
+# the stdlib implementation or this one patched
 
-    # Fixes an issue with all Python versions that leaves pending waiters
-    # without being awakened when the first waiter is canceled.
-    # Code adapted from the PR https://github.com/python/cpython/pull/1031
-    # Waiting once it is merged to make a proper condition to relay on
-    # the stdlib implementation or this one patched
 
-    class Lock(_Lock):
+class Lock(_Lock):
 
+    if sys.version_info < (3, 7, 0):
         @coroutine
         def acquire(self):
             """Acquire a lock.
@@ -45,5 +44,3 @@ if sys.version_info < (3, 7, 0):
                 if not fut.done():
                     fut.set_result(True)
                     break
-else:
-    from asyncio import Lock
