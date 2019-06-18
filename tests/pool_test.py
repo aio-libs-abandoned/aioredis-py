@@ -531,7 +531,9 @@ async def test_pool_idle_close(create_pool, start_server, loop, caplog):
 
     caplog.clear()
     with caplog.at_level('DEBUG', 'aioredis'):
-        await asyncio.sleep(3, loop=loop)
+        # wait for either disconnection logged or test timeout reached.
+        while len(caplog.record_tuples) < 2:
+            await asyncio.sleep(.5, loop=loop)
     assert caplog.record_tuples == [
         ('aioredis', logging.DEBUG,
          'Connection has been closed by server, response: None'),
