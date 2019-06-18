@@ -54,12 +54,10 @@ clean:
 devel: aioredis.egg-info
 	pip install -U pip
 	pip install -U \
-		sphinx \
-		sphinx_rtd_theme \
+		-r tests/requirements.txt \
+		-r docs/requirements.txt \
 		bumpversion \
 		wheel
-	pip install -Ur tests/requirements.txt
-	pip install -Ur docs/requirements.txt
 
 aioredis.egg-info:
 	pip install -Ue .

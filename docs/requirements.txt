@@ -1,5 +1,6 @@
 sphinx==2.1.1
 sphinxcontrib-asyncio==0.2.0
 sphinxcontrib-spelling==4.3.0
+sphinx-rtd-theme==0.4.3
 pyenchant==2.0.0
 towncrier==19.2.0
