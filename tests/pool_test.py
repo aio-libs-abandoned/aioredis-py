@@ -2,6 +2,7 @@ import asyncio
 import pytest
 import async_timeout
 import logging
+import sys
 
 from unittest.mock import patch
 
@@ -522,6 +523,7 @@ async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
     assert res == b'next'
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="flaky on windows")
 @pytest.mark.run_loop
 async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     server = start_server('idle')
