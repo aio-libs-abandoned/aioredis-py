@@ -46,7 +46,8 @@ class SortedSetCommandsMixin:
         args = keys + (timeout,)
         return self.execute(b'BZPOPMIN', key, *args, encoding=encoding)
 
-    def zadd(self, key, score, member, *pairs, exist=None):
+    def zadd(self, key, score, member, *pairs, exist=None, changed=False,
+             incr=False):
         """Add one or more members to a sorted set or update its score.
 
         :raises TypeError: score not int or float
@@ -66,6 +67,15 @@ class SortedSetCommandsMixin:
             args.append(b'XX')
         elif exist is self.ZSET_IF_NOT_EXIST:
             args.append(b'NX')
+
+        if changed:
+            args.append(b'CH')
+
+        if incr:
+            if pairs:
+                raise ValueError('only one score-element pair '
+                                 'can be specified in this mode')
+            args.append(b'INCR')
 
         args.extend([score, member])
         if pairs:
