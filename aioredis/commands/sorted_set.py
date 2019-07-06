@@ -18,6 +18,34 @@ class SortedSetCommandsMixin:
     ZSET_IF_NOT_EXIST = 'ZSET_IF_NOT_EXIST'  # NX
     ZSET_IF_EXIST = 'ZSET_IF_EXIST'  # XX
 
+    def bzpopmax(self, key, *keys, timeout=0, encoding=_NOTSET):
+        """Remove and get an element with the highest score in the sorted set,
+        or block until one is available.
+
+        :raises TypeError: if timeout is not int
+        :raises ValueError: if timeout is less than 0
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+        args = keys + (timeout,)
+        return self.execute(b'BZPOPMAX', key, *args, encoding=encoding)
+
+    def bzpopmin(self, key, *keys, timeout=0, encoding=_NOTSET):
+        """Remove and get an element with the lowest score in the sorted set,
+        or block until one is available.
+
+        :raises TypeError: if timeout is not int
+        :raises ValueError: if timeout is less than 0
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+        args = keys + (timeout,)
+        return self.execute(b'BZPOPMIN', key, *args, encoding=encoding)
+
     def zadd(self, key, score, member, *pairs, exist=None):
         """Add one or more members to a sorted set or update its score.
 
