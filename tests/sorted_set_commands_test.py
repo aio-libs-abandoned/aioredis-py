@@ -68,11 +68,6 @@ async def test_zadd(redis):
     res = await redis.zrange(key, 0, -1, withscores=False)
     assert res == [b'one', b'uno', b'two', b'three', b'four']
 
-    res = await redis.zadd(key, 1, b'two', changed=True)
-    assert res == 1
-    res = await redis.zadd(key, 1, b'two', incr=True)
-    assert int(res) == 2
-
     with pytest.raises(TypeError):
         await redis.zadd(None, 1, b'one')
     with pytest.raises(TypeError):
@@ -81,8 +76,6 @@ async def test_zadd(redis):
         await redis.zadd(key, 3, b'three', 4)
     with pytest.raises(TypeError):
         await redis.zadd(key, 3, b'three', 'four', 4)
-    with pytest.raises(ValueError):
-        await redis.zadd(key, 1, b'one', 2, b'two', incr=True)
 
 
 @redis_version(
@@ -121,6 +114,15 @@ async def test_zadd_options(redis):
 
     res = await redis.zrange(key, 0, -1, withscores=False)
     assert res == [b'one', b'two']
+
+    res = await redis.zadd(key, 1, b'two', changed=True)
+    assert res == 1
+
+    res = await redis.zadd(key, 1, b'two', incr=True)
+    assert int(res) == 2
+
+    with pytest.raises(ValueError):
+        await redis.zadd(key, 1, b'one', 2, b'two', incr=True)
 
 
 @pytest.mark.run_loop
