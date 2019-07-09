@@ -1,0 +1,1 @@
+Fix handling of instances were Redis returns null fields for a stream message

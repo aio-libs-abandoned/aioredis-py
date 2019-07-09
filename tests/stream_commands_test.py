@@ -4,6 +4,7 @@ import asyncio
 from collections import OrderedDict
 from unittest import mock
 
+from aioredis.commands.streams import parse_messages
 from aioredis.errors import BusyGroupError
 from _testutils import redis_version
 
@@ -582,3 +583,22 @@ async def test_xread_param_types(redis, param):
             ["system_event_stream"],
             timeout=param, latest_ids=[0]
         )
+
+
+def test_parse_messages_ok():
+    message = [(b'123', [b'f1', b'v1', b'f2', b'v2'])]
+    assert parse_messages(message) == [(b'123', {b'f1': b'v1', b'f2': b'v2'})]
+
+
+def test_parse_messages_null_fields():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [(b'123', None)]
+    assert parse_messages(message) == []
+
+
+def test_parse_messages_null_message():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [None]
+    assert parse_messages(message) == []
