@@ -4,7 +4,7 @@ PYTEST ?= pytest
 MYPY ?= mypy
 
 REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.2
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.5
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
