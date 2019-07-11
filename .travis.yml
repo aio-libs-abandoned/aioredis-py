@@ -82,6 +82,7 @@ jobs:
     python: "3.7"
 
 install:
+- make ci-prune-old-redis
 - make -j ci-build-redis
 - |
     if [ "$UVLOOP" = "y" ]; then
