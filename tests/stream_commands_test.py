@@ -340,9 +340,10 @@ async def test_xread_group(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
 
+    # read all pending messages
     messages = await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     assert len(messages) == 1
     stream, message_id, fields = messages[0]
@@ -365,7 +366,7 @@ async def test_xack_and_xpending(redis):
     # Read the message
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # It is now pending
@@ -393,7 +394,7 @@ async def test_xpending_get_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     await asyncio.sleep(0.05)
 
@@ -426,7 +427,7 @@ async def test_xclaim_simple(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending
@@ -456,7 +457,7 @@ async def test_xclaim_min_idle_time_includes_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending. Wait 100ms
@@ -474,7 +475,7 @@ async def test_xclaim_min_idle_time_excludes_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     # Message is now pending. Wait no time at all
 

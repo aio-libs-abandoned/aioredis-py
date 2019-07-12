@@ -8,8 +8,6 @@ addons:
 
 env:
   global:
-    REDIS_TAGS: >-
-      '2.6.17 2.8.22 3.0.7 3.2.8 4.0.11 5.0.1'
     INSTALL_DIR: >-
       $HOME/redis
     PYTEST_ADDOPTS: >-
@@ -20,7 +18,8 @@ python:
 - "3.6"
 - "3.7"
 - "nightly"
-- "pypy3.5-6.0"
+- "pypy3.5-7.0"
+- "pypy3.6-7.1.1"
 
 stages:
 - lint
@@ -83,6 +82,7 @@ jobs:
     python: "3.7"
 
 install:
+- make ci-prune-old-redis
 - make -j ci-build-redis
 - |
     if [ "$UVLOOP" = "y" ]; then
