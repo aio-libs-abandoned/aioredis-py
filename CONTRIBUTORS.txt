@@ -31,6 +31,7 @@ Maxim Dodonchuk
 Michael Käufl
 Nickolai Novik
 Oleg Butuzov
+Oleksandr Tykhonruk
 Pau Freixes
 Paul Colomiets
 Samuel Colvin
