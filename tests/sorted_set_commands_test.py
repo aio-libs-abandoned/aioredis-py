@@ -5,6 +5,52 @@ import pytest
 from _testutils import redis_version
 
 
+@redis_version(5, 0, 0, reason='BZPOPMAX is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_bzpopmax(redis):
+    key1 = b'key:zpopmax:1'
+    key2 = b'key:zpopmax:2'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key1, *pairs[0])
+    await redis.zadd(key2, *itertools.chain.from_iterable(pairs))
+
+    res = await redis.bzpopmax(key1, timeout=0)
+    assert res == [key1, b'a', b'0']
+    res = await redis.bzpopmax(key1, key2, timeout=0)
+    assert res == [key2, b'f', b'9']
+
+    with pytest.raises(TypeError):
+        await redis.bzpopmax(key1, timeout=b'one')
+    with pytest.raises(ValueError):
+        await redis.bzpopmax(key2, timeout=-10)
+
+
+@redis_version(5, 0, 0, reason='BZPOPMIN is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_bzpopmin(redis):
+    key1 = b'key:zpopmin:1'
+    key2 = b'key:zpopmin:2'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key1, *pairs[0])
+    await redis.zadd(key2, *itertools.chain.from_iterable(pairs))
+
+    res = await redis.bzpopmin(key1, timeout=0)
+    assert res == [key1, b'a', b'0']
+    res = await redis.bzpopmin(key1, key2, timeout=0)
+    assert res == [key2, b'a', b'0']
+
+    with pytest.raises(TypeError):
+        await redis.bzpopmin(key1, timeout=b'one')
+    with pytest.raises(ValueError):
+        await redis.bzpopmin(key2, timeout=-10)
+
+
 @pytest.mark.run_loop
 async def test_zadd(redis):
     key = b'key:zadd'
@@ -68,6 +114,15 @@ async def test_zadd_options(redis):
 
     res = await redis.zrange(key, 0, -1, withscores=False)
     assert res == [b'one', b'two']
+
+    res = await redis.zadd(key, 1, b'two', changed=True)
+    assert res == 1
+
+    res = await redis.zadd(key, 1, b'two', incr=True)
+    assert int(res) == 2
+
+    with pytest.raises(ValueError):
+        await redis.zadd(key, 1, b'one', 2, b'two', incr=True)
 
 
 @pytest.mark.run_loop
