@@ -353,6 +353,23 @@ async def test_xread_group(redis):
 
 
 @pytest.mark.run_loop
+async def test_xread_group_with_no_ack(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+
+    # read all pending messages
+    messages = await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=['>'], no_ack=True
+    )
+    assert len(messages) == 1
+    stream, message_id, fields = messages[0]
+    assert stream == b'test_stream'
+    assert message_id
+    assert fields == {b'a': b'1'}
+
+
+@pytest.mark.run_loop
 async def test_xack_and_xpending(redis):
     # Test a full xread -> xack cycle, using xpending to check the status
     message_id = await redis.xadd('test_stream', {'a': 1})

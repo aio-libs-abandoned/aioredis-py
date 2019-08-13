@@ -133,13 +133,15 @@ class StreamCommandsMixin:
         return wait_convert(fut, parse_messages_by_stream)
 
     def xread_group(self, group_name, consumer_name, streams, timeout=0,
-                    count=None, latest_ids=None):
+                    count=None, latest_ids=None, no_ack=False):
         """Perform a blocking read on the given stream as part of a consumer group
 
         :raises ValueError: if the length of streams and latest_ids do
                             not match
         """
-        args = self._xread(streams, timeout, count, latest_ids)
+        args = self._xread(
+            streams, timeout, count, latest_ids, no_ack
+        )
         fut = self.execute(
             b'XREADGROUP', b'GROUP', group_name, consumer_name, *args
         )
@@ -254,7 +256,8 @@ class StreamCommandsMixin:
         fut = self.execute(b'XINFO', b'HELP')
         return wait_convert(fut, lambda l: b'\n'.join(l))
 
-    def _xread(self, streams, timeout=0, count=None, latest_ids=None):
+    def _xread(self, streams, timeout=0, count=None, latest_ids=None,
+               no_ack=False):
         """Wraps up common functionality between ``xread()``
         and ``xread_group()``
 
@@ -276,4 +279,8 @@ class StreamCommandsMixin:
                 "timeout argument must be int, not {!r}".format(timeout))
         else:
             block_args = [b'BLOCK', timeout]
-        return block_args + count_args + [b'STREAMS'] + streams + latest_ids
+
+        noack_args = [b'NOACK'] if no_ack else []
+
+        return count_args + block_args + noack_args + [b'STREAMS'] + streams \
+            + latest_ids
