@@ -16,6 +16,7 @@ David Francos
 Dima Kruk
 <fuchaoqun>
 Hugo <hugovk>
+Ian Good
 Ihor Gorobets
 Ihor Liubymov
 James Hilliard

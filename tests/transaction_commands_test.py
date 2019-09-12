@@ -251,6 +251,20 @@ async def test_transaction__watch_error(redis, create_redis, server, loop):
 
 
 @pytest.mark.run_loop
+async def test_transaction__unwatch(redis):
+    ok = await redis.watch('foo')
+    assert ok is True
+
+    ok = await redis.set('foo', 'foo')
+    assert ok is True
+
+    tr = redis.multi_exec(unwatch=True)
+    fut1 = tr.get('foo')
+    await tr.execute()
+    assert (await fut1) == b'foo'
+
+
+@pytest.mark.run_loop
 async def test_multi_exec_and_pool_release(redis):
     # Test the case when pool connection is released before
     # `exec` result is received.

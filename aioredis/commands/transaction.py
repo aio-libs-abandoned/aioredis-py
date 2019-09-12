@@ -49,8 +49,11 @@ class TransactionsCommandsMixin:
         fut = self._pool_or_conn.execute(b'WATCH', key, *keys)
         return wait_ok(fut)
 
-    def multi_exec(self):
+    def multi_exec(self, *, unwatch=False):
         """Returns MULTI/EXEC pipeline wrapper.
+
+        An UNWATCH command is pipelined before the MULTI
+        command if the `unwatch` flag is True.
 
         Usage:
 
@@ -63,7 +66,7 @@ class TransactionsCommandsMixin:
         >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         """
-        return MultiExec(self._pool_or_conn, self.__class__,
+        return MultiExec(self._pool_or_conn, self.__class__, unwatch,
                          loop=self._pool_or_conn._loop)
 
     def pipeline(self):
@@ -259,9 +262,16 @@ class MultiExec(Pipeline):
     """
     error_class = MultiExecError
 
+    def __init__(self, pool_or_connection, commands_factory=lambda conn: conn,
+                 unwatch=False, *, loop=None):
+        super().__init__(pool_or_connection, commands_factory, loop=loop)
+        self._unwatch = unwatch
+
     async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
         with conn._buffered():
+            if self._unwatch:
+                conn.execute('UNWATCH')
             multi = conn.execute('MULTI')
             coros = list(self._send_pipeline(conn))
             exec_ = conn.execute('EXEC')
