@@ -21,6 +21,7 @@ all: aioredis.egg-info flake doc cov
 
 doc: spelling
 	$(MAKE) -C docs html
+	@echo "open file://`pwd`/docs/_build/html/index.html"
 man-doc: spelling
 	$(MAKE) -C docs man
 spelling:

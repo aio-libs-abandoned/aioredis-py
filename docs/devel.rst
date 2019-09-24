@@ -66,6 +66,9 @@ You can run tests in any of the following ways::
    # or
    $ pytest
 
+   # or with particular Redis server
+   $ pytest --redis-server=/usr/local/bin/redis-server tests/errors_test.py
+
    # will run tests with coverage report
    $ make cov
    # or
@@ -111,12 +114,6 @@ Writing tests
 :mod:`aioredis` uses :term:`pytest` tool.
 
 Tests are located under ``/tests`` directory.
-
-Pure Python 3.5 tests (ie the ones using ``async``/``await`` syntax) must be
-prefixed with ``py35_``, for instance see::
-
-   tests/py35_generic_commands_tests.py
-   tests/py35_pool_test.py
 
 
 Fixtures
@@ -212,9 +209,9 @@ There is a number of fixtures that can be used to write tests:
 Helpers
 ~~~~~~~
 
-:mod:`aioredis` also updates :term:`pytest`'s namespace with several helpers.
+:mod:`aioredis` have `_testutils` module with several helpers.
 
-.. function:: pytest.redis_version(\*version, reason)
+.. function:: _testutils.redis_version(\*version, reason)
 
    Marks test with minimum redis version to run.
 
@@ -222,33 +219,28 @@ Helpers
 
    .. code-block:: python
 
-      @pytest.redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
+      @redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
       def test_hstrlen(redis):
           pass
 
 
-.. function:: pytest.logs(logger, level=None)
-
-   Adopted version of :meth:`unittest.TestCase.assertEqual`,
-   see it for details.
+.. function:: _testutils.logs(logger, level=None)
 
    Example:
 
    .. code-block:: python
 
-      def test_logs(create_connection, server):
-          with pytest.logs('aioredis', 'DEBUG') as cm:
-              conn yield from create_connection(server.tcp_address)
-          assert cm.output[0].startswith(
-            'DEBUG:aioredis:Creating tcp connection')
+    import pytest
+
+    @pytest.mark.run_loop
+    async def test_logs(create_connection, server):
+        with _testutils.logs('aioredis', 'DEBUG') as cm:
+            conn = await create_connection(server.tcp_address)
+        assert cm.output[0].startswith(
+          'DEBUG:aioredis:Creating tcp connection')
 
 
-.. function:: pytest.assert_almost_equal(first, second, places=None, \
+.. function:: _testutils.assert_almost_equal(first, second, places=None, \
                                          msg=None, delta=None)
 
    Adopted version of :meth:`unittest.TestCase.assertAlmostEqual`.
-
-
-.. function:: pytest.raises_regex(exc_type, message)
-
-   Adopted version of :meth:`unittest.TestCase.assertRaisesRegex`.
