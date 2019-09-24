@@ -77,7 +77,6 @@ Contents
    :maxdepth: 3
 
    start
-   advanced
    api_reference
    mixins
    abc
@@ -88,6 +87,10 @@ Contents
    migration
    releases
    glossary
+
+.. ::
+   todo insert after start
+   advanced
 
 Indices and tables
 ==================
