@@ -20,4 +20,4 @@ async def main():
 if __name__ == '__main__':
     import os
     if 'redis_version:2.6' not in os.environ.get('REDIS_VERSION', ''):
-        asyncio.get_event_loop().run_until_complete(main())
+        asyncio.run(main())

@@ -41,9 +41,9 @@ async def pubsub():
     for msg in ("Hello", ",", "world!"):
         for ch in ('channel:1', 'channel:2'):
             await pub.publish(ch, msg)
-    asyncio.get_event_loop().call_soon(pub.close)
-    asyncio.get_event_loop().call_soon(sub.close)
-    await asyncio.sleep(0)
+    await asyncio.sleep(0.1)
+    pub.close()
+    sub.close()
     await pub.wait_closed()
     await sub.wait_closed()
     await asyncio.gather(tsk1, tsk2)
@@ -52,5 +52,4 @@ async def pubsub():
 if __name__ == '__main__':
     import os
     if 'redis_version:2.6' not in os.environ.get('REDIS_VERSION', ''):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(pubsub())
+        asyncio.run(pubsub())
