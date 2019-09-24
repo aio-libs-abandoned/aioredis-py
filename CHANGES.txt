@@ -8,30 +8,32 @@ Changes
 Features
 ~~~~~~~~
 
-- Added xdel and xtrim method which missed in commands/streams.py & also added unit test code for them.
+- Added ``xdel`` and ``xtrim`` method which missed in ``commands/streams.py`` & also added unit test code for them
   (see `#438 <https://github.com/aio-libs/aioredis/issues/438>`_);
-- Add ``count`` argument to ``spop`` command.
+- Add ``count`` argument to ``spop`` command
   (see `#485 <https://github.com/aio-libs/aioredis/issues/485>`_);
-- Add support for ``zpopmax`` and ``zpopmin`` redis commands.
+- Add support for ``zpopmax`` and ``zpopmin`` redis commands
   (see `#550 <https://github.com/aio-libs/aioredis/issues/550>`_);
-- Implemented towncrier: changelogs are now stored in CHANGES.txt
+- Add ``towncrier``: change notes are now stored in ``CHANGES.txt``
   (see `#576 <https://github.com/aio-libs/aioredis/issues/576>`_);
 - Type hints for the library
   (see `#584 <https://github.com/aio-libs/aioredis/issues/584>`_);
 - A few additions to the sorted set commands:
 
-  - the blocking pop commands: `BZPOPMAX` and `BZPOPMIN`
-  - the `CH` and `INCR` options of the `ZADD` command
+  - the blocking pop commands: ``BZPOPMAX`` and ``BZPOPMIN``
+
+  - the ``CH`` and ``INCR`` options of the ``ZADD`` command
+
   (see `#618 <https://github.com/aio-libs/aioredis/issues/618>`_);
-- Added no_ack param to xread_group streams method in commands/streams.py
+- Added ``no_ack`` parameter to ``xread_group`` streams method in ``commands/streams.py``
   (see `#625 <https://github.com/aio-libs/aioredis/issues/625>`_);
 
 Bugfixes
 ~~~~~~~~
 
-- Fix for sensitive logging.
+- Fix for sensitive logging
   (see `#459 <https://github.com/aio-libs/aioredis/issues/459>`_);
-- Fix slow memory leak in ``wait_closed`` implementation.
+- Fix slow memory leak in ``wait_closed`` implementation
   (see `#498 <https://github.com/aio-libs/aioredis/issues/498>`_);
 - Fix handling of instances were Redis returns null fields for a stream message
   (see `#605 <https://github.com/aio-libs/aioredis/issues/605>`_);
