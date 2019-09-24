@@ -4,7 +4,7 @@ import aioredis
 
 async def main():
     sentinel = await aioredis.create_sentinel(
-        ['redis://sentinel1:26379', 'redis://sentinel2:26379'])
+        ['redis://localhost:26379', 'redis://sentinel2:26379'])
     redis = sentinel.master_for('mymaster')
 
     ok = await redis.set('key', 'value')
