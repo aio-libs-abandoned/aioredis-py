@@ -8,6 +8,7 @@ from unittest import mock
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
+from _testutils import logs
 
 
 def test_listener_channel(loop):
@@ -175,7 +176,7 @@ async def test_stopped(create_connection, server, loop):
     assert mpsc.is_active
     mpsc.stop()
 
-    with pytest.logs('aioredis', 'DEBUG') as cm:
+    with logs('aioredis', 'DEBUG') as cm:
         await pub.execute('publish', 'channel:1', b'Hello')
         await asyncio.sleep(0, loop=loop)
 

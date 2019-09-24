@@ -1,0 +1,3 @@
+Update PyPy3.5 version to v7.0.
+Add PyPy3.6 v7.1.1.
+Some cleanup in Makefile.

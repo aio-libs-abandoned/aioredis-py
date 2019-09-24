@@ -3,8 +3,8 @@ aioredis
 
 asyncio (PEP 3156) Redis client library.
 
-.. image:: https://travis-ci.org/aio-libs/aioredis.svg?branch=master
-   :target: https://travis-ci.org/aio-libs/aioredis
+.. image:: https://travis-ci.com/aio-libs/aioredis.svg?branch=master
+   :target: https://travis-ci.com/aio-libs/aioredis
 
 
 .. image:: https://codecov.io/gh/aio-libs/aioredis/branch/master/graph/badge.svg
@@ -24,90 +24,24 @@ Connections Pool                    Yes
 Pipelining support                  Yes
 Pub/Sub support                     Yes
 SSL/TLS support                     Yes
-Sentinel support                    Yes [1]_
+Sentinel support                    Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested CPython versions             `3.5, 3.6 <travis_>`_ [2]_
-Tested PyPy3 versions               `5.9.0 <travis_>`_
-Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 <travis_>`_
+Tested CPython versions             `3.5.3, 3.6, 3.7 <travis_>`_ [1]_
+Tested PyPy3 versions               `pypy3.5-7.0 pypy3.6-7.1.1 <travis_>`_
+Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 5.0 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
-
-.. [1] Sentinel support is available in master branch.
-   This feature is not yet stable and may have some issues.
-
-.. [2] For Python 3.3, 3.4 support use aioredis v0.3.
+.. [1] For Python 3.3, 3.4 support use aioredis v0.3.
 
 Documentation
 -------------
 
 http://aioredis.readthedocs.io/
 
-Usage examples
---------------
-
-Simple low-level interface:
-
-.. code:: python
-
-    import asyncio
-    import aioredis
-
-    loop = asyncio.get_event_loop()
-
-    async def go():
-        conn = await aioredis.create_connection(
-            'redis://localhost', loop=loop)
-        await conn.execute('set', 'my-key', 'value')
-        val = await conn.execute('get', 'my-key')
-        print(val)
-        conn.close()
-        await conn.wait_closed()
-    loop.run_until_complete(go())
-    # will print 'value'
-
-Simple high-level interface:
-
-.. code:: python
-
-    import asyncio
-    import aioredis
-
-    loop = asyncio.get_event_loop()
-
-    async def go():
-        redis = await aioredis.create_redis(
-            'redis://localhost', loop=loop)
-        await redis.set('my-key', 'value')
-        val = await redis.get('my-key')
-        print(val)
-        redis.close()
-        await redis.wait_closed()
-    loop.run_until_complete(go())
-    # will print 'value'
-
-Connections pool:
-
-.. code:: python
-
-    import asyncio
-    import aioredis
-
-    loop = asyncio.get_event_loop()
-
-    async def go():
-        pool = await aioredis.create_pool(
-            'redis://localhost',
-            minsize=5, maxsize=10,
-            loop=loop)
-        await pool.execute('set', 'my-key', 'value')
-        print(await pool.execute('get', 'my-key'))
-        # graceful shutdown
-        pool.close()
-        await pool.wait_closed()
-
-    loop.run_until_complete(go())
+Usage example
+-------------
 
 Simple high-level interface with connections pool:
 
@@ -116,19 +50,16 @@ Simple high-level interface with connections pool:
     import asyncio
     import aioredis
 
-    loop = asyncio.get_event_loop()
-
     async def go():
         redis = await aioredis.create_redis_pool(
-            'redis://localhost',
-            minsize=5, maxsize=10,
-            loop=loop)
+            'redis://localhost')
         await redis.set('my-key', 'value')
-        val = await redis.get('my-key')
+        val = await redis.get('my-key', encoding='utf-8')
         print(val)
         redis.close()
         await redis.wait_closed()
-    loop.run_until_complete(go())
+
+    asyncio.run(go())
     # will print 'value'
 
 Requirements
@@ -162,4 +93,4 @@ The aioredis is offered under MIT license.
 
 .. _Python: https://www.python.org
 .. _hiredis: https://pypi.python.org/pypi/hiredis
-.. _travis: https://travis-ci.org/aio-libs/aioredis
+.. _travis: https://travis-ci.com/aio-libs/aioredis

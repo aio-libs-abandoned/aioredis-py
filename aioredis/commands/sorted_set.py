@@ -18,7 +18,36 @@ class SortedSetCommandsMixin:
     ZSET_IF_NOT_EXIST = 'ZSET_IF_NOT_EXIST'  # NX
     ZSET_IF_EXIST = 'ZSET_IF_EXIST'  # XX
 
-    def zadd(self, key, score, member, *pairs, exist=None):
+    def bzpopmax(self, key, *keys, timeout=0, encoding=_NOTSET):
+        """Remove and get an element with the highest score in the sorted set,
+        or block until one is available.
+
+        :raises TypeError: if timeout is not int
+        :raises ValueError: if timeout is less than 0
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+        args = keys + (timeout,)
+        return self.execute(b'BZPOPMAX', key, *args, encoding=encoding)
+
+    def bzpopmin(self, key, *keys, timeout=0, encoding=_NOTSET):
+        """Remove and get an element with the lowest score in the sorted set,
+        or block until one is available.
+
+        :raises TypeError: if timeout is not int
+        :raises ValueError: if timeout is less than 0
+        """
+        if not isinstance(timeout, int):
+            raise TypeError("timeout argument must be int")
+        if timeout < 0:
+            raise ValueError("timeout must be greater equal 0")
+        args = keys + (timeout,)
+        return self.execute(b'BZPOPMIN', key, *args, encoding=encoding)
+
+    def zadd(self, key, score, member, *pairs, exist=None, changed=False,
+             incr=False):
         """Add one or more members to a sorted set or update its score.
 
         :raises TypeError: score not int or float
@@ -38,6 +67,15 @@ class SortedSetCommandsMixin:
             args.append(b'XX')
         elif exist is self.ZSET_IF_NOT_EXIST:
             args.append(b'NX')
+
+        if changed:
+            args.append(b'CH')
+
+        if incr:
+            if pairs:
+                raise ValueError('only one score-element pair '
+                                 'can be specified in this mode')
+            args.append(b'INCR')
 
         args.extend([score, member])
         if pairs:
@@ -423,6 +461,38 @@ class SortedSetCommandsMixin:
         return _ScanIter(lambda cur: self.zscan(key, cur,
                                                 match=match,
                                                 count=count))
+
+    def zpopmin(self, key, count=None, *, encoding=_NOTSET):
+        """Removes and returns up to count members with the lowest scores
+        in the sorted set stored at key.
+
+        :raises TypeError: if count is not int
+        """
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if count is not None:
+            args.extend([count])
+
+        fut = self.execute(b'ZPOPMIN', key, *args, encoding=encoding)
+        return fut
+
+    def zpopmax(self, key, count=None, *, encoding=_NOTSET):
+        """Removes and returns up to count members with the highest scores
+        in the sorted set stored at key.
+
+        :raises TypeError: if count is not int
+        """
+        if count is not None and not isinstance(count, int):
+            raise TypeError("count argument must be int")
+
+        args = []
+        if count is not None:
+            args.extend([count])
+
+        fut = self.execute(b'ZPOPMAX', key, *args, encoding=encoding)
+        return fut
 
 
 def _encode_min_max(flag, min, max):

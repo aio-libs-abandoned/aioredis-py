@@ -1,0 +1,1 @@
+Fix slow memory leak in ``wait_closed`` implementation.

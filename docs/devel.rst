@@ -23,6 +23,29 @@ this command will install:
 * ``flake8`` for code linting;
 * and few other packages.
 
+Make sure you have provided a ``towncrier`` note.
+Just add short description running following commands::
+
+    $ echo "Short description" > CHANGES/filename.type
+
+This will create new file in ``CHANGES`` directory.
+Filename should consist of the ticket ID or other unique identifier.
+Five default types are:
+
+* .feature - signifying new feature
+* .bugfix - signifying a bug fix
+* .doc - documentation improvement
+* .removal - deprecation or removal of public API
+* .misc - a ticket has been closed, but not in interest of users
+
+You can check if everything is correct by typing::
+
+    $ towncrier --draft
+
+To produce the news file::
+
+    $ towncrier
+
 Code style
 ----------
 
@@ -41,13 +64,12 @@ You can run tests in any of the following ways::
    # will run tests in a verbose mode
    $ make test
    # or
-   $ py.test
+   $ pytest
 
    # will run tests with coverage report
    $ make cov
    # or
-   $ py.test --cov
-
+   $ pytest --cov
 
 SSL tests
 ~~~~~~~~~
@@ -69,7 +91,7 @@ Different Redis server versions
 To run tests against different redises use ``--redis-server`` command line
 option::
 
-   $ py.test --redis-server=/path/to/custom/redis-server
+   $ pytest --redis-server=/path/to/custom/redis-server
 
 UVLoop
 ~~~~~~
@@ -77,7 +99,7 @@ UVLoop
 To run tests with :term:`uvloop`::
 
    $ pip install uvloop
-   $ py.test --uvloop
+   $ pytest --uvloop
 
 .. note:: Until Python 3.5.2 EventLoop has no ``create_future`` method
    so aioredis won't benefit from uvloop's futures.

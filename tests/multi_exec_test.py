@@ -1,13 +1,19 @@
 import asyncio
 from unittest import mock
+from contextlib import contextmanager
 
 from aioredis.commands import MultiExec
 from aioredis.commands import Redis
 
 
+@contextmanager
+def nullcontext(result):
+    yield result
+
+
 def test_global_loop():
     conn = mock.Mock(spec=(
-        'execute closed _transaction_error'
+        'execute closed _transaction_error _buffered'
         .split()))
     try:
         old_loop = asyncio.get_event_loop()
@@ -32,6 +38,7 @@ def test_global_loop():
     conn.execute.side_effect = make_fut
     conn.closed = False
     conn._transaction_error = None
+    conn._buffered.side_effect = lambda: nullcontext(conn)
 
     async def go():
         tr.ping()

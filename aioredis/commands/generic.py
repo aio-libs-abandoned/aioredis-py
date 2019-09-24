@@ -143,8 +143,7 @@ class GenericCommandsMixin:
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
         """
-        # TODO: set default encoding to 'utf-8'
-        return self.execute(b'OBJECT', b'ENCODING', key)
+        return self.execute(b'OBJECT', b'ENCODING', key, encoding='utf-8')
 
     def object_idletime(self, key):
         """Returns the number of seconds since the object is not requested

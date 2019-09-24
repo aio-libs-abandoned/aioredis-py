@@ -4,7 +4,12 @@ import asyncio
 from collections import OrderedDict
 from unittest import mock
 
-from aioredis import ReplyError
+from aioredis.commands.streams import parse_messages
+from aioredis.errors import BusyGroupError
+from _testutils import redis_version
+
+pytestmark = redis_version(
+    5, 0, 0, reason="Streams only available since Redis 5.0.0")
 
 
 @asyncio.coroutine
@@ -15,8 +20,6 @@ async def add_message_with_sleep(redis, loop, stream, fields):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xadd(redis, server_bin):
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -42,8 +45,6 @@ async def test_xadd(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xadd_maxlen_exact(redis, server_bin):
     message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})  # noqa
 
@@ -71,8 +72,6 @@ async def test_xadd_maxlen_exact(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xadd_manual_message_ids(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-0')
     await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-1')
@@ -88,8 +87,6 @@ async def test_xadd_manual_message_ids(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xadd_maxlen_inexact(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'})
     # Ensure the millisecond-based message ID increments
@@ -112,8 +109,6 @@ async def test_xadd_maxlen_inexact(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -168,8 +163,6 @@ async def test_xrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xrevrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -224,8 +217,6 @@ async def test_xrevrange(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
     stream = 'test_stream'
@@ -259,8 +250,6 @@ async def test_xread_selection(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     """Test the blocking read features"""
     fields = OrderedDict((
@@ -297,12 +286,8 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xgroup_create(redis, server_bin):
     # Also tests xinfo_groups()
-    # TODO: Remove xadd() if resolved:
-    #       https://github.com/antirez/redis/issues/4824
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
     info = await redis.xinfo_groups('test_stream')
@@ -315,18 +300,26 @@ async def test_xgroup_create(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
+async def test_xgroup_create_mkstream(redis, server_bin):
+    await redis.xgroup_create('test_stream', 'test_group', mkstream=True)
+    info = await redis.xinfo_groups('test_stream')
+    assert info == [{
+        b'name': b'test_group',
+        b'last-delivered-id': mock.ANY,
+        b'pending': 0,
+        b'consumers': 0
+    }]
+
+
+@pytest.mark.run_loop
 async def test_xgroup_create_already_exists(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
-    with pytest.raises(ReplyError):
+    with pytest.raises(BusyGroupError):
         await redis.xgroup_create('test_stream', 'test_group')
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xgroup_setid(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -334,8 +327,6 @@ async def test_xgroup_setid(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xgroup_destroy(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -345,15 +336,14 @@ async def test_xgroup_destroy(redis, server_bin):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xread_group(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
 
+    # read all pending messages
     messages = await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     assert len(messages) == 1
     stream, message_id, fields = messages[0]
@@ -363,8 +353,23 @@ async def test_xread_group(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
+async def test_xread_group_with_no_ack(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+
+    # read all pending messages
+    messages = await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=['>'], no_ack=True
+    )
+    assert len(messages) == 1
+    stream, message_id, fields = messages[0]
+    assert stream == b'test_stream'
+    assert message_id
+    assert fields == {b'a': b'1'}
+
+
+@pytest.mark.run_loop
 async def test_xack_and_xpending(redis):
     # Test a full xread -> xack cycle, using xpending to check the status
     message_id = await redis.xadd('test_stream', {'a': 1})
@@ -378,7 +383,7 @@ async def test_xack_and_xpending(redis):
     # Read the message
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # It is now pending
@@ -399,8 +404,6 @@ async def test_xack_and_xpending(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xpending_get_messages(redis):
     # Like test_xack_and_xpending(), but using the start/end xpending()
     # params to get the messages
@@ -408,7 +411,7 @@ async def test_xpending_get_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     await asyncio.sleep(0.05)
 
@@ -427,8 +430,6 @@ async def test_xpending_get_messages(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xpending_start_of_zero(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -437,15 +438,13 @@ async def test_xpending_start_of_zero(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xclaim_simple(redis):
     # Put a message in a pending state then reclaim it is XCLAIM
     message_id = await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending
@@ -470,14 +469,12 @@ async def test_xclaim_simple(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xclaim_min_idle_time_includes_messages(redis):
     message_id = await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending. Wait 100ms
@@ -490,14 +487,12 @@ async def test_xclaim_min_idle_time_includes_messages(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xclaim_min_idle_time_excludes_messages(redis):
     message_id = await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     # Message is now pending. Wait no time at all
 
@@ -509,8 +504,6 @@ async def test_xclaim_min_idle_time_excludes_messages(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xgroup_delconsumer(redis, create_redis, server):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -532,8 +525,29 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
+async def test_xdel_stream(redis):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    response = await redis.xdel('test_stream', id=message_id)
+    assert response >= 0
+
+
+@pytest.mark.run_loop
+async def test_xtrim_stream(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xadd('test_stream', {'b': 1})
+    await redis.xadd('test_stream', {'c': 1})
+    response = await redis.xtrim('test_stream', max_len=1, exact_len=False)
+    assert response >= 0
+
+
+@pytest.mark.run_loop
+async def test_xlen_stream(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    response = await redis.xlen('test_stream')
+    assert response >= 0
+
+
+@pytest.mark.run_loop
 async def test_xinfo_consumers(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -552,8 +566,6 @@ async def test_xinfo_consumers(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xinfo_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -576,8 +588,35 @@ async def test_xinfo_stream(redis):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(999, 999, 999, reason="Streams only available on redis "
-                                            "unstable branch")
 async def test_xinfo_help(redis):
     info = await redis.xinfo_help()
     assert info
+
+
+@pytest.mark.run_loop
+@pytest.mark.parametrize('param', [0.1, '1'])
+async def test_xread_param_types(redis, param):
+    with pytest.raises(TypeError):
+        await redis.xread(
+            ["system_event_stream"],
+            timeout=param, latest_ids=[0]
+        )
+
+
+def test_parse_messages_ok():
+    message = [(b'123', [b'f1', b'v1', b'f2', b'v2'])]
+    assert parse_messages(message) == [(b'123', {b'f1': b'v1', b'f2': b'v2'})]
+
+
+def test_parse_messages_null_fields():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [(b'123', None)]
+    assert parse_messages(message) == []
+
+
+def test_parse_messages_null_message():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [None]
+    assert parse_messages(message) == []

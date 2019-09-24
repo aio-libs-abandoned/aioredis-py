@@ -2,6 +2,8 @@ import asyncio
 import pytest
 import aioredis
 
+from _testutils import redis_version
+
 
 async def _reader(channel, output, waiter, conn):
     await conn.execute('subscribe', channel)
@@ -39,7 +41,7 @@ async def test_publish_json(create_connection, redis, server, loop):
     await fut
 
     res = await redis.publish_json('chan:1', {"Hello": "world"})
-    assert res == 1    # recievers
+    assert res == 1    # receivers
 
     msg = await out.get()
     assert msg == b'{"Hello": "world"}'
@@ -138,7 +140,7 @@ async def test_psubscribe_empty_pool(create_redis, server, loop, _closable):
                    ]
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 0, reason='PUBSUB CHANNELS is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_pubsub_channels(create_redis, server, loop):
@@ -167,7 +169,7 @@ async def test_pubsub_channels(create_redis, server, loop):
     assert res == []
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 0, reason='PUBSUB NUMSUB is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_pubsub_numsub(create_redis, server, loop):
@@ -202,7 +204,7 @@ async def test_pubsub_numsub(create_redis, server, loop):
     assert res == {}
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 0, reason='PUBSUB NUMPAT is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_pubsub_numpat(create_redis, server, loop, redis):
@@ -302,7 +304,7 @@ async def test_subscribe_concurrency(create_redis, server, loop):
     assert ch2.name == b'channel:1'
 
 
-@pytest.redis_version(
+@redis_version(
     3, 2, 0, reason='PUBSUB PING is available since redis>=3.2.0')
 @pytest.mark.run_loop
 async def test_pubsub_ping(redis):
@@ -337,3 +339,28 @@ async def test_pubsub_channel_iter(create_redis, server, loop):
     await asyncio.sleep(0, loop=loop)
     ch.close()
     assert await tsk == [b'{"Hello": "World"}', b'["message"]']
+
+
+@pytest.mark.run_loop
+@redis_version(
+    2, 8, 12, reason="extended `client kill` format required")
+async def test_pubsub_disconnection_notification(create_redis, server, loop):
+    sub = await create_redis(server.tcp_address, loop=loop)
+    pub = await create_redis(server.tcp_address, loop=loop)
+
+    async def coro(ch):
+        lst = []
+        async for msg in ch.iter():
+            assert ch.is_active
+            lst.append(msg)
+        return lst
+
+    ch, = await sub.subscribe('chan:1')
+    tsk = asyncio.ensure_future(coro(ch), loop=loop)
+    assert ch.is_active
+    await pub.publish_json('chan:1', {'Hello': 'World'})
+    assert ch.is_active
+    assert await pub.execute('client', 'kill', 'type', 'pubsub') >= 1
+    assert await pub.publish_json('chan:1', ['message']) == 0
+    assert await tsk == [b'{"Hello": "World"}']
+    assert not ch.is_active

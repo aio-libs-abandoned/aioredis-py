@@ -1,6 +1,8 @@
 import asyncio
 import pytest
 import async_timeout
+import logging
+import sys
 
 from unittest.mock import patch
 
@@ -11,6 +13,7 @@ from aioredis import (
     ConnectionsPool,
     MaxClientsError,
     )
+from _testutils import redis_version, logs
 
 
 def _assert_defaults(pool):
@@ -19,7 +22,7 @@ def _assert_defaults(pool):
     assert pool.maxsize == 10
     assert pool.size == 1
     assert pool.freesize == 1
-    assert pool._close_waiter is None
+    assert not pool._close_state.is_set()
 
 
 def test_connect(pool):
@@ -199,7 +202,7 @@ async def test_release_pending(create_pool, loop, server):
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with pytest.logs('aioredis', 'WARNING') as cm:
+    with logs('aioredis', 'WARNING') as cm:
         with (await pool) as conn:
             try:
                 await asyncio.wait_for(
@@ -309,7 +312,7 @@ async def test_select_and_create(create_pool, loop, server):
     # trying to model situation when select and acquire
     # called simultaneously
     # but acquire freezes on _wait_select and
-    # then continues with propper db
+    # then continues with proper db
 
     # TODO: refactor this test as there's no _wait_select any more.
     with async_timeout.timeout(10, loop=loop):
@@ -458,7 +461,7 @@ async def test_pool_close__used(create_pool, server, loop):
 
 
 @pytest.mark.run_loop
-@pytest.redis_version(2, 8, 0, reason="maxclients config setting")
+@redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_pool_check_closed_when_exception(
         create_pool, create_redis, start_server, loop):
     server = start_server('server-small')
@@ -466,7 +469,7 @@ async def test_pool_check_closed_when_exception(
     await redis.config_set('maxclients', 2)
 
     errors = (MaxClientsError, ConnectionClosedError, ConnectionError)
-    with pytest.logs('aioredis', 'DEBUG') as cm:
+    with logs('aioredis', 'DEBUG') as cm:
         with pytest.raises(errors):
             await create_pool(address=tuple(server.tcp_address),
                               minsize=3, loop=loop)
@@ -520,15 +523,29 @@ async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
     assert res == b'next'
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="flaky on windows")
 @pytest.mark.run_loop
-async def test_pool_idle_close(create_pool, start_server, loop):
+async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     server = start_server('idle')
     conn = await create_pool(server.tcp_address, minsize=2, loop=loop)
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    await asyncio.sleep(2, loop=loop)
+    caplog.clear()
+    with caplog.at_level('DEBUG', 'aioredis'):
+        # wait for either disconnection logged or test timeout reached.
+        while len(caplog.record_tuples) < 2:
+            await asyncio.sleep(.5, loop=loop)
+    assert caplog.record_tuples == [
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+    ]
 
+    # On CI this test fails from time to time.
+    # It is possible to pick 'unclosed' connection and send command,
+    # however on the same loop iteration it gets closed and exception is raised
     assert (await conn.execute('ping')) == b'PONG'
 
 
@@ -552,3 +569,32 @@ async def test_async_with(create_pool, server, loop):
     async with pool.get() as conn:
         msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
+
+
+@pytest.mark.run_loop
+async def test_pool__drop_closed(create_pool, server, loop):
+    pool = await create_pool(server.tcp_address,
+                             minsize=3,
+                             maxsize=3,
+                             loop=loop)
+    assert pool.size == 3
+    assert pool.freesize == 3
+    assert not pool._pool[0].closed
+    assert not pool._pool[1].closed
+    assert not pool._pool[2].closed
+
+    pool._pool[1].close()
+    pool._pool[2].close()
+    await pool._pool[1].wait_closed()
+    await pool._pool[2].wait_closed()
+
+    assert not pool._pool[0].closed
+    assert pool._pool[1].closed
+    assert pool._pool[2].closed
+
+    assert pool.size == 3
+    assert pool.freesize == 3
+
+    pool._drop_closed()
+    assert pool.freesize == 1
+    assert pool.size == 1

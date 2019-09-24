@@ -70,13 +70,16 @@ async def blocking_pop(pool, val, loop):
     (simple_get_set, 1),
     (pipeline, 1),
     (transaction, 1),
-    pytest.mark.xfail((blocking_pop, 1),
-                      reason="blpop gets connection first and blocks"),
+    pytest.param(
+        blocking_pop, 1,
+        marks=pytest.mark.xfail(
+            reason="blpop gets connection first and blocks")
+        ),
     (simple_get_set, 10),
     (pipeline, 10),
     (transaction, 10),
     (blocking_pop, 10),
-], ids=lambda o: o.__name__)
+], ids=lambda o: getattr(o, '__name__', repr(o)))
 async def test_operations(pool_or_redis, test_case, pool_size, loop):
     repeat = 100
     redis = await pool_or_redis(pool_size)

@@ -5,7 +5,7 @@
   {{ super() }}
 
   {% if github_user and github_repo %}
-    {% set travis_url = "https://travis-ci.org/{}/{}".format(github_user, github_repo) %}
+    {% set travis_url = "https://travis-ci.com/{}/{}".format(github_user, github_repo) %}
     <br/>
     <div>
       <iframe src="https://ghbtns.com/github-btn.html?user={{ github_user }}&repo={{ github_repo }}&type=star&count=true&size=large"

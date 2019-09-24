@@ -1,5 +1,54 @@
 import itertools
+
 import pytest
+
+from _testutils import redis_version
+
+
+@redis_version(5, 0, 0, reason='BZPOPMAX is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_bzpopmax(redis):
+    key1 = b'key:zpopmax:1'
+    key2 = b'key:zpopmax:2'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key1, *pairs[0])
+    await redis.zadd(key2, *itertools.chain.from_iterable(pairs))
+
+    res = await redis.bzpopmax(key1, timeout=0)
+    assert res == [key1, b'a', b'0']
+    res = await redis.bzpopmax(key1, key2, timeout=0)
+    assert res == [key2, b'f', b'9']
+
+    with pytest.raises(TypeError):
+        await redis.bzpopmax(key1, timeout=b'one')
+    with pytest.raises(ValueError):
+        await redis.bzpopmax(key2, timeout=-10)
+
+
+@redis_version(5, 0, 0, reason='BZPOPMIN is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_bzpopmin(redis):
+    key1 = b'key:zpopmin:1'
+    key2 = b'key:zpopmin:2'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key1, *pairs[0])
+    await redis.zadd(key2, *itertools.chain.from_iterable(pairs))
+
+    res = await redis.bzpopmin(key1, timeout=0)
+    assert res == [key1, b'a', b'0']
+    res = await redis.bzpopmin(key1, key2, timeout=0)
+    assert res == [key2, b'a', b'0']
+
+    with pytest.raises(TypeError):
+        await redis.bzpopmin(key1, timeout=b'one')
+    with pytest.raises(ValueError):
+        await redis.bzpopmin(key2, timeout=-10)
 
 
 @pytest.mark.run_loop
@@ -29,7 +78,7 @@ async def test_zadd(redis):
         await redis.zadd(key, 3, b'three', 'four', 4)
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 2, reason='ZADD options is available since redis>=3.0.2',
 )
 @pytest.mark.run_loop
@@ -65,6 +114,15 @@ async def test_zadd_options(redis):
 
     res = await redis.zrange(key, 0, -1, withscores=False)
     assert res == [b'one', b'two']
+
+    res = await redis.zadd(key, 1, b'two', changed=True)
+    assert res == 1
+
+    res = await redis.zadd(key, 1, b'two', incr=True)
+    assert int(res) == 2
+
+    with pytest.raises(ValueError):
+        await redis.zadd(key, 1, b'one', 2, b'two', incr=True)
 
 
 @pytest.mark.run_loop
@@ -196,7 +254,7 @@ async def test_zinterstore(redis):
     assert res == [(b'one', 10)]
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZLEXCOUNT is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zlexcount(redis):
@@ -253,7 +311,7 @@ async def test_zrange(redis, encoding):
         await redis.zrange(key, 0, 'last')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zrangebylex(redis):
@@ -391,7 +449,7 @@ async def test_zrem(redis):
         await redis.zrem(None, b'one')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZREMRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zremrangebylex(redis):
@@ -664,7 +722,7 @@ async def test_zrevrangebyscore(redis, encoding):
         await redis.zrevrangebyscore(key, 1, 7, offset=1, count='one')
 
 
-@pytest.redis_version(
+@redis_version(
     2, 8, 9, reason='ZREVRANGEBYLEX is available since redis>=2.8.9')
 @pytest.mark.run_loop
 async def test_zrevrangebylex(redis):
@@ -712,7 +770,7 @@ async def test_zrevrangebylex(redis):
                                    offset=1, count='one')
 
 
-@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_zscan(redis):
     key = b'key:zscan'
@@ -746,7 +804,7 @@ async def test_zscan(redis):
         await redis.zscan(None)
 
 
-@pytest.redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_izscan(redis):
     key = b'key:zscan'
@@ -784,3 +842,37 @@ async def test_izscan(redis):
 
     with pytest.raises(TypeError):
         await redis.izscan(None)
+
+
+@redis_version(5, 0, 0, reason='ZPOPMAX is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_zpopmax(redis):
+    key = b'key:zpopmax'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key, *itertools.chain.from_iterable(pairs))
+
+    assert await redis.zpopmax(key) == [b'f', b'9']
+    assert await redis.zpopmax(key, 3) == [b'e', b'8', b'c', b'5', b'g', b'3']
+
+    with pytest.raises(TypeError):
+        await redis.zpopmax(key, b'b')
+
+
+@redis_version(5, 0, 0, reason='ZPOPMIN is available since redis>=5.0.0')
+@pytest.mark.run_loop
+async def test_zpopmin(redis):
+    key = b'key:zpopmin'
+
+    pairs = [
+        (0, b'a'), (5, b'c'), (2, b'd'), (8, b'e'), (9, b'f'), (3, b'g')
+    ]
+    await redis.zadd(key, *itertools.chain.from_iterable(pairs))
+
+    assert await redis.zpopmin(key) == [b'a', b'0']
+    assert await redis.zpopmin(key, 3) == [b'd', b'2', b'g', b'3', b'c', b'5']
+
+    with pytest.raises(TypeError):
+        await redis.zpopmin(key, b'b')

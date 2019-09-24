@@ -3,6 +3,7 @@ import asyncio
 import socket
 from functools import partial
 from collections import deque
+from contextlib import contextmanager
 
 from .util import (
     encode_command,
@@ -160,14 +161,15 @@ class RedisConnection(AbcConnection):
         self._db = 0
         self._closing = False
         self._closed = False
-        self._close_waiter = loop.create_future()
-        self._reader_task.add_done_callback(self._close_waiter.set_result)
+        self._close_state = asyncio.Event()
+        self._reader_task.add_done_callback(lambda x: self._close_state.set())
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
         self._in_pubsub = 0
         self._pubsub_channels = coerced_keys_dict()
         self._pubsub_patterns = coerced_keys_dict()
         self._encoding = encoding
+        self._pipeline_buffer = None
 
     def __repr__(self):
         return '<RedisConnection [db:{}]>'.format(self._db)
@@ -273,14 +275,44 @@ class RedisConnection(AbcConnection):
         else:
             logger.warning("Unknown pubsub message received %r", obj)
 
+    @contextmanager
+    def _buffered(self):
+        # XXX: we must ensure that no await happens
+        #   as long as we buffer commands.
+        #   Probably we can set some error-raising callback on enter
+        #   and remove it on exit
+        #   if some await happens in between -> throw an error.
+        #   This is creepy solution, 'cause some one might want to await
+        #   on some other source except redis.
+        #   So we must only raise error we someone tries to await
+        #   pending aioredis future
+        # One of solutions is to return coroutine instead of a future
+        # in `execute` method.
+        # In a coroutine we can check if buffering is enabled and raise error.
+
+        # TODO: describe in docs difference in pipeline mode for
+        #   conn.execute vs pipeline.execute()
+        if self._pipeline_buffer is None:
+            self._pipeline_buffer = bytearray()
+            try:
+                yield self
+                buf = self._pipeline_buffer
+                self._writer.write(buf)
+            finally:
+                self._pipeline_buffer = None
+        else:
+            yield self
+
     def execute(self, command, *args, encoding=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
 
         Raises:
         * TypeError if any of args can not be encoded as bytes.
-        * ReplyError on redis '-ERR' resonses.
+        * ReplyError on redis '-ERR' responses.
         * ProtocolError when response can not be decoded meaning connection
           is broken.
+        * ConnectionClosedError when either client or server has closed the
+          connection.
         """
         if self._reader is None or self._reader.at_eof():
             msg = self._close_msg or "Connection closed or corrupted"
@@ -311,7 +343,10 @@ class RedisConnection(AbcConnection):
         if encoding is _NOTSET:
             encoding = self._encoding
         fut = self._loop.create_future()
-        self._writer.write(encode_command(command, *args))
+        if self._pipeline_buffer is None:
+            self._writer.write(encode_command(command, *args))
+        else:
+            encode_command(command, *args, buf=self._pipeline_buffer)
         self._waiters.append((fut, encoding, cb))
         return fut
 
@@ -344,7 +379,10 @@ class RedisConnection(AbcConnection):
             res.append(fut)
             cb = partial(self._update_pubsub, ch=ch)
             self._waiters.append((fut, None, cb))
-        self._writer.write(cmd)
+        if self._pipeline_buffer is None:
+            self._writer.write(cmd)
+        else:
+            self._pipeline_buffer.extend(cmd)
         return asyncio.gather(*res, loop=self._loop)
 
     def close(self):
@@ -361,6 +399,7 @@ class RedisConnection(AbcConnection):
         self._reader_task = None
         self._writer = None
         self._reader = None
+        self._pipeline_buffer = None
 
         if exc is not None:
             self._close_msg = str(exc)
@@ -392,7 +431,7 @@ class RedisConnection(AbcConnection):
 
     async def wait_closed(self):
         """Coroutine waiting until connection is closed."""
-        await asyncio.shield(self._close_waiter, loop=self._loop)
+        await self._close_state.wait()
 
     @property
     def db(self):

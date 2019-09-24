@@ -3,6 +3,7 @@ aioredis
 api
 APIs
 AppVeyor
+args
 ASC
 async
 asyncio
@@ -15,6 +16,7 @@ blpop
 bool
 brpop
 brpoplpush
+bugfix
 cardinality
 ClientInfo
 CPython
@@ -34,11 +36,13 @@ EventLoop
 failover
 fallback
 favour
+Filename
 geo
 geohash
 geospatial
 getrange
 getset
+Gitter
 google
 hack'ish
 hgetall
@@ -109,6 +113,7 @@ srandmember
 ssl
 str
 substring
+syscalls
 TBD
 TCP
 timestamp
@@ -118,6 +123,7 @@ tuple
 tuples
 TypeError
 TypeErrors
+Ubuntu
 unclosed
 unittest
 unix
@@ -127,6 +133,7 @@ unsubscribe
 unsubscribed
 unsubscribing
 URI
+UTF
 util
 uvloop
 UVLoop

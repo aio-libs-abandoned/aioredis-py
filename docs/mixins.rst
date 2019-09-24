@@ -209,3 +209,10 @@ Cluster commands
 .. ::
    .. autoclass:: ClusterCommandsMixin
       :members:
+
+
+Streams commands
+----------------
+
+.. autoclass:: StreamCommandsMixin
+   :members:

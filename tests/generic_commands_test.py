@@ -7,6 +7,7 @@ import sys
 from unittest import mock
 
 from aioredis import ReplyError
+from _testutils import redis_version, assert_almost_equal
 
 
 async def add(redis, key, value):
@@ -67,7 +68,7 @@ async def test_exists(redis, server):
             await redis.exists('key-1', 'key-2')
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 3, reason='Multi-key EXISTS available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_exists_multiple(redis):
@@ -210,7 +211,7 @@ async def test_migrate(create_redis, loop, server, serverB):
         await redisA.migrate('host', 6379, 'key', 1, -1000)
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 0, reason="Copy/Replace flags available since Redis 3.0")
 @pytest.mark.run_loop
 async def test_migrate_copy_replace(create_redis, loop, server, serverB):
@@ -233,7 +234,7 @@ async def test_migrate_copy_replace(create_redis, loop, server, serverB):
     assert (await redisB.get('my-key'))
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
 @pytest.mark.skipif(
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
@@ -305,7 +306,7 @@ async def test_migrate__exceptions(redis, loop, server, unused_port):
             'my-key', dest_db=30, timeout=10))
 
 
-@pytest.redis_version(
+@redis_version(
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
 @pytest.mark.skipif(
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
@@ -367,14 +368,14 @@ async def test_object_encoding(redis, server):
     res = await redis.object_encoding('foo')
 
     if server.version < (3, 0, 0):
-        assert res == b'raw'
+        assert res == 'raw'
     else:
-        assert res == b'embstr'
+        assert res == 'embstr'
 
     res = await redis.incr('key')
     assert res == 1
     res = await redis.object_encoding('key')
-    assert res == b'int'
+    assert res == 'int'
     res = await redis.object_encoding('non-existent-key')
     assert res is None
 
@@ -455,7 +456,7 @@ async def test_pexpireat(redis):
     fut3 = redis.pttl('my-key')
     assert (await fut1) is True
     assert (await fut2) == 2
-    pytest.assert_almost_equal((await fut3), 2000, -3)
+    assert_almost_equal((await fut3), 2000, -3)
 
     with pytest.raises(TypeError):
         await redis.pexpireat(None, 1234)
@@ -478,7 +479,7 @@ async def test_pttl(redis, server):
 
     await redis.pexpire('key', 500)
     res = await redis.pttl('key')
-    pytest.assert_almost_equal(res, 500, -2)
+    assert_almost_equal(res, 500, -2)
 
     with pytest.raises(TypeError):
         await redis.pttl(None)
@@ -562,7 +563,7 @@ async def test_restore(redis):
     assert (await redis.get('key')) == b'value'
 
 
-@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_scan(redis):
     for i in range(1, 11):
@@ -660,7 +661,7 @@ async def test_sort(redis):
     assert res == [b'10', b'30', b'20']
 
 
-@pytest.redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
+@redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
 @pytest.mark.run_loop(timeout=20)
 async def test_touch(redis, loop):
     await add(redis, 'key', 'val')
@@ -716,7 +717,7 @@ async def test_type(redis):
         await redis.type(None)
 
 
-@pytest.redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
+@redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
 @pytest.mark.run_loop
 async def test_iscan(redis):
     full = set()
@@ -761,7 +762,7 @@ async def test_iscan(redis):
     assert set(ret) == full
 
 
-@pytest.redis_version(4, 0, 0, reason="UNLINK is available since redis>=4.0.0")
+@redis_version(4, 0, 0, reason="UNLINK is available since redis>=4.0.0")
 @pytest.mark.run_loop
 async def test_unlink(redis):
     await add(redis, 'my-key', 123)
@@ -780,7 +781,7 @@ async def test_unlink(redis):
         await redis.unlink('my-key', 'my-key', None)
 
 
-@pytest.redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
+@redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
 @pytest.mark.run_loop
 async def test_wait(redis, loop):
     await add(redis, 'key', 'val1')
