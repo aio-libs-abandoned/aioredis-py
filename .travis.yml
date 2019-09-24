@@ -69,17 +69,15 @@ jobs:
     - make mypy
   - <<: *MYPY
     python: "3.7"
-  # Run examples Python 3.6, 3.7 and system Redis
+  # Run examples
   - &EXAMPLES
     stage: examples
     cache: false
-    python: 3.6
+    python: 3.7
     install:
     - pip install -e. -c tests/requirements.txt
     script:
     - make examples
-  - <<: *EXAMPLES
-    python: "3.7"
 
 install:
 - make ci-prune-old-redis
