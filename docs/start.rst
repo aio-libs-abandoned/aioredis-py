@@ -4,65 +4,155 @@
 Getting started
 ===============
 
+Installation
+------------
 
-Commands Pipelining
--------------------
+.. code-block:: bash
 
-Commands pipelining is built-in.
+   $ pip install aioredis
 
-Every command is sent to transport at-once
-(ofcourse if no ``TypeError``/``ValueError`` was raised)
+This will install aioredis along with its dependencies:
 
-When you making a call with ``await`` / ``yield from`` you will be waiting result,
-and then gather results.
+* hiredis protocol parser;
 
-Simple example show both cases (:download:`get source code<../examples/pipeline.py>`):
+* async-timeout --- used in Sentinel client.
 
-.. literalinclude:: ../examples/pipeline.py
+Without dependencies
+~~~~~~~~~~~~~~~~~~~~
+
+In some cases [1]_ you might need to install :mod:`aioredis` without ``hiredis``,
+it is achievable with the following command:
+
+.. code-block:: bash
+
+   $ pip install --no-deps aioredis async-timeout
+
+Installing latest version from Git
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   $ pip install git+https://github.com/aio-libs/aioredis@master#egg=aioredis
+
+Connecting
+----------
+
+:download:`get source code<../examples/getting_started/00_connect.py>`
+
+.. literalinclude:: ../examples/getting_started/00_connect.py
    :language: python3
-   :lines: 9-21
-   :dedent: 4
+
+:func:`aioredis.create_redis_pool` creates a Redis client backed by a pool of
+connections. The only required argument is the address of Redis server.
+Redis server address can be either host and port tuple
+(ex: ``('localhost', 6379)``), or a string which will be parsed into
+TCP or UNIX socket address (ex: ``'unix://var/run/redis.sock'``,
+``'//var/run/redis.sock'``, ``redis://redis-host-or-ip:6379/1``).
+
+Closing the client. Calling ``redis.close()`` and then ``redis.wait_closed()``
+is strongly encouraged as this will methods will shutdown all open connections
+and cleanup resources.
+
+See the :doc:`commands reference </mixins>` for the full list of supported commands.
+
+Connecting to specific DB
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are several ways you can specify database index to select on connection:
+
+#. explicitly pass db index as ``db`` argument:
+
+   .. code-block:: python
+
+      redis = await aioredis.create_redis_pool(
+       'redis://localhost', db=1)
+
+#. pass db index in URI as path component:
+
+   .. code-block:: python
+
+      redis = await aioredis.create_redis_pool(
+          'redis://localhost/2')
+
+   .. note::
+
+      DB index specified in URI will take precedence over
+      ``db`` keyword argument.
+
+#. call :meth:`~aioredis.Redis.select` method:
+
+   .. code-block:: python
+
+      redis = await aioredis.create_redis_pool(
+          'redis://localhost/')
+      await redis.select(3)
+
+
+Connecting to password-protected Redis instance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The password can be specified either in keyword argument or in address URI:
+
+.. code-block:: python
+
+   redis = await aioredis.create_redis_pool(
+       'redis://localhost', password='sEcRet')
+
+   redis = await aioredis.create_redis_pool(
+       'redis://:sEcRet@localhost/')
+
+   redis = await aioredis.create_redis_pool(
+       'redis://localhost/?password=sEcRet')
 
 .. note::
+   Password specified in URI will take precedence over password keyword.
 
-   For convenience :mod:`aioredis` provides
-   :meth:`~TransactionsCommandsMixin.pipeline`
-   method allowing to execute bulk of commands as one
-   (:download:`get source code<../examples/pipeline.py>`):
+   Also specifying both password as authentication component and
+   query parameter in URI is forbidden.
 
-      .. literalinclude:: ../examples/pipeline.py
-         :language: python3
-         :lines: 23-31
-         :dedent: 4
+   .. code-block:: python
+
+      # This will cause assertion error
+      await aioredis.create_redis_pool(
+          'redis://:sEcRet@localhost/?password=SeCreT')
+
+Result messages decoding
+------------------------
+
+By default :mod:`aioredis` will return :class:`bytes` for most Redis
+commands that return string replies. Redis error replies are known to be
+valid UTF-8 strings so error messages are decoded automatically.
+
+If you know that data in Redis is valid string you can tell :mod:`aioredis`
+to decode result by passing keyword-only argument ``encoding``
+in a command call:
+
+:download:`get source code<../examples/getting_started/01_decoding.py>`
+
+.. literalinclude:: ../examples/getting_started/01_decoding.py
+   :language: python3
+
+
+:mod:`aioredis` can decode messages for all Redis data types like
+lists, hashes, sorted sets, etc:
+
+:download:`get source code<../examples/getting_started/02_decoding.py>`
+
+.. literalinclude:: ../examples/getting_started/02_decoding.py
+   :language: python3
 
 
 Multi/Exec transactions
 -----------------------
 
-:mod:`aioredis` provides several ways for executing transactions:
+:download:`get source code<../examples/getting_started/03_multiexec.py>`
 
-* when using raw connection you can issue ``Multi``/``Exec`` commands
-  manually;
-
-* when using :class:`aioredis.Redis` instance you can use
-  :meth:`~TransactionsCommandsMixin.multi_exec` transaction pipeline.
+.. literalinclude:: ../examples/getting_started/03_multiexec.py
+   :language: python3
 
 :meth:`~TransactionsCommandsMixin.multi_exec` method creates and returns new
 :class:`~aioredis.commands.MultiExec` object which is used for buffering commands and
 then executing them inside MULTI/EXEC block.
-
-Here is a simple example
-(:download:`get source code<../examples/transaction2.py>`):
-
-.. literalinclude:: ../examples/transaction2.py
-   :language: python3
-   :lines: 9-15
-   :linenos:
-   :emphasize-lines: 5
-   :dedent: 4
-
-As you can notice ``await`` is **only** used at line 5 with ``tr.execute``
-and **not with** ``tr.set(...)`` calls.
 
 .. warning::
 
@@ -80,78 +170,53 @@ Pub/Sub mode
 
 :mod:`aioredis` provides support for Redis Publish/Subscribe messaging.
 
-To switch connection to subscribe mode you must execute ``subscribe`` command
-by yield'ing from :meth:`~PubSubCommandsMixin.subscribe` it returns a list of
-:class:`~aioredis.Channel` objects representing subscribed channels.
+To start listening for messages you must call either
+:meth:`~PubSubCommandsMixin.subscribe` or
+:meth:`~PubSubCommandsMixin.psubscribe` method.
+Both methods return list of :class:`~aioredis.Channel` objects representing
+subscribed channels.
 
-As soon as connection is switched to subscribed mode the channel will receive
-and store messages
+Right after that the channel will receive and store messages
 (the ``Channel`` object is basically a wrapper around :class:`asyncio.Queue`).
 To read messages from channel you need to use :meth:`~aioredis.Channel.get`
 or :meth:`~aioredis.Channel.get_json` coroutines.
 
-.. note::
-   In Pub/Sub mode redis connection can only receive messages or issue
-   (P)SUBSCRIBE / (P)UNSUBSCRIBE commands.
+Example subscribing and reading channels:
 
-Pub/Sub example (:download:`get source code<../examples/pubsub2.py>`):
+:download:`get source code<../examples/getting_started/04_pubsub.py>`
 
-.. literalinclude:: ../examples/pubsub2.py
+.. literalinclude:: ../examples/getting_started/04_pubsub.py
    :language: python3
-   :lines: 6-31
-   :dedent: 4
 
-.. .. warning::
-   Using Pub/Sub mode with :class:`~aioredis.Pool` is possible but
-   only within ``with`` block or by explicitly ``acquiring/releasing``
-   connection. See example below.
+Subscribing and reading patterns:
 
-Pub/Sub example (:download:`get source code<../examples/pool_pubsub.py>`):
+:download:`get source code<../examples/getting_started/05_pubsub.py>`
 
-.. literalinclude:: ../examples/pool_pubsub.py
+.. literalinclude:: ../examples/getting_started/05_pubsub.py
    :language: python3
-   :lines: 13-36
-   :dedent: 4
 
-
-Python 3.5 ``async with`` / ``async for`` support
--------------------------------------------------
-
-:mod:`aioredis` is compatible with :pep:`492`.
-
-:class:`~aioredis.Pool` can be used with :ref:`async with<async with>`
-(:download:`get source code<../examples/pool2.py>`):
-
-.. literalinclude:: ../examples/pool2.py
-   :language: python3
-   :lines: 7-8,20-22
-   :dedent: 4
-
-
-It also can be used with ``await``:
-
-.. literalinclude:: ../examples/pool2.py
-   :language: python3
-   :lines: 7-8,26-30
-   :dedent: 4
-
-
-New ``scan``-family commands added with support of :ref:`async for<async for>`
-(:download:`get source code<../examples/iscan.py>`):
-
-.. literalinclude:: ../examples/iscan.py
-   :language: python3
-   :lines: 7-9,29-31,34-36,39-41,44-45
-   :dedent: 4
-
-
-SSL/TLS support
+Sentinel client
 ---------------
 
-Though Redis server `does not support data encryption <data_encryption_>`_
-it is still possible to setup Redis server behind SSL proxy. For such cases
-:mod:`aioredis` library support secure connections through :mod:`asyncio`
-SSL support. See `BaseEventLoop.create_connection`_ for details.
+:download:`get source code<../examples/getting_started/06_sentinel.py>`
 
-.. _data_encryption: http://redis.io/topics/security#data-encryption-support
-.. _BaseEventLoop.create_connection: https://docs.python.org/3/library/asyncio-eventloop.html#creating-connections
+.. literalinclude:: ../examples/getting_started/06_sentinel.py
+   :language: python3
+
+Sentinel client requires a list of Redis Sentinel addresses to connect to
+and start discovering services.
+
+Calling :meth:`~aioredis.sentinel.SentinelPool.master_for` or
+:meth:`~aioredis.sentinel.SentinelPool.slave_for` methods will return
+Redis clients connected to specified services monitored by Sentinel.
+
+Sentinel client will detect failover and reconnect Redis clients automatically.
+
+See detailed reference :doc:`here <sentinel>`
+
+----
+
+.. [1]
+   Celery hiredis issues
+   (`#197 <https://github.com/aio-libs/aioredis/issues/197>`_,
+   `#317 <https://github.com/aio-libs/aioredis/pull/317>`_)

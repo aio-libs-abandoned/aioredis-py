@@ -7,23 +7,6 @@ Below is a list of examples from `aioredis/examples
 
 Every example is a correct python program that can be executed.
 
-.. _aioredis-examples-simple:
-
-Low-level connection usage example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-:download:`get source code<../examples/connection.py>`
-
-.. literalinclude:: ../examples/connection.py
-
-
-Connections pool example
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-:download:`get source code<../examples/pool.py>`
-
-.. literalinclude:: ../examples/pool.py
-
 
 Commands example
 ~~~~~~~~~~~~~~~~
@@ -63,3 +46,20 @@ Sentinel client
 :download:`get source code<../examples/sentinel.py>`
 
 .. literalinclude:: ../examples/sentinel.py
+
+.. _aioredis-examples-simple:
+
+Low-level connection usage example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:download:`get source code<../examples/connection.py>`
+
+.. literalinclude:: ../examples/connection.py
+
+
+Connections pool example
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+:download:`get source code<../examples/pool.py>`
+
+.. literalinclude:: ../examples/pool.py
