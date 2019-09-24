@@ -1,0 +1,1 @@
+mypy==0.711; implementation_name == "cpython"

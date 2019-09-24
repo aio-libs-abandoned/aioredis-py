@@ -1,0 +1,10 @@
+[tool.towncrier]
+package = "aioredis"
+directory = "CHANGES/"
+filename = "CHANGES.txt"
+title_format = "{version} ({project_date})"
+
+underlines = [ '^', '~', '"' ]
+
+issue_format = "`#{issue} <https://github.com/aio-libs/aioredis/issues/{issue}>`_"
+template = "CHANGES/template.jinja"

@@ -1,6 +1,8 @@
 import asyncio
 import pytest
 import async_timeout
+import logging
+import sys
 
 from unittest.mock import patch
 
@@ -310,7 +312,7 @@ async def test_select_and_create(create_pool, loop, server):
     # trying to model situation when select and acquire
     # called simultaneously
     # but acquire freezes on _wait_select and
-    # then continues with propper db
+    # then continues with proper db
 
     # TODO: refactor this test as there's no _wait_select any more.
     with async_timeout.timeout(10, loop=loop):
@@ -521,14 +523,25 @@ async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
     assert res == b'next'
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="flaky on windows")
 @pytest.mark.run_loop
-async def test_pool_idle_close(create_pool, start_server, loop):
+async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     server = start_server('idle')
     conn = await create_pool(server.tcp_address, minsize=2, loop=loop)
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    await asyncio.sleep(2, loop=loop)
+    caplog.clear()
+    with caplog.at_level('DEBUG', 'aioredis'):
+        # wait for either disconnection logged or test timeout reached.
+        while len(caplog.record_tuples) < 2:
+            await asyncio.sleep(.5, loop=loop)
+    assert caplog.record_tuples == [
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+        ('aioredis', logging.DEBUG,
+         'Connection has been closed by server, response: None'),
+    ]
 
     # On CI this test fails from time to time.
     # It is possible to pick 'unclosed' connection and send command,

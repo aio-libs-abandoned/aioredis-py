@@ -119,10 +119,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self.execute('QUIT')
 
     def select(self, db):
-        """Change the selected database for the current connection.
-
-        This method wraps call to :meth:`aioredis.RedisConnection.select()`
-        """
+        """Change the selected database."""
         return self._pool_or_conn.select(db)
 
     def swapdb(self, from_index, to_index):

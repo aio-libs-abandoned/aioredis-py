@@ -8,7 +8,9 @@ Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
+Anton Salii
 Anton Verinov
+Artem Mazur
 <cynecx>
 David Francos
 Dima Kruk
@@ -16,6 +18,7 @@ Dima Kruk
 Hugo <hugovk>
 Ihor Gorobets
 Ihor Liubymov
+Ilya Samartsev
 James Hilliard
 Jan Špaček
 Jeff Moser
@@ -25,15 +28,21 @@ Manuel Miranda
 Marek Szapiel
 Marijn Giesen
 Martin <the-panda>
+Maxim Dodonchuk
 Michael Käufl
 Nickolai Novik
+Oleg Butuzov
+Oleksandr Tykhonruk
 Pau Freixes
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
+Sergey Miletskiy
 SeungHyun Hwang
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris
 Thomas Steinacher
 Volodymyr Hotsyk
+Dima Kit
+<curiouscod3>

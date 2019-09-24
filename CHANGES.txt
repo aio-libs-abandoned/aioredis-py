@@ -1,6 +1,8 @@
 Changes
 -------
 
+.. towncrier release notes start
+
 1.2.0 (2018-10-24)
 ^^^^^^^^^^^^^^^^^^
 
@@ -349,7 +351,7 @@ Changes
 * Fixed cancellation of wait_closed
   (see `#118 <https://github.com/aio-libs/aioredis/issues/118>`_);
 
-* Fixed ``time()`` convertion to float
+* Fixed ``time()`` conversion to float
   (see `#126 <https://github.com/aio-libs/aioredis/issues/126>`_);
 
 * Fixed ``hmset()`` method to return bool instead of ``b'OK'``

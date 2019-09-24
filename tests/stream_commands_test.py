@@ -4,7 +4,8 @@ import asyncio
 from collections import OrderedDict
 from unittest import mock
 
-from aioredis import ReplyError
+from aioredis.commands.streams import parse_messages
+from aioredis.errors import BusyGroupError
 from _testutils import redis_version
 
 pytestmark = redis_version(
@@ -287,10 +288,20 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
 @pytest.mark.run_loop
 async def test_xgroup_create(redis, server_bin):
     # Also tests xinfo_groups()
-    # TODO: Remove xadd() if resolved:
-    #       https://github.com/antirez/redis/issues/4824
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
+    info = await redis.xinfo_groups('test_stream')
+    assert info == [{
+        b'name': b'test_group',
+        b'last-delivered-id': mock.ANY,
+        b'pending': 0,
+        b'consumers': 0
+    }]
+
+
+@pytest.mark.run_loop
+async def test_xgroup_create_mkstream(redis, server_bin):
+    await redis.xgroup_create('test_stream', 'test_group', mkstream=True)
     info = await redis.xinfo_groups('test_stream')
     assert info == [{
         b'name': b'test_group',
@@ -304,7 +315,7 @@ async def test_xgroup_create(redis, server_bin):
 async def test_xgroup_create_already_exists(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
-    with pytest.raises(ReplyError):
+    with pytest.raises(BusyGroupError):
         await redis.xgroup_create('test_stream', 'test_group')
 
 
@@ -329,9 +340,27 @@ async def test_xread_group(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
 
+    # read all pending messages
     messages = await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
+    )
+    assert len(messages) == 1
+    stream, message_id, fields = messages[0]
+    assert stream == b'test_stream'
+    assert message_id
+    assert fields == {b'a': b'1'}
+
+
+@pytest.mark.run_loop
+async def test_xread_group_with_no_ack(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
+
+    # read all pending messages
+    messages = await redis.xread_group(
+        'test_group', 'test_consumer', ['test_stream'],
+        timeout=1000, latest_ids=['>'], no_ack=True
     )
     assert len(messages) == 1
     stream, message_id, fields = messages[0]
@@ -354,7 +383,7 @@ async def test_xack_and_xpending(redis):
     # Read the message
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # It is now pending
@@ -382,7 +411,7 @@ async def test_xpending_get_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     await asyncio.sleep(0.05)
 
@@ -415,7 +444,7 @@ async def test_xclaim_simple(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending
@@ -445,7 +474,7 @@ async def test_xclaim_min_idle_time_includes_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
 
     # Message is now pending. Wait 100ms
@@ -463,7 +492,7 @@ async def test_xclaim_min_idle_time_excludes_messages(redis):
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
     await redis.xread_group(
         'test_group', 'test_consumer', ['test_stream'],
-        timeout=1000, latest_ids=[0]
+        timeout=1000, latest_ids=['>']
     )
     # Message is now pending. Wait no time at all
 
@@ -493,6 +522,29 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
     assert response == 0
     info = await redis.xinfo_consumers('test_stream', 'test_group')
     assert not info
+
+
+@pytest.mark.run_loop
+async def test_xdel_stream(redis):
+    message_id = await redis.xadd('test_stream', {'a': 1})
+    response = await redis.xdel('test_stream', id=message_id)
+    assert response >= 0
+
+
+@pytest.mark.run_loop
+async def test_xtrim_stream(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    await redis.xadd('test_stream', {'b': 1})
+    await redis.xadd('test_stream', {'c': 1})
+    response = await redis.xtrim('test_stream', max_len=1, exact_len=False)
+    assert response >= 0
+
+
+@pytest.mark.run_loop
+async def test_xlen_stream(redis):
+    await redis.xadd('test_stream', {'a': 1})
+    response = await redis.xlen('test_stream')
+    assert response >= 0
 
 
 @pytest.mark.run_loop
@@ -539,3 +591,32 @@ async def test_xinfo_stream(redis):
 async def test_xinfo_help(redis):
     info = await redis.xinfo_help()
     assert info
+
+
+@pytest.mark.run_loop
+@pytest.mark.parametrize('param', [0.1, '1'])
+async def test_xread_param_types(redis, param):
+    with pytest.raises(TypeError):
+        await redis.xread(
+            ["system_event_stream"],
+            timeout=param, latest_ids=[0]
+        )
+
+
+def test_parse_messages_ok():
+    message = [(b'123', [b'f1', b'v1', b'f2', b'v2'])]
+    assert parse_messages(message) == [(b'123', {b'f1': b'v1', b'f2': b'v2'})]
+
+
+def test_parse_messages_null_fields():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [(b'123', None)]
+    assert parse_messages(message) == []
+
+
+def test_parse_messages_null_message():
+    # Redis can sometimes respond with a fields value of 'null',
+    # so ensure we handle that sensibly
+    message = [None]
+    assert parse_messages(message) == []

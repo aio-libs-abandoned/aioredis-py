@@ -368,14 +368,14 @@ async def test_object_encoding(redis, server):
     res = await redis.object_encoding('foo')
 
     if server.version < (3, 0, 0):
-        assert res == b'raw'
+        assert res == 'raw'
     else:
-        assert res == b'embstr'
+        assert res == 'embstr'
 
     res = await redis.incr('key')
     assert res == 1
     res = await redis.object_encoding('key')
-    assert res == b'int'
+    assert res == 'int'
     res = await redis.object_encoding('non-existent-key')
     assert res is None
 

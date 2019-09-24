@@ -41,7 +41,7 @@ async def test_publish_json(create_connection, redis, server, loop):
     await fut
 
     res = await redis.publish_json('chan:1', {"Hello": "world"})
-    assert res == 1    # recievers
+    assert res == 1    # receivers
 
     msg = await out.get()
     assert msg == b'{"Hello": "world"}'

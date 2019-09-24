@@ -43,7 +43,7 @@ Connection usage is as simple as:
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
                                   encoding=None, parser=None, loop=None,\
-                                  timeout=None)
+                                  timeout=None, connection_cls=None)
 
    Creates Redis connection.
 
@@ -89,6 +89,9 @@ Connection usage is as simple as:
                    raise :exc:`asyncio.TimeoutError` exception.
                    ``None`` by default
    :type timeout: float greater than 0 or None
+
+   :param connection_cls: Custom connection class. ``None`` by default.
+   :type connection_cls: :class:`abc.AbcConnection` or None
 
    :return: :class:`RedisConnection` instance.
 
@@ -450,83 +453,6 @@ The library provides connections pool. The basic usage is as follows:
 
       .. versionadded:: v0.2.8
 
-
-----
-
-.. _aioredis-channel:
-
-Pub/Sub Channel object
-----------------------
-
-`Channel` object is a wrapper around queue for storing received pub/sub messages.
-
-
-.. class:: Channel(name, is_pattern, loop=None)
-
-   Bases: :class:`abc.AbcChannel`
-
-   Object representing Pub/Sub messages queue.
-   It's basically a wrapper around :class:`asyncio.Queue`.
-
-   .. attribute:: name
-
-      Holds encoded channel/pattern name.
-
-   .. attribute:: is_pattern
-
-      Set to True for pattern channels.
-
-   .. attribute:: is_active
-
-      Set to True if there are messages in queue and connection is still
-      subscribed to this channel.
-
-   .. comethod:: get(\*, encoding=None, decoder=None)
-
-      Coroutine that waits for and returns a message.
-
-      Return value is message received or ``None`` signifying that channel has
-      been unsubscribed and no more messages will be received.
-
-      :param str encoding: If not None used to decode resulting bytes message.
-
-      :param callable decoder: If specified used to decode message,
-                               ex. :func:`json.loads()`
-
-      :raise aioredis.ChannelClosedError: If channel is unsubscribed and
-                                          has no more messages.
-
-   .. method:: get_json(\*, encoding="utf-8")
-
-      Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
-
-   .. comethod:: wait_message()
-
-      Waits for message to become available in channel
-      or channel is closed (unsubscribed).
-
-      Main idea is to use it in loops:
-
-      >>> ch = redis.channels['channel:1']
-      >>> while await ch.wait_message():
-      ...     msg = await ch.get()
-
-      :rtype: bool
-
-   .. comethod:: iter(, \*, encoding=None, decoder=None)
-      :async-for:
-      :coroutine:
-
-      Same as :meth:`~.get` method but it is a native coroutine.
-
-      Usage example::
-
-         >>> async for msg in ch.iter():
-         ...     print(msg)
-
-      .. versionadded:: 0.2.5
-         Available for Python 3.5 only
-
 ----
 
 .. _aioredis-exceptions:
@@ -669,6 +595,84 @@ Exceptions Hierarchy
          SlaveNotFoundError
          MasterReplyError
          SlaveReplyError
+
+
+----
+
+.. _aioredis-channel:
+
+Pub/Sub Channel object
+----------------------
+
+`Channel` object is a wrapper around queue for storing received pub/sub messages.
+
+
+.. class:: Channel(name, is_pattern, loop=None)
+
+   Bases: :class:`abc.AbcChannel`
+
+   Object representing Pub/Sub messages queue.
+   It's basically a wrapper around :class:`asyncio.Queue`.
+
+   .. attribute:: name
+
+      Holds encoded channel/pattern name.
+
+   .. attribute:: is_pattern
+
+      Set to True for pattern channels.
+
+   .. attribute:: is_active
+
+      Set to True if there are messages in queue and connection is still
+      subscribed to this channel.
+
+   .. comethod:: get(\*, encoding=None, decoder=None)
+
+      Coroutine that waits for and returns a message.
+
+      Return value is message received or ``None`` signifying that channel has
+      been unsubscribed and no more messages will be received.
+
+      :param str encoding: If not None used to decode resulting bytes message.
+
+      :param callable decoder: If specified used to decode message,
+                               ex. :func:`json.loads()`
+
+      :raise aioredis.ChannelClosedError: If channel is unsubscribed and
+                                          has no more messages.
+
+   .. method:: get_json(\*, encoding="utf-8")
+
+      Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
+
+   .. comethod:: wait_message()
+
+      Waits for message to become available in channel
+      or channel is closed (unsubscribed).
+
+      Main idea is to use it in loops:
+
+      >>> ch = redis.channels['channel:1']
+      >>> while await ch.wait_message():
+      ...     msg = await ch.get()
+
+      :rtype: bool
+
+   .. comethod:: iter(, \*, encoding=None, decoder=None)
+      :async-for:
+      :coroutine:
+
+      Same as :meth:`~.get` method but it is a native coroutine.
+
+      Usage example::
+
+         >>> async for msg in ch.iter():
+         ...     print(msg)
+
+      .. versionadded:: 0.2.5
+         Available for Python 3.5 only
+
 
 ----
 

@@ -33,7 +33,13 @@ def parse_messages(messages):
     """
     if messages is None:
         return []
-    return [(mid, fields_to_dict(values)) for mid, values in messages]
+
+    messages = (message for message in messages if message is not None)
+    return [
+        (mid, fields_to_dict(values))
+        for mid, values
+        in messages if values is not None
+    ]
 
 
 def parse_messages_by_stream(messages_by_stream):
@@ -79,8 +85,7 @@ def parse_lists_to_dicts(lists):
 class StreamCommandsMixin:
     """Stream commands mixin
 
-    Streams are under development in Redis and
-    not currently released.
+    Streams are available in Redis since v5.0
     """
 
     def xadd(self, stream, fields, message_id=b'*', max_len=None,
@@ -128,21 +133,26 @@ class StreamCommandsMixin:
         return wait_convert(fut, parse_messages_by_stream)
 
     def xread_group(self, group_name, consumer_name, streams, timeout=0,
-                    count=None, latest_ids=None):
+                    count=None, latest_ids=None, no_ack=False):
         """Perform a blocking read on the given stream as part of a consumer group
 
         :raises ValueError: if the length of streams and latest_ids do
                             not match
         """
-        args = self._xread(streams, timeout, count, latest_ids)
+        args = self._xread(
+            streams, timeout, count, latest_ids, no_ack
+        )
         fut = self.execute(
             b'XREADGROUP', b'GROUP', group_name, consumer_name, *args
         )
         return wait_convert(fut, parse_messages_by_stream)
 
-    def xgroup_create(self, stream, group_name, latest_id='$'):
+    def xgroup_create(self, stream, group_name, latest_id='$', mkstream=False):
         """Create a consumer group"""
-        fut = self.execute(b'XGROUP', b'CREATE', stream, group_name, latest_id)
+        args = [b'CREATE', stream, group_name, latest_id]
+        if mkstream:
+            args.append(b'MKSTREAM')
+        fut = self.execute(b'XGROUP', *args)
         return wait_ok(fut)
 
     def xgroup_setid(self, stream, group_name, latest_id='$'):
@@ -201,6 +211,23 @@ class StreamCommandsMixin:
         """Acknowledge a message for a given consumer group"""
         return self.execute(b'XACK', stream, group_name, id, *ids)
 
+    def xdel(self, stream, id):
+        """Removes the specified entries(IDs) from a stream"""
+        return self.execute(b'XDEL', stream, id)
+
+    def xtrim(self, stream, max_len, exact_len=False):
+        """trims the stream to a given number of items, evicting older items"""
+        args = []
+        if exact_len:
+            args.extend((b'MAXLEN', max_len))
+        else:
+            args.extend((b'MAXLEN', b'~', max_len))
+        return self.execute(b'XTRIM', stream, *args)
+
+    def xlen(self, stream):
+        """Returns the number of entries inside a stream"""
+        return self.execute(b'XLEN', stream)
+
     def xinfo(self, stream):
         """Retrieve information about the given stream.
 
@@ -229,7 +256,8 @@ class StreamCommandsMixin:
         fut = self.execute(b'XINFO', b'HELP')
         return wait_convert(fut, lambda l: b'\n'.join(l))
 
-    def _xread(self, streams, timeout=0, count=None, latest_ids=None):
+    def _xread(self, streams, timeout=0, count=None, latest_ids=None,
+               no_ack=False):
         """Wraps up common functionality between ``xread()``
         and ``xread_group()``
 
@@ -246,6 +274,13 @@ class StreamCommandsMixin:
         count_args = [b'COUNT', count] if count else []
         if timeout is None:
             block_args = []
+        elif not isinstance(timeout, int):
+            raise TypeError(
+                "timeout argument must be int, not {!r}".format(timeout))
         else:
             block_args = [b'BLOCK', timeout]
-        return block_args + count_args + [b'STREAMS'] + streams + latest_ids
+
+        noack_args = [b'NOACK'] if no_ack else []
+
+        return count_args + block_args + noack_args + [b'STREAMS'] + streams \
+            + latest_ids

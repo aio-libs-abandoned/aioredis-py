@@ -1,3 +1,5 @@
+from itertools import chain
+
 from aioredis.util import wait_convert, wait_ok, _NOTSET
 
 
@@ -136,14 +138,20 @@ class StringCommandsMixin:
         """Get the values of all the given keys."""
         return self.execute(b'MGET', key, *keys, encoding=encoding)
 
-    def mset(self, key, value, *pairs):
-        """Set multiple keys to multiple values.
+    def mset(self, *args):
+        """Set multiple keys to multiple values or unpack dict to keys & values.
 
-        :raises TypeError: if len of pairs is not event number
+        :raises TypeError: if len of args is not event number
+        :raises TypeError: if len of args equals 1 and it is not a dict
         """
-        if len(pairs) % 2 != 0:
+        data = args
+        if len(args) == 1:
+            if not isinstance(args[0], dict):
+                raise TypeError("if one arg it should be a dict")
+            data = chain.from_iterable(args[0].items())
+        elif len(args) % 2 != 0:
             raise TypeError("length of pairs must be even number")
-        fut = self.execute(b'MSET', key, value, *pairs)
+        fut = self.execute(b'MSET', *data)
         return wait_ok(fut)
 
     def msetnx(self, key, value, *pairs):
