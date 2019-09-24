@@ -28,7 +28,7 @@ from .errors import (
     )
 
 
-__version__ = '1.2.0'
+__version__ = '1.3.0rc0'
 
 __all__ = [
     # Factories
