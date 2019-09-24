@@ -1,1 +1,0 @@
-Added xdel and xtrim method which missed in commands/streams.py & also added unit test code for them.
