@@ -5,7 +5,7 @@ import sys
 from unittest import mock
 
 from aioredis import ReplyError
-from _testutils import redis_version, assert_almost_equal
+from _testutils import redis_version
 
 
 @pytest.mark.run_loop
@@ -80,11 +80,13 @@ async def test_client_list__unixsocket(create_redis, loop, server, request):
 @redis_version(
     2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 async def test_client_pause(redis):
-    ts = time.time()
-    res = await redis.client_pause(2000)
-    assert res is True
-    await redis.ping()
-    assert int(time.time() - ts) >= 2
+    tr = redis.pipeline()
+    tr.time()
+    tr.client_pause(100)
+    tr.time()
+    t1, ok, t2 = await tr.execute()
+    assert ok
+    assert t2 - t1 >= .1
 
     with pytest.raises(TypeError):
         await redis.client_pause(2.0)
@@ -207,10 +209,10 @@ async def test_debug_object(redis):
 @pytest.mark.run_loop
 async def test_debug_sleep(redis):
     t1 = await redis.time()
-    ok = await redis.debug_sleep(2)
+    ok = await redis.debug_sleep(.2)
     assert ok
     t2 = await redis.time()
-    assert t2 - t1 >= 2
+    assert t2 - t1 >= .2
 
 
 @pytest.mark.run_loop
@@ -271,20 +273,18 @@ async def test_save(redis):
     assert t2 >= t1
 
 
+@pytest.mark.parametrize('encoding', [
+    pytest.param(None, id='no decoding'),
+    pytest.param('utf-8', id='with decoding'),
+])
 @pytest.mark.run_loop
-async def test_time(redis):
-    res = await redis.time()
-    assert isinstance(res, float)
-    assert_almost_equal(int(res), int(time.time()), delta=10)
-
-
-@pytest.mark.run_loop
-async def test_time_with_encoding(create_redis, server, loop):
+async def test_time(create_redis, server, loop, encoding):
     redis = await create_redis(server.tcp_address, loop=loop,
                                encoding='utf-8')
+    now = time.time()
     res = await redis.time()
     assert isinstance(res, float)
-    assert_almost_equal(int(res), int(time.time()), delta=10)
+    assert res == pytest.approx(now, abs=10)
 
 
 @pytest.mark.run_loop
