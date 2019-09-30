@@ -409,8 +409,8 @@ def start_sentinel(_proc, request, unused_port, server_bin):
             for master in masters:
                 write('sentinel monitor', master.name,
                       '127.0.0.1', master.tcp_address.port, quorum)
-                write('sentinel down-after-milliseconds', master.name, '3000')
-                write('sentinel failover-timeout', master.name, '3000')
+                write('sentinel down-after-milliseconds', master.name, '300')
+                write('sentinel failover-timeout', master.name, '1000')
                 write('sentinel auth-pass', master.name, master.password)
 
         f = open(stdout_file, 'w')
