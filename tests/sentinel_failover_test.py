@@ -21,8 +21,12 @@ async def test_auto_failover(start_sentinel, start_server,
     start_server('slave-failover1', ['slave-read-only yes'], slaveof=server1)
     start_server('slave-failover2', ['slave-read-only yes'], slaveof=server1)
 
-    sentinel1 = start_sentinel('sentinel-failover1', server1, quorum=2)
-    sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2)
+    sentinel1 = start_sentinel('sentinel-failover1', server1, quorum=2,
+                               down_after_milliseconds=300,
+                               failover_timeout=1000)
+    sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2,
+                               down_after_milliseconds=300,
+                               failover_timeout=1000)
     # Wait a bit for sentinels to sync
     await asyncio.sleep(3, loop=loop)
 
@@ -165,7 +169,9 @@ async def test_failover_command(start_server, start_sentinel,
     server = start_server('master-failover-cmd', ['slave-read-only yes'])
     start_server('slave-failover-cmd', ['slave-read-only yes'], slaveof=server)
 
-    sentinel = start_sentinel('sentinel-failover-cmd', server, quorum=1)
+    sentinel = start_sentinel('sentinel-failover-cmd', server, quorum=1,
+                              down_after_milliseconds=300,
+                              failover_timeout=1000)
 
     name = 'master-failover-cmd'
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
