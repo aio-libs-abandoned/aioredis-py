@@ -282,8 +282,7 @@ class ConnectionsPool(AbcPool):
         async with self._cond:
             for i in range(self.freesize):
                 res = res and (await self._pool[i].select(db))
-            else:
-                self._db = db
+            self._db = db
         return res
 
     async def auth(self, password):

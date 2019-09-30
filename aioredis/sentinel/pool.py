@@ -83,7 +83,7 @@ class SentinelPool:
         async def echo_events():
             try:
                 while await monitor.wait_message():
-                    ch, (ev, data) = await monitor.get(encoding='utf-8')
+                    _, (ev, data) = await monitor.get(encoding='utf-8')
                     ev = ev.decode('utf-8')
                     _logger.debug("%s: %s", ev, data)
                     if ev in ('+odown',):
@@ -295,8 +295,8 @@ class SentinelPool:
                 # TODO: clear (drop) connections to schedule reconnect
                 await asyncio.sleep(idle_timeout, loop=self._loop)
                 continue
-        else:
-            raise MasterNotFoundError("No master found for {}".format(service))
+        # Otherwise
+        raise MasterNotFoundError("No master found for {}".format(service))
 
     async def discover_slave(self, service, timeout, **kwargs):
         """Perform Slave discovery for specified service."""
@@ -358,8 +358,7 @@ class SentinelPool:
             if {'s_down', 'o_down', 'disconnected'} & flags:
                 continue
             return address
-        else:
-            raise BadState(state)   # XXX: only last state
+        raise BadState()   # XXX: only last state
 
     async def _verify_service_role(self, conn, role):
         res = await conn.execute(b'role', encoding='utf-8')

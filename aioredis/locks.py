@@ -2,7 +2,6 @@ import asyncio
 import sys
 
 from asyncio.locks import Lock as _Lock
-from asyncio import coroutine
 
 # Fixes an issue with all Python versions that leaves pending waiters
 # without being awakened when the first waiter is canceled.
@@ -14,7 +13,7 @@ from asyncio import coroutine
 class Lock(_Lock):
 
     if sys.version_info < (3, 7, 0):
-        @coroutine
+        @asyncio.coroutine
         def acquire(self):
             """Acquire a lock.
             This method blocks until the lock is unlocked, then sets it to

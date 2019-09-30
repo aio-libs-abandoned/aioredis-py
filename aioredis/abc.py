@@ -5,8 +5,6 @@ These are intended to be used for implementing custom connection managers.
 import abc
 import asyncio
 
-from abc import ABC
-
 
 __all__ = [
     'AbcConnection',
@@ -15,7 +13,7 @@ __all__ = [
 ]
 
 
-class AbcConnection(ABC):
+class AbcConnection(abc.ABC):
     """Abstract connection interface."""
 
     @abc.abstractmethod
@@ -84,7 +82,7 @@ class AbcPool(AbcConnection):
     """
 
     @abc.abstractmethod
-    def get_connection(self):   # TODO: arguments
+    def get_connection(self, command, args=()):
         """
         Gets free connection from pool in a sync way.
 
@@ -109,7 +107,7 @@ class AbcPool(AbcConnection):
         """Connection address or None."""
 
 
-class AbcChannel(ABC):
+class AbcChannel(abc.ABC):
     """Abstract Pub/Sub Channel interface."""
 
     @property
