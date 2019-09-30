@@ -29,8 +29,7 @@ def read_version():
             match = regexp.match(line)
             if match is not None:
                 return match.group(1)
-        else:
-            raise RuntimeError('Cannot find version in aioredis/__init__.py')
+        raise RuntimeError('Cannot find version in {}'.format(init_py))
 
 
 classifiers = [
