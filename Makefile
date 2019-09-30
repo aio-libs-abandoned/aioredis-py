@@ -88,7 +88,8 @@ certificate:
 	$(MAKE) -C tests/ssl
 
 ci-test: $(REDIS_TARGETS)
-	$(PYTEST) --cov \
+	$(PYTEST) \
+		--cov --cov-report=xml \
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server

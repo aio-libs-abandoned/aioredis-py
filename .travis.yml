@@ -99,4 +99,4 @@ cache:
   - $HOME/redis/
 
 after_script:
-- codecov
+- codecov -f coverage.xml
