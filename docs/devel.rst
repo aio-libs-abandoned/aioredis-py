@@ -206,10 +206,12 @@ There is a number of fixtures that can be used to write tests:
    :rtype: tuple
 
 
-Helpers
-~~~~~~~
+``redis_version`` tests helper
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:mod:`aioredis` have `_testutils` module with several helpers.
+In ``tests`` directory there is a :mod:`_testutils` module with a simple
+helper --- :func:`redis_version` --- a function that add a pytest mark to a test
+allowing to run it with requested Redis server versions.
 
 .. function:: _testutils.redis_version(\*version, reason)
 
@@ -219,28 +221,8 @@ Helpers
 
    .. code-block:: python
 
+      from _testutil import redis_version
+
       @redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
       def test_hstrlen(redis):
           pass
-
-
-.. function:: _testutils.logs(logger, level=None)
-
-   Example:
-
-   .. code-block:: python
-
-    import pytest
-
-    @pytest.mark.run_loop
-    async def test_logs(create_connection, server):
-        with _testutils.logs('aioredis', 'DEBUG') as cm:
-            conn = await create_connection(server.tcp_address)
-        assert cm.output[0].startswith(
-          'DEBUG:aioredis:Creating tcp connection')
-
-
-.. function:: _testutils.assert_almost_equal(first, second, places=None, \
-                                         msg=None, delta=None)
-
-   Adopted version of :meth:`unittest.TestCase.assertAlmostEqual`.

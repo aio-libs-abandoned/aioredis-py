@@ -13,7 +13,7 @@ from aioredis import (
     ConnectionsPool,
     MaxClientsError,
     )
-from _testutils import redis_version, logs
+from _testutils import redis_version
 
 
 def _assert_defaults(pool):
@@ -195,14 +195,15 @@ async def test_release_closed(create_pool, loop, server):
 
 
 @pytest.mark.run_loop
-async def test_release_pending(create_pool, loop, server):
+async def test_release_pending(create_pool, loop, server, caplog):
     pool = await create_pool(
         server.tcp_address,
         minsize=1, loop=loop)
     assert pool.size == 1
     assert pool.freesize == 1
 
-    with logs('aioredis', 'WARNING') as cm:
+    caplog.clear()
+    with caplog.at_level('WARNING', 'aioredis'):
         with (await pool) as conn:
             try:
                 await asyncio.wait_for(
@@ -210,15 +211,15 @@ async def test_release_pending(create_pool, loop, server):
                         b'blpop',
                         b'somekey:not:exists',
                         b'0'),
-                    0.1,
+                    0.05,
                     loop=loop)
             except asyncio.TimeoutError:
                 pass
     assert pool.size == 0
     assert pool.freesize == 0
-    assert cm.output == [
-        'WARNING:aioredis:Connection <RedisConnection [db:0]>'
-        ' has pending commands, closing it.'
+    assert caplog.record_tuples == [
+        ('aioredis', logging.WARNING, 'Connection <RedisConnection [db:0]>'
+         ' has pending commands, closing it.'),
     ]
 
 
@@ -463,23 +464,28 @@ async def test_pool_close__used(create_pool, server, loop):
 @pytest.mark.run_loop
 @redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_pool_check_closed_when_exception(
-        create_pool, create_redis, start_server, loop):
+        create_pool, create_redis, start_server, loop, caplog):
     server = start_server('server-small')
     redis = await create_redis(server.tcp_address, loop=loop)
     await redis.config_set('maxclients', 2)
 
     errors = (MaxClientsError, ConnectionClosedError, ConnectionError)
-    with logs('aioredis', 'DEBUG') as cm:
+    caplog.clear()
+    with caplog.at_level('DEBUG', 'aioredis'):
         with pytest.raises(errors):
             await create_pool(address=tuple(server.tcp_address),
                               minsize=3, loop=loop)
 
-    assert len(cm.output) >= 3
-    connect_msg = (
-        "DEBUG:aioredis:Creating tcp connection"
-        " to ('localhost', {})".format(server.tcp_address.port))
-    assert cm.output[:2] == [connect_msg, connect_msg]
-    assert cm.output[-1] == "DEBUG:aioredis:Closed 1 connection(s)"
+    assert len(caplog.record_tuples) >= 3
+    connect_msg = "Creating tcp connection to ('localhost', {})".format(
+        server.tcp_address.port)
+    assert caplog.record_tuples[:2] == [
+        ('aioredis', logging.DEBUG, connect_msg),
+        ('aioredis', logging.DEBUG, connect_msg),
+    ]
+    assert caplog.record_tuples[-1] == (
+        'aioredis', logging.DEBUG, 'Closed 1 connection(s)'
+        )
 
 
 @pytest.mark.run_loop

@@ -336,7 +336,7 @@ async def test_pubsub_channel_iter(create_redis, server, loop):
     tsk = asyncio.ensure_future(coro(ch), loop=loop)
     await pub.publish_json('chan:1', {'Hello': 'World'})
     await pub.publish_json('chan:1', ['message'])
-    await asyncio.sleep(0, loop=loop)
+    await asyncio.sleep(0.1, loop=loop)
     ch.close()
     assert await tsk == [b'{"Hello": "World"}', b'["message"]']
 

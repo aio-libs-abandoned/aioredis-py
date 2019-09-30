@@ -12,7 +12,6 @@ pytestmark = redis_version(
     5, 0, 0, reason="Streams only available since Redis 5.0.0")
 
 
-@asyncio.coroutine
 async def add_message_with_sleep(redis, loop, stream, fields):
     await asyncio.sleep(0.2, loop=loop)
     result = await redis.xadd(stream, fields)

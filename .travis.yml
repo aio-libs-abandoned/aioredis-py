@@ -11,7 +11,7 @@ env:
     INSTALL_DIR: >-
       $HOME/redis
     PYTEST_ADDOPTS: >-
-      '-n auto'
+      "-n $(( $(nproc) * 2 ))"
 
 python:
 - "3.5"
@@ -99,4 +99,4 @@ cache:
   - $HOME/redis/
 
 after_script:
-- codecov
+- codecov -f coverage.xml

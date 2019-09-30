@@ -14,7 +14,6 @@ if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 
 
-@pytest.mark.xfail
 @pytest.mark.run_loop(timeout=40)
 async def test_auto_failover(start_sentinel, start_server,
                              create_sentinel, create_connection, loop):
@@ -22,8 +21,14 @@ async def test_auto_failover(start_sentinel, start_server,
     start_server('slave-failover1', ['slave-read-only yes'], slaveof=server1)
     start_server('slave-failover2', ['slave-read-only yes'], slaveof=server1)
 
-    sentinel1 = start_sentinel('sentinel-failover1', server1, quorum=2)
-    sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2)
+    sentinel1 = start_sentinel('sentinel-failover1', server1, quorum=2,
+                               down_after_milliseconds=300,
+                               failover_timeout=1000)
+    sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2,
+                               down_after_milliseconds=300,
+                               failover_timeout=1000)
+    # Wait a bit for sentinels to sync
+    await asyncio.sleep(3, loop=loop)
 
     sp = await create_sentinel([sentinel1.tcp_address,
                                 sentinel2.tcp_address],
@@ -40,8 +45,7 @@ async def test_auto_failover(start_sentinel, start_server,
 
     # wait failover
     conn = await create_connection(server1.tcp_address)
-    await conn.execute("debug", "sleep", 6)
-    await asyncio.sleep(3, loop=loop)
+    await conn.execute("debug", "sleep", 2)
 
     # _, new_port = await sp.master_address(server1.name)
     # assert new_port != old_port
@@ -159,34 +163,44 @@ async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
             break
 
 
-@pytest.mark.xfail(reason="same sentinel; single master;")
-@pytest.mark.run_loop
-async def test_failover_command(sentinel, create_sentinel, loop):
-    master_name = 'masterA'
-    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
+@pytest.mark.run_loop(timeout=30)
+async def test_failover_command(start_server, start_sentinel,
+                                create_sentinel, loop):
+    server = start_server('master-failover-cmd', ['slave-read-only yes'])
+    start_server('slave-failover-cmd', ['slave-read-only yes'], slaveof=server)
 
-    orig_master = await redis_sentinel.master_address(master_name)
-    ret = await redis_sentinel.failover(master_name)
-    assert ret is True
+    sentinel = start_sentinel('sentinel-failover-cmd', server, quorum=1,
+                              down_after_milliseconds=300,
+                              failover_timeout=1000)
+
+    name = 'master-failover-cmd'
+    redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
+    # Wait a bit for sentinels to sync
+    await asyncio.sleep(3, loop=loop)
+
+    orig_master = await redis_sentinel.master_address(name)
+    assert await redis_sentinel.failover(name) is True
     await asyncio.sleep(2, loop=loop)
 
-    new_master = await redis_sentinel.master_address(master_name)
+    new_master = await redis_sentinel.master_address(name)
     assert orig_master != new_master
 
-    ret = await redis_sentinel.failover(master_name)
+    ret = await redis_sentinel.failover(name)
     assert ret is True
     await asyncio.sleep(2, loop=loop)
 
-    new_master = await redis_sentinel.master_address(master_name)
+    new_master = await redis_sentinel.master_address(name)
     assert orig_master == new_master
 
-    redis = redis_sentinel.slave_for(master_name)
-    key, field, value = b'key:hset', b'bar', b'zap'
-    while True:
-        try:
-            await asyncio.sleep(1, loop=loop)
-            await redis.hset(key, field, value)
-        except SlaveNotFoundError:
-            pass
-        except ReadOnlyError:
-            break
+    # This part takes almost 10 seconds (waiting for '+convert-to-slave').
+    # Disabled for time being.
+
+    # redis = redis_sentinel.slave_for(name)
+    # while True:
+    #     try:
+    #         await asyncio.sleep(.2, loop=loop)
+    #         await redis.set('foo', 'bar')
+    #     except SlaveNotFoundError:
+    #         pass
+    #     except ReadOnlyError:
+    #         break

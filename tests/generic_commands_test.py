@@ -7,7 +7,7 @@ import sys
 from unittest import mock
 
 from aioredis import ReplyError
-from _testutils import redis_version, assert_almost_equal
+from _testutils import redis_version
 
 
 async def add(redis, key, value):
@@ -383,6 +383,8 @@ async def test_object_encoding(redis, server):
         await redis.object_encoding(None)
 
 
+@redis_version(
+    3, 0, 0, reason="Older Redis version has lower idle time resolution")
 @pytest.mark.run_loop(timeout=20)
 async def test_object_idletime(redis, loop, server):
     await add(redis, 'foo', 'bar')
@@ -450,13 +452,13 @@ async def test_pexpire(redis, loop):
 @pytest.mark.run_loop
 async def test_pexpireat(redis):
     await add(redis, 'my-key', 123)
-    now = math.ceil((await redis.time()) * 1000)
+    now = int((await redis.time()) * 1000)
     fut1 = redis.pexpireat('my-key', now + 2000)
     fut2 = redis.ttl('my-key')
     fut3 = redis.pttl('my-key')
-    assert (await fut1) is True
-    assert (await fut2) == 2
-    assert_almost_equal((await fut3), 2000, -3)
+    assert await fut1 is True
+    assert await fut2 == 2
+    assert 1000 < await fut3 <= 2000
 
     with pytest.raises(TypeError):
         await redis.pexpireat(None, 1234)
@@ -479,7 +481,7 @@ async def test_pttl(redis, server):
 
     await redis.pexpire('key', 500)
     res = await redis.pttl('key')
-    assert_almost_equal(res, 500, -2)
+    assert 400 < res <= 500
 
     with pytest.raises(TypeError):
         await redis.pttl(None)

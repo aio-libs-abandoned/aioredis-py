@@ -2,13 +2,13 @@ import pytest
 import asyncio
 import json
 import sys
+import logging
 
 from unittest import mock
 
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
-from _testutils import logs
 
 
 def test_listener_channel(loop):
@@ -167,7 +167,7 @@ async def test_unsubscribe(create_connection, server, loop):
 
 
 @pytest.mark.run_loop
-async def test_stopped(create_connection, server, loop):
+async def test_stopped(create_connection, server, loop, caplog):
     sub = await create_connection(server.tcp_address, loop=loop)
     pub = await create_connection(server.tcp_address, loop=loop)
 
@@ -176,18 +176,21 @@ async def test_stopped(create_connection, server, loop):
     assert mpsc.is_active
     mpsc.stop()
 
-    with logs('aioredis', 'DEBUG') as cm:
+    caplog.clear()
+    with caplog.at_level('DEBUG', 'aioredis'):
         await pub.execute('publish', 'channel:1', b'Hello')
         await asyncio.sleep(0, loop=loop)
 
-    assert len(cm.output) == 1
+    assert len(caplog.record_tuples) == 1
     # Receiver must have 1 EndOfStream message
-    warn_messaege = (
-        "WARNING:aioredis:Pub/Sub listener message after stop: "
+    message = (
+        "Pub/Sub listener message after stop: "
         "sender: <_Sender name:b'channel:1', is_pattern:False, receiver:"
         "<Receiver is_active:False, senders:1, qsize:0>>, data: b'Hello'"
     )
-    assert cm.output == [warn_messaege]
+    assert caplog.record_tuples == [
+        ('aioredis', logging.WARNING, message),
+    ]
 
     # assert (await mpsc.get()) is None
     with pytest.raises(ChannelClosedError):
@@ -300,7 +303,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
     subscribers = await pub.publish_json('chan:2', ['message'])
     assert subscribers > 1
     loop.call_later(0, mpsc.stop)
-    # await asyncio.sleep(0, loop=loop)
+    await asyncio.sleep(0.01, loop=loop)
     assert await tsk == [
         (snd1, b'{"Hello": "World"}'),
         (snd3, (b'chan:1', b'{"Hello": "World"}')),
