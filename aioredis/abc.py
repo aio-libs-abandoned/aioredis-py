@@ -28,9 +28,8 @@ class AbcConnection(abc.ABC):
     def close(self):
         """Perform connection(s) close and resources cleanup."""
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def wait_closed(self):
+    async def wait_closed(self):
         """
         Coroutine waiting until all resources are closed/released/cleaned up.
         """
@@ -89,9 +88,8 @@ class AbcPool(AbcConnection):
         If no connection available — returns None.
         """
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def acquire(self):  # TODO: arguments
+    async def acquire(self):  # TODO: arguments
         """Acquires connection from pool."""
 
     @abc.abstractmethod
@@ -126,9 +124,8 @@ class AbcChannel(abc.ABC):
         """Flag indicating that channel has unreceived messages
         and not marked as closed."""
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def get(self):
+    async def get(self):
         """Wait and return new message.
 
         Will raise ``ChannelClosedError`` if channel is not active.
