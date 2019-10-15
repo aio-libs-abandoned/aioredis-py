@@ -1,0 +1,1 @@
+Change "@asyncio.coroutine" to "async def" due to warning in Python 3.8

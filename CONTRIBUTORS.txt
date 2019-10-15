@@ -44,5 +44,6 @@ Taras Voinarovskyi
 Thanos Lefteris
 Thomas Steinacher
 Volodymyr Hotsyk
+Youngmin Koo <youngminz>
 Dima Kit
 <curiouscod3>
