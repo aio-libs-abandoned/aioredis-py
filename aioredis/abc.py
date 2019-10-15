@@ -88,11 +88,11 @@ class AbcPool(AbcConnection):
         """
 
     @abc.abstractmethod
-    async def acquire(self):  # TODO: arguments
+    async def acquire(self, command=None, args=()):
         """Acquires connection from pool."""
 
     @abc.abstractmethod
-    def release(self, conn):  # TODO: arguments
+    def release(self, conn):
         """Releases connection to pool.
 
         :param AbcConnection conn: Owned connection to be released.
