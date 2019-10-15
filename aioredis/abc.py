@@ -3,7 +3,6 @@
 These are intended to be used for implementing custom connection managers.
 """
 import abc
-import asyncio
 
 
 __all__ = [
