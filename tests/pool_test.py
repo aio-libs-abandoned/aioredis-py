@@ -15,6 +15,8 @@ from aioredis import (
     )
 from _testutils import redis_version
 
+BPO_34638 = sys.version_info >= (3, 8)
+
 
 def _assert_defaults(pool):
     assert isinstance(pool, ConnectionsPool)
@@ -542,12 +544,22 @@ async def test_pool_idle_close(create_pool, start_server, loop, caplog):
         # wait for either disconnection logged or test timeout reached.
         while len(caplog.record_tuples) < 2:
             await asyncio.sleep(.5, loop=loop)
-    assert caplog.record_tuples == [
+    expected = [
         ('aioredis', logging.DEBUG,
          'Connection has been closed by server, response: None'),
         ('aioredis', logging.DEBUG,
          'Connection has been closed by server, response: None'),
     ]
+    if BPO_34638:
+        expected += [
+            ('asyncio', logging.ERROR,
+             'An open stream object is being garbage collected; '
+             'call "stream.close()" explicitly.'),
+            ('asyncio', logging.ERROR,
+             'An open stream object is being garbage collected; '
+             'call "stream.close()" explicitly.')]
+    # The order in which logs are collected differs each time.
+    assert sorted(caplog.record_tuples) == sorted(expected)
 
     # On CI this test fails from time to time.
     # It is possible to pick 'unclosed' connection and send command,
