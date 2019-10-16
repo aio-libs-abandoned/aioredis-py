@@ -13,8 +13,7 @@ from asyncio.locks import Lock as _Lock
 class Lock(_Lock):
 
     if sys.version_info < (3, 7, 0):
-        @asyncio.coroutine
-        def acquire(self):
+        async def acquire(self):
             """Acquire a lock.
             This method blocks until the lock is unlocked, then sets it to
             locked and returns True.
@@ -27,7 +26,7 @@ class Lock(_Lock):
 
             self._waiters.append(fut)
             try:
-                yield from fut
+                await fut
                 self._locked = True
                 return True
             except asyncio.CancelledError:
