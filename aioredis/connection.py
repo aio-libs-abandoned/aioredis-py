@@ -339,7 +339,6 @@ class RedisConnection(AbcConnection):
             encoding = None
         elif command in ('DISCARD', b'DISCARD'):
             cb = partial(self._end_transaction, discard=True)
-            encoding = None
         else:
             cb = None
         if encoding is _NOTSET:
