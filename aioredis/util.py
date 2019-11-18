@@ -239,7 +239,4 @@ class CloseEvent:
         self._close_done.set()
 
 
-if hasattr(asyncio, 'get_running_loop'):
-    get_event_loop = asyncio.get_running_loop
-else:
-    get_event_loop = asyncio.get_event_loop
+get_event_loop = getattr(asyncio, 'get_running_loop', asyncio.get_event_loop)
