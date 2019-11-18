@@ -396,7 +396,7 @@ async def test_object_idletime(redis, loop, server):
     res = 0
     while not res:
         res = await redis.object_idletime('foo')
-        await asyncio.sleep(.5, loop=loop)
+        await asyncio.sleep(.5)
     assert res >= 1
 
     res = await redis.object_idletime('non-existent-key')
@@ -438,7 +438,7 @@ async def test_pexpire(redis, loop):
     assert res is True
 
     # XXX: tests now looks strange to me.
-    await asyncio.sleep(.2, loop=loop)
+    await asyncio.sleep(.2)
 
     res = await redis.exists('my-key')
     assert not res
@@ -670,7 +670,7 @@ async def test_touch(redis, loop):
     res = 0
     while not res:
         res = await redis.object_idletime('key')
-        await asyncio.sleep(.5, loop=loop)
+        await asyncio.sleep(.5)
     assert res > 0
     assert await redis.touch('key', 'key', 'key') == 3
     res2 = await redis.object_idletime('key')

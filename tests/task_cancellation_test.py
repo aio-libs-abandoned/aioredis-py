@@ -11,7 +11,7 @@ async def test_future_cancellation(create_connection, loop, server):
     ts = loop.time()
     fut = conn.execute('BLPOP', 'some-list', 5)
     with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(fut, 1, loop=loop)
+        await asyncio.wait_for(fut, 1)
     assert fut.cancelled()
 
     # NOTE: Connection becomes available only after timeout expires

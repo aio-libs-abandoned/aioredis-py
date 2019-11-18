@@ -481,7 +481,7 @@ async def test_psetex(redis, loop):
     test_value = await fut2
     assert test_value == value
 
-    await asyncio.sleep(0.050, loop=loop)
+    await asyncio.sleep(0.050)
     test_value = await redis.get(key)
     assert test_value is None
 
@@ -517,7 +517,7 @@ async def test_set_expire(redis, loop):
     await fut1
     result_1 = await fut2
     assert result_1 == value
-    await asyncio.sleep(0.050, loop=loop)
+    await asyncio.sleep(0.050)
     result_2 = await redis.get(key)
     assert result_2 is None
 
@@ -529,7 +529,7 @@ async def test_set_expire(redis, loop):
     await fut1
     result_3 = await fut2
     assert result_3 == value
-    await asyncio.sleep(1.050, loop=loop)
+    await asyncio.sleep(1.050)
     result_4 = await redis.get(key)
     assert result_4 is None
 
@@ -606,7 +606,7 @@ async def test_setex(redis, loop):
     await fut1
     test_value = await fut2
     assert test_value == value
-    await asyncio.sleep(1.050, loop=loop)
+    await asyncio.sleep(1.050)
     test_value = await redis.get(key)
     assert test_value is None
 
@@ -617,7 +617,7 @@ async def test_setex(redis, loop):
     await fut1
     test_value = await fut2
     assert test_value == value
-    await asyncio.sleep(0.50, loop=loop)
+    await asyncio.sleep(0.50)
     test_value = await redis.get(key)
     assert test_value is None
 

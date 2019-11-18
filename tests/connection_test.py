@@ -68,8 +68,7 @@ async def test_connect_inject_connection_cls_invalid(
 async def test_connect_tcp_timeout(request, create_connection, loop, server):
     with patch.object(loop, 'create_connection') as\
             open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
-                                                                    loop=loop)
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
         with pytest.raises(asyncio.TimeoutError):
             await create_connection(
                 server.tcp_address, loop=loop, timeout=0.1)
@@ -99,8 +98,7 @@ async def test_connect_unixsocket(create_connection, loop, server):
                     reason="No unixsocket on Windows")
 async def test_connect_unixsocket_timeout(create_connection, loop, server):
     with patch.object(loop, 'create_unix_connection') as open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
-                                                                    loop=loop)
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
         with pytest.raises(asyncio.TimeoutError):
             await create_connection(
                 server.unixsocket, db=0, loop=loop, timeout=0.1)
@@ -557,7 +555,7 @@ async def test_connection_idle_close(create_connection, start_server, loop):
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
-    await asyncio.sleep(3, loop=loop)
+    await asyncio.sleep(3)
 
     with pytest.raises(ConnectionClosedError):
         assert await conn.execute('ping') is None

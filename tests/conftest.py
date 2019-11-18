@@ -33,7 +33,8 @@ SentinelServer = namedtuple('SentinelServer',
 def loop():
     """Creates new event loop."""
     loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(None)
+    if sys.version_info < (3, 8):
+        asyncio.set_event_loop(loop)
 
     try:
         yield loop
@@ -598,7 +599,8 @@ def pytest_configure(config):
     bins = config.getoption('--redis-server')[:]
     cmd = 'which redis-server'
     if not bins:
-        path = os.popen(cmd).read().rstrip()
+        with os.popen(cmd) as pipe:
+            path = pipe.read().rstrip()
         assert path, (
             "There is no redis-server on your computer."
             " Please install it first")

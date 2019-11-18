@@ -134,8 +134,7 @@ async def test_create_constraints(create_pool, loop, server):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(pool.acquire(),
-                                   timeout=0.2,
-                                   loop=loop)
+                                   timeout=0.2)
 
 
 @pytest.mark.run_loop
@@ -152,8 +151,7 @@ async def test_create_no_minsize(create_pool, loop, server):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(pool.acquire(),
-                                   timeout=0.2,
-                                   loop=loop)
+                                   timeout=0.2)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -214,7 +212,7 @@ async def test_release_pending(create_pool, loop, server, caplog):
                         b'somekey:not:exists',
                         b'0'),
                     0.05,
-                    loop=loop)
+                    )
             except asyncio.TimeoutError:
                 pass
     assert pool.size == 0
@@ -327,8 +325,7 @@ async def test_select_and_create(create_pool, loop, server):
         while True:
             db = (db + 1) & 1
             _, conn = await asyncio.gather(pool.select(db),
-                                           pool.acquire(),
-                                           loop=loop)
+                                           pool.acquire())
             assert pool.db == db
             pool.release(conn)
             if conn.db == db:
@@ -397,7 +394,7 @@ async def test_pool_size_growth(create_pool, server, loop):
         with (await pool):
             assert pool.size <= pool.maxsize
             assert pool.freesize == 0
-            await asyncio.sleep(0.2, loop=loop)
+            await asyncio.sleep(0.2)
             done.add(i)
 
     async def task2():
@@ -407,9 +404,9 @@ async def test_pool_size_growth(create_pool, server, loop):
             assert done == {0, 1}
 
     for _ in range(2):
-        tasks.append(asyncio.ensure_future(task1(_), loop=loop))
-    tasks.append(asyncio.ensure_future(task2(), loop=loop))
-    await asyncio.gather(*tasks, loop=loop)
+        tasks.append(asyncio.ensure_future(task1(_)))
+    tasks.append(asyncio.ensure_future(task2()))
+    await asyncio.gather(*tasks)
 
 
 @pytest.mark.run_loop
@@ -543,7 +540,7 @@ async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     with caplog.at_level('DEBUG', 'aioredis'):
         # wait for either disconnection logged or test timeout reached.
         while len(caplog.record_tuples) < 2:
-            await asyncio.sleep(.5, loop=loop)
+            await asyncio.sleep(.5)
     expected = [
         ('aioredis', logging.DEBUG,
          'Connection has been closed by server, response: None'),

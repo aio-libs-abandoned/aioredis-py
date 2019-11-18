@@ -228,7 +228,7 @@ async def test_sentinels__exist(create_sentinel, start_sentinel,
         info = await redis_sentinel.master('master-two-sentinels')
         if info['num-other-sentinels'] > 0:
             break
-        await asyncio.sleep(.2, loop=loop)
+        await asyncio.sleep(.2)
     info = await redis_sentinel.sentinels('master-two-sentinels')
     assert len(info) == 1
     assert 'sentinel' in info[0]['flags']

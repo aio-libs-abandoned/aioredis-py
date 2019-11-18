@@ -160,7 +160,7 @@ async def test_unsubscribe(create_connection, server, loop):
     assert not ch.is_pattern
     assert msg == b"message"
 
-    waiter = asyncio.ensure_future(mpsc.get(), loop=loop)
+    waiter = asyncio.ensure_future(mpsc.get())
     await sub.execute_pubsub('unsubscribe', 'channel:3')
     assert not mpsc.is_active
     assert await waiter is None
@@ -179,7 +179,7 @@ async def test_stopped(create_connection, server, loop, caplog):
     caplog.clear()
     with caplog.at_level('DEBUG', 'aioredis'):
         await pub.execute('publish', 'channel:1', b'Hello')
-        await asyncio.sleep(0, loop=loop)
+        await asyncio.sleep(0)
 
     assert len(caplog.record_tuples) == 1
     # Receiver must have 1 EndOfStream message
@@ -206,14 +206,14 @@ async def test_wait_message(create_connection, server, loop):
 
     mpsc = Receiver(loop=loop)
     await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
-    fut = asyncio.ensure_future(mpsc.wait_message(), loop=loop)
+    fut = asyncio.ensure_future(mpsc.wait_message())
     assert not fut.done()
-    await asyncio.sleep(0, loop=loop)
+    await asyncio.sleep(0)
     assert not fut.done()
 
     await pub.execute('publish', 'channel:1', 'hello')
-    await asyncio.sleep(0, loop=loop)  # read in connection
-    await asyncio.sleep(0, loop=loop)  # call Future.set_result
+    await asyncio.sleep(0)  # read in connection
+    await asyncio.sleep(0)  # call Future.set_result
     assert fut.done()
     res = await fut
     assert res is True
@@ -293,7 +293,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
             lst.append(msg)
         return lst
 
-    tsk = asyncio.ensure_future(coro(mpsc), loop=loop)
+    tsk = asyncio.ensure_future(coro(mpsc))
     snd1, = await sub.subscribe(mpsc.channel('chan:1'))
     snd2, = await sub.subscribe(mpsc.channel('chan:2'))
     snd3, = await sub.psubscribe(mpsc.pattern('chan:*'))
@@ -303,7 +303,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
     subscribers = await pub.publish_json('chan:2', ['message'])
     assert subscribers > 1
     loop.call_later(0, mpsc.stop)
-    await asyncio.sleep(0.01, loop=loop)
+    await asyncio.sleep(0.01)
     assert await tsk == [
         (snd1, b'{"Hello": "World"}'),
         (snd3, (b'chan:1', b'{"Hello": "World"}')),
@@ -348,7 +348,7 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
     await sub.subscribe(mpsc.channel('channel:2'))
     await sub.psubscribe(mpsc.pattern('channel:*'))
 
-    q = asyncio.Queue(loop=loop)
+    q = asyncio.Queue()
     EOF = object()
 
     async def reader():
@@ -356,7 +356,7 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
             await q.put((ch.name, msg))
         await q.put(EOF)
 
-    tsk = asyncio.ensure_future(reader(), loop=loop)
+    tsk = asyncio.ensure_future(reader())
     await pub.publish_json('channel:1', ['hello'])
     await pub.publish_json('channel:2', ['hello'])
     # receive all messages
@@ -367,5 +367,5 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
 
     # XXX: need to implement `client kill`
     assert await pub.execute('client', 'kill', sub_info.addr) in (b'OK', 1)
-    await asyncio.wait_for(tsk, timeout=1, loop=loop)
+    await asyncio.wait_for(tsk, timeout=1)
     assert await q.get() is EOF

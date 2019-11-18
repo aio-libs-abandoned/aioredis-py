@@ -13,7 +13,7 @@ pytestmark = redis_version(
 
 
 async def add_message_with_sleep(redis, loop, stream, fields):
-    await asyncio.sleep(0.2, loop=loop)
+    await asyncio.sleep(0.2)
     result = await redis.xadd(stream, fields)
     return result
 
@@ -262,9 +262,8 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     consumer = other_redis.xread(['test_stream'], timeout=1000)
 
     producer_task = asyncio.Task(
-        add_message_with_sleep(redis, loop, 'test_stream', fields), loop=loop)
-    results = await asyncio.gather(
-        consumer, producer_task, loop=loop)
+        add_message_with_sleep(redis, loop, 'test_stream', fields))
+    results = await asyncio.gather(consumer, producer_task)
 
     received_messages, sent_message_id = results
     assert len(received_messages) == 1

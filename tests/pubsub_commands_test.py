@@ -16,11 +16,11 @@ async def _reader(channel, output, waiter, conn):
 
 @pytest.mark.run_loop
 async def test_publish(create_connection, redis, server, loop):
-    out = asyncio.Queue(loop=loop)
+    out = asyncio.Queue()
     fut = loop.create_future()
     conn = await create_connection(
         server.tcp_address, loop=loop)
-    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn))
 
     await fut
     await redis.publish('chan:1', 'Hello')
@@ -32,11 +32,11 @@ async def test_publish(create_connection, redis, server, loop):
 
 @pytest.mark.run_loop
 async def test_publish_json(create_connection, redis, server, loop):
-    out = asyncio.Queue(loop=loop)
+    out = asyncio.Queue()
     fut = loop.create_future()
     conn = await create_connection(
         server.tcp_address, loop=loop)
-    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn), loop=loop)
+    sub = asyncio.ensure_future(_reader('chan:1', out, fut, conn))
 
     await fut
 
@@ -250,15 +250,15 @@ async def test_close_pubsub_patterns(redis, loop):
 
 
 @pytest.mark.run_loop
-async def test_close_cancelled_pubsub_channel(redis, loop):
+async def test_close_cancelled_pubsub_channel(redis):
     ch, = await redis.subscribe('chan:1')
 
     async def waiter(ch):
         with pytest.raises(asyncio.CancelledError):
             await ch.wait_message()
 
-    tsk = asyncio.ensure_future(waiter(ch), loop=loop)
-    await asyncio.sleep(0, loop=loop)
+    tsk = asyncio.ensure_future(waiter(ch))
+    await asyncio.sleep(0)
     tsk.cancel()
 
 
@@ -289,14 +289,14 @@ async def test_subscribe_concurrency(create_redis, server, loop):
         return await sub.subscribe(*args)
 
     async def publish(*args):
-        await asyncio.sleep(0, loop=loop)
+        await asyncio.sleep(0)
         return await pub.publish(*args)
 
     res = await asyncio.gather(
         subscribe('channel:0'),
         publish('channel:0', 'Hello'),
         subscribe('channel:1'),
-        loop=loop)
+        )
     (ch1,), subs, (ch2,) = res
 
     assert ch1.name == b'channel:0'
@@ -333,10 +333,10 @@ async def test_pubsub_channel_iter(create_redis, server, loop):
             lst.append(msg)
         return lst
 
-    tsk = asyncio.ensure_future(coro(ch), loop=loop)
+    tsk = asyncio.ensure_future(coro(ch))
     await pub.publish_json('chan:1', {'Hello': 'World'})
     await pub.publish_json('chan:1', ['message'])
-    await asyncio.sleep(0.1, loop=loop)
+    await asyncio.sleep(0.1)
     ch.close()
     assert await tsk == [b'{"Hello": "World"}', b'["message"]']
 
@@ -356,7 +356,7 @@ async def test_pubsub_disconnection_notification(create_redis, server, loop):
         return lst
 
     ch, = await sub.subscribe('chan:1')
-    tsk = asyncio.ensure_future(coro(ch), loop=loop)
+    tsk = asyncio.ensure_future(coro(ch))
     assert ch.is_active
     await pub.publish_json('chan:1', {'Hello': 'World'})
     assert ch.is_active
