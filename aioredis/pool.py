@@ -77,8 +77,9 @@ class ConnectionsPool(AbcPool):
             "maxsize must be int > 0", maxsize, type(maxsize))
         assert minsize <= maxsize, (
             "Invalid pool min/max sizes", minsize, maxsize)
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         self._address = address
         self._db = db
         self._password = password
@@ -87,12 +88,11 @@ class ConnectionsPool(AbcPool):
         self._parser_class = parser
         self._minsize = minsize
         self._create_connection_timeout = create_connection_timeout
-        self._loop = loop
         self._pool = collections.deque(maxlen=maxsize)
         self._used = set()
         self._acquiring = 0
-        self._cond = asyncio.Condition(lock=Lock(loop=loop), loop=loop)
-        self._close_state = CloseEvent(self._do_close, loop=loop)
+        self._cond = asyncio.Condition(lock=Lock())
+        self._close_state = CloseEvent(self._do_close)
         self._pubsub_conn = None
         self._connection_cls = connection_cls
 
@@ -139,7 +139,7 @@ class ConnectionsPool(AbcPool):
             conn = self._pool.popleft()
             conn.close()
             waiters.append(conn.wait_closed())
-        await asyncio.gather(*waiters, loop=self._loop)
+        await asyncio.gather(*waiters)
 
     async def _do_close(self):
         async with self._cond:
@@ -152,7 +152,7 @@ class ConnectionsPool(AbcPool):
             for conn in self._used:
                 conn.close()
                 waiters.append(conn.wait_closed())
-            await asyncio.gather(*waiters, loop=self._loop)
+            await asyncio.gather(*waiters)
             # TODO: close _pubsub_conn connection
             logger.debug("Closed %d connection(s)", len(waiters))
 
@@ -362,7 +362,7 @@ class ConnectionsPool(AbcPool):
             else:
                 conn.close()
         # FIXME: check event loop is not closed
-        asyncio.ensure_future(self._wakeup(), loop=self._loop)
+        asyncio.ensure_future(self._wakeup())
 
     def _drop_closed(self):
         for i in range(self.freesize):
@@ -410,7 +410,7 @@ class ConnectionsPool(AbcPool):
                                  parser=self._parser_class,
                                  timeout=self._create_connection_timeout,
                                  connection_cls=self._connection_cls,
-                                 loop=self._loop)
+                                 )
 
     async def _wakeup(self, closing_conn=None):
         async with self._cond:

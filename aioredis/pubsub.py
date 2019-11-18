@@ -23,7 +23,8 @@ class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
 
     def __init__(self, name, is_pattern, loop=None):
-        self._queue = ClosableQueue(loop=loop)
+        # TODO: deprecation note 'loop'
+        self._queue = ClosableQueue()
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
 
@@ -165,7 +166,7 @@ class Receiver:
 
     >>> from aioredis.pubsub import Receiver
     >>> from aioredis.abc import AbcChannel
-    >>> mpsc = Receiver(loop=loop)
+    >>> mpsc = Receiver()
     >>> async def reader(mpsc):
     ...     async for channel, msg in mpsc.iter():
     ...         assert isinstance(channel, AbcChannel)
@@ -188,11 +189,12 @@ class Receiver:
     def __init__(self, loop=None, on_close=None):
         assert on_close is None or callable(on_close), (
             "on_close must be None or callable", on_close)
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         if on_close is None:
             on_close = self.check_stop
-        self._queue = ClosableQueue(loop=loop)
+        self._queue = ClosableQueue()
         self._refs = {}
         self._on_close = on_close
 
@@ -396,9 +398,9 @@ class _Sender(AbcChannel):
 
 class ClosableQueue:
 
-    def __init__(self, *, loop=None):
+    def __init__(self):
         self._queue = collections.deque()
-        self._event = asyncio.Event(loop=loop)
+        self._event = asyncio.Event()
         self._closed = False
 
     async def wait(self):

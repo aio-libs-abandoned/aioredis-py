@@ -125,7 +125,10 @@ def redis(create_redis, server, loop):
     """Returns Redis client instance."""
     redis = loop.run_until_complete(
         create_redis(server.tcp_address, loop=loop))
-    loop.run_until_complete(redis.flushall())
+
+    async def clear():
+        await redis.flushall()
+    loop.run_until_complete(clear())
     return redis
 
 
@@ -134,7 +137,10 @@ def redis_sentinel(create_sentinel, sentinel, loop):
     """Returns Redis Sentinel client instance."""
     redis_sentinel = loop.run_until_complete(
         create_sentinel([sentinel.tcp_address], timeout=2, loop=loop))
-    assert loop.run_until_complete(redis_sentinel.ping()) == b'PONG'
+
+    async def ping():
+        return await redis_sentinel.ping()
+    assert loop.run_until_complete(ping()) == b'PONG'
     return redis_sentinel
 
 
@@ -142,16 +148,18 @@ def redis_sentinel(create_sentinel, sentinel, loop):
 def _closable(loop):
     conns = []
 
-    try:
-        yield conns.append
-    finally:
+    async def close():
         waiters = []
         while conns:
             conn = conns.pop(0)
             conn.close()
             waiters.append(conn.wait_closed())
         if waiters:
-            loop.run_until_complete(asyncio.gather(*waiters, loop=loop))
+            await asyncio.gather(*waiters)
+    try:
+        yield conns.append
+    finally:
+        loop.run_until_complete(close())
 
 
 @pytest.fixture(scope='session')

@@ -1,5 +1,7 @@
 import asyncio
 
+from .util import get_event_loop
+
 __all__ = [
     'open_connection',
     'open_unix_connection',
@@ -11,13 +13,15 @@ async def open_connection(host=None, port=None, *,
                           limit, loop=None,
                           parser=None, **kwds):
     # XXX: parser is not used (yet)
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    reader = StreamReader(limit=limit, loop=loop)
-    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    transport, _ = await loop.create_connection(
+    # TODO: deprecation note
+    # if loop is None:
+    #     loop = asyncio.get_event_loop()
+    reader = StreamReader(limit=limit)
+    protocol = asyncio.StreamReaderProtocol(reader)
+    transport, _ = await get_event_loop().create_connection(
         lambda: protocol, host, port, **kwds)
-    writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+    writer = asyncio.StreamWriter(transport, protocol, reader,
+                                  loop=get_event_loop())
     return reader, writer
 
 
@@ -25,13 +29,15 @@ async def open_unix_connection(address, *,
                                limit, loop=None,
                                parser=None, **kwds):
     # XXX: parser is not used (yet)
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    reader = StreamReader(limit=limit, loop=loop)
-    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    transport, _ = await loop.create_unix_connection(
+    # TODO: deprecation note
+    # if loop is None:
+    #     loop = asyncio.get_event_loop()
+    reader = StreamReader(limit=limit)
+    protocol = asyncio.StreamReaderProtocol(reader)
+    transport, _ = await get_event_loop().create_unix_connection(
         lambda: protocol, address, **kwds)
-    writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+    writer = asyncio.StreamWriter(transport, protocol, reader,
+                                  loop=get_event_loop())
     return reader, writer
 
 
