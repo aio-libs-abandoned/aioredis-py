@@ -17,13 +17,11 @@ def reader(loop):
     return reader
 
 
-@pytest.mark.run_loop
 async def test_feed_and_parse(reader):
     reader.feed_data(b'+PONG\r\n')
     assert (await reader.readobj()) == b'PONG'
 
 
-@pytest.mark.run_loop
 async def test_buffer_available_after_RST(reader):
     reader.feed_data(b'+PONG\r\n')
     reader.set_exception(Exception())
@@ -46,7 +44,6 @@ def test_feed_no_data(reader):
     'read_method',
     ['read', 'readline', 'readuntil', 'readexactly']
 )
-@pytest.mark.run_loop
 async def test_read_flavors_not_supported(reader, read_method):
     with pytest.raises(RuntimeError):
         await getattr(reader, read_method)()

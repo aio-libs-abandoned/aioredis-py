@@ -5,7 +5,6 @@ from aioredis import ReplyError, MultiExecError, WatchVariableError
 from aioredis import ConnectionClosedError
 
 
-@pytest.mark.run_loop
 async def test_multi_exec(redis, loop):
     await redis.delete('foo', 'bar')
 
@@ -40,14 +39,12 @@ async def test_multi_exec(redis, loop):
         await f1
 
 
-@pytest.mark.run_loop
 async def test_empty(redis):
     tr = redis.multi_exec()
     res = await tr.execute()
     assert res == []
 
 
-@pytest.mark.run_loop
 async def test_double_execute(redis):
     tr = redis.multi_exec()
     await tr.execute()
@@ -57,7 +54,6 @@ async def test_double_execute(redis):
         await tr.incr('foo')
 
 
-@pytest.mark.run_loop
 async def test_connection_closed(redis):
     tr = redis.multi_exec()
     fut1 = tr.quit()
@@ -89,7 +85,6 @@ async def test_connection_closed(redis):
                       (ConnectionClosedError, ConnectionError))
 
 
-@pytest.mark.run_loop
 async def test_discard(redis):
     await redis.delete('foo')
     tr = redis.multi_exec()
@@ -108,7 +103,6 @@ async def test_discard(redis):
     assert res == 1
 
 
-@pytest.mark.run_loop
 async def test_exec_error(redis):
     tr = redis.multi_exec()
     fut = tr.connection.execute('INCRBY', 'key', '1.0')
@@ -126,7 +120,6 @@ async def test_exec_error(redis):
         await fut
 
 
-@pytest.mark.run_loop
 async def test_command_errors(redis):
     tr = redis.multi_exec()
     fut = tr.incrby('key', 1.0)
@@ -136,7 +129,6 @@ async def test_command_errors(redis):
         await fut
 
 
-@pytest.mark.run_loop
 async def test_several_command_errors(redis):
     tr = redis.multi_exec()
     fut1 = tr.incrby('key', 1.0)
@@ -149,7 +141,6 @@ async def test_several_command_errors(redis):
         await fut2
 
 
-@pytest.mark.run_loop
 async def test_error_in_connection(redis):
     await redis.set('foo', 1)
     tr = redis.multi_exec()
@@ -162,7 +153,6 @@ async def test_error_in_connection(redis):
     await fut2
 
 
-@pytest.mark.run_loop
 async def test_watch_unwatch(redis):
     res = await redis.watch('key')
     assert res is True
@@ -180,7 +170,6 @@ async def test_watch_unwatch(redis):
     assert res is True
 
 
-@pytest.mark.run_loop
 async def test_encoding(redis):
     res = await redis.set('key', 'value')
     assert res is True
@@ -201,7 +190,6 @@ async def test_encoding(redis):
     assert res == {'foo': 'val1', 'bar': 'val2'}
 
 
-@pytest.mark.run_loop
 async def test_global_encoding(redis, create_redis, server, loop):
     redis = await create_redis(
         server.tcp_address,
@@ -225,7 +213,6 @@ async def test_global_encoding(redis, create_redis, server, loop):
     assert res == {'foo': 'val1', 'bar': 'val2'}
 
 
-@pytest.mark.run_loop
 async def test_transaction__watch_error(redis, create_redis, server, loop):
     other = await create_redis(
         server.tcp_address, loop=loop)
@@ -250,7 +237,6 @@ async def test_transaction__watch_error(redis, create_redis, server, loop):
         await fut2
 
 
-@pytest.mark.run_loop
 async def test_multi_exec_and_pool_release(redis):
     # Test the case when pool connection is released before
     # `exec` result is received.
@@ -271,7 +257,6 @@ async def test_multi_exec_and_pool_release(redis):
     assert (await fut1) is None
 
 
-@pytest.mark.run_loop
 async def test_multi_exec_db_select(redis):
     await redis.set('foo', 'bar')
 

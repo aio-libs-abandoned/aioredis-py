@@ -9,6 +9,7 @@ import ssl
 import time
 import tempfile
 import atexit
+import inspect
 
 from collections import namedtuple
 from urllib.parse import urlencode, urlunparse
@@ -530,24 +531,18 @@ def _proc():
 
 
 @pytest.mark.tryfirst
-def pytest_pycollect_makeitem(collector, name, obj):
-    if collector.funcnamefilter(name):
-        if not callable(obj):
-            return
-        item = pytest.Function(name, parent=collector)
-        if item.get_closest_marker('run_loop') is not None:
-            # TODO: re-wrap with asyncio.coroutine if not native coroutine
-            return list(collector._genfunctions(name, obj))
-
-
-@pytest.mark.tryfirst
 def pytest_pyfunc_call(pyfuncitem):
     """
     Run asyncio marked test functions in an event loop instead of a normal
     function call.
     """
-    marker = pyfuncitem.get_closest_marker('run_loop')
-    if marker is not None:
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        marker = pyfuncitem.get_closest_marker('timeout')
+        if marker is not None and marker.args:
+            timeout = marker.args[0]
+        else:
+            timeout = 15
+
         funcargs = pyfuncitem.funcargs
         loop = funcargs['loop']
         testargs = {arg: funcargs[arg]
@@ -555,7 +550,7 @@ def pytest_pyfunc_call(pyfuncitem):
 
         loop.run_until_complete(
             _wait_coro(pyfuncitem.obj, testargs,
-                       timeout=marker.kwargs.get('timeout', 15),
+                       timeout=timeout,
                        loop=loop))
         return True
 
@@ -566,8 +561,8 @@ async def _wait_coro(corofunc, kwargs, timeout, loop):
 
 
 def pytest_runtest_setup(item):
-    run_loop = item.get_closest_marker('run_loop')
-    if run_loop and 'loop' not in item.fixturenames:
+    is_coro = inspect.iscoroutinefunction(item.obj)
+    if is_coro and 'loop' not in item.fixturenames:
         # inject an event loop fixture for all async tests
         item.fixturenames.append('loop')
 

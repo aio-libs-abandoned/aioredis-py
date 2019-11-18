@@ -14,7 +14,7 @@ if sys.platform == 'win32':
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 
 
-@pytest.mark.run_loop(timeout=40)
+@pytest.mark.timeout(40)
 async def test_auto_failover(start_sentinel, start_server,
                              create_sentinel, create_connection, loop):
     server1 = start_server('master-failover', ['slave-read-only yes'])
@@ -55,7 +55,6 @@ async def test_auto_failover(start_sentinel, start_server,
     assert master.address[1] != old_port
 
 
-@pytest.mark.run_loop
 async def test_sentinel_normal(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
     redis = redis_sentinel.master_for('masterA')
@@ -76,7 +75,6 @@ async def test_sentinel_normal(sentinel, create_sentinel):
 
 
 @pytest.mark.xfail(reason="same sentinel; single master;")
-@pytest.mark.run_loop
 async def test_sentinel_slave(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
     redis = redis_sentinel.slave_for('masterA')
@@ -96,7 +94,6 @@ async def test_sentinel_slave(sentinel, create_sentinel):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-@pytest.mark.run_loop       # (timeout=600)
 async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
@@ -132,7 +129,6 @@ async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-@pytest.mark.run_loop
 async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
@@ -163,7 +159,7 @@ async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
             break
 
 
-@pytest.mark.run_loop(timeout=30)
+@pytest.mark.timeout(30)
 async def test_failover_command(start_server, start_sentinel,
                                 create_sentinel, loop):
     server = start_server('master-failover-cmd', ['slave-read-only yes'])

@@ -1,10 +1,8 @@
 import asyncio
-import pytest
 
 from aioredis.locks import Lock
 
 
-@pytest.mark.run_loop
 async def test_finished_waiter_cancelled(loop):
     lock = Lock()
 

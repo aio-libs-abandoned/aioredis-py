@@ -9,7 +9,6 @@ async def add(redis, key, members):
     assert ok == 1
 
 
-@pytest.mark.run_loop
 async def test_sadd(redis):
     key, member = b'key:sadd', b'hello'
     # add member to the set, expected result: 1
@@ -28,7 +27,6 @@ async def test_sadd(redis):
         await redis.sadd(None, 10)
 
 
-@pytest.mark.run_loop
 async def test_scard(redis):
     key, member = b'key:scard', b'hello'
 
@@ -47,7 +45,6 @@ async def test_scard(redis):
         await redis.scard(None)
 
 
-@pytest.mark.run_loop
 async def test_sdiff(redis):
     key1 = b'key:sdiff:1'
     key2 = b'key:sdiff:2'
@@ -75,7 +72,6 @@ async def test_sdiff(redis):
         await redis.sdiff(key1, None)
 
 
-@pytest.mark.run_loop
 async def test_sdiffstore(redis):
     key1 = b'key:sdiffstore:1'
     key2 = b'key:sdiffstore:2'
@@ -107,7 +103,6 @@ async def test_sdiffstore(redis):
         await redis.sdiffstore(destkey, key1, None)
 
 
-@pytest.mark.run_loop
 async def test_sinter(redis):
     key1 = b'key:sinter:1'
     key2 = b'key:sinter:2'
@@ -135,7 +130,6 @@ async def test_sinter(redis):
         await redis.sinter(key1, None)
 
 
-@pytest.mark.run_loop
 async def test_sinterstore(redis):
     key1 = b'key:sinterstore:1'
     key2 = b'key:sinterstore:2'
@@ -167,7 +161,6 @@ async def test_sinterstore(redis):
         await redis.sinterstore(destkey, key1, None)
 
 
-@pytest.mark.run_loop
 async def test_sismember(redis):
     key, member = b'key:sismember', b'hello'
     # add member to the set, expected result: 1
@@ -185,7 +178,6 @@ async def test_sismember(redis):
         await redis.sismember(None, b'world')
 
 
-@pytest.mark.run_loop
 async def test_smembers(redis):
     key = b'key:smembers'
     member1 = b'hello'
@@ -210,7 +202,6 @@ async def test_smembers(redis):
         await redis.smembers(None)
 
 
-@pytest.mark.run_loop
 async def test_smove(redis):
     key1 = b'key:smove:1'
     key2 = b'key:smove:2'
@@ -250,7 +241,6 @@ async def test_smove(redis):
         await redis.smove(key1, None, member1)
 
 
-@pytest.mark.run_loop
 async def test_spop(redis):
     key = b'key:spop:1'
     members = b'one', b'two', b'three'
@@ -284,7 +274,6 @@ async def test_spop(redis):
     3, 2, 0,
     reason="The count argument in SPOP is available since redis>=3.2.0"
 )
-@pytest.mark.run_loop
 async def test_spop_count(redis):
     key = b'key:spop:1'
     members1 = b'one', b'two', b'three'
@@ -316,7 +305,6 @@ async def test_spop_count(redis):
     assert len(test_result3) == 0
 
 
-@pytest.mark.run_loop
 async def test_srandmember(redis):
     key = b'key:srandmember:1'
     members = b'one', b'two', b'three', b'four', b'five', b'six', b'seven'
@@ -354,7 +342,6 @@ async def test_srandmember(redis):
         await redis.srandmember(None)
 
 
-@pytest.mark.run_loop
 async def test_srem(redis):
     key = b'key:srem:1'
     members = b'one', b'two', b'three', b'four', b'five', b'six', b'seven'
@@ -379,7 +366,6 @@ async def test_srem(redis):
         await redis.srem(None, members)
 
 
-@pytest.mark.run_loop
 async def test_sunion(redis):
     key1 = b'key:sunion:1'
     key2 = b'key:sunion:2'
@@ -407,7 +393,6 @@ async def test_sunion(redis):
         await redis.sunion(key1, None)
 
 
-@pytest.mark.run_loop
 async def test_sunionstore(redis):
     key1 = b'key:sunionstore:1'
     key2 = b'key:sunionstore:2'
@@ -440,7 +425,6 @@ async def test_sunionstore(redis):
 
 
 @redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_sscan(redis):
     key = b'key:sscan'
     for i in range(1, 11):
@@ -471,7 +455,6 @@ async def test_sscan(redis):
 
 
 @redis_version(2, 8, 0, reason='SSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_isscan(redis):
     key = b'key:sscan'
     for i in range(1, 11):

@@ -16,7 +16,6 @@ if sys.platform == 'win32':
 BPO_30399 = sys.version_info >= (3, 7, 0, 'alpha', 3)
 
 
-@pytest.mark.run_loop
 async def test_client_close(redis_sentinel):
     assert isinstance(redis_sentinel, RedisSentinel)
     assert not redis_sentinel.closed
@@ -29,7 +28,6 @@ async def test_client_close(redis_sentinel):
     await redis_sentinel.wait_closed()
 
 
-@pytest.mark.run_loop
 async def test_global_loop(sentinel, create_sentinel, loop):
     asyncio.set_event_loop(loop)
 
@@ -41,12 +39,10 @@ async def test_global_loop(sentinel, create_sentinel, loop):
     asyncio.set_event_loop(None)
 
 
-@pytest.mark.run_loop
 async def test_ping(redis_sentinel):
     assert b'PONG' == (await redis_sentinel.ping())
 
 
-@pytest.mark.run_loop
 async def test_master_info(redis_sentinel, sentinel):
     info = await redis_sentinel.master('master-no-fail')
     assert isinstance(info, dict)
@@ -84,7 +80,6 @@ async def test_master_info(redis_sentinel, sentinel):
         assert 'link-refcount' in info
 
 
-@pytest.mark.run_loop
 async def test_master__auth(create_sentinel, start_sentinel,
                             start_server, loop):
     master = start_server('master_1', password='123')
@@ -119,7 +114,6 @@ async def test_master__auth(create_sentinel, start_sentinel,
         await m3.set('mykey', 'myval')
 
 
-@pytest.mark.run_loop
 async def test_master__no_auth(create_sentinel, sentinel, loop):
     client = await create_sentinel(
         [sentinel.tcp_address], password='123', timeout=1, loop=loop)
@@ -129,25 +123,21 @@ async def test_master__no_auth(create_sentinel, sentinel, loop):
         await master.set('mykey', 'myval')
 
 
-@pytest.mark.run_loop
 async def test_master__unknown(redis_sentinel):
     with pytest.raises(ReplyError):
         await redis_sentinel.master('unknown-master')
 
 
-@pytest.mark.run_loop
 async def test_master_address(redis_sentinel, sentinel):
     _, port = await redis_sentinel.master_address('master-no-fail')
     assert port == sentinel.masters['master-no-fail'].tcp_address.port
 
 
-@pytest.mark.run_loop
 async def test_master_address__unknown(redis_sentinel):
     res = await redis_sentinel.master_address('unknown-master')
     assert res is None
 
 
-@pytest.mark.run_loop
 async def test_masters(redis_sentinel):
     masters = await redis_sentinel.masters()
     assert isinstance(masters, dict)
@@ -156,7 +146,6 @@ async def test_masters(redis_sentinel):
     assert isinstance(masters['master-no-fail'], dict)
 
 
-@pytest.mark.run_loop
 async def test_slave_info(sentinel, redis_sentinel):
     info = await redis_sentinel.slaves('master-no-fail')
     assert len(info) == 1
@@ -198,13 +187,11 @@ async def test_slave_info(sentinel, redis_sentinel):
     assert not missing
 
 
-@pytest.mark.run_loop
 async def test_slave__unknown(redis_sentinel):
     with pytest.raises(ReplyError):
         await redis_sentinel.slaves('unknown-master')
 
 
-@pytest.mark.run_loop
 async def test_sentinels_empty(redis_sentinel):
     res = await redis_sentinel.sentinels('master-no-fail')
     assert res == []
@@ -213,7 +200,7 @@ async def test_sentinels_empty(redis_sentinel):
         await redis_sentinel.sentinels('unknown-master')
 
 
-@pytest.mark.run_loop(timeout=30)
+@pytest.mark.timeout(30)
 async def test_sentinels__exist(create_sentinel, start_sentinel,
                                 start_server, loop):
     m1 = start_server('master-two-sentinels')
@@ -235,7 +222,6 @@ async def test_sentinels__exist(create_sentinel, start_sentinel,
     assert info[0]['port'] in (s1.tcp_address.port, s2.tcp_address.port)
 
 
-@pytest.mark.run_loop
 async def test_ckquorum(redis_sentinel):
     assert (await redis_sentinel.check_quorum('master-no-fail'))
 
@@ -250,7 +236,6 @@ async def test_ckquorum(redis_sentinel):
     assert (await redis_sentinel.check_quorum('master-no-fail'))
 
 
-@pytest.mark.run_loop
 async def test_set_option(redis_sentinel):
     assert (await redis_sentinel.set('master-no-fail', 'quorum', 10))
     master = await redis_sentinel.master('master-no-fail')
@@ -264,7 +249,6 @@ async def test_set_option(redis_sentinel):
         await redis_sentinel.set('masterA', 'foo', 'bar')
 
 
-@pytest.mark.run_loop
 async def test_sentinel_role(sentinel, create_redis, loop):
     redis = await create_redis(sentinel.tcp_address, loop=loop)
     info = await redis.role()
@@ -273,7 +257,7 @@ async def test_sentinel_role(sentinel, create_redis, loop):
     assert 'master-no-fail' in info.masters
 
 
-@pytest.mark.run_loop(timeout=30)
+@pytest.mark.timeout(30)
 async def test_remove(redis_sentinel, start_server, loop):
     m1 = start_server('master-to-remove')
     ok = await redis_sentinel.monitor(
@@ -287,7 +271,7 @@ async def test_remove(redis_sentinel, start_server, loop):
         await redis_sentinel.remove('unknown-master')
 
 
-@pytest.mark.run_loop(timeout=30)
+@pytest.mark.timeout(30)
 async def test_monitor(redis_sentinel, start_server, loop, unused_port):
     m1 = start_server('master-to-monitor')
     ok = await redis_sentinel.monitor(
@@ -298,7 +282,7 @@ async def test_monitor(redis_sentinel, start_server, loop, unused_port):
     assert port == m1.tcp_address.port
 
 
-@pytest.mark.run_loop(timeout=5)
+@pytest.mark.timeout(5)
 async def test_sentinel_master_pool_size(sentinel, create_sentinel, caplog):
     redis_s = await create_sentinel([sentinel.tcp_address], timeout=1,
                                     minsize=10, maxsize=10)

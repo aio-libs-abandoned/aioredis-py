@@ -63,7 +63,6 @@ def test_listener_pattern(loop):
     assert dict(mpsc.patterns) == {b'*': ch}
 
 
-@pytest.mark.run_loop
 async def test_sender(loop):
     receiver = mock.Mock()
 
@@ -96,7 +95,6 @@ def test_sender_close():
     assert receiver.mock_calls == []
 
 
-@pytest.mark.run_loop
 async def test_subscriptions(create_connection, server, loop):
     sub = await create_connection(server.tcp_address, loop=loop)
     pub = await create_connection(server.tcp_address, loop=loop)
@@ -122,7 +120,6 @@ async def test_subscriptions(create_connection, server, loop):
     assert msg == b"Hello world"
 
 
-@pytest.mark.run_loop
 async def test_unsubscribe(create_connection, server, loop):
     sub = await create_connection(server.tcp_address, loop=loop)
     pub = await create_connection(server.tcp_address, loop=loop)
@@ -166,7 +163,6 @@ async def test_unsubscribe(create_connection, server, loop):
     assert await waiter is None
 
 
-@pytest.mark.run_loop
 async def test_stopped(create_connection, server, loop, caplog):
     sub = await create_connection(server.tcp_address, loop=loop)
     pub = await create_connection(server.tcp_address, loop=loop)
@@ -199,7 +195,6 @@ async def test_stopped(create_connection, server, loop, caplog):
     assert res is False
 
 
-@pytest.mark.run_loop
 async def test_wait_message(create_connection, server, loop):
     sub = await create_connection(server.tcp_address, loop=loop)
     pub = await create_connection(server.tcp_address, loop=loop)
@@ -219,7 +214,6 @@ async def test_wait_message(create_connection, server, loop):
     assert res is True
 
 
-@pytest.mark.run_loop
 async def test_decode_message(loop):
     mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
@@ -242,7 +236,6 @@ async def test_decode_message(loop):
 
 @pytest.mark.skipif(sys.version_info >= (3, 6),
                     reason="json.loads accept bytes since Python 3.6")
-@pytest.mark.run_loop
 async def test_decode_message_error(loop):
     mpsc = Receiver(loop)
     ch = mpsc.channel('channel:1')
@@ -259,7 +252,6 @@ async def test_decode_message_error(loop):
         assert (await mpsc.get(decoder=json.loads)) == unexpected
 
 
-@pytest.mark.run_loop
 async def test_decode_message_for_pattern(loop):
     mpsc = Receiver(loop)
     ch = mpsc.pattern('*')
@@ -280,7 +272,6 @@ async def test_decode_message_for_pattern(loop):
     assert res[1] == (b'channel', {'hello': 'world'})
 
 
-@pytest.mark.run_loop
 async def test_pubsub_receiver_iter(create_redis, server, loop):
     sub = await create_redis(server.tcp_address, loop=loop)
     pub = await create_redis(server.tcp_address, loop=loop)
@@ -313,7 +304,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
     assert not mpsc.is_active
 
 
-@pytest.mark.run_loop(timeout=5)
+@pytest.mark.timeout(5)
 async def test_pubsub_receiver_call_stop_with_empty_queue(
         create_redis, server, loop):
     sub = await create_redis(server.tcp_address, loop=loop)
@@ -332,7 +323,6 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
     assert not mpsc.is_active
 
 
-@pytest.mark.run_loop
 async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
     pub = await create_redis(server.tcp_address, loop=loop)
     sub = await create_redis(server.tcp_address, loop=loop)

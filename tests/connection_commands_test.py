@@ -7,7 +7,6 @@ from aioredis import Redis
 from _testutils import redis_version
 
 
-@pytest.mark.run_loop
 async def test_repr(create_redis, loop, server):
     redis = await create_redis(
         server.tcp_address, db=1, loop=loop)
@@ -24,14 +23,12 @@ async def test_repr(create_redis, loop, server):
         }
 
 
-@pytest.mark.run_loop
 async def test_auth(redis):
     expected_message = "ERR Client sent AUTH, but no password is set"
     with pytest.raises(ReplyError, match=expected_message):
         await redis.auth('')
 
 
-@pytest.mark.run_loop
 async def test_echo(redis):
     resp = await redis.echo('ECHO')
     assert resp == b'ECHO'
@@ -40,12 +37,10 @@ async def test_echo(redis):
         await redis.echo(None)
 
 
-@pytest.mark.run_loop
 async def test_ping(redis):
     assert await redis.ping() == b'PONG'
 
 
-@pytest.mark.run_loop
 async def test_quit(redis, loop):
     expected = (ConnectionClosedError, ConnectionError)
     try:
@@ -70,7 +65,6 @@ async def test_quit(redis, loop):
             await redis.ping()
 
 
-@pytest.mark.run_loop
 async def test_select(redis):
     assert redis.db == 0
 
@@ -80,7 +74,6 @@ async def test_select(redis):
     assert redis.connection.db == 1
 
 
-@pytest.mark.run_loop
 async def test_encoding(create_redis, loop, server):
     redis = await create_redis(
         server.tcp_address,
@@ -89,7 +82,6 @@ async def test_encoding(create_redis, loop, server):
     assert redis.encoding == 'utf-8'
 
 
-@pytest.mark.run_loop
 async def test_yield_from_backwards_compatibility(create_redis, server, loop):
     redis = await create_redis(server.tcp_address, loop=loop)
 
@@ -103,7 +95,6 @@ async def test_yield_from_backwards_compatibility(create_redis, server, loop):
 
 
 @redis_version(4, 0, 0, reason="SWAPDB is available since redis>=4.0.0")
-@pytest.mark.run_loop
 async def test_swapdb(create_redis, start_server, loop):
     server = start_server('swapdb_1')
     cli1 = await create_redis(server.tcp_address, db=0, loop=loop)

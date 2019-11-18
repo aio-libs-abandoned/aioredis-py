@@ -4,7 +4,6 @@ import asyncio
 from aioredis import ReplyError
 
 
-@pytest.mark.run_loop
 async def test_eval(redis):
     await redis.delete('key:eval', 'value:eval')
 
@@ -38,7 +37,6 @@ async def test_eval(redis):
         await redis.eval(None)
 
 
-@pytest.mark.run_loop
 async def test_evalsha(redis):
     script = b"return 42"
     sha_hash = await redis.script_load(script)
@@ -62,7 +60,6 @@ async def test_evalsha(redis):
         await redis.evalsha(None)
 
 
-@pytest.mark.run_loop
 async def test_script_exists(redis):
     sha_hash1 = await redis.script_load(b'return 1')
     sha_hash2 = await redis.script_load(b'return 2')
@@ -82,7 +79,6 @@ async def test_script_exists(redis):
         await redis.script_exists('123', None)
 
 
-@pytest.mark.run_loop
 async def test_script_flush(redis):
     sha_hash1 = await redis.script_load(b'return 1')
     assert len(sha_hash1) == 40
@@ -94,7 +90,6 @@ async def test_script_flush(redis):
     assert res == [0]
 
 
-@pytest.mark.run_loop
 async def test_script_load(redis):
     sha_hash1 = await redis.script_load(b'return 1')
     sha_hash2 = await redis.script_load(b'return 2')
@@ -104,7 +99,6 @@ async def test_script_load(redis):
     assert res == [1, 1]
 
 
-@pytest.mark.run_loop
 async def test_script_kill(create_redis, loop, server, redis):
     script = "while (1) do redis.call('TIME') end"
 

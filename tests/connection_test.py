@@ -17,7 +17,6 @@ from aioredis import (
 from _testutils import redis_version
 
 
-@pytest.mark.run_loop
 async def test_connect_tcp(request, create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -36,7 +35,6 @@ async def test_connect_tcp(request, create_connection, loop, server):
     assert str(conn) == '<RedisConnection [db:0]>'
 
 
-@pytest.mark.run_loop
 async def test_connect_inject_connection_cls(
         request,
         create_connection,
@@ -52,7 +50,6 @@ async def test_connect_inject_connection_cls(
     assert isinstance(conn, MyConnection)
 
 
-@pytest.mark.run_loop
 async def test_connect_inject_connection_cls_invalid(
         request,
         create_connection,
@@ -64,7 +61,6 @@ async def test_connect_inject_connection_cls_invalid(
             server.tcp_address, loop=loop, connection_cls=type)
 
 
-@pytest.mark.run_loop
 async def test_connect_tcp_timeout(request, create_connection, loop, server):
     with patch.object(loop, 'create_connection') as\
             open_conn_mock:
@@ -74,7 +70,6 @@ async def test_connect_tcp_timeout(request, create_connection, loop, server):
                 server.tcp_address, loop=loop, timeout=0.1)
 
 
-@pytest.mark.run_loop
 async def test_connect_tcp_invalid_timeout(
         request, create_connection, loop, server):
     with pytest.raises(ValueError):
@@ -82,7 +77,6 @@ async def test_connect_tcp_invalid_timeout(
             server.tcp_address, loop=loop, timeout=0)
 
 
-@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 async def test_connect_unixsocket(create_connection, loop, server):
@@ -93,7 +87,6 @@ async def test_connect_unixsocket(create_connection, loop, server):
     assert str(conn) == '<RedisConnection [db:0]>'
 
 
-@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 async def test_connect_unixsocket_timeout(create_connection, loop, server):
@@ -104,7 +97,6 @@ async def test_connect_unixsocket_timeout(create_connection, loop, server):
                 server.unixsocket, db=0, loop=loop, timeout=0.1)
 
 
-@pytest.mark.run_loop
 @redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_connect_maxclients(create_connection, loop, start_server):
     server = start_server('server-maxclients')
@@ -128,7 +120,6 @@ def test_global_loop(create_connection, loop, server):
     # assert conn._loop is loop
 
 
-@pytest.mark.run_loop
 async def test_select_db(create_connection, loop, server):
     address = server.tcp_address
     conn = await create_connection(address, loop=loop)
@@ -159,7 +150,6 @@ async def test_select_db(create_connection, loop, server):
     assert conn.db == 1
 
 
-@pytest.mark.run_loop
 async def test_protocol_error(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -195,7 +185,6 @@ def test_close_connection__tcp(create_connection, loop, server):
         conn.execute_pubsub('subscribe', 'channel:1')
 
 
-@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
 async def test_close_connection__socket(create_connection, loop, server):
@@ -212,7 +201,6 @@ async def test_close_connection__socket(create_connection, loop, server):
         await conn.execute_pubsub('subscribe', 'channel:1')
 
 
-@pytest.mark.run_loop
 async def test_closed_connection_with_none_reader(
         create_connection, loop, server):
     address = server.tcp_address
@@ -233,7 +221,6 @@ async def test_closed_connection_with_none_reader(
     conn.close()
 
 
-@pytest.mark.run_loop
 async def test_wait_closed(create_connection, loop, server):
     address = server.tcp_address
     conn = await create_connection(address, loop=loop)
@@ -244,7 +231,6 @@ async def test_wait_closed(create_connection, loop, server):
     assert reader_task.done()
 
 
-@pytest.mark.run_loop
 async def test_cancel_wait_closed(create_connection, loop, server):
     # Regression test: Don't throw error if wait_closed() is cancelled.
     address = server.tcp_address
@@ -261,7 +247,6 @@ async def test_cancel_wait_closed(create_connection, loop, server):
     assert reader_task.done()
 
 
-@pytest.mark.run_loop
 async def test_auth(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -290,7 +275,6 @@ async def test_auth(create_connection, loop, server):
     assert res == b'OK'
 
 
-@pytest.mark.run_loop
 async def test_decoding(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, encoding='utf-8', loop=loop)
@@ -320,7 +304,6 @@ async def test_decoding(create_connection, loop, server):
     assert res == 'значение'
 
 
-@pytest.mark.run_loop
 async def test_execute_exceptions(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -333,7 +316,6 @@ async def test_execute_exceptions(create_connection, loop, server):
     assert len(conn._waiters) == 0
 
 
-@pytest.mark.run_loop
 async def test_subscribe_unsubscribe(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -364,7 +346,6 @@ async def test_subscribe_unsubscribe(create_connection, loop, server):
     assert conn.in_pubsub == 1
 
 
-@pytest.mark.run_loop
 async def test_psubscribe_punsubscribe(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -373,7 +354,6 @@ async def test_psubscribe_punsubscribe(create_connection, loop, server):
     assert conn.in_pubsub == 1
 
 
-@pytest.mark.run_loop
 async def test_bad_command_in_pubsub(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
@@ -388,7 +368,6 @@ async def test_bad_command_in_pubsub(create_connection, loop, server):
         conn.execute('get')
 
 
-@pytest.mark.run_loop
 async def test_pubsub_messages(create_connection, loop, server):
     sub = await create_connection(
         server.tcp_address, loop=loop)
@@ -425,7 +404,6 @@ async def test_pubsub_messages(create_connection, loop, server):
     assert msg == b'Hello!'
 
 
-@pytest.mark.run_loop
 async def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
     sub = await create_connection(server.tcp_address, loop=loop)
 
@@ -455,7 +433,6 @@ async def test_multiple_subscribe_unsubscribe(create_connection, loop, server):
     assert res == [[b'punsubscribe', b'chan:*', 0]]
 
 
-@pytest.mark.run_loop
 async def test_execute_pubsub_errors(create_connection, loop, server):
     sub = await create_connection(
         server.tcp_address, loop=loop)
@@ -482,7 +459,6 @@ async def test_execute_pubsub_errors(create_connection, loop, server):
             Channel('chan:1', is_pattern=False, loop=loop))
 
 
-@pytest.mark.run_loop
 async def test_multi_exec(create_connection, loop, server):
     conn = await create_connection(server.tcp_address, loop=loop)
 
@@ -504,7 +480,6 @@ async def test_multi_exec(create_connection, loop, server):
     assert res == b'OK'
 
 
-@pytest.mark.run_loop
 async def test_multi_exec__enc(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop, encoding='utf-8')
@@ -527,7 +502,6 @@ async def test_multi_exec__enc(create_connection, loop, server):
     assert res == 'OK'
 
 
-@pytest.mark.run_loop
 async def test_connection_parser_argument(create_connection, server, loop):
     klass = mock.MagicMock()
     klass.return_value = reader = mock.Mock()
@@ -548,7 +522,6 @@ async def test_connection_parser_argument(create_connection, server, loop):
     assert b'+PONG\r\n' == await conn.execute('ping')
 
 
-@pytest.mark.run_loop
 async def test_connection_idle_close(create_connection, start_server, loop):
     server = start_server('idle')
     conn = await create_connection(server.tcp_address, loop=loop)
@@ -566,7 +539,6 @@ async def test_connection_idle_close(create_connection, start_server, loop):
     {'db': 1},
     {'encoding': 'utf-8'},
 ], ids=repr)
-@pytest.mark.run_loop
 async def test_create_connection__tcp_url(
         create_connection, server_tcp_url, loop, kwargs):
     url = server_tcp_url(**kwargs)
@@ -586,7 +558,6 @@ async def test_create_connection__tcp_url(
     {'db': 1},
     {'encoding': 'utf-8'},
 ], ids=repr)
-@pytest.mark.run_loop
 async def test_create_connection__unix_url(
         create_connection, server_unix_url, loop, kwargs):
     url = server_unix_url(**kwargs)

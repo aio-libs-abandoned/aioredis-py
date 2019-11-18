@@ -14,7 +14,6 @@ async def _reader(channel, output, waiter, conn):
         await output.put(msg)
 
 
-@pytest.mark.run_loop
 async def test_publish(create_connection, redis, server, loop):
     out = asyncio.Queue()
     fut = loop.create_future()
@@ -30,7 +29,6 @@ async def test_publish(create_connection, redis, server, loop):
     sub.cancel()
 
 
-@pytest.mark.run_loop
 async def test_publish_json(create_connection, redis, server, loop):
     out = asyncio.Queue()
     fut = loop.create_future()
@@ -48,7 +46,6 @@ async def test_publish_json(create_connection, redis, server, loop):
     sub.cancel()
 
 
-@pytest.mark.run_loop
 async def test_subscribe(redis):
     res = await redis.subscribe('chan:1', 'chan:2')
     assert redis.in_pubsub == 2
@@ -68,7 +65,6 @@ async def test_subscribe(redis):
 @pytest.mark.parametrize('create_redis', [
     pytest.param(aioredis.create_redis_pool, id='pool'),
 ])
-@pytest.mark.run_loop
 async def test_subscribe_empty_pool(create_redis, server, loop, _closable):
     redis = await create_redis(server.tcp_address, loop=loop)
     _closable(redis)
@@ -89,7 +85,6 @@ async def test_subscribe_empty_pool(create_redis, server, loop, _closable):
                    [b'unsubscribe', b'chan:2', 0]]
 
 
-@pytest.mark.run_loop
 async def test_psubscribe(redis, create_redis, server, loop):
     sub = redis
     res = await sub.psubscribe('patt:*', 'chan:*')
@@ -115,7 +110,6 @@ async def test_psubscribe(redis, create_redis, server, loop):
 @pytest.mark.parametrize('create_redis', [
     pytest.param(aioredis.create_redis_pool, id='pool'),
 ])
-@pytest.mark.run_loop
 async def test_psubscribe_empty_pool(create_redis, server, loop, _closable):
     sub = await create_redis(server.tcp_address, loop=loop)
     pub = await create_redis(server.tcp_address, loop=loop)
@@ -142,7 +136,6 @@ async def test_psubscribe_empty_pool(create_redis, server, loop, _closable):
 
 @redis_version(
     2, 8, 0, reason='PUBSUB CHANNELS is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_pubsub_channels(create_redis, server, loop):
     redis = await create_redis(
         server.tcp_address, loop=loop)
@@ -171,7 +164,6 @@ async def test_pubsub_channels(create_redis, server, loop):
 
 @redis_version(
     2, 8, 0, reason='PUBSUB NUMSUB is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_pubsub_numsub(create_redis, server, loop):
     redis = await create_redis(
         server.tcp_address, loop=loop)
@@ -206,7 +198,6 @@ async def test_pubsub_numsub(create_redis, server, loop):
 
 @redis_version(
     2, 8, 0, reason='PUBSUB NUMPAT is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_pubsub_numpat(create_redis, server, loop, redis):
     sub = await create_redis(
         server.tcp_address, loop=loop)
@@ -223,7 +214,6 @@ async def test_pubsub_numpat(create_redis, server, loop, redis):
     assert res == 1
 
 
-@pytest.mark.run_loop
 async def test_close_pubsub_channels(redis, loop):
     ch, = await redis.subscribe('chan:1')
 
@@ -236,7 +226,6 @@ async def test_close_pubsub_channels(redis, loop):
     await tsk
 
 
-@pytest.mark.run_loop
 async def test_close_pubsub_patterns(redis, loop):
     ch, = await redis.psubscribe('chan:*')
 
@@ -249,7 +238,6 @@ async def test_close_pubsub_patterns(redis, loop):
     await tsk
 
 
-@pytest.mark.run_loop
 async def test_close_cancelled_pubsub_channel(redis):
     ch, = await redis.subscribe('chan:1')
 
@@ -262,7 +250,6 @@ async def test_close_cancelled_pubsub_channel(redis):
     tsk.cancel()
 
 
-@pytest.mark.run_loop
 async def test_channel_get_after_close(create_redis, loop, server):
     sub = await create_redis(
         server.tcp_address, loop=loop)
@@ -278,7 +265,6 @@ async def test_channel_get_after_close(create_redis, loop, server):
         assert await ch.get()
 
 
-@pytest.mark.run_loop
 async def test_subscribe_concurrency(create_redis, server, loop):
     sub = await create_redis(
         server.tcp_address, loop=loop)
@@ -306,7 +292,6 @@ async def test_subscribe_concurrency(create_redis, server, loop):
 
 @redis_version(
     3, 2, 0, reason='PUBSUB PING is available since redis>=3.2.0')
-@pytest.mark.run_loop
 async def test_pubsub_ping(redis):
     await redis.subscribe('chan:1', 'chan:2')
 
@@ -320,7 +305,6 @@ async def test_pubsub_ping(redis):
     await redis.unsubscribe('chan:1', 'chan:2')
 
 
-@pytest.mark.run_loop
 async def test_pubsub_channel_iter(create_redis, server, loop):
     sub = await create_redis(server.tcp_address, loop=loop)
     pub = await create_redis(server.tcp_address, loop=loop)
@@ -341,7 +325,6 @@ async def test_pubsub_channel_iter(create_redis, server, loop):
     assert await tsk == [b'{"Hello": "World"}', b'["message"]']
 
 
-@pytest.mark.run_loop
 @redis_version(
     2, 8, 12, reason="extended `client kill` format required")
 async def test_pubsub_disconnection_notification(create_redis, server, loop):

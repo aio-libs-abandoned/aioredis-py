@@ -4,7 +4,6 @@ from aioredis import GeoPoint, GeoMember
 from _testutils import redis_version
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEOADD is available since redis >= 3.2.0')
 async def test_geoadd(redis):
@@ -19,7 +18,6 @@ async def test_geoadd(redis):
     assert res == 2
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEODIST is available since redis >= 3.2.0')
 async def test_geodist(redis):
@@ -37,7 +35,6 @@ async def test_geodist(redis):
     assert res == 166.2742
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEOHASH is available since redis >= 3.2.0')
 async def test_geohash(redis):
@@ -59,7 +56,6 @@ async def test_geohash(redis):
     assert res == ['sqc8b49rny0', 'sqdtr74hyu0']
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEOPOS is available since redis >= 3.2.0')
 async def test_geopos(redis):
@@ -82,7 +78,6 @@ async def test_geopos(redis):
     ]
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEO* is available since redis >= 3.2.0')
 async def test_geo_not_exist_members(redis):
@@ -117,7 +112,6 @@ async def test_geo_not_exist_members(redis):
     ]
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEORADIUS is available since redis >= 3.2.0')
 async def test_georadius_validation(redis):
@@ -145,7 +139,6 @@ async def test_georadius_validation(redis):
         )
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEORADIUS is available since redis >= 3.2.0')
 async def test_georadius(redis):
@@ -264,7 +257,6 @@ async def test_georadius(redis):
     ]
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEORADIUSBYMEMBER is available since redis >= 3.2.0')
 async def test_georadiusbymember(redis):
@@ -318,7 +310,6 @@ async def test_georadiusbymember(redis):
     ]
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEOHASH is available since redis >= 3.2.0')
 async def test_geohash_binary(redis):
@@ -340,7 +331,6 @@ async def test_geohash_binary(redis):
     assert res == [b'sqc8b49rny0', b'sqdtr74hyu0']
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEORADIUS is available since redis >= 3.2.0')
 async def test_georadius_binary(redis):
@@ -459,7 +449,6 @@ async def test_georadius_binary(redis):
     ]
 
 
-@pytest.mark.run_loop
 @redis_version(
     3, 2, 0, reason='GEORADIUSBYMEMBER is available since redis >= 3.2.0')
 async def test_georadiusbymember_binary(redis):

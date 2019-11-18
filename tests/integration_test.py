@@ -65,7 +65,6 @@ async def blocking_pop(pool, val):
     await asyncio.gather(blpop(), lpush())
 
 
-@pytest.mark.run_loop
 @pytest.mark.parametrize('test_case,pool_size', [
     (simple_get_set, 1),
     (pipeline, 1),

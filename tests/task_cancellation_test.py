@@ -3,7 +3,6 @@ import pytest
 import asyncio
 
 
-@pytest.mark.run_loop
 async def test_future_cancellation(create_connection, loop, server):
     conn = await create_connection(
         server.tcp_address, loop=loop)
