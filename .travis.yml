@@ -18,8 +18,7 @@ python:
 - "3.6"
 - "3.7"
 - "nightly"
-- "pypy3.5-7.0"
-- "pypy3.6-7.1.1"
+- "pypy3.6-7.2.0"
 
 stages:
 - lint
