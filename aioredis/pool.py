@@ -1,6 +1,8 @@
 import asyncio
 import collections
 import types
+import warnings
+import sys
 
 from .connection import create_connection, _PUBSUB_COMMANDS
 from .log import logger
@@ -77,9 +79,9 @@ class ConnectionsPool(AbcPool):
             "maxsize must be int > 0", maxsize, type(maxsize))
         assert minsize <= maxsize, (
             "Invalid pool min/max sizes", minsize, maxsize)
-        # TODO: deprecation note
-        # if loop is None:
-        #     loop = asyncio.get_event_loop()
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         self._address = address
         self._db = db
         self._password = password

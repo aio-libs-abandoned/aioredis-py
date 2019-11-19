@@ -1,4 +1,6 @@
 import asyncio
+import warnings
+import sys
 
 from .util import get_event_loop
 
@@ -13,9 +15,9 @@ async def open_connection(host=None, port=None, *,
                           limit, loop=None,
                           parser=None, **kwds):
     # XXX: parser is not used (yet)
-    # TODO: deprecation note
-    # if loop is None:
-    #     loop = asyncio.get_event_loop()
+    if loop is not None and sys.version_info >= (3, 8):
+        warnings.warn("The loop argument is deprecated",
+                      DeprecationWarning)
     reader = StreamReader(limit=limit)
     protocol = asyncio.StreamReaderProtocol(reader)
     transport, _ = await get_event_loop().create_connection(
@@ -29,9 +31,9 @@ async def open_unix_connection(address, *,
                                limit, loop=None,
                                parser=None, **kwds):
     # XXX: parser is not used (yet)
-    # TODO: deprecation note
-    # if loop is None:
-    #     loop = asyncio.get_event_loop()
+    if loop is not None and sys.version_info >= (3, 8):
+        warnings.warn("The loop argument is deprecated",
+                      DeprecationWarning)
     reader = StreamReader(limit=limit)
     protocol = asyncio.StreamReaderProtocol(reader)
     transport, _ = await get_event_loop().create_unix_connection(

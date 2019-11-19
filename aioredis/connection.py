@@ -1,6 +1,9 @@
 import types
 import asyncio
 import socket
+import warnings
+import sys
+
 from functools import partial
 from collections import deque
 from contextlib import contextmanager
@@ -98,9 +101,9 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
     else:
         cls = RedisConnection
 
-    # TODO: deprecation note
-    # if loop is None:
-    #     loop = asyncio.get_event_loop()
+    if loop is not None and sys.version_info >= (3, 8, 0):
+        warnings.warn("The loop argument is deprecated",
+                      DeprecationWarning)
 
     if isinstance(address, (list, tuple)):
         host, port = address
@@ -142,7 +145,9 @@ class RedisConnection(AbcConnection):
 
     def __init__(self, reader, writer, *, address, encoding=None,
                  parser=None, loop=None):
-        # TODO: deprecation note
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         if parser is None:
             parser = Reader
         assert callable(parser), (
@@ -150,7 +155,6 @@ class RedisConnection(AbcConnection):
         self._reader = reader
         self._writer = writer
         self._address = address
-        # self._loop = loop
         self._waiters = deque()
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)

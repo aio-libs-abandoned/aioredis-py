@@ -2,6 +2,8 @@ import asyncio
 import json
 import types
 import collections
+import warnings
+import sys
 
 from .abc import AbcChannel
 from .util import _converters   # , _set_result
@@ -23,7 +25,9 @@ class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
 
     def __init__(self, name, is_pattern, loop=None):
-        # TODO: deprecation note 'loop'
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         self._queue = ClosableQueue()
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
@@ -189,9 +193,9 @@ class Receiver:
     def __init__(self, loop=None, on_close=None):
         assert on_close is None or callable(on_close), (
             "on_close must be None or callable", on_close)
-        # TODO: deprecation note
-        # if loop is None:
-        #     loop = asyncio.get_event_loop()
+        if loop is not None:
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         if on_close is None:
             on_close = self.check_stop
         self._queue = ClosableQueue()
