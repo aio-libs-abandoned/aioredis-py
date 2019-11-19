@@ -42,8 +42,8 @@ async def test_client_list(redis, server, request):
 
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
-async def test_client_list__unixsocket(create_redis, loop, server, request):
-    redis = await create_redis(server.unixsocket, loop=loop)
+async def test_client_list__unixsocket(create_redis, server, request):
+    redis = await create_redis(server.unixsocket)
     name = request.node.callspec.id
     assert (await redis.client_setname(name))
     res = await redis.client_list()
@@ -258,9 +258,8 @@ async def test_save(redis):
     pytest.param(None, id='no decoding'),
     pytest.param('utf-8', id='with decoding'),
 ])
-async def test_time(create_redis, server, loop, encoding):
-    redis = await create_redis(server.tcp_address, loop=loop,
-                               encoding='utf-8')
+async def test_time(create_redis, server, encoding):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     now = time.time()
     res = await redis.time()
     assert isinstance(res, float)

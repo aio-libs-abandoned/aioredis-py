@@ -99,11 +99,10 @@ async def test_script_load(redis):
     assert res == [1, 1]
 
 
-async def test_script_kill(create_redis, loop, server, redis):
+async def test_script_kill(create_redis, server, redis):
     script = "while (1) do redis.call('TIME') end"
 
-    other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+    other_redis = await create_redis(server.tcp_address)
 
     ok = await redis.set('key1', 'value')
     assert ok is True

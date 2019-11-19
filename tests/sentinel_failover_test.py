@@ -16,7 +16,7 @@ if sys.platform == 'win32':
 
 @pytest.mark.timeout(40)
 async def test_auto_failover(start_sentinel, start_server,
-                             create_sentinel, create_connection, loop):
+                             create_sentinel, create_connection):
     server1 = start_server('master-failover', ['slave-read-only yes'])
     start_server('slave-failover1', ['slave-read-only yes'], slaveof=server1)
     start_server('slave-failover2', ['slave-read-only yes'], slaveof=server1)
@@ -94,7 +94,7 @@ async def test_sentinel_slave(sentinel, create_sentinel):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
+async def test_sentinel_slave_fail(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
     key, field, value = b'key:hset', b'bar', b'zap'
@@ -129,7 +129,7 @@ async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
+async def test_sentinel_normal_fail(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
     key, field, value = b'key:hset', b'bar', b'zap'
@@ -161,7 +161,7 @@ async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
 
 @pytest.mark.timeout(30)
 async def test_failover_command(start_server, start_sentinel,
-                                create_sentinel, loop):
+                                create_sentinel):
     server = start_server('master-failover-cmd', ['slave-read-only yes'])
     start_server('slave-failover-cmd', ['slave-read-only yes'], slaveof=server)
 

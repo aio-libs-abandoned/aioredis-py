@@ -12,7 +12,7 @@ pytestmark = redis_version(
     5, 0, 0, reason="Streams only available since Redis 5.0.0")
 
 
-async def add_message_with_sleep(redis, loop, stream, fields):
+async def add_message_with_sleep(redis, stream, fields):
     await asyncio.sleep(0.2)
     result = await redis.xadd(stream, fields)
     return result
@@ -241,20 +241,20 @@ async def test_xread_selection(redis, server_bin):
     assert len(messages) == 2
 
 
-async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
+async def test_xread_blocking(redis, create_redis, server, server_bin):
     """Test the blocking read features"""
     fields = OrderedDict((
         (b'field1', b'value1'),
         (b'field2', b'value2'),
     ))
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
 
     # create blocking task in separate connection
     consumer = other_redis.xread(['test_stream'], timeout=1000)
 
     producer_task = asyncio.Task(
-        add_message_with_sleep(redis, loop, 'test_stream', fields))
+        add_message_with_sleep(redis, 'test_stream', fields))
     results = await asyncio.gather(consumer, producer_task)
 
     received_messages, sent_message_id = results

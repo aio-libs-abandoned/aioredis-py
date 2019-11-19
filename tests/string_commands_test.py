@@ -449,7 +449,7 @@ async def test_msetnx(redis):
         await redis.msetnx(key1, value1, key2)
 
 
-async def test_psetex(redis, loop):
+async def test_psetex(redis):
     key, value = b'key:psetex:1', b'Hello'
     # test expiration in milliseconds
     tr = redis.multi_exec()
@@ -484,7 +484,7 @@ async def test_set(redis):
         await redis.set(None, 'value')
 
 
-async def test_set_expire(redis, loop):
+async def test_set_expire(redis):
     key, value = b'key:set:expire', b'foo'
     # test expiration in milliseconds
     tr = redis.multi_exec()
@@ -569,7 +569,7 @@ async def test_setbit(redis):
         await redis.setbit(key, 1, 7)
 
 
-async def test_setex(redis, loop):
+async def test_setex(redis):
     key, value = b'key:setex:1', b'Hello'
     tr = redis.multi_exec()
     fut1 = tr.setex(key, 1, value)
@@ -661,9 +661,8 @@ async def test_cancel_hang(redis):
     assert not exists_check
 
 
-async def test_set_enc(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
+async def test_set_enc(create_redis, server):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     TEST_KEY = 'my-key'
     ok = await redis.set(TEST_KEY, 'value')
     assert ok is True

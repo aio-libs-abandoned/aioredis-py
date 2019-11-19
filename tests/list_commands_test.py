@@ -4,7 +4,7 @@ import asyncio
 from aioredis import ReplyError
 
 
-async def push_data_with_sleep(redis, loop, key, *values):
+async def push_data_with_sleep(redis, key, *values):
     await asyncio.sleep(0.2)
     result = await redis.lpush(key, *values)
     return result
@@ -39,18 +39,17 @@ async def test_blpop(redis):
     assert test_value == ['key:blpop:2', 'blpop:value:1']
 
 
-async def test_blpop_blocking_features(redis, create_redis, loop, server):
+async def test_blpop_blocking_features(redis, create_redis, server):
     key1, key2 = b'key:blpop:1', b'key:blpop:2'
     value = b'blpop:value:2'
 
-    other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+    other_redis = await create_redis(server.tcp_address)
 
     # create blocking task in separate connection
     consumer = other_redis.blpop(key1, key2)
 
     producer_task = asyncio.ensure_future(
-        push_data_with_sleep(redis, loop, key2, value))
+        push_data_with_sleep(redis, key2, value))
     results = await asyncio.gather(consumer, producer_task)
 
     assert results[0] == [key2, value]
@@ -93,17 +92,17 @@ async def test_brpop(redis):
     assert test_value == ['key:brpop:2', 'brpop:value:1']
 
 
-async def test_brpop_blocking_features(redis, create_redis, server, loop):
+async def test_brpop_blocking_features(redis, create_redis, server):
     key1, key2 = b'key:brpop:1', b'key:brpop:2'
     value = b'brpop:value:2'
 
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
     # create blocking task in separate connection
     consumer_task = other_redis.brpop(key1, key2)
 
     producer_task = asyncio.ensure_future(
-        push_data_with_sleep(redis, loop, key2, value))
+        push_data_with_sleep(redis, key2, value))
 
     results = await asyncio.gather(consumer_task, producer_task)
 
@@ -155,16 +154,16 @@ async def test_brpoplpush(redis):
     assert result == 'brpoplpush:value:2'
 
 
-async def test_brpoplpush_blocking_features(redis, create_redis, server, loop):
+async def test_brpoplpush_blocking_features(redis, create_redis, server):
     source = b'key:brpoplpush:12'
     value = b'brpoplpush:value:2'
     destkey = b'destkey:brpoplpush:2'
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
     # create blocking task
     consumer_task = other_redis.brpoplpush(source, destkey)
     producer_task = asyncio.ensure_future(
-        push_data_with_sleep(redis, loop, source, value))
+        push_data_with_sleep(redis, source, value))
     results = await asyncio.gather(consumer_task, producer_task)
     assert results[0] == value
     assert results[1] == 1

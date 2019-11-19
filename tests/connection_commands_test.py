@@ -7,16 +7,14 @@ from aioredis import Redis
 from _testutils import redis_version
 
 
-async def test_repr(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address, db=1, loop=loop)
+async def test_repr(create_redis, server):
+    redis = await create_redis(server.tcp_address, db=1)
     assert repr(redis) in {
         '<Redis <RedisConnection [db:1]>>',
         '<Redis <ConnectionsPool [db:1, size:[1:10], free:1]>>',
         }
 
-    redis = await create_redis(
-        server.tcp_address, db=0, loop=loop)
+    redis = await create_redis(server.tcp_address, db=0)
     assert repr(redis) in {
         '<Redis <RedisConnection [db:0]>>',
         '<Redis <ConnectionsPool [db:0, size:[1:10], free:1]>>',
@@ -41,7 +39,7 @@ async def test_ping(redis):
     assert await redis.ping() == b'PONG'
 
 
-async def test_quit(redis, loop):
+async def test_quit(redis):
     expected = (ConnectionClosedError, ConnectionError)
     try:
         assert b'OK' == await redis.quit()
@@ -58,7 +56,7 @@ async def test_quit(redis, loop):
                 assert False, "Cancelled error must not be raised"
 
         # wait one loop iteration until it get surely closed
-        await asyncio.sleep(0, loop=loop)
+        await asyncio.sleep(0)
         assert redis.connection.closed
 
         with pytest.raises(ConnectionClosedError):
@@ -74,16 +72,13 @@ async def test_select(redis):
     assert redis.connection.db == 1
 
 
-async def test_encoding(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address,
-        db=1, encoding='utf-8',
-        loop=loop)
+async def test_encoding(create_redis, server):
+    redis = await create_redis(server.tcp_address, db=1, encoding='utf-8')
     assert redis.encoding == 'utf-8'
 
 
-async def test_yield_from_backwards_compatibility(create_redis, server, loop):
-    redis = await create_redis(server.tcp_address, loop=loop)
+async def test_yield_from_backwards_compatibility(create_redis, server):
+    redis = await create_redis(server.tcp_address)
 
     assert isinstance(redis, Redis)
     # TODO: there should not be warning
@@ -95,10 +90,10 @@ async def test_yield_from_backwards_compatibility(create_redis, server, loop):
 
 
 @redis_version(4, 0, 0, reason="SWAPDB is available since redis>=4.0.0")
-async def test_swapdb(create_redis, start_server, loop):
+async def test_swapdb(create_redis, start_server):
     server = start_server('swapdb_1')
-    cli1 = await create_redis(server.tcp_address, db=0, loop=loop)
-    cli2 = await create_redis(server.tcp_address, db=1, loop=loop)
+    cli1 = await create_redis(server.tcp_address, db=0)
+    cli2 = await create_redis(server.tcp_address, db=1)
 
     await cli1.flushall()
     assert await cli1.set('key', 'val') is True

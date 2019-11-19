@@ -61,11 +61,10 @@ def unused_port():
 
 
 @pytest.fixture
-def create_connection(_closable, loop):
+def create_connection(_closable):
     """Wrapper around aioredis.create_connection."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         conn = await aioredis.create_connection(*args, **kw)
         _closable(conn)
         return conn
@@ -76,12 +75,11 @@ def create_connection(_closable, loop):
     aioredis.create_redis,
     aioredis.create_redis_pool],
     ids=['single', 'pool'])
-def create_redis(_closable, loop, request):
+def create_redis(_closable, request):
     """Wrapper around aioredis.create_redis."""
     factory = request.param
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         redis = await factory(*args, **kw)
         _closable(redis)
         return redis
@@ -89,11 +87,10 @@ def create_redis(_closable, loop, request):
 
 
 @pytest.fixture
-def create_pool(_closable, loop):
+def create_pool(_closable):
     """Wrapper around aioredis.create_pool."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         redis = await aioredis.create_pool(*args, **kw)
         _closable(redis)
         return redis
@@ -101,11 +98,10 @@ def create_pool(_closable, loop):
 
 
 @pytest.fixture
-def create_sentinel(_closable, loop):
+def create_sentinel(_closable):
     """Helper instantiating RedisSentinel client."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         # make it fail fast on slow CIs (if timeout argument is ommitted)
         kw.setdefault('timeout', .001)
         client = await aioredis.sentinel.create_sentinel(*args, **kw)
@@ -117,16 +113,14 @@ def create_sentinel(_closable, loop):
 @pytest.fixture
 def pool(create_pool, server, loop):
     """Returns RedisPool instance."""
-    pool = loop.run_until_complete(
-        create_pool(server.tcp_address, loop=loop))
-    return pool
+    return loop.run_until_complete(create_pool(server.tcp_address))
 
 
 @pytest.fixture
 def redis(create_redis, server, loop):
     """Returns Redis client instance."""
     redis = loop.run_until_complete(
-        create_redis(server.tcp_address, loop=loop))
+        create_redis(server.tcp_address))
 
     async def clear():
         await redis.flushall()
@@ -138,7 +132,7 @@ def redis(create_redis, server, loop):
 def redis_sentinel(create_sentinel, sentinel, loop):
     """Returns Redis Sentinel client instance."""
     redis_sentinel = loop.run_until_complete(
-        create_sentinel([sentinel.tcp_address], timeout=2, loop=loop))
+        create_sentinel([sentinel.tcp_address], timeout=2))
 
     async def ping():
         return await redis_sentinel.ping()
@@ -549,14 +543,12 @@ def pytest_pyfunc_call(pyfuncitem):
                     for arg in pyfuncitem._fixtureinfo.argnames}
 
         loop.run_until_complete(
-            _wait_coro(pyfuncitem.obj, testargs,
-                       timeout=timeout,
-                       loop=loop))
+            _wait_coro(pyfuncitem.obj, testargs, timeout=timeout))
         return True
 
 
-async def _wait_coro(corofunc, kwargs, timeout, loop):
-    with async_timeout(timeout, loop=loop):
+async def _wait_coro(corofunc, kwargs, timeout):
+    with async_timeout(timeout):
         return (await corofunc(**kwargs))
 
 

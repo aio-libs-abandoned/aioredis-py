@@ -4,8 +4,7 @@ import asyncio
 
 
 async def test_future_cancellation(create_connection, loop, server):
-    conn = await create_connection(
-        server.tcp_address, loop=loop)
+    conn = await create_connection(server.tcp_address)
 
     ts = loop.time()
     fut = conn.execute('BLPOP', 'some-list', 5)

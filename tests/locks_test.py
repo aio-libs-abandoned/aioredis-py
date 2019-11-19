@@ -3,7 +3,7 @@ import asyncio
 from aioredis.locks import Lock
 
 
-async def test_finished_waiter_cancelled(loop):
+async def test_finished_waiter_cancelled():
     lock = Lock()
 
     ta = asyncio.ensure_future(lock.acquire())

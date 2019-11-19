@@ -5,7 +5,7 @@ from aioredis import ReplyError, MultiExecError, WatchVariableError
 from aioredis import ConnectionClosedError
 
 
-async def test_multi_exec(redis, loop):
+async def test_multi_exec(redis):
     await redis.delete('foo', 'bar')
 
     tr = redis.multi_exec()
@@ -13,7 +13,7 @@ async def test_multi_exec(redis, loop):
     f2 = tr.incr('bar')
     res = await tr.execute()
     assert res == [1, 1]
-    res2 = await asyncio.gather(f1, f2, loop=loop)
+    res2 = await asyncio.gather(f1, f2)
     assert res == res2
 
     tr = redis.multi_exec()
@@ -28,7 +28,7 @@ async def test_multi_exec(redis, loop):
     f2 = tr.incrbyfloat('foo', 1.2)
     res = await tr.execute()
     assert res == [True, 2.2]
-    res2 = await asyncio.gather(f1, f2, loop=loop)
+    res2 = await asyncio.gather(f1, f2)
     assert res == res2
 
     tr = redis.multi_exec()
@@ -190,10 +190,8 @@ async def test_encoding(redis):
     assert res == {'foo': 'val1', 'bar': 'val2'}
 
 
-async def test_global_encoding(redis, create_redis, server, loop):
-    redis = await create_redis(
-        server.tcp_address,
-        loop=loop, encoding='utf-8')
+async def test_global_encoding(redis, create_redis, server):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     res = await redis.set('key', 'value')
     assert res is True
     res = await redis.hmset(
@@ -213,9 +211,8 @@ async def test_global_encoding(redis, create_redis, server, loop):
     assert res == {'foo': 'val1', 'bar': 'val2'}
 
 
-async def test_transaction__watch_error(redis, create_redis, server, loop):
-    other = await create_redis(
-        server.tcp_address, loop=loop)
+async def test_transaction__watch_error(redis, create_redis, server):
+    other = await create_redis(server.tcp_address)
 
     ok = await redis.set('foo', 'bar')
     assert ok is True

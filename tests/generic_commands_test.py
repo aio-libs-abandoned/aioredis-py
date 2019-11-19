@@ -171,7 +171,7 @@ async def test_keys(redis):
         await redis.keys(None)
 
 
-async def test_migrate(create_redis, loop, server, serverB):
+async def test_migrate(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=2)
 
@@ -205,7 +205,7 @@ async def test_migrate(create_redis, loop, server, serverB):
 
 @redis_version(
     3, 0, 0, reason="Copy/Replace flags available since Redis 3.0")
-async def test_migrate_copy_replace(create_redis, loop, server, serverB):
+async def test_migrate_copy_replace(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=0)
 
@@ -229,7 +229,7 @@ async def test_migrate_copy_replace(create_redis, loop, server, serverB):
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
 @pytest.mark.skipif(
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
-async def test_migrate_keys(create_redis, loop, server, serverB):
+async def test_migrate_keys(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=0)
 
@@ -284,7 +284,7 @@ async def test_migrate_keys(create_redis, loop, server, serverB):
     assert (await redisA.get('key3')) is None
 
 
-async def test_migrate__exceptions(redis, loop, server, unused_port):
+async def test_migrate__exceptions(redis, server, unused_port):
     await add(redis, 'my-key', 123)
 
     assert (await redis.exists('my-key'))
@@ -371,7 +371,7 @@ async def test_object_encoding(redis, server):
 @redis_version(
     3, 0, 0, reason="Older Redis version has lower idle time resolution")
 @pytest.mark.timeout(20)
-async def test_object_idletime(redis, loop, server):
+async def test_object_idletime(redis, server):
     await add(redis, 'foo', 'bar')
 
     res = await redis.object_idletime('foo')
@@ -406,7 +406,7 @@ async def test_persist(redis):
         await redis.persist(None)
 
 
-async def test_pexpire(redis, loop):
+async def test_pexpire(redis):
     await add(redis, 'my-key', 123)
     res = await redis.pexpire('my-key', 100)
     assert res is True
@@ -640,7 +640,7 @@ async def test_sort(redis):
 
 @redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
 @pytest.mark.timeout(20)
-async def test_touch(redis, loop):
+async def test_touch(redis):
     await add(redis, 'key', 'val')
     res = 0
     while not res:
@@ -755,7 +755,7 @@ async def test_unlink(redis):
 
 
 @redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
-async def test_wait(redis, loop):
+async def test_wait(redis):
     await add(redis, 'key', 'val1')
     start = await redis.time()
     res = await redis.wait(1, 400)

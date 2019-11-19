@@ -390,9 +390,8 @@ async def test_hscan(redis):
         await redis.hscan(None)
 
 
-async def test_hgetall_enc(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
+async def test_hgetall_enc(create_redis, server):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
     await redis.hmset(TEST_KEY, 'foo', 'bar', 'baz', 'bad')
 
