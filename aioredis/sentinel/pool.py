@@ -30,8 +30,9 @@ async def create_sentinel_pool(sentinels, *, db=None, password=None,
     """Create SentinelPool."""
     # FIXME: revise default timeout value
     assert isinstance(sentinels, (list, tuple)), sentinels
-    if loop is None:
-        loop = asyncio.get_event_loop()
+    # TODO: deprecation note
+    # if loop is None:
+    #     loop = asyncio.get_event_loop()
 
     pool = SentinelPool(sentinels, db=db,
                         password=password,
@@ -56,15 +57,15 @@ class SentinelPool:
     def __init__(self, sentinels, *, db=None, password=None, ssl=None,
                  encoding=None, parser=None, minsize, maxsize, timeout,
                  loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         # TODO: add connection/discover timeouts;
         #       and what to do if no master is found:
         #       (raise error or try forever or try until timeout)
 
         # XXX: _sentinels is unordered
         self._sentinels = set(sentinels)
-        self._loop = loop
         self._timeout = timeout
         self._pools = []     # list of sentinel pools
         self._masters = {}
@@ -76,9 +77,9 @@ class SentinelPool:
         self._redis_encoding = encoding
         self._redis_minsize = minsize
         self._redis_maxsize = maxsize
-        self._close_state = CloseEvent(self._do_close, loop=loop)
+        self._close_state = CloseEvent(self._do_close)
         self._close_waiter = None
-        self._monitor = monitor = Receiver(loop=loop)
+        self._monitor = monitor = Receiver()
 
         async def echo_events():
             try:
@@ -103,7 +104,7 @@ class SentinelPool:
                 #       etc...
             except asyncio.CancelledError:
                 pass
-        self._monitor_task = asyncio.ensure_future(echo_events(), loop=loop)
+        self._monitor_task = asyncio.ensure_future(echo_events())
 
     @property
     def discover_timeout(self):
@@ -125,7 +126,7 @@ class SentinelPool:
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
                 parser=self._parser_class,
-                loop=self._loop)
+                )
         return self._masters[service]
 
     def slave_for(self, service):
@@ -141,7 +142,7 @@ class SentinelPool:
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
                 parser=self._parser_class,
-                loop=self._loop)
+                )
         return self._slaves[service]
 
     def execute(self, command, *args, **kwargs):
@@ -183,7 +184,7 @@ class SentinelPool:
             _, pool = self._slaves.popitem()
             pool.close()
             tasks.append(pool.wait_closed())
-        await asyncio.gather(*tasks, loop=self._loop)
+        await asyncio.gather(*tasks)
 
     async def wait_closed(self):
         """Wait until pool gets closed."""
@@ -206,7 +207,7 @@ class SentinelPool:
         pools = []
         for addr in self._sentinels:    # iterate over unordered set
             tasks.append(self._connect_sentinel(addr, timeout, pools))
-        done, pending = await asyncio.wait(tasks, loop=self._loop,
+        done, pending = await asyncio.wait(tasks,
                                            return_when=ALL_COMPLETED)
         assert not pending, ("Expected all tasks to complete", done, pending)
 
@@ -232,11 +233,11 @@ class SentinelPool:
         connections pool or exception.
         """
         try:
-            with async_timeout(timeout, loop=self._loop):
+            with async_timeout(timeout):
                 pool = await create_pool(
                     address, minsize=1, maxsize=2,
                     parser=self._parser_class,
-                    loop=self._loop)
+                    )
             pools.append(pool)
             return pool
         except asyncio.TimeoutError as err:
@@ -264,12 +265,12 @@ class SentinelPool:
         pools = self._pools[:]
         for sentinel in pools:
             try:
-                with async_timeout(timeout, loop=self._loop):
+                with async_timeout(timeout):
                     address = await self._get_masters_address(
                         sentinel, service)
 
                 pool = self._masters[service]
-                with async_timeout(timeout, loop=self._loop), \
+                with async_timeout(timeout), \
                         contextlib.ExitStack() as stack:
                     conn = await pool._create_new_connection(address)
                     stack.callback(conn.close)
@@ -287,13 +288,13 @@ class SentinelPool:
             except DiscoverError as err:
                 sentinel_logger.debug("DiscoverError(%r, %s): %r",
                                       sentinel, service, err)
-                await asyncio.sleep(idle_timeout, loop=self._loop)
+                await asyncio.sleep(idle_timeout)
                 continue
             except RedisError as err:
                 raise MasterReplyError("Service {} error".format(service), err)
             except Exception:
                 # TODO: clear (drop) connections to schedule reconnect
-                await asyncio.sleep(idle_timeout, loop=self._loop)
+                await asyncio.sleep(idle_timeout)
                 continue
         # Otherwise
         raise MasterNotFoundError("No master found for {}".format(service))
@@ -306,11 +307,11 @@ class SentinelPool:
         pools = self._pools[:]
         for sentinel in pools:
             try:
-                with async_timeout(timeout, loop=self._loop):
+                with async_timeout(timeout):
                     address = await self._get_slave_address(
                         sentinel, service)  # add **kwargs
                 pool = self._slaves[service]
-                with async_timeout(timeout, loop=self._loop), \
+                with async_timeout(timeout), \
                         contextlib.ExitStack() as stack:
                     conn = await pool._create_new_connection(address)
                     stack.callback(conn.close)
@@ -322,12 +323,12 @@ class SentinelPool:
             except asyncio.TimeoutError:
                 continue
             except DiscoverError:
-                await asyncio.sleep(idle_timeout, loop=self._loop)
+                await asyncio.sleep(idle_timeout)
                 continue
             except RedisError as err:
                 raise SlaveReplyError("Service {} error".format(service), err)
             except Exception:
-                await asyncio.sleep(idle_timeout, loop=self._loop)
+                await asyncio.sleep(idle_timeout)
                 continue
         raise SlaveNotFoundError("No slave found for {}".format(service))
 

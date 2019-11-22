@@ -9,6 +9,7 @@ import ssl
 import time
 import tempfile
 import atexit
+import inspect
 
 from collections import namedtuple
 from urllib.parse import urlencode, urlunparse
@@ -33,7 +34,8 @@ SentinelServer = namedtuple('SentinelServer',
 def loop():
     """Creates new event loop."""
     loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(None)
+    if sys.version_info < (3, 8):
+        asyncio.set_event_loop(loop)
 
     try:
         yield loop
@@ -59,11 +61,10 @@ def unused_port():
 
 
 @pytest.fixture
-def create_connection(_closable, loop):
+def create_connection(_closable):
     """Wrapper around aioredis.create_connection."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         conn = await aioredis.create_connection(*args, **kw)
         _closable(conn)
         return conn
@@ -74,12 +75,11 @@ def create_connection(_closable, loop):
     aioredis.create_redis,
     aioredis.create_redis_pool],
     ids=['single', 'pool'])
-def create_redis(_closable, loop, request):
+def create_redis(_closable, request):
     """Wrapper around aioredis.create_redis."""
     factory = request.param
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         redis = await factory(*args, **kw)
         _closable(redis)
         return redis
@@ -87,11 +87,10 @@ def create_redis(_closable, loop, request):
 
 
 @pytest.fixture
-def create_pool(_closable, loop):
+def create_pool(_closable):
     """Wrapper around aioredis.create_pool."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         redis = await aioredis.create_pool(*args, **kw)
         _closable(redis)
         return redis
@@ -99,11 +98,10 @@ def create_pool(_closable, loop):
 
 
 @pytest.fixture
-def create_sentinel(_closable, loop):
+def create_sentinel(_closable):
     """Helper instantiating RedisSentinel client."""
 
     async def f(*args, **kw):
-        kw.setdefault('loop', loop)
         # make it fail fast on slow CIs (if timeout argument is ommitted)
         kw.setdefault('timeout', .001)
         client = await aioredis.sentinel.create_sentinel(*args, **kw)
@@ -115,17 +113,18 @@ def create_sentinel(_closable, loop):
 @pytest.fixture
 def pool(create_pool, server, loop):
     """Returns RedisPool instance."""
-    pool = loop.run_until_complete(
-        create_pool(server.tcp_address, loop=loop))
-    return pool
+    return loop.run_until_complete(create_pool(server.tcp_address))
 
 
 @pytest.fixture
 def redis(create_redis, server, loop):
     """Returns Redis client instance."""
     redis = loop.run_until_complete(
-        create_redis(server.tcp_address, loop=loop))
-    loop.run_until_complete(redis.flushall())
+        create_redis(server.tcp_address))
+
+    async def clear():
+        await redis.flushall()
+    loop.run_until_complete(clear())
     return redis
 
 
@@ -133,8 +132,11 @@ def redis(create_redis, server, loop):
 def redis_sentinel(create_sentinel, sentinel, loop):
     """Returns Redis Sentinel client instance."""
     redis_sentinel = loop.run_until_complete(
-        create_sentinel([sentinel.tcp_address], timeout=2, loop=loop))
-    assert loop.run_until_complete(redis_sentinel.ping()) == b'PONG'
+        create_sentinel([sentinel.tcp_address], timeout=2))
+
+    async def ping():
+        return await redis_sentinel.ping()
+    assert loop.run_until_complete(ping()) == b'PONG'
     return redis_sentinel
 
 
@@ -142,16 +144,18 @@ def redis_sentinel(create_sentinel, sentinel, loop):
 def _closable(loop):
     conns = []
 
-    try:
-        yield conns.append
-    finally:
+    async def close():
         waiters = []
         while conns:
             conn = conns.pop(0)
             conn.close()
             waiters.append(conn.wait_closed())
         if waiters:
-            loop.run_until_complete(asyncio.gather(*waiters, loop=loop))
+            await asyncio.gather(*waiters)
+    try:
+        yield conns.append
+    finally:
+        loop.run_until_complete(close())
 
 
 @pytest.fixture(scope='session')
@@ -521,44 +525,36 @@ def _proc():
 
 
 @pytest.mark.tryfirst
-def pytest_pycollect_makeitem(collector, name, obj):
-    if collector.funcnamefilter(name):
-        if not callable(obj):
-            return
-        item = pytest.Function(name, parent=collector)
-        if item.get_closest_marker('run_loop') is not None:
-            # TODO: re-wrap with asyncio.coroutine if not native coroutine
-            return list(collector._genfunctions(name, obj))
-
-
-@pytest.mark.tryfirst
 def pytest_pyfunc_call(pyfuncitem):
     """
     Run asyncio marked test functions in an event loop instead of a normal
     function call.
     """
-    marker = pyfuncitem.get_closest_marker('run_loop')
-    if marker is not None:
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        marker = pyfuncitem.get_closest_marker('timeout')
+        if marker is not None and marker.args:
+            timeout = marker.args[0]
+        else:
+            timeout = 15
+
         funcargs = pyfuncitem.funcargs
         loop = funcargs['loop']
         testargs = {arg: funcargs[arg]
                     for arg in pyfuncitem._fixtureinfo.argnames}
 
         loop.run_until_complete(
-            _wait_coro(pyfuncitem.obj, testargs,
-                       timeout=marker.kwargs.get('timeout', 15),
-                       loop=loop))
+            _wait_coro(pyfuncitem.obj, testargs, timeout=timeout))
         return True
 
 
-async def _wait_coro(corofunc, kwargs, timeout, loop):
-    with async_timeout(timeout, loop=loop):
+async def _wait_coro(corofunc, kwargs, timeout):
+    with async_timeout(timeout):
         return (await corofunc(**kwargs))
 
 
 def pytest_runtest_setup(item):
-    run_loop = item.get_closest_marker('run_loop')
-    if run_loop and 'loop' not in item.fixturenames:
+    is_coro = inspect.iscoroutinefunction(item.obj)
+    if is_coro and 'loop' not in item.fixturenames:
         # inject an event loop fixture for all async tests
         item.fixturenames.append('loop')
 
@@ -590,7 +586,8 @@ def pytest_configure(config):
     bins = config.getoption('--redis-server')[:]
     cmd = 'which redis-server'
     if not bins:
-        path = os.popen(cmd).read().rstrip()
+        with os.popen(cmd) as pipe:
+            path = pipe.read().rstrip()
         assert path, (
             "There is no redis-server on your computer."
             " Please install it first")

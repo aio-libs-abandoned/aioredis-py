@@ -119,8 +119,7 @@ Transaction commands
 .. autoclass:: TransactionsCommandsMixin
    :members:
 
-.. class:: Pipeline(connection, commands_factory=lambda conn: conn, \*,\
-                    loop=None)
+.. class:: Pipeline(connection, commands_factory=lambda conn: conn)
 
    Commands pipeline.
 
@@ -129,14 +128,13 @@ Transaction commands
    This class implements `__getattr__` method allowing to call methods
    on instance created with ``commands_factory``.
 
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
+
    :param connection: Redis connection
    :type connection: aioredis.RedisConnection
 
    :param callable commands_factory: Commands factory to get methods from.
-
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    .. comethod:: execute(\*, return_exceptions=False)
 
@@ -154,14 +152,16 @@ Transaction commands
 
       :raise aioredis.PipelineError: Raised when any command caused error.
 
-.. class:: MultiExec(connection, commands_factory=lambda conn: conn, \*,\
-                     loop=None)
+.. class:: MultiExec(connection, commands_factory=lambda conn: conn)
 
    Bases: :class:`~Pipeline`.
 
    Multi/Exec pipeline wrapper.
 
    See :class:`~Pipeline` for parameters description.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    .. comethod:: execute(\*, return_exceptions=False)
 

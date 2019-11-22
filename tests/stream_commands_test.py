@@ -12,13 +12,12 @@ pytestmark = redis_version(
     5, 0, 0, reason="Streams only available since Redis 5.0.0")
 
 
-async def add_message_with_sleep(redis, loop, stream, fields):
-    await asyncio.sleep(0.2, loop=loop)
+async def add_message_with_sleep(redis, stream, fields):
+    await asyncio.sleep(0.2)
     result = await redis.xadd(stream, fields)
     return result
 
 
-@pytest.mark.run_loop
 async def test_xadd(redis, server_bin):
     fields = OrderedDict((
         (b'field1', b'value1'),
@@ -43,7 +42,6 @@ async def test_xadd(redis, server_bin):
     )
 
 
-@pytest.mark.run_loop
 async def test_xadd_maxlen_exact(redis, server_bin):
     message_id1 = await redis.xadd('test_stream', {'f1': 'v1'})  # noqa
 
@@ -70,7 +68,6 @@ async def test_xadd_maxlen_exact(redis, server_bin):
     assert message3[1] == OrderedDict([(b'f3', b'v3')])
 
 
-@pytest.mark.run_loop
 async def test_xadd_manual_message_ids(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-0')
     await redis.xadd('test_stream', {'f1': 'v1'}, message_id='1515958771000-1')
@@ -85,7 +82,6 @@ async def test_xadd_manual_message_ids(redis, server_bin):
     ]
 
 
-@pytest.mark.run_loop
 async def test_xadd_maxlen_inexact(redis, server_bin):
     await redis.xadd('test_stream', {'f1': 'v1'})
     # Ensure the millisecond-based message ID increments
@@ -107,7 +103,6 @@ async def test_xadd_maxlen_inexact(redis, server_bin):
     assert len(messages) < 1000
 
 
-@pytest.mark.run_loop
 async def test_xrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -161,7 +156,6 @@ async def test_xrange(redis, server_bin):
     assert len(messages) == 2
 
 
-@pytest.mark.run_loop
 async def test_xrevrange(redis, server_bin):
     stream = 'test_stream'
     fields = OrderedDict((
@@ -215,7 +209,6 @@ async def test_xrevrange(redis, server_bin):
     assert len(messages) == 2
 
 
-@pytest.mark.run_loop
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
     stream = 'test_stream'
@@ -248,23 +241,21 @@ async def test_xread_selection(redis, server_bin):
     assert len(messages) == 2
 
 
-@pytest.mark.run_loop
-async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
+async def test_xread_blocking(redis, create_redis, server, server_bin):
     """Test the blocking read features"""
     fields = OrderedDict((
         (b'field1', b'value1'),
         (b'field2', b'value2'),
     ))
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
 
     # create blocking task in separate connection
     consumer = other_redis.xread(['test_stream'], timeout=1000)
 
     producer_task = asyncio.Task(
-        add_message_with_sleep(redis, loop, 'test_stream', fields), loop=loop)
-    results = await asyncio.gather(
-        consumer, producer_task, loop=loop)
+        add_message_with_sleep(redis, 'test_stream', fields))
+    results = await asyncio.gather(consumer, producer_task)
 
     received_messages, sent_message_id = results
     assert len(received_messages) == 1
@@ -284,7 +275,6 @@ async def test_xread_blocking(redis, create_redis, loop, server, server_bin):
     other_redis.close()
 
 
-@pytest.mark.run_loop
 async def test_xgroup_create(redis, server_bin):
     # Also tests xinfo_groups()
     await redis.xadd('test_stream', {'a': 1})
@@ -298,7 +288,6 @@ async def test_xgroup_create(redis, server_bin):
     }]
 
 
-@pytest.mark.run_loop
 async def test_xgroup_create_mkstream(redis, server_bin):
     await redis.xgroup_create('test_stream', 'test_group', mkstream=True)
     info = await redis.xinfo_groups('test_stream')
@@ -310,7 +299,6 @@ async def test_xgroup_create_mkstream(redis, server_bin):
     }]
 
 
-@pytest.mark.run_loop
 async def test_xgroup_create_already_exists(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -318,14 +306,12 @@ async def test_xgroup_create_already_exists(redis, server_bin):
         await redis.xgroup_create('test_stream', 'test_group')
 
 
-@pytest.mark.run_loop
 async def test_xgroup_setid(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
     await redis.xgroup_setid('test_stream', 'test_group', '$')
 
 
-@pytest.mark.run_loop
 async def test_xgroup_destroy(redis, server_bin):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -334,7 +320,6 @@ async def test_xgroup_destroy(redis, server_bin):
     assert not info
 
 
-@pytest.mark.run_loop
 async def test_xread_group(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -351,7 +336,6 @@ async def test_xread_group(redis):
     assert fields == {b'a': b'1'}
 
 
-@pytest.mark.run_loop
 async def test_xread_group_with_no_ack(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -368,7 +352,6 @@ async def test_xread_group_with_no_ack(redis):
     assert fields == {b'a': b'1'}
 
 
-@pytest.mark.run_loop
 async def test_xack_and_xpending(redis):
     # Test a full xread -> xack cycle, using xpending to check the status
     message_id = await redis.xadd('test_stream', {'a': 1})
@@ -402,7 +385,6 @@ async def test_xack_and_xpending(redis):
     assert pending_count == 0
 
 
-@pytest.mark.run_loop
 async def test_xpending_get_messages(redis):
     # Like test_xack_and_xpending(), but using the start/end xpending()
     # params to get the messages
@@ -428,7 +410,6 @@ async def test_xpending_get_messages(redis):
     assert num_deliveries == 1
 
 
-@pytest.mark.run_loop
 async def test_xpending_start_of_zero(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -436,7 +417,6 @@ async def test_xpending_start_of_zero(redis):
     await redis.xpending('test_stream', 'test_group', 0, '+', 10)
 
 
-@pytest.mark.run_loop
 async def test_xclaim_simple(redis):
     # Put a message in a pending state then reclaim it is XCLAIM
     message_id = await redis.xadd('test_stream', {'a': 1})
@@ -467,7 +447,6 @@ async def test_xclaim_simple(redis):
     assert pel == [[b'new_consumer', b'1']]
 
 
-@pytest.mark.run_loop
 async def test_xclaim_min_idle_time_includes_messages(redis):
     message_id = await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -485,7 +464,6 @@ async def test_xclaim_min_idle_time_includes_messages(redis):
     assert result
 
 
-@pytest.mark.run_loop
 async def test_xclaim_min_idle_time_excludes_messages(redis):
     message_id = await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group', latest_id='0')
@@ -502,7 +480,6 @@ async def test_xclaim_min_idle_time_excludes_messages(redis):
     assert not result
 
 
-@pytest.mark.run_loop
 async def test_xgroup_delconsumer(redis, create_redis, server):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -523,14 +500,12 @@ async def test_xgroup_delconsumer(redis, create_redis, server):
     assert not info
 
 
-@pytest.mark.run_loop
 async def test_xdel_stream(redis):
     message_id = await redis.xadd('test_stream', {'a': 1})
     response = await redis.xdel('test_stream', id=message_id)
     assert response >= 0
 
 
-@pytest.mark.run_loop
 async def test_xtrim_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xadd('test_stream', {'b': 1})
@@ -539,14 +514,12 @@ async def test_xtrim_stream(redis):
     assert response >= 0
 
 
-@pytest.mark.run_loop
 async def test_xlen_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
     response = await redis.xlen('test_stream')
     assert response >= 0
 
 
-@pytest.mark.run_loop
 async def test_xinfo_consumers(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -564,7 +537,6 @@ async def test_xinfo_consumers(redis):
     assert isinstance(info[0], dict)
 
 
-@pytest.mark.run_loop
 async def test_xinfo_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xgroup_create('test_stream', 'test_group')
@@ -586,13 +558,11 @@ async def test_xinfo_stream(redis):
     assert isinstance(info, dict)
 
 
-@pytest.mark.run_loop
 async def test_xinfo_help(redis):
     info = await redis.xinfo_help()
     assert info
 
 
-@pytest.mark.run_loop
 @pytest.mark.parametrize('param', [0.1, '1'])
 async def test_xread_param_types(redis, param):
     with pytest.raises(TypeError):

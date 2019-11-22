@@ -8,7 +8,6 @@ from aioredis import ReplyError
 from _testutils import redis_version
 
 
-@pytest.mark.run_loop
 async def test_client_list(redis, server, request):
     name = request.node.callspec.id
     assert (await redis.client_setname(name))
@@ -41,11 +40,10 @@ async def test_client_list(redis, server, request):
     assert expected in res
 
 
-@pytest.mark.run_loop
 @pytest.mark.skipif(sys.platform == 'win32',
                     reason="No unixsocket on Windows")
-async def test_client_list__unixsocket(create_redis, loop, server, request):
-    redis = await create_redis(server.unixsocket, loop=loop)
+async def test_client_list__unixsocket(create_redis, server, request):
+    redis = await create_redis(server.unixsocket)
     name = request.node.callspec.id
     assert (await redis.client_setname(name))
     res = await redis.client_list()
@@ -76,7 +74,6 @@ async def test_client_list__unixsocket(create_redis, loop, server, request):
     assert expected in info
 
 
-@pytest.mark.run_loop
 @redis_version(
     2, 9, 50, reason='CLIENT PAUSE is available since redis >= 2.9.50')
 async def test_client_pause(redis):
@@ -94,7 +91,6 @@ async def test_client_pause(redis):
         await redis.client_pause(-1)
 
 
-@pytest.mark.run_loop
 async def test_client_getname(redis):
     res = await redis.client_getname()
     assert res is None
@@ -108,7 +104,6 @@ async def test_client_getname(redis):
 
 
 @redis_version(2, 8, 13, reason="available since Redis 2.8.13")
-@pytest.mark.run_loop
 async def test_command(redis):
     res = await redis.command()
     assert isinstance(res, list)
@@ -116,14 +111,12 @@ async def test_command(redis):
 
 
 @redis_version(2, 8, 13, reason="available since Redis 2.8.13")
-@pytest.mark.run_loop
 async def test_command_count(redis):
     res = await redis.command_count()
     assert res > 0
 
 
 @redis_version(3, 0, 0, reason="available since Redis 3.0.0")
-@pytest.mark.run_loop
 async def test_command_getkeys(redis):
     res = await redis.command_getkeys('get', 'key')
     assert res == ['key']
@@ -141,7 +134,6 @@ async def test_command_getkeys(redis):
 
 
 @redis_version(2, 8, 13, reason="available since Redis 2.8.13")
-@pytest.mark.run_loop
 async def test_command_info(redis):
     res = await redis.command_info('get')
     assert res == [
@@ -154,7 +146,6 @@ async def test_command_info(redis):
     assert res == [None, None]
 
 
-@pytest.mark.run_loop
 async def test_config_get(redis, server):
     res = await redis.config_get('port')
     assert res == {'port': str(server.tcp_address.port)}
@@ -169,13 +160,11 @@ async def test_config_get(redis, server):
         await redis.config_get(b'port')
 
 
-@pytest.mark.run_loop
 async def test_config_rewrite(redis):
     with pytest.raises(ReplyError):
         await redis.config_rewrite()
 
 
-@pytest.mark.run_loop
 async def test_config_set(redis):
     cur_value = await redis.config_get('slave-read-only')
     res = await redis.config_set('slave-read-only', 'no')
@@ -190,12 +179,10 @@ async def test_config_set(redis):
         await redis.config_set(100, 'databases')
 
 
-# @pytest.mark.run_loop
 # @pytest.mark.skip("Not implemented")
 # def test_config_resetstat():
 #     pass
 
-@pytest.mark.run_loop
 async def test_debug_object(redis):
     with pytest.raises(ReplyError):
         assert (await redis.debug_object('key')) is None
@@ -206,7 +193,6 @@ async def test_debug_object(redis):
     assert res is not None
 
 
-@pytest.mark.run_loop
 async def test_debug_sleep(redis):
     t1 = await redis.time()
     ok = await redis.debug_sleep(.2)
@@ -215,7 +201,6 @@ async def test_debug_sleep(redis):
     assert t2 - t1 >= .2
 
 
-@pytest.mark.run_loop
 async def test_dbsize(redis):
     res = await redis.dbsize()
     assert res == 0
@@ -233,7 +218,6 @@ async def test_dbsize(redis):
     assert res == 1
 
 
-@pytest.mark.run_loop
 async def test_info(redis):
     res = await redis.info()
     assert isinstance(res, dict)
@@ -245,13 +229,11 @@ async def test_info(redis):
         await redis.info('')
 
 
-@pytest.mark.run_loop
 async def test_lastsave(redis):
     res = await redis.lastsave()
     assert res > 0
 
 
-@pytest.mark.run_loop
 @redis_version(2, 8, 12, reason='ROLE is available since redis>=2.8.12')
 async def test_role(redis):
     res = await redis.role()
@@ -262,7 +244,6 @@ async def test_role(redis):
         }
 
 
-@pytest.mark.run_loop
 async def test_save(redis):
     res = await redis.dbsize()
     assert res == 0
@@ -277,23 +258,19 @@ async def test_save(redis):
     pytest.param(None, id='no decoding'),
     pytest.param('utf-8', id='with decoding'),
 ])
-@pytest.mark.run_loop
-async def test_time(create_redis, server, loop, encoding):
-    redis = await create_redis(server.tcp_address, loop=loop,
-                               encoding='utf-8')
+async def test_time(create_redis, server, encoding):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     now = time.time()
     res = await redis.time()
     assert isinstance(res, float)
     assert res == pytest.approx(now, abs=10)
 
 
-@pytest.mark.run_loop
 async def test_slowlog_len(redis):
     res = await redis.slowlog_len()
     assert res >= 0
 
 
-@pytest.mark.run_loop
 async def test_slowlog_get(redis):
     res = await redis.slowlog_get()
     assert isinstance(res, list)
@@ -309,7 +286,6 @@ async def test_slowlog_get(redis):
         assert not (await redis.slowlog_get('1'))
 
 
-@pytest.mark.run_loop
 async def test_slowlog_reset(redis):
     ok = await redis.slowlog_reset()
     assert ok is True

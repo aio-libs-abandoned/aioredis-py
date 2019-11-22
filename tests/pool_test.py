@@ -31,15 +31,6 @@ def test_connect(pool):
     _assert_defaults(pool)
 
 
-def test_global_loop(create_pool, loop, server):
-    asyncio.set_event_loop(loop)
-
-    pool = loop.run_until_complete(create_pool(
-        server.tcp_address))
-    _assert_defaults(pool)
-
-
-@pytest.mark.run_loop
 async def test_clear(pool):
     _assert_defaults(pool)
 
@@ -47,35 +38,31 @@ async def test_clear(pool):
     assert pool.freesize == 0
 
 
-@pytest.mark.run_loop
 @pytest.mark.parametrize('minsize', [None, -100, 0.0, 100])
-async def test_minsize(minsize, create_pool, loop, server):
+async def test_minsize(minsize, create_pool, server):
 
     with pytest.raises(AssertionError):
         await create_pool(
             server.tcp_address,
-            minsize=minsize, maxsize=10, loop=loop)
+            minsize=minsize, maxsize=10)
 
 
-@pytest.mark.run_loop
 @pytest.mark.parametrize('maxsize', [None, -100, 0.0, 1])
-async def test_maxsize(maxsize, create_pool, loop, server):
+async def test_maxsize(maxsize, create_pool, server):
 
     with pytest.raises(AssertionError):
         await create_pool(
             server.tcp_address,
-            minsize=2, maxsize=maxsize, loop=loop)
+            minsize=2, maxsize=maxsize)
 
 
-@pytest.mark.run_loop
-async def test_create_connection_timeout(create_pool, loop, server):
-    with patch.object(loop, 'create_connection') as\
+async def test_create_connection_timeout(create_pool, server):
+    with patch('aioredis.connection.open_connection') as\
             open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2,
-                                                                    loop=loop)
+        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
         with pytest.raises(asyncio.TimeoutError):
             await create_pool(
-                server.tcp_address, loop=loop,
+                server.tcp_address,
                 create_connection_timeout=0.1)
 
 
@@ -85,11 +72,10 @@ def test_no_yield_from(pool):
             pass    # pragma: no cover
 
 
-@pytest.mark.run_loop
-async def test_simple_command(create_pool, loop, server):
+async def test_simple_command(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        minsize=10, loop=loop)
+        minsize=10)
 
     with (await pool) as conn:
         msg = await conn.execute('echo', 'hello')
@@ -100,11 +86,10 @@ async def test_simple_command(create_pool, loop, server):
     assert pool.freesize == 10
 
 
-@pytest.mark.run_loop
-async def test_create_new(create_pool, loop, server):
+async def test_create_new(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        minsize=1, loop=loop)
+        minsize=1)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -120,11 +105,10 @@ async def test_create_new(create_pool, loop, server):
     assert pool.freesize == 2
 
 
-@pytest.mark.run_loop
-async def test_create_constraints(create_pool, loop, server):
+async def test_create_constraints(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        minsize=1, maxsize=1, loop=loop)
+        minsize=1, maxsize=1)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -134,15 +118,13 @@ async def test_create_constraints(create_pool, loop, server):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(pool.acquire(),
-                                   timeout=0.2,
-                                   loop=loop)
+                                   timeout=0.2)
 
 
-@pytest.mark.run_loop
-async def test_create_no_minsize(create_pool, loop, server):
+async def test_create_no_minsize(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        minsize=0, maxsize=1, loop=loop)
+        minsize=0, maxsize=1)
     assert pool.size == 0
     assert pool.freesize == 0
 
@@ -152,40 +134,34 @@ async def test_create_no_minsize(create_pool, loop, server):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(pool.acquire(),
-                                   timeout=0.2,
-                                   loop=loop)
+                                   timeout=0.2)
     assert pool.size == 1
     assert pool.freesize == 1
 
 
-@pytest.mark.run_loop
-async def test_create_pool_cls(create_pool, loop, server):
+async def test_create_pool_cls(create_pool, server):
 
     class MyPool(ConnectionsPool):
         pass
 
     pool = await create_pool(
         server.tcp_address,
-        loop=loop,
         pool_cls=MyPool)
 
     assert isinstance(pool, MyPool)
 
 
-@pytest.mark.run_loop
-async def test_create_pool_cls_invalid(create_pool, loop, server):
+async def test_create_pool_cls_invalid(create_pool, server):
     with pytest.raises(AssertionError):
         await create_pool(
             server.tcp_address,
-            loop=loop,
             pool_cls=type)
 
 
-@pytest.mark.run_loop
-async def test_release_closed(create_pool, loop, server):
+async def test_release_closed(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        minsize=1, loop=loop)
+        minsize=1)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -196,11 +172,10 @@ async def test_release_closed(create_pool, loop, server):
     assert pool.freesize == 0
 
 
-@pytest.mark.run_loop
-async def test_release_pending(create_pool, loop, server, caplog):
+async def test_release_pending(create_pool, server, caplog):
     pool = await create_pool(
         server.tcp_address,
-        minsize=1, loop=loop)
+        minsize=1)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -214,7 +189,7 @@ async def test_release_pending(create_pool, loop, server, caplog):
                         b'somekey:not:exists',
                         b'0'),
                     0.05,
-                    loop=loop)
+                    )
             except asyncio.TimeoutError:
                 pass
     assert pool.size == 0
@@ -225,17 +200,12 @@ async def test_release_pending(create_pool, loop, server, caplog):
     ]
 
 
-@pytest.mark.run_loop
-async def test_release_bad_connection(create_pool, create_redis, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        loop=loop)
+async def test_release_bad_connection(create_pool, create_redis, server):
+    pool = await create_pool(server.tcp_address)
     conn = await pool.acquire()
     assert conn.address[0] in ('127.0.0.1', '::1')
     assert conn.address[1] == server.tcp_address.port
-    other_conn = await create_redis(
-        server.tcp_address,
-        loop=loop)
+    other_conn = await create_redis(server.tcp_address)
     with pytest.raises(AssertionError):
         pool.release(other_conn)
 
@@ -244,23 +214,16 @@ async def test_release_bad_connection(create_pool, create_redis, loop, server):
     await other_conn.wait_closed()
 
 
-@pytest.mark.run_loop
-async def test_select_db(create_pool, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        loop=loop)
+async def test_select_db(create_pool, server):
+    pool = await create_pool(server.tcp_address)
 
     await pool.select(1)
     with (await pool) as conn:
         assert conn.db == 1
 
 
-@pytest.mark.run_loop
-async def test_change_db(create_pool, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        minsize=1, db=0,
-        loop=loop)
+async def test_change_db(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=1, db=0)
     assert pool.size == 1
     assert pool.freesize == 1
 
@@ -282,12 +245,8 @@ async def test_change_db(create_pool, loop, server):
     assert pool.db == 1
 
 
-@pytest.mark.run_loop
-async def test_change_db_errors(create_pool, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        minsize=1, db=0,
-        loop=loop)
+async def test_change_db_errors(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=1, db=0)
 
     with pytest.raises(TypeError):
         await pool.select(None)
@@ -310,25 +269,23 @@ async def test_change_db_errors(create_pool, loop, server):
 
 
 @pytest.mark.xfail(reason="Need to refactor this test")
-@pytest.mark.run_loop
-async def test_select_and_create(create_pool, loop, server):
+async def test_select_and_create(create_pool, server):
     # trying to model situation when select and acquire
     # called simultaneously
     # but acquire freezes on _wait_select and
     # then continues with proper db
 
     # TODO: refactor this test as there's no _wait_select any more.
-    with async_timeout.timeout(10, loop=loop):
+    with async_timeout.timeout(10):
         pool = await create_pool(
             server.tcp_address,
             minsize=1, db=0,
-            loop=loop)
+            )
         db = 0
         while True:
             db = (db + 1) & 1
             _, conn = await asyncio.gather(pool.select(db),
-                                           pool.acquire(),
-                                           loop=loop)
+                                           pool.acquire())
             assert pool.db == db
             pool.release(conn)
             if conn.db == db:
@@ -336,11 +293,8 @@ async def test_select_and_create(create_pool, loop, server):
     # await asyncio.wait_for(test(), 3, loop=loop)
 
 
-@pytest.mark.run_loop
-async def test_response_decoding(create_pool, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        encoding='utf-8', loop=loop)
+async def test_response_decoding(create_pool, server):
+    pool = await create_pool(server.tcp_address, encoding='utf-8')
 
     assert pool.encoding == 'utf-8'
     with (await pool) as conn:
@@ -350,11 +304,8 @@ async def test_response_decoding(create_pool, loop, server):
         assert res == 'value'
 
 
-@pytest.mark.run_loop
-async def test_hgetall_response_decoding(create_pool, loop, server):
-    pool = await create_pool(
-        server.tcp_address,
-        encoding='utf-8', loop=loop)
+async def test_hgetall_response_decoding(create_pool, server):
+    pool = await create_pool(server.tcp_address, encoding='utf-8')
 
     assert pool.encoding == 'utf-8'
     with (await pool) as conn:
@@ -366,11 +317,10 @@ async def test_hgetall_response_decoding(create_pool, loop, server):
         assert res == ['foo', 'bar', 'baz', 'zap']
 
 
-@pytest.mark.run_loop
-async def test_crappy_multiexec(create_pool, loop, server):
+async def test_crappy_multiexec(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        encoding='utf-8', loop=loop,
+        encoding='utf-8',
         minsize=1, maxsize=1)
 
     with (await pool) as conn:
@@ -383,11 +333,9 @@ async def test_crappy_multiexec(create_pool, loop, server):
     assert value == 'def'
 
 
-@pytest.mark.run_loop
-async def test_pool_size_growth(create_pool, server, loop):
+async def test_pool_size_growth(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        loop=loop,
         minsize=1, maxsize=1)
 
     done = set()
@@ -397,7 +345,7 @@ async def test_pool_size_growth(create_pool, server, loop):
         with (await pool):
             assert pool.size <= pool.maxsize
             assert pool.freesize == 0
-            await asyncio.sleep(0.2, loop=loop)
+            await asyncio.sleep(0.2)
             done.add(i)
 
     async def task2():
@@ -407,16 +355,14 @@ async def test_pool_size_growth(create_pool, server, loop):
             assert done == {0, 1}
 
     for _ in range(2):
-        tasks.append(asyncio.ensure_future(task1(_), loop=loop))
-    tasks.append(asyncio.ensure_future(task2(), loop=loop))
-    await asyncio.gather(*tasks, loop=loop)
+        tasks.append(asyncio.ensure_future(task1(_)))
+    tasks.append(asyncio.ensure_future(task2()))
+    await asyncio.gather(*tasks)
 
 
-@pytest.mark.run_loop
-async def test_pool_with_closed_connections(create_pool, server, loop):
+async def test_pool_with_closed_connections(create_pool, server):
     pool = await create_pool(
         server.tcp_address,
-        loop=loop,
         minsize=1, maxsize=2)
     assert 1 == pool.freesize
     conn1 = pool._pool[0]
@@ -428,10 +374,8 @@ async def test_pool_with_closed_connections(create_pool, server, loop):
         assert conn1 is not conn2
 
 
-@pytest.mark.run_loop
-async def test_pool_close(create_pool, server, loop):
-    pool = await create_pool(
-        server.tcp_address, loop=loop)
+async def test_pool_close(create_pool, server):
+    pool = await create_pool(server.tcp_address)
 
     assert pool.closed is False
 
@@ -447,10 +391,8 @@ async def test_pool_close(create_pool, server, loop):
             assert (await conn.execute('ping')) == b'PONG'
 
 
-@pytest.mark.run_loop
-async def test_pool_close__used(create_pool, server, loop):
-    pool = await create_pool(
-        server.tcp_address, loop=loop)
+async def test_pool_close__used(create_pool, server):
+    pool = await create_pool(server.tcp_address)
 
     assert pool.closed is False
 
@@ -463,12 +405,11 @@ async def test_pool_close__used(create_pool, server, loop):
             await conn.execute('ping')
 
 
-@pytest.mark.run_loop
 @redis_version(2, 8, 0, reason="maxclients config setting")
 async def test_pool_check_closed_when_exception(
-        create_pool, create_redis, start_server, loop, caplog):
+        create_pool, create_redis, start_server, caplog):
     server = start_server('server-small')
-    redis = await create_redis(server.tcp_address, loop=loop)
+    redis = await create_redis(server.tcp_address)
     await redis.config_set('maxclients', 2)
 
     errors = (MaxClientsError, ConnectionClosedError, ConnectionError)
@@ -476,7 +417,7 @@ async def test_pool_check_closed_when_exception(
     with caplog.at_level('DEBUG', 'aioredis'):
         with pytest.raises(errors):
             await create_pool(address=tuple(server.tcp_address),
-                              minsize=3, loop=loop)
+                              minsize=3)
 
     assert len(caplog.record_tuples) >= 3
     connect_msg = "Creating tcp connection to ('localhost', {})".format(
@@ -490,10 +431,8 @@ async def test_pool_check_closed_when_exception(
         )
 
 
-@pytest.mark.run_loop
-async def test_pool_get_connection(create_pool, server, loop):
-    pool = await create_pool(server.tcp_address, minsize=1, maxsize=2,
-                             loop=loop)
+async def test_pool_get_connection(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=1, maxsize=2)
     res = await pool.execute("set", "key", "val")
     assert res == b'OK'
 
@@ -510,10 +449,8 @@ async def test_pool_get_connection(create_pool, server, loop):
     assert res == b'value'
 
 
-@pytest.mark.run_loop
-async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
-    pool = await create_pool(server.tcp_address, minsize=1, maxsize=2,
-                             loop=loop)
+async def test_pool_get_connection_with_pipelining(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=1, maxsize=2)
     fut1 = pool.execute('set', 'key', 'val')
     fut2 = pool.execute_pubsub("subscribe", "channel:1")
     fut3 = pool.execute('getset', 'key', 'next')
@@ -532,10 +469,9 @@ async def test_pool_get_connection_with_pipelining(create_pool, server, loop):
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="flaky on windows")
-@pytest.mark.run_loop
-async def test_pool_idle_close(create_pool, start_server, loop, caplog):
+async def test_pool_idle_close(create_pool, start_server, caplog):
     server = start_server('idle')
-    conn = await create_pool(server.tcp_address, minsize=2, loop=loop)
+    conn = await create_pool(server.tcp_address, minsize=2)
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b'OK'
 
@@ -543,7 +479,7 @@ async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     with caplog.at_level('DEBUG', 'aioredis'):
         # wait for either disconnection logged or test timeout reached.
         while len(caplog.record_tuples) < 2:
-            await asyncio.sleep(.5, loop=loop)
+            await asyncio.sleep(.5)
     expected = [
         ('aioredis', logging.DEBUG,
          'Connection has been closed by server, response: None'),
@@ -567,34 +503,24 @@ async def test_pool_idle_close(create_pool, start_server, loop, caplog):
     assert (await conn.execute('ping')) == b'PONG'
 
 
-@pytest.mark.run_loop
-async def test_await(create_pool, server, loop):
-    pool = await create_pool(
-        server.tcp_address,
-        minsize=10, loop=loop)
+async def test_await(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=10)
 
     with (await pool) as conn:
         msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
 
 
-@pytest.mark.run_loop
-async def test_async_with(create_pool, server, loop):
-    pool = await create_pool(
-        server.tcp_address,
-        minsize=10, loop=loop)
+async def test_async_with(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=10)
 
     async with pool.get() as conn:
         msg = await conn.execute('echo', 'hello')
         assert msg == b'hello'
 
 
-@pytest.mark.run_loop
-async def test_pool__drop_closed(create_pool, server, loop):
-    pool = await create_pool(server.tcp_address,
-                             minsize=3,
-                             maxsize=3,
-                             loop=loop)
+async def test_pool__drop_closed(create_pool, server):
+    pool = await create_pool(server.tcp_address, minsize=3, maxsize=3)
     assert pool.size == 3
     assert pool.freesize == 3
     assert not pool._pool[0].closed

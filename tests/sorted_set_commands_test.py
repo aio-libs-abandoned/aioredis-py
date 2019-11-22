@@ -6,7 +6,6 @@ from _testutils import redis_version
 
 
 @redis_version(5, 0, 0, reason='BZPOPMAX is available since redis>=5.0.0')
-@pytest.mark.run_loop
 async def test_bzpopmax(redis):
     key1 = b'key:zpopmax:1'
     key2 = b'key:zpopmax:2'
@@ -29,7 +28,6 @@ async def test_bzpopmax(redis):
 
 
 @redis_version(5, 0, 0, reason='BZPOPMIN is available since redis>=5.0.0')
-@pytest.mark.run_loop
 async def test_bzpopmin(redis):
     key1 = b'key:zpopmin:1'
     key2 = b'key:zpopmin:2'
@@ -51,7 +49,6 @@ async def test_bzpopmin(redis):
         await redis.bzpopmin(key2, timeout=-10)
 
 
-@pytest.mark.run_loop
 async def test_zadd(redis):
     key = b'key:zadd'
     res = await redis.zadd(key, 1, b'one')
@@ -81,7 +78,6 @@ async def test_zadd(redis):
 @redis_version(
     3, 0, 2, reason='ZADD options is available since redis>=3.0.2',
 )
-@pytest.mark.run_loop
 async def test_zadd_options(redis):
     key = b'key:zaddopt'
 
@@ -125,7 +121,6 @@ async def test_zadd_options(redis):
         await redis.zadd(key, 1, b'one', 2, b'two', incr=True)
 
 
-@pytest.mark.run_loop
 async def test_zcard(redis):
     key = b'key:zcard'
     pairs = [1, b'one', 2, b'two', 3, b'three']
@@ -142,7 +137,6 @@ async def test_zcard(redis):
         await redis.zcard(None)
 
 
-@pytest.mark.run_loop
 async def test_zcount(redis):
     key = b'key:zcount'
     pairs = [1, b'one', 1, b'uno', 2.5, b'two', 3, b'three', 7, b'seven']
@@ -186,7 +180,6 @@ async def test_zcount(redis):
         await redis.zcount(key, 10, 1)
 
 
-@pytest.mark.run_loop
 async def test_zincrby(redis):
     key = b'key:zincrby'
     pairs = [1, b'one', 1, b'uno', 2.5, b'two', 3, b'three']
@@ -206,7 +199,6 @@ async def test_zincrby(redis):
         await redis.zincrby(key, 'one', 5)
 
 
-@pytest.mark.run_loop
 async def test_zinterstore(redis):
     zset1 = [2, 'one', 2, 'two']
     zset2 = [3, 'one', 3, 'three']
@@ -256,7 +248,6 @@ async def test_zinterstore(redis):
 
 @redis_version(
     2, 8, 9, reason='ZLEXCOUNT is available since redis>=2.8.9')
-@pytest.mark.run_loop
 async def test_zlexcount(redis):
     key = b'key:zlexcount'
     pairs = [0, b'a', 0, b'b', 0, b'c', 0, b'd', 0, b'e']
@@ -280,7 +271,6 @@ async def test_zlexcount(redis):
 
 
 @pytest.mark.parametrize('encoding', [None, 'utf-8'])
-@pytest.mark.run_loop
 async def test_zrange(redis, encoding):
     key = b'key:zrange'
     scores = [1, 1, 2.5, 3, 7]
@@ -313,7 +303,6 @@ async def test_zrange(redis, encoding):
 
 @redis_version(
     2, 8, 9, reason='ZRANGEBYLEX is available since redis>=2.8.9')
-@pytest.mark.run_loop
 async def test_zrangebylex(redis):
     key = b'key:zrangebylex'
     scores = [0] * 5
@@ -357,7 +346,6 @@ async def test_zrangebylex(redis):
                                      offset=1, count='one')
 
 
-@pytest.mark.run_loop
 async def test_zrank(redis):
     key = b'key:zrank'
     scores = [1, 1, 2.5, 3, 7]
@@ -379,7 +367,6 @@ async def test_zrank(redis):
 
 
 @pytest.mark.parametrize('encoding', [None, 'utf-8'])
-@pytest.mark.run_loop
 async def test_zrangebyscore(redis, encoding):
     key = b'key:zrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
@@ -423,7 +410,6 @@ async def test_zrangebyscore(redis, encoding):
         await redis.zrangebyscore(key, 1, 7, offset=1, count='one')
 
 
-@pytest.mark.run_loop
 async def test_zrem(redis):
     key = b'key:zrem'
     scores = [1, 1, 2.5, 3, 7]
@@ -451,7 +437,6 @@ async def test_zrem(redis):
 
 @redis_version(
     2, 8, 9, reason='ZREMRANGEBYLEX is available since redis>=2.8.9')
-@pytest.mark.run_loop
 async def test_zremrangebylex(redis):
     key = b'key:zremrangebylex'
     members = [b'aaaa', b'b', b'c', b'd', b'e', b'foo', b'zap', b'zip',
@@ -490,7 +475,6 @@ async def test_zremrangebylex(redis):
         await redis.zremrangebylex(key, b'a', 20)
 
 
-@pytest.mark.run_loop
 async def test_zremrangebyrank(redis):
     key = b'key:zremrangebyrank'
     scores = [0, 1, 2, 3, 4, 5]
@@ -517,7 +501,6 @@ async def test_zremrangebyrank(redis):
         await redis.zremrangebyrank(key, 0, 'last')
 
 
-@pytest.mark.run_loop
 async def test_zremrangebyscore(redis):
     key = b'key:zremrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
@@ -552,7 +535,6 @@ async def test_zremrangebyscore(redis):
 
 
 @pytest.mark.parametrize('encoding', [None, 'utf-8'])
-@pytest.mark.run_loop
 async def test_zrevrange(redis, encoding):
     key = b'key:zrevrange'
     scores = [1, 1, 2.5, 3, 7]
@@ -587,7 +569,6 @@ async def test_zrevrange(redis, encoding):
         await redis.zrevrange(key, 0, 'last')
 
 
-@pytest.mark.run_loop
 async def test_zrevrank(redis):
     key = b'key:zrevrank'
     scores = [1, 1, 2.5, 3, 7]
@@ -608,7 +589,6 @@ async def test_zrevrank(redis):
         await redis.zrevrank(None, b'one')
 
 
-@pytest.mark.run_loop
 async def test_zscore(redis):
     key = b'key:zscore'
     scores = [1, 1, 2.5, 3, 7]
@@ -628,7 +608,6 @@ async def test_zscore(redis):
     assert res is None
 
 
-@pytest.mark.run_loop
 async def test_zunionstore(redis):
     zset1 = [2, 'one', 2, 'two']
     zset2 = [3, 'one', 3, 'three']
@@ -677,7 +656,6 @@ async def test_zunionstore(redis):
 
 
 @pytest.mark.parametrize('encoding', [None, 'utf-8'])
-@pytest.mark.run_loop
 async def test_zrevrangebyscore(redis, encoding):
     key = b'key:zrevrangebyscore'
     scores = [1, 1, 2.5, 3, 7]
@@ -724,7 +702,6 @@ async def test_zrevrangebyscore(redis, encoding):
 
 @redis_version(
     2, 8, 9, reason='ZREVRANGEBYLEX is available since redis>=2.8.9')
-@pytest.mark.run_loop
 async def test_zrevrangebylex(redis):
     key = b'key:zrevrangebylex'
     scores = [0] * 5
@@ -771,7 +748,6 @@ async def test_zrevrangebylex(redis):
 
 
 @redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_zscan(redis):
     key = b'key:zscan'
     scores, members = [], []
@@ -805,7 +781,6 @@ async def test_zscan(redis):
 
 
 @redis_version(2, 8, 0, reason='ZSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_izscan(redis):
     key = b'key:zscan'
     scores, members = [], []
@@ -845,7 +820,6 @@ async def test_izscan(redis):
 
 
 @redis_version(5, 0, 0, reason='ZPOPMAX is available since redis>=5.0.0')
-@pytest.mark.run_loop
 async def test_zpopmax(redis):
     key = b'key:zpopmax'
 
@@ -862,7 +836,6 @@ async def test_zpopmax(redis):
 
 
 @redis_version(5, 0, 0, reason='ZPOPMIN is available since redis>=5.0.0')
-@pytest.mark.run_loop
 async def test_zpopmin(redis):
     key = b'key:zpopmin'
 

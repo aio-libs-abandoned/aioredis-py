@@ -10,7 +10,6 @@ async def add(redis, key, value):
     assert ok is True
 
 
-@pytest.mark.run_loop
 async def test_append(redis):
     len_ = await redis.append('my-key', 'Hello')
     assert len_ == 5
@@ -26,7 +25,6 @@ async def test_append(redis):
         await redis.append('none-key', None)
 
 
-@pytest.mark.run_loop
 async def test_bitcount(redis):
     await add(redis, 'my-key', b'\x00\x10\x01')
 
@@ -57,7 +55,6 @@ async def test_bitcount(redis):
         await redis.bitcount('my-key', 2, None)
 
 
-@pytest.mark.run_loop
 async def test_bitop_and(redis):
     key1, value1 = b'key:bitop:and:1', 5
     key2, value2 = b'key:bitop:and:2', 7
@@ -79,7 +76,6 @@ async def test_bitop_and(redis):
         await redis.bitop_and(destkey, key1, None)
 
 
-@pytest.mark.run_loop
 async def test_bitop_or(redis):
     key1, value1 = b'key:bitop:or:1', 5
     key2, value2 = b'key:bitop:or:2', 7
@@ -101,7 +97,6 @@ async def test_bitop_or(redis):
         await redis.bitop_or(destkey, key1, None)
 
 
-@pytest.mark.run_loop
 async def test_bitop_xor(redis):
     key1, value1 = b'key:bitop:xor:1', 5
     key2, value2 = b'key:bitop:xor:2', 7
@@ -123,7 +118,6 @@ async def test_bitop_xor(redis):
         await redis.bitop_xor(destkey, key1, None)
 
 
-@pytest.mark.run_loop
 async def test_bitop_not(redis):
     key1, value1 = b'key:bitop:not:1', 5
     await add(redis, key1, value1)
@@ -141,7 +135,6 @@ async def test_bitop_not(redis):
 
 
 @redis_version(2, 8, 0, reason='BITPOS is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_bitpos(redis):
     key, value = b'key:bitop', b'\xff\xf0\x00'
     await add(redis, key, value)
@@ -174,7 +167,6 @@ async def test_bitpos(redis):
         test_value = await redis.bitpos(key, 7)
 
 
-@pytest.mark.run_loop
 async def test_decr(redis):
     await redis.delete('key')
 
@@ -193,7 +185,6 @@ async def test_decr(redis):
         await redis.decr(None)
 
 
-@pytest.mark.run_loop
 async def test_decrby(redis):
     await redis.delete('key')
 
@@ -216,7 +207,6 @@ async def test_decrby(redis):
         await redis.decrby('key', None)
 
 
-@pytest.mark.run_loop
 async def test_get(redis):
     await add(redis, 'my-key', 'value')
     ret = await redis.get('my-key')
@@ -233,7 +223,6 @@ async def test_get(redis):
         await redis.get(None)
 
 
-@pytest.mark.run_loop
 async def test_getbit(redis):
     key, value = b'key:getbit', 10
     await add(redis, key, value)
@@ -261,7 +250,6 @@ async def test_getbit(redis):
         await redis.getbit(key, -7)
 
 
-@pytest.mark.run_loop
 async def test_getrange(redis):
     key, value = b'key:getrange', b'This is a string'
     await add(redis, key, value)
@@ -295,7 +283,6 @@ async def test_getrange(redis):
         await redis.getrange(key, 0, b'seven')
 
 
-@pytest.mark.run_loop
 async def test_getset(redis):
     key, value = b'key:getset', b'hello'
     await add(redis, key, value)
@@ -320,7 +307,6 @@ async def test_getset(redis):
         await redis.getset(None, b'asyncio')
 
 
-@pytest.mark.run_loop
 async def test_incr(redis):
     await redis.delete('key')
 
@@ -339,7 +325,6 @@ async def test_incr(redis):
         await redis.incr(None)
 
 
-@pytest.mark.run_loop
 async def test_incrby(redis):
     await redis.delete('key')
 
@@ -362,7 +347,6 @@ async def test_incrby(redis):
         await redis.incrby('key', None)
 
 
-@pytest.mark.run_loop
 async def test_incrbyfloat(redis):
     await redis.delete('key')
 
@@ -389,7 +373,6 @@ async def test_incrbyfloat(redis):
         await redis.incrbyfloat('key', '1.0')
 
 
-@pytest.mark.run_loop
 async def test_mget(redis):
     key1, value1 = b'foo', b'bar'
     key2, value2 = b'baz', b'bzz'
@@ -414,7 +397,6 @@ async def test_mget(redis):
         await redis.mget(key1, None)
 
 
-@pytest.mark.run_loop
 async def test_mset(redis):
     key1, value1 = b'key:mset:1', b'hello'
     key2, value2 = b'key:mset:2', b'world'
@@ -434,7 +416,6 @@ async def test_mset(redis):
         await redis.mset(key1, value1, key1)
 
 
-@pytest.mark.run_loop
 async def test_mset_with_dict(redis):
     array = [str(n) for n in range(10)]
     _dict = dict.fromkeys(array, 'default value', )
@@ -448,7 +429,6 @@ async def test_mset_with_dict(redis):
         await redis.mset('param', )
 
 
-@pytest.mark.run_loop
 async def test_msetnx(redis):
     key1, value1 = b'key:msetnx:1', b'Hello'
     key2, value2 = b'key:msetnx:2', b'there'
@@ -469,8 +449,7 @@ async def test_msetnx(redis):
         await redis.msetnx(key1, value1, key2)
 
 
-@pytest.mark.run_loop
-async def test_psetex(redis, loop):
+async def test_psetex(redis):
     key, value = b'key:psetex:1', b'Hello'
     # test expiration in milliseconds
     tr = redis.multi_exec()
@@ -481,7 +460,7 @@ async def test_psetex(redis, loop):
     test_value = await fut2
     assert test_value == value
 
-    await asyncio.sleep(0.050, loop=loop)
+    await asyncio.sleep(0.050)
     test_value = await redis.get(key)
     assert test_value is None
 
@@ -491,7 +470,6 @@ async def test_psetex(redis, loop):
         await redis.psetex(key, 7.5, value)
 
 
-@pytest.mark.run_loop
 async def test_set(redis):
     ok = await redis.set('my-key', 'value')
     assert ok is True
@@ -506,8 +484,7 @@ async def test_set(redis):
         await redis.set(None, 'value')
 
 
-@pytest.mark.run_loop
-async def test_set_expire(redis, loop):
+async def test_set_expire(redis):
     key, value = b'key:set:expire', b'foo'
     # test expiration in milliseconds
     tr = redis.multi_exec()
@@ -517,7 +494,7 @@ async def test_set_expire(redis, loop):
     await fut1
     result_1 = await fut2
     assert result_1 == value
-    await asyncio.sleep(0.050, loop=loop)
+    await asyncio.sleep(0.050)
     result_2 = await redis.get(key)
     assert result_2 is None
 
@@ -529,12 +506,11 @@ async def test_set_expire(redis, loop):
     await fut1
     result_3 = await fut2
     assert result_3 == value
-    await asyncio.sleep(1.050, loop=loop)
+    await asyncio.sleep(1.050)
     result_4 = await redis.get(key)
     assert result_4 is None
 
 
-@pytest.mark.run_loop
 async def test_set_only_if_not_exists(redis):
     key, value = b'key:set:only_if_not_exists', b'foo'
     await redis.set(
@@ -550,7 +526,6 @@ async def test_set_only_if_not_exists(redis):
     assert result_2 == value
 
 
-@pytest.mark.run_loop
 async def test_set_only_if_exists(redis):
     key, value = b'key:set:only_if_exists', b'only_if_exists:foo'
     # ensure that such key does not exits, and value not sets
@@ -566,7 +541,6 @@ async def test_set_only_if_exists(redis):
     assert result_2 == b'foo'
 
 
-@pytest.mark.run_loop
 async def test_set_wrong_input(redis):
     key, value = b'key:set:', b'foo'
 
@@ -578,7 +552,6 @@ async def test_set_wrong_input(redis):
         await redis.set(key, value, pexpire=7.8)
 
 
-@pytest.mark.run_loop
 async def test_setbit(redis):
     key = b'key:setbit'
     result = await redis.setbit(key, 7, 1)
@@ -596,8 +569,7 @@ async def test_setbit(redis):
         await redis.setbit(key, 1, 7)
 
 
-@pytest.mark.run_loop
-async def test_setex(redis, loop):
+async def test_setex(redis):
     key, value = b'key:setex:1', b'Hello'
     tr = redis.multi_exec()
     fut1 = tr.setex(key, 1, value)
@@ -606,7 +578,7 @@ async def test_setex(redis, loop):
     await fut1
     test_value = await fut2
     assert test_value == value
-    await asyncio.sleep(1.050, loop=loop)
+    await asyncio.sleep(1.050)
     test_value = await redis.get(key)
     assert test_value is None
 
@@ -617,7 +589,7 @@ async def test_setex(redis, loop):
     await fut1
     test_value = await fut2
     assert test_value == value
-    await asyncio.sleep(0.50, loop=loop)
+    await asyncio.sleep(0.50)
     test_value = await redis.get(key)
     assert test_value is None
 
@@ -627,7 +599,6 @@ async def test_setex(redis, loop):
         await redis.setex(key, b'one', value)
 
 
-@pytest.mark.run_loop
 async def test_setnx(redis):
     key, value = b'key:setnx:1', b'Hello'
     # set fresh new value
@@ -649,7 +620,6 @@ async def test_setnx(redis):
         await redis.setnx(None, value)
 
 
-@pytest.mark.run_loop
 async def test_setrange(redis):
     key, value = b'key:setrange', b'Hello World'
     await add(redis, key, value)
@@ -671,7 +641,6 @@ async def test_setrange(redis):
         await redis.setrange(key, -1, b'Redis')
 
 
-@pytest.mark.run_loop
 async def test_strlen(redis):
     key, value = b'key:strlen', b'asyncio'
     await add(redis, key, value)
@@ -685,7 +654,6 @@ async def test_strlen(redis):
         await redis.strlen(None)
 
 
-@pytest.mark.run_loop
 async def test_cancel_hang(redis):
     exists_coro = redis.execute("EXISTS", b"key:test1")
     exists_coro.cancel()
@@ -693,10 +661,8 @@ async def test_cancel_hang(redis):
     assert not exists_check
 
 
-@pytest.mark.run_loop
-async def test_set_enc(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
+async def test_set_enc(create_redis, server):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     TEST_KEY = 'my-key'
     ok = await redis.set(TEST_KEY, 'value')
     assert ok is True

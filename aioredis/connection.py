@@ -1,6 +1,9 @@
 import types
 import asyncio
 import socket
+import warnings
+import sys
+
 from functools import partial
 from collections import deque
 from contextlib import contextmanager
@@ -14,6 +17,7 @@ from .util import (
     coerced_keys_dict,
     decode,
     parse_url,
+    get_event_loop,
     )
 from .parser import Reader
 from .stream import open_connection, open_unix_connection
@@ -97,15 +101,16 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
     else:
         cls = RedisConnection
 
-    if loop is None:
-        loop = asyncio.get_event_loop()
+    if loop is not None and sys.version_info >= (3, 8, 0):
+        warnings.warn("The loop argument is deprecated",
+                      DeprecationWarning)
 
     if isinstance(address, (list, tuple)):
         host, port = address
         logger.debug("Creating tcp connection to %r", address)
         reader, writer = await asyncio.wait_for(open_connection(
-            host, port, limit=MAX_CHUNK_SIZE, ssl=ssl, loop=loop),
-            timeout, loop=loop)
+            host, port, limit=MAX_CHUNK_SIZE, ssl=ssl),
+            timeout)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -114,15 +119,14 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
     else:
         logger.debug("Creating unix connection to %r", address)
         reader, writer = await asyncio.wait_for(open_unix_connection(
-            address, ssl=ssl, limit=MAX_CHUNK_SIZE, loop=loop),
-            timeout, loop=loop)
+            address, ssl=ssl, limit=MAX_CHUNK_SIZE),
+            timeout)
         sock = writer.transport.get_extra_info('socket')
         if sock is not None:
             address = sock.getpeername()
 
     conn = cls(reader, writer, encoding=encoding,
-               address=address, parser=parser,
-               loop=loop)
+               address=address, parser=parser)
 
     try:
         if password is not None:
@@ -141,8 +145,9 @@ class RedisConnection(AbcConnection):
 
     def __init__(self, reader, writer, *, address, encoding=None,
                  parser=None, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         if parser is None:
             parser = Reader
         assert callable(parser), (
@@ -150,13 +155,11 @@ class RedisConnection(AbcConnection):
         self._reader = reader
         self._writer = writer
         self._address = address
-        self._loop = loop
         self._waiters = deque()
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)
         )
-        self._reader_task = asyncio.ensure_future(self._read_data(),
-                                                  loop=self._loop)
+        self._reader_task = asyncio.ensure_future(self._read_data())
         self._close_msg = None
         self._db = 0
         self._closing = False
@@ -212,7 +215,7 @@ class RedisConnection(AbcConnection):
                 else:
                     self._process_data(obj)
         self._closing = True
-        self._loop.call_soon(self._do_close, last_error)
+        get_event_loop().call_soon(self._do_close, last_error)
 
     def _process_data(self, obj):
         """Processes command results."""
@@ -342,7 +345,7 @@ class RedisConnection(AbcConnection):
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
-        fut = self._loop.create_future()
+        fut = get_event_loop().create_future()
         if self._pipeline_buffer is None:
             self._writer.write(encode_command(command, *args))
         else:
@@ -366,7 +369,7 @@ class RedisConnection(AbcConnection):
         if not len(channels):
             raise TypeError("No channels/patterns supplied")
         is_pattern = len(command) in (10, 12)
-        mkchannel = partial(Channel, is_pattern=is_pattern, loop=self._loop)
+        mkchannel = partial(Channel, is_pattern=is_pattern)
         channels = [ch if isinstance(ch, AbcChannel) else mkchannel(ch)
                     for ch in channels]
         if not all(ch.is_pattern == is_pattern for ch in channels):
@@ -375,7 +378,7 @@ class RedisConnection(AbcConnection):
         cmd = encode_command(command, *(ch.name for ch in channels))
         res = []
         for ch in channels:
-            fut = self._loop.create_future()
+            fut = get_event_loop().create_future()
             res.append(fut)
             cb = partial(self._update_pubsub, ch=ch)
             self._waiters.append((fut, None, cb))
@@ -383,7 +386,7 @@ class RedisConnection(AbcConnection):
             self._writer.write(cmd)
         else:
             self._pipeline_buffer.extend(cmd)
-        return asyncio.gather(*res, loop=self._loop)
+        return asyncio.gather(*res)
 
     def close(self):
         """Close connection."""
@@ -426,7 +429,7 @@ class RedisConnection(AbcConnection):
         closed = self._closing or self._closed
         if not closed and self._reader and self._reader.at_eof():
             self._closing = closed = True
-            self._loop.call_soon(self._do_close, None)
+            get_event_loop().call_soon(self._do_close, None)
         return closed
 
     async def wait_closed(self):

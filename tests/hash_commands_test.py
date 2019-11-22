@@ -10,7 +10,6 @@ async def add(redis, key, field, value):
     assert ok == 1
 
 
-@pytest.mark.run_loop
 async def test_hdel(redis):
     key, field, value = b'key:hdel', b'bar', b'zap'
     await add(redis, key, field, value)
@@ -25,7 +24,6 @@ async def test_hdel(redis):
         await redis.hdel(None, field)
 
 
-@pytest.mark.run_loop
 async def test_hexists(redis):
     key, field, value = b'key:hexists', b'bar', b'zap'
     await add(redis, key, field, value)
@@ -43,7 +41,6 @@ async def test_hexists(redis):
         await redis.hexists(None, field)
 
 
-@pytest.mark.run_loop
 async def test_hget(redis):
 
     key, field, value = b'key:hget', b'bar', b'zap'
@@ -66,7 +63,6 @@ async def test_hget(redis):
         await redis.hget(None, field)
 
 
-@pytest.mark.run_loop
 async def test_hgetall(redis):
     await add(redis, 'key:hgetall', 'foo', 'baz')
     await add(redis, 'key:hgetall', 'bar', 'zap')
@@ -87,7 +83,6 @@ async def test_hgetall(redis):
         await redis.hgetall(None)
 
 
-@pytest.mark.run_loop
 async def test_hincrby(redis):
     key, field, value = b'key:hincrby', b'bar', 1
     await add(redis, key, field, value)
@@ -122,7 +117,6 @@ async def test_hincrby(redis):
         await redis.hincrby(None, field, 2)
 
 
-@pytest.mark.run_loop
 async def test_hincrbyfloat(redis):
     key, field, value = b'key:hincrbyfloat', b'bar', 2.71
     await add(redis, key, field, value)
@@ -147,7 +141,6 @@ async def test_hincrbyfloat(redis):
         await redis.hincrbyfloat(None, field, 2)
 
 
-@pytest.mark.run_loop
 async def test_hkeys(redis):
     key = b'key:hkeys'
     field1, field2 = b'foo', b'bar'
@@ -168,7 +161,6 @@ async def test_hkeys(redis):
         await redis.hkeys(None)
 
 
-@pytest.mark.run_loop
 async def test_hlen(redis):
     key = b'key:hlen'
     field1, field2 = b'foo', b'bar'
@@ -186,7 +178,6 @@ async def test_hlen(redis):
         await redis.hlen(None)
 
 
-@pytest.mark.run_loop
 async def test_hmget(redis):
     key = b'key:hmget'
     field1, field2 = b'foo', b'bar'
@@ -211,7 +202,6 @@ async def test_hmget(redis):
         await redis.hmget(None, field1, field2)
 
 
-@pytest.mark.run_loop
 async def test_hmset(redis):
     key, field, value = b'key:hmset', b'bar', b'zap'
     await add(redis, key, field, value)
@@ -249,7 +239,6 @@ async def test_hmset(redis):
         await redis.hmset(key)
 
 
-@pytest.mark.run_loop
 async def test_hmset_dict(redis):
     key = 'key:hmset'
 
@@ -301,7 +290,6 @@ async def test_hmset_dict(redis):
         await redis.hmset_dict(key, {'a': 1}, {'b': 2}, 'c', 3, d=4)
 
 
-@pytest.mark.run_loop
 async def test_hset(redis):
     key, field, value = b'key:hset', b'bar', b'zap'
     test_value = await redis.hset(key, field, value)
@@ -320,7 +308,6 @@ async def test_hset(redis):
         await redis.hset(None, field, value)
 
 
-@pytest.mark.run_loop
 async def test_hsetnx(redis):
     key, field, value = b'key:hsetnx', b'bar', b'zap'
     # field does not exists, operation should be successful
@@ -340,7 +327,6 @@ async def test_hsetnx(redis):
         await redis.hsetnx(None, field, value)
 
 
-@pytest.mark.run_loop
 async def test_hvals(redis):
     key = b'key:hvals'
     field1, field2 = b'foo', b'bar'
@@ -361,7 +347,6 @@ async def test_hvals(redis):
 
 
 @redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_hscan(redis):
     key = b'key:hscan'
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
@@ -405,10 +390,8 @@ async def test_hscan(redis):
         await redis.hscan(None)
 
 
-@pytest.mark.run_loop
-async def test_hgetall_enc(create_redis, loop, server):
-    redis = await create_redis(
-        server.tcp_address, loop=loop, encoding='utf-8')
+async def test_hgetall_enc(create_redis, server):
+    redis = await create_redis(server.tcp_address, encoding='utf-8')
     TEST_KEY = 'my-key-nx'
     await redis.hmset(TEST_KEY, 'foo', 'bar', 'baz', 'bad')
 
@@ -418,7 +401,6 @@ async def test_hgetall_enc(create_redis, loop, server):
     assert res == [{'foo': 'bar', 'baz': 'bad'}]
 
 
-@pytest.mark.run_loop
 @redis_version(3, 2, 0, reason="HSTRLEN new in redis 3.2.0")
 async def test_hstrlen(redis):
     ok = await redis.hset('myhash', 'str_field', 'some value')
@@ -444,7 +426,6 @@ async def test_hstrlen(redis):
 
 
 @redis_version(2, 8, 0, reason='HSCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_ihscan(redis):
     key = b'key:hscan'
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items

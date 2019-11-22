@@ -6,7 +6,6 @@ pytestmark = redis_version(
     2, 8, 9, reason='HyperLogLog works only with redis>=2.8.9')
 
 
-@pytest.mark.run_loop
 async def test_pfcount(redis):
     key = 'hll_pfcount'
     other_key = 'some-other-hll'
@@ -43,7 +42,6 @@ async def test_pfcount(redis):
         await redis.pfcount(key, key, None)
 
 
-@pytest.mark.run_loop
 async def test_pfadd(redis):
     key = 'hll_pfadd'
     values = ['a', 's', 'y', 'n', 'c', 'i', 'o']
@@ -55,13 +53,11 @@ async def test_pfadd(redis):
     assert is_changed == 0
 
 
-@pytest.mark.run_loop
 async def test_pfadd_wrong_input(redis):
     with pytest.raises(TypeError):
         await redis.pfadd(None, 'value')
 
 
-@pytest.mark.run_loop
 async def test_pfmerge(redis):
     key = 'hll_asyncio'
     key_other = 'hll_aioredis'
@@ -97,7 +93,6 @@ async def test_pfmerge(redis):
         await redis.pfmerge(key_dest, key, None)
 
 
-@pytest.mark.run_loop
 async def test_pfmerge_wrong_input(redis):
     with pytest.raises(TypeError):
         await redis.pfmerge(None, 'value')

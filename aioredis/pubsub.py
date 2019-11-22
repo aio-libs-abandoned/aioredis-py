@@ -2,6 +2,8 @@ import asyncio
 import json
 import types
 import collections
+import warnings
+import sys
 
 from .abc import AbcChannel
 from .util import _converters   # , _set_result
@@ -23,7 +25,10 @@ class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
 
     def __init__(self, name, is_pattern, loop=None):
-        self._queue = ClosableQueue(loop=loop)
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
+        self._queue = ClosableQueue()
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
 
@@ -165,7 +170,7 @@ class Receiver:
 
     >>> from aioredis.pubsub import Receiver
     >>> from aioredis.abc import AbcChannel
-    >>> mpsc = Receiver(loop=loop)
+    >>> mpsc = Receiver()
     >>> async def reader(mpsc):
     ...     async for channel, msg in mpsc.iter():
     ...         assert isinstance(channel, AbcChannel)
@@ -188,11 +193,12 @@ class Receiver:
     def __init__(self, loop=None, on_close=None):
         assert on_close is None or callable(on_close), (
             "on_close must be None or callable", on_close)
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        if loop is not None:
+            warnings.warn("The loop argument is deprecated",
+                          DeprecationWarning)
         if on_close is None:
             on_close = self.check_stop
-        self._queue = ClosableQueue(loop=loop)
+        self._queue = ClosableQueue()
         self._refs = {}
         self._on_close = on_close
 
@@ -396,9 +402,9 @@ class _Sender(AbcChannel):
 
 class ClosableQueue:
 
-    def __init__(self, *, loop=None):
+    def __init__(self):
         self._queue = collections.deque()
-        self._event = asyncio.Event(loop=loop)
+        self._event = asyncio.Event()
         self._closed = False
 
     async def wait(self):

@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 from urllib.parse import urlparse, parse_qsl
 
@@ -6,6 +7,7 @@ from .log import logger
 
 _NOTSET = object()
 
+IS_PY38 = sys.version_info >= (3, 8)
 
 # NOTE: never put here anything else;
 #       just this basic types
@@ -212,11 +214,10 @@ def _parse_uri_options(params, path, password):
 
 
 class CloseEvent:
-    def __init__(self, on_close, loop=None):
-        self._close_init = asyncio.Event(loop=loop)
-        self._close_done = asyncio.Event(loop=loop)
+    def __init__(self, on_close):
+        self._close_init = asyncio.Event()
+        self._close_done = asyncio.Event()
         self._on_close = on_close
-        self._loop = loop
 
     async def wait(self):
         await self._close_init.wait()
@@ -229,10 +230,13 @@ class CloseEvent:
         if self._close_init.is_set():
             return
 
-        task = asyncio.ensure_future(self._on_close(), loop=self._loop)
+        task = asyncio.ensure_future(self._on_close())
         task.add_done_callback(self._cleanup)
         self._close_init.set()
 
     def _cleanup(self, task):
         self._on_close = None
         self._close_done.set()
+
+
+get_event_loop = getattr(asyncio, 'get_running_loop', asyncio.get_event_loop)

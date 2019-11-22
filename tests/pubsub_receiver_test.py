@@ -11,8 +11,8 @@ from aioredis.abc import AbcChannel
 from aioredis.pubsub import Receiver, _Sender
 
 
-def test_listener_channel(loop):
-    mpsc = Receiver(loop=loop)
+def test_listener_channel():
+    mpsc = Receiver()
     assert not mpsc.is_active
 
     ch_a = mpsc.channel("channel:1")
@@ -37,8 +37,8 @@ def test_listener_channel(loop):
     assert dict(mpsc.patterns) == {}
 
 
-def test_listener_pattern(loop):
-    mpsc = Receiver(loop=loop)
+def test_listener_pattern():
+    mpsc = Receiver()
     assert not mpsc.is_active
 
     ch_a = mpsc.pattern("*")
@@ -63,8 +63,7 @@ def test_listener_pattern(loop):
     assert dict(mpsc.patterns) == {b'*': ch}
 
 
-@pytest.mark.run_loop
-async def test_sender(loop):
+async def test_sender():
     receiver = mock.Mock()
 
     sender = _Sender(receiver, 'name', is_pattern=False)
@@ -96,12 +95,11 @@ def test_sender_close():
     assert receiver.mock_calls == []
 
 
-@pytest.mark.run_loop
-async def test_subscriptions(create_connection, server, loop):
-    sub = await create_connection(server.tcp_address, loop=loop)
-    pub = await create_connection(server.tcp_address, loop=loop)
+async def test_subscriptions(create_connection, server):
+    sub = await create_connection(server.tcp_address)
+    pub = await create_connection(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
     await sub.execute_pubsub('subscribe',
                              mpsc.channel('channel:1'),
                              mpsc.channel('channel:3'))
@@ -122,12 +120,11 @@ async def test_subscriptions(create_connection, server, loop):
     assert msg == b"Hello world"
 
 
-@pytest.mark.run_loop
-async def test_unsubscribe(create_connection, server, loop):
-    sub = await create_connection(server.tcp_address, loop=loop)
-    pub = await create_connection(server.tcp_address, loop=loop)
+async def test_unsubscribe(create_connection, server):
+    sub = await create_connection(server.tcp_address)
+    pub = await create_connection(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
     await sub.execute_pubsub('subscribe',
                              mpsc.channel('channel:1'),
                              mpsc.channel('channel:3'))
@@ -160,18 +157,17 @@ async def test_unsubscribe(create_connection, server, loop):
     assert not ch.is_pattern
     assert msg == b"message"
 
-    waiter = asyncio.ensure_future(mpsc.get(), loop=loop)
+    waiter = asyncio.ensure_future(mpsc.get())
     await sub.execute_pubsub('unsubscribe', 'channel:3')
     assert not mpsc.is_active
     assert await waiter is None
 
 
-@pytest.mark.run_loop
-async def test_stopped(create_connection, server, loop, caplog):
-    sub = await create_connection(server.tcp_address, loop=loop)
-    pub = await create_connection(server.tcp_address, loop=loop)
+async def test_stopped(create_connection, server, caplog):
+    sub = await create_connection(server.tcp_address)
+    pub = await create_connection(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
     await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
     assert mpsc.is_active
     mpsc.stop()
@@ -179,7 +175,7 @@ async def test_stopped(create_connection, server, loop, caplog):
     caplog.clear()
     with caplog.at_level('DEBUG', 'aioredis'):
         await pub.execute('publish', 'channel:1', b'Hello')
-        await asyncio.sleep(0, loop=loop)
+        await asyncio.sleep(0)
 
     assert len(caplog.record_tuples) == 1
     # Receiver must have 1 EndOfStream message
@@ -199,29 +195,27 @@ async def test_stopped(create_connection, server, loop, caplog):
     assert res is False
 
 
-@pytest.mark.run_loop
-async def test_wait_message(create_connection, server, loop):
-    sub = await create_connection(server.tcp_address, loop=loop)
-    pub = await create_connection(server.tcp_address, loop=loop)
+async def test_wait_message(create_connection, server):
+    sub = await create_connection(server.tcp_address)
+    pub = await create_connection(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
     await sub.execute_pubsub('subscribe', mpsc.channel('channel:1'))
-    fut = asyncio.ensure_future(mpsc.wait_message(), loop=loop)
+    fut = asyncio.ensure_future(mpsc.wait_message())
     assert not fut.done()
-    await asyncio.sleep(0, loop=loop)
+    await asyncio.sleep(0)
     assert not fut.done()
 
     await pub.execute('publish', 'channel:1', 'hello')
-    await asyncio.sleep(0, loop=loop)  # read in connection
-    await asyncio.sleep(0, loop=loop)  # call Future.set_result
+    await asyncio.sleep(0)  # read in connection
+    await asyncio.sleep(0)  # call Future.set_result
     assert fut.done()
     res = await fut
     assert res is True
 
 
-@pytest.mark.run_loop
-async def test_decode_message(loop):
-    mpsc = Receiver(loop)
+async def test_decode_message():
+    mpsc = Receiver()
     ch = mpsc.channel('channel:1')
     ch.put_nowait(b'Some data')
 
@@ -242,9 +236,8 @@ async def test_decode_message(loop):
 
 @pytest.mark.skipif(sys.version_info >= (3, 6),
                     reason="json.loads accept bytes since Python 3.6")
-@pytest.mark.run_loop
-async def test_decode_message_error(loop):
-    mpsc = Receiver(loop)
+async def test_decode_message_error():
+    mpsc = Receiver()
     ch = mpsc.channel('channel:1')
 
     ch.put_nowait(b'{"hello": "world"}')
@@ -259,9 +252,8 @@ async def test_decode_message_error(loop):
         assert (await mpsc.get(decoder=json.loads)) == unexpected
 
 
-@pytest.mark.run_loop
-async def test_decode_message_for_pattern(loop):
-    mpsc = Receiver(loop)
+async def test_decode_message_for_pattern():
+    mpsc = Receiver()
     ch = mpsc.pattern('*')
     ch.put_nowait((b'channel', b'Some data'))
 
@@ -280,12 +272,11 @@ async def test_decode_message_for_pattern(loop):
     assert res[1] == (b'channel', {'hello': 'world'})
 
 
-@pytest.mark.run_loop
 async def test_pubsub_receiver_iter(create_redis, server, loop):
-    sub = await create_redis(server.tcp_address, loop=loop)
-    pub = await create_redis(server.tcp_address, loop=loop)
+    sub = await create_redis(server.tcp_address)
+    pub = await create_redis(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
 
     async def coro(mpsc):
         lst = []
@@ -293,7 +284,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
             lst.append(msg)
         return lst
 
-    tsk = asyncio.ensure_future(coro(mpsc), loop=loop)
+    tsk = asyncio.ensure_future(coro(mpsc))
     snd1, = await sub.subscribe(mpsc.channel('chan:1'))
     snd2, = await sub.subscribe(mpsc.channel('chan:2'))
     snd3, = await sub.psubscribe(mpsc.pattern('chan:*'))
@@ -303,7 +294,7 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
     subscribers = await pub.publish_json('chan:2', ['message'])
     assert subscribers > 1
     loop.call_later(0, mpsc.stop)
-    await asyncio.sleep(0.01, loop=loop)
+    await asyncio.sleep(0.01)
     assert await tsk == [
         (snd1, b'{"Hello": "World"}'),
         (snd3, (b'chan:1', b'{"Hello": "World"}')),
@@ -313,12 +304,12 @@ async def test_pubsub_receiver_iter(create_redis, server, loop):
     assert not mpsc.is_active
 
 
-@pytest.mark.run_loop(timeout=5)
+@pytest.mark.timeout(5)
 async def test_pubsub_receiver_call_stop_with_empty_queue(
         create_redis, server, loop):
-    sub = await create_redis(server.tcp_address, loop=loop)
+    sub = await create_redis(server.tcp_address)
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
 
     # FIXME: currently at least one subscriber is needed
     snd1, = await sub.subscribe(mpsc.channel('chan:1'))
@@ -332,10 +323,9 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
     assert not mpsc.is_active
 
 
-@pytest.mark.run_loop
-async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
-    pub = await create_redis(server.tcp_address, loop=loop)
-    sub = await create_redis(server.tcp_address, loop=loop)
+async def test_pubsub_receiver_stop_on_disconnect(create_redis, server):
+    pub = await create_redis(server.tcp_address)
+    sub = await create_redis(server.tcp_address)
     sub_name = 'sub-{:X}'.format(id(sub))
     await sub.client_setname(sub_name)
     for sub_info in await pub.client_list():
@@ -343,12 +333,12 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
             break
     assert sub_info.name == sub_name
 
-    mpsc = Receiver(loop=loop)
+    mpsc = Receiver()
     await sub.subscribe(mpsc.channel('channel:1'))
     await sub.subscribe(mpsc.channel('channel:2'))
     await sub.psubscribe(mpsc.pattern('channel:*'))
 
-    q = asyncio.Queue(loop=loop)
+    q = asyncio.Queue()
     EOF = object()
 
     async def reader():
@@ -356,7 +346,7 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
             await q.put((ch.name, msg))
         await q.put(EOF)
 
-    tsk = asyncio.ensure_future(reader(), loop=loop)
+    tsk = asyncio.ensure_future(reader())
     await pub.publish_json('channel:1', ['hello'])
     await pub.publish_json('channel:2', ['hello'])
     # receive all messages
@@ -367,5 +357,5 @@ async def test_pubsub_receiver_stop_on_disconnect(create_redis, server, loop):
 
     # XXX: need to implement `client kill`
     assert await pub.execute('client', 'kill', sub_info.addr) in (b'OK', 1)
-    await asyncio.wait_for(tsk, timeout=1, loop=loop)
+    await asyncio.wait_for(tsk, timeout=1)
     assert await q.get() is EOF

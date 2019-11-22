@@ -4,13 +4,12 @@ import asyncio
 from aioredis import ReplyError
 
 
-async def push_data_with_sleep(redis, loop, key, *values):
-    await asyncio.sleep(0.2, loop=loop)
+async def push_data_with_sleep(redis, key, *values):
+    await asyncio.sleep(0.2)
     result = await redis.lpush(key, *values)
     return result
 
 
-@pytest.mark.run_loop
 async def test_blpop(redis):
     key1, value1 = b'key:blpop:1', b'blpop:value:1'
     key2, value2 = b'key:blpop:2', b'blpop:value:2'
@@ -40,21 +39,18 @@ async def test_blpop(redis):
     assert test_value == ['key:blpop:2', 'blpop:value:1']
 
 
-@pytest.mark.run_loop
-async def test_blpop_blocking_features(redis, create_redis, loop, server):
+async def test_blpop_blocking_features(redis, create_redis, server):
     key1, key2 = b'key:blpop:1', b'key:blpop:2'
     value = b'blpop:value:2'
 
-    other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+    other_redis = await create_redis(server.tcp_address)
 
     # create blocking task in separate connection
     consumer = other_redis.blpop(key1, key2)
 
-    producer_task = asyncio.Task(
-        push_data_with_sleep(redis, loop, key2, value), loop=loop)
-    results = await asyncio.gather(
-        consumer, producer_task, loop=loop)
+    producer_task = asyncio.ensure_future(
+        push_data_with_sleep(redis, key2, value))
+    results = await asyncio.gather(consumer, producer_task)
 
     assert results[0] == [key2, value]
     assert results[1] == 1
@@ -67,7 +63,6 @@ async def test_blpop_blocking_features(redis, create_redis, loop, server):
     other_redis.close()
 
 
-@pytest.mark.run_loop
 async def test_brpop(redis):
     key1, value1 = b'key:brpop:1', b'brpop:value:1'
     key2, value2 = b'key:brpop:2', b'brpop:value:2'
@@ -97,21 +92,19 @@ async def test_brpop(redis):
     assert test_value == ['key:brpop:2', 'brpop:value:1']
 
 
-@pytest.mark.run_loop
-async def test_brpop_blocking_features(redis, create_redis, server, loop):
+async def test_brpop_blocking_features(redis, create_redis, server):
     key1, key2 = b'key:brpop:1', b'key:brpop:2'
     value = b'brpop:value:2'
 
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
     # create blocking task in separate connection
     consumer_task = other_redis.brpop(key1, key2)
 
-    producer_task = asyncio.Task(
-        push_data_with_sleep(redis, loop, key2, value), loop=loop)
+    producer_task = asyncio.ensure_future(
+        push_data_with_sleep(redis, key2, value))
 
-    results = await asyncio.gather(
-        consumer_task, producer_task, loop=loop)
+    results = await asyncio.gather(consumer_task, producer_task)
 
     assert results[0] == [key2, value]
     assert results[1] == 1
@@ -123,7 +116,6 @@ async def test_brpop_blocking_features(redis, create_redis, server, loop):
     assert test_value is None
 
 
-@pytest.mark.run_loop
 async def test_brpoplpush(redis):
     key = b'key:brpoplpush:1'
     value1, value2 = b'brpoplpush:value:1', b'brpoplpush:value:2'
@@ -162,19 +154,17 @@ async def test_brpoplpush(redis):
     assert result == 'brpoplpush:value:2'
 
 
-@pytest.mark.run_loop
-async def test_brpoplpush_blocking_features(redis, create_redis, server, loop):
+async def test_brpoplpush_blocking_features(redis, create_redis, server):
     source = b'key:brpoplpush:12'
     value = b'brpoplpush:value:2'
     destkey = b'destkey:brpoplpush:2'
     other_redis = await create_redis(
-        server.tcp_address, loop=loop)
+        server.tcp_address)
     # create blocking task
     consumer_task = other_redis.brpoplpush(source, destkey)
-    producer_task = asyncio.Task(
-        push_data_with_sleep(redis, loop, source, value), loop=loop)
-    results = await asyncio.gather(
-        consumer_task, producer_task, loop=loop)
+    producer_task = asyncio.ensure_future(
+        push_data_with_sleep(redis, source, value))
+    results = await asyncio.gather(consumer_task, producer_task)
     assert results[0] == value
     assert results[1] == 1
 
@@ -190,7 +180,6 @@ async def test_brpoplpush_blocking_features(redis, create_redis, server, loop):
     other_redis.close()
 
 
-@pytest.mark.run_loop
 async def test_lindex(redis):
     key, value = b'key:lindex:1', 'value:{}'
     # setup list
@@ -223,7 +212,6 @@ async def test_lindex(redis):
         await redis.lindex(key, b'one')
 
 
-@pytest.mark.run_loop
 async def test_linsert(redis):
     key = b'key:linsert:1'
     value1, value2, value3, value4 = b'Hello', b'World', b'foo', b'bar'
@@ -252,7 +240,6 @@ async def test_linsert(redis):
         await redis.linsert(None, value1, value3)
 
 
-@pytest.mark.run_loop
 async def test_llen(redis):
     key = b'key:llen:1'
     value1, value2 = b'Hello', b'World'
@@ -268,7 +255,6 @@ async def test_llen(redis):
         await redis.llen(None)
 
 
-@pytest.mark.run_loop
 async def test_lpop(redis):
     key = b'key:lpop:1'
     value1, value2 = b'lpop:value:1', b'lpop:value:2'
@@ -295,7 +281,6 @@ async def test_lpop(redis):
         await redis.lpop(None)
 
 
-@pytest.mark.run_loop
 async def test_lpush(redis):
     key = b'key:lpush'
     value1, value2 = b'value:1', b'value:2'
@@ -316,7 +301,6 @@ async def test_lpush(redis):
         await redis.lpush(None, value1)
 
 
-@pytest.mark.run_loop
 async def test_lpushx(redis):
     key = b'key:lpushx'
     value1, value2 = b'value:1', b'value:2'
@@ -340,7 +324,6 @@ async def test_lpushx(redis):
         await redis.lpushx(None, value1)
 
 
-@pytest.mark.run_loop
 async def test_lrange(redis):
     key, value = b'key:lrange:1', 'value:{}'
     values = [value.format(i).encode('utf-8') for i in range(0, 10)]
@@ -369,7 +352,6 @@ async def test_lrange(redis):
         await redis.lrange(key, 0, b'one')
 
 
-@pytest.mark.run_loop
 async def test_lrem(redis):
     key, value = b'key:lrem:1', 'value:{}'
     values = [value.format(i % 2).encode('utf-8') for i in range(0, 10)]
@@ -404,7 +386,6 @@ async def test_lrem(redis):
         await redis.lrem(key, b'ten', b'value:0')
 
 
-@pytest.mark.run_loop
 async def test_lset(redis):
     key, value = b'key:lset', 'value:{}'
     values = [value.format(i).encode('utf-8') for i in range(0, 3)]
@@ -427,7 +408,6 @@ async def test_lset(redis):
         await redis.lset(key, b'one', b'value:0')
 
 
-@pytest.mark.run_loop
 async def test_ltrim(redis):
     key, value = b'key:ltrim', 'value:{}'
     values = [value.format(i).encode('utf-8') for i in range(0, 10)]
@@ -458,7 +438,6 @@ async def test_ltrim(redis):
         await redis.ltrim(key, 0, b'one')
 
 
-@pytest.mark.run_loop
 async def test_rpop(redis):
     key = b'key:rpop:1'
     value1, value2 = b'rpop:value:1', b'rpop:value:2'
@@ -485,7 +464,6 @@ async def test_rpop(redis):
         await redis.rpop(None)
 
 
-@pytest.mark.run_loop
 async def test_rpoplpush(redis):
     key = b'key:rpoplpush:1'
     value1, value2 = b'rpoplpush:value:1', b'rpoplpush:value:2'
@@ -517,7 +495,6 @@ async def test_rpoplpush(redis):
         await redis.rpoplpush(key, None)
 
 
-@pytest.mark.run_loop
 async def test_rpush(redis):
     key = b'key:rpush'
     value1, value2 = b'value:1', b'value:2'
@@ -534,7 +511,6 @@ async def test_rpush(redis):
         await redis.rpush(None, value1)
 
 
-@pytest.mark.run_loop
 async def test_rpushx(redis):
     key = b'key:rpushx'
     value1, value2 = b'value:1', b'value:2'

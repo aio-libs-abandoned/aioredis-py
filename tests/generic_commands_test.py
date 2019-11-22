@@ -15,7 +15,6 @@ async def add(redis, key, value):
     assert ok == b'OK'
 
 
-@pytest.mark.run_loop
 async def test_delete(redis):
     await add(redis, 'my-key', 123)
     await add(redis, 'other-key', 123)
@@ -33,7 +32,6 @@ async def test_delete(redis):
         await redis.delete('my-key', 'my-key', None)
 
 
-@pytest.mark.run_loop
 async def test_dump(redis):
     await add(redis, 'my-key', 123)
 
@@ -49,7 +47,6 @@ async def test_dump(redis):
         await redis.dump(None)
 
 
-@pytest.mark.run_loop
 async def test_exists(redis, server):
     await add(redis, 'my-key', 123)
 
@@ -70,7 +67,6 @@ async def test_exists(redis, server):
 
 @redis_version(
     3, 0, 3, reason='Multi-key EXISTS available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_exists_multiple(redis):
     await add(redis, 'my-key', 123)
 
@@ -87,7 +83,6 @@ async def test_exists_multiple(redis):
     assert res == 0
 
 
-@pytest.mark.run_loop
 async def test_expire(redis):
     await add(redis, 'my-key', 132)
 
@@ -116,7 +111,6 @@ async def test_expire(redis):
         await redis.expire('my-key', 'timeout')
 
 
-@pytest.mark.run_loop
 async def test_expireat(redis):
     await add(redis, 'my-key', 123)
     now = math.ceil(time.time())
@@ -153,7 +147,6 @@ async def test_expireat(redis):
         await redis.expireat('my-key', 'timestamp')
 
 
-@pytest.mark.run_loop
 async def test_keys(redis):
     res = await redis.keys('*pattern*')
     assert res == []
@@ -178,8 +171,7 @@ async def test_keys(redis):
         await redis.keys(None)
 
 
-@pytest.mark.run_loop
-async def test_migrate(create_redis, loop, server, serverB):
+async def test_migrate(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=2)
 
@@ -213,8 +205,7 @@ async def test_migrate(create_redis, loop, server, serverB):
 
 @redis_version(
     3, 0, 0, reason="Copy/Replace flags available since Redis 3.0")
-@pytest.mark.run_loop
-async def test_migrate_copy_replace(create_redis, loop, server, serverB):
+async def test_migrate_copy_replace(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=0)
 
@@ -238,8 +229,7 @@ async def test_migrate_copy_replace(create_redis, loop, server, serverB):
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
 @pytest.mark.skipif(
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
-@pytest.mark.run_loop
-async def test_migrate_keys(create_redis, loop, server, serverB):
+async def test_migrate_keys(create_redis, server, serverB):
     redisA = await create_redis(server.tcp_address)
     redisB = await create_redis(serverB.tcp_address, db=0)
 
@@ -294,8 +284,7 @@ async def test_migrate_keys(create_redis, loop, server, serverB):
     assert (await redisA.get('key3')) is None
 
 
-@pytest.mark.run_loop
-async def test_migrate__exceptions(redis, loop, server, unused_port):
+async def test_migrate__exceptions(redis, server, unused_port):
     await add(redis, 'my-key', 123)
 
     assert (await redis.exists('my-key'))
@@ -310,7 +299,6 @@ async def test_migrate__exceptions(redis, loop, server, unused_port):
     3, 0, 6, reason="MIGRATE…KEYS available since Redis 3.0.6")
 @pytest.mark.skipif(
     sys.platform == 'win32', reason="Seems to be unavailable in win32 build")
-@pytest.mark.run_loop
 async def test_migrate_keys__errors(redis):
     with pytest.raises(TypeError, match="host .* str"):
         await redis.migrate_keys(None, 1234, 'key', 1, 23)
@@ -330,7 +318,6 @@ async def test_migrate_keys__errors(redis):
         await redis.migrate_keys('host', '1234', (), 2, 123)
 
 
-@pytest.mark.run_loop
 async def test_move(redis):
     await add(redis, 'my-key', 123)
 
@@ -348,7 +335,6 @@ async def test_move(redis):
         await redis.move('my-key', 'not db')
 
 
-@pytest.mark.run_loop
 async def test_object_refcount(redis):
     await add(redis, 'foo', 'bar')
 
@@ -361,7 +347,6 @@ async def test_object_refcount(redis):
         await redis.object_refcount(None)
 
 
-@pytest.mark.run_loop
 async def test_object_encoding(redis, server):
     await add(redis, 'foo', 'bar')
 
@@ -385,8 +370,8 @@ async def test_object_encoding(redis, server):
 
 @redis_version(
     3, 0, 0, reason="Older Redis version has lower idle time resolution")
-@pytest.mark.run_loop(timeout=20)
-async def test_object_idletime(redis, loop, server):
+@pytest.mark.timeout(20)
+async def test_object_idletime(redis, server):
     await add(redis, 'foo', 'bar')
 
     res = await redis.object_idletime('foo')
@@ -396,7 +381,7 @@ async def test_object_idletime(redis, loop, server):
     res = 0
     while not res:
         res = await redis.object_idletime('foo')
-        await asyncio.sleep(.5, loop=loop)
+        await asyncio.sleep(.5)
     assert res >= 1
 
     res = await redis.object_idletime('non-existent-key')
@@ -406,7 +391,6 @@ async def test_object_idletime(redis, loop, server):
         await redis.object_idletime(None)
 
 
-@pytest.mark.run_loop
 async def test_persist(redis):
     await add(redis, 'my-key', 123)
     res = await redis.expire('my-key', 10)
@@ -422,8 +406,7 @@ async def test_persist(redis):
         await redis.persist(None)
 
 
-@pytest.mark.run_loop
-async def test_pexpire(redis, loop):
+async def test_pexpire(redis):
     await add(redis, 'my-key', 123)
     res = await redis.pexpire('my-key', 100)
     assert res is True
@@ -438,7 +421,7 @@ async def test_pexpire(redis, loop):
     assert res is True
 
     # XXX: tests now looks strange to me.
-    await asyncio.sleep(.2, loop=loop)
+    await asyncio.sleep(.2)
 
     res = await redis.exists('my-key')
     assert not res
@@ -449,7 +432,6 @@ async def test_pexpire(redis, loop):
         await redis.pexpire('my-key', 1.0)
 
 
-@pytest.mark.run_loop
 async def test_pexpireat(redis):
     await add(redis, 'my-key', 123)
     now = int((await redis.time()) * 1000)
@@ -468,7 +450,6 @@ async def test_pexpireat(redis):
         await redis.pexpireat('key', 1000.0)
 
 
-@pytest.mark.run_loop
 async def test_pttl(redis, server):
     await add(redis, 'key', 'val')
     res = await redis.pttl('key')
@@ -487,7 +468,6 @@ async def test_pttl(redis, server):
         await redis.pttl(None)
 
 
-@pytest.mark.run_loop
 async def test_randomkey(redis):
     await add(redis, 'key:1', 123)
     await add(redis, 'key:2', 123)
@@ -505,7 +485,6 @@ async def test_randomkey(redis):
     assert res is None
 
 
-@pytest.mark.run_loop
 async def test_rename(redis, server):
     await add(redis, 'foo', 'bar')
     await redis.delete('bar')
@@ -527,7 +506,6 @@ async def test_rename(redis, server):
             await redis.rename('bar', b'bar')
 
 
-@pytest.mark.run_loop
 async def test_renamenx(redis, server):
     await redis.delete('foo', 'bar')
     await add(redis, 'foo', 123)
@@ -553,7 +531,6 @@ async def test_renamenx(redis, server):
             await redis.renamenx('foo', b'foo')
 
 
-@pytest.mark.run_loop
 async def test_restore(redis):
     ok = await redis.set('key', 'value')
     assert ok
@@ -566,7 +543,6 @@ async def test_restore(redis):
 
 
 @redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_scan(redis):
     for i in range(1, 11):
         foo_or_bar = 'bar' if i % 3 else 'foo'
@@ -606,7 +582,6 @@ async def test_scan(redis):
     assert len(test_values) == 10
 
 
-@pytest.mark.run_loop
 async def test_sort(redis):
     async def _make_list(key, items):
         await redis.delete(key)
@@ -664,20 +639,19 @@ async def test_sort(redis):
 
 
 @redis_version(3, 2, 1, reason="TOUCH is available since redis>=3.2.1")
-@pytest.mark.run_loop(timeout=20)
-async def test_touch(redis, loop):
+@pytest.mark.timeout(20)
+async def test_touch(redis):
     await add(redis, 'key', 'val')
     res = 0
     while not res:
         res = await redis.object_idletime('key')
-        await asyncio.sleep(.5, loop=loop)
+        await asyncio.sleep(.5)
     assert res > 0
     assert await redis.touch('key', 'key', 'key') == 3
     res2 = await redis.object_idletime('key')
     assert 0 <= res2 < res
 
 
-@pytest.mark.run_loop
 async def test_ttl(redis, server):
     await add(redis, 'key', 'val')
     res = await redis.ttl('key')
@@ -696,7 +670,6 @@ async def test_ttl(redis, server):
         await redis.ttl(None)
 
 
-@pytest.mark.run_loop
 async def test_type(redis):
     await add(redis, 'key', 'val')
     res = await redis.type('key')
@@ -720,7 +693,6 @@ async def test_type(redis):
 
 
 @redis_version(2, 8, 0, reason='SCAN is available since redis>=2.8.0')
-@pytest.mark.run_loop
 async def test_iscan(redis):
     full = set()
     foo = set()
@@ -765,7 +737,6 @@ async def test_iscan(redis):
 
 
 @redis_version(4, 0, 0, reason="UNLINK is available since redis>=4.0.0")
-@pytest.mark.run_loop
 async def test_unlink(redis):
     await add(redis, 'my-key', 123)
     await add(redis, 'other-key', 123)
@@ -784,8 +755,7 @@ async def test_unlink(redis):
 
 
 @redis_version(3, 0, 0, reason="WAIT is available since redis>=3.0.0")
-@pytest.mark.run_loop
-async def test_wait(redis, loop):
+async def test_wait(redis):
     await add(redis, 'key', 'val1')
     start = await redis.time()
     res = await redis.wait(1, 400)

@@ -11,6 +11,7 @@ from ..errors import (
 from ..util import (
     wait_ok,
     _set_exception,
+    get_event_loop,
     )
 
 
@@ -63,8 +64,7 @@ class TransactionsCommandsMixin:
         >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         """
-        return MultiExec(self._pool_or_conn, self.__class__,
-                         loop=self._pool_or_conn._loop)
+        return MultiExec(self._pool_or_conn, self.__class__)
 
     def pipeline(self):
         """Returns :class:`Pipeline` object to execute bulk of commands.
@@ -90,20 +90,19 @@ class TransactionsCommandsMixin:
         >>> await asyncio.gather(fut1, fut2)
         [2, 2]
         """
-        return Pipeline(self._pool_or_conn, self.__class__,
-                        loop=self._pool_or_conn._loop)
+        return Pipeline(self._pool_or_conn, self.__class__)
 
 
 class _RedisBuffer:
 
     def __init__(self, pipeline, *, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         self._pipeline = pipeline
-        self._loop = loop
 
     def execute(self, cmd, *args, **kw):
-        fut = self._loop.create_future()
+        fut = get_event_loop().create_future()
         self._pipeline.append((fut, cmd, args, kw))
         return fut
 
@@ -129,13 +128,13 @@ class Pipeline:
 
     def __init__(self, pool_or_connection, commands_factory=lambda conn: conn,
                  *, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         self._pool_or_conn = pool_or_connection
-        self._loop = loop
         self._pipeline = []
         self._results = []
-        self._buffer = _RedisBuffer(self._pipeline, loop=loop)
+        self._buffer = _RedisBuffer(self._pipeline)
         self._redis = commands_factory(self._buffer)
         self._done = False
 
@@ -147,10 +146,9 @@ class Pipeline:
             @functools.wraps(attr)
             def wrapper(*args, **kw):
                 try:
-                    task = asyncio.ensure_future(attr(*args, **kw),
-                                                 loop=self._loop)
+                    task = asyncio.ensure_future(attr(*args, **kw))
                 except Exception as exc:
-                    task = self._loop.create_future()
+                    task = get_event_loop().create_future()
                     task.set_exception(exc)
                 self._results.append(task)
                 return task
@@ -183,7 +181,6 @@ class Pipeline:
 
     async def _do_execute(self, conn, *, return_exceptions=False):
         await asyncio.gather(*self._send_pipeline(conn),
-                             loop=self._loop,
                              return_exceptions=True)
         return await self._gather_result(return_exceptions)
 
@@ -265,11 +262,11 @@ class MultiExec(Pipeline):
             multi = conn.execute('MULTI')
             coros = list(self._send_pipeline(conn))
             exec_ = conn.execute('EXEC')
-        gather = asyncio.gather(multi, *coros, loop=self._loop,
+        gather = asyncio.gather(multi, *coros,
                                 return_exceptions=True)
         last_error = None
         try:
-            await asyncio.shield(gather, loop=self._loop)
+            await asyncio.shield(gather)
         except asyncio.CancelledError:
             await gather
         except Exception as err:
