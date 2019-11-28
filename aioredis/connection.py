@@ -339,6 +339,7 @@ class RedisConnection(AbcConnection):
             cb = self._start_transaction
         elif command in ('EXEC', b'EXEC'):
             cb = partial(self._end_transaction, discard=False)
+            encoding = None
         elif command in ('DISCARD', b'DISCARD'):
             cb = partial(self._end_transaction, discard=True)
         else:

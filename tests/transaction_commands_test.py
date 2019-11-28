@@ -201,13 +201,16 @@ async def test_global_encoding(redis, create_redis, server):
     tr = redis.multi_exec()
     fut1 = tr.get('key')
     fut2 = tr.get('key', encoding='utf-8')
-    fut3 = tr.hgetall('hash-key', encoding='utf-8')
+    fut3 = tr.get('key', encoding=None)
+    fut4 = tr.hgetall('hash-key', encoding='utf-8')
     await tr.execute()
     res = await fut1
     assert res == 'value'
     res = await fut2
     assert res == 'value'
     res = await fut3
+    assert res == b'value'
+    res = await fut4
     assert res == {'foo': 'val1', 'bar': 'val2'}
 
 
