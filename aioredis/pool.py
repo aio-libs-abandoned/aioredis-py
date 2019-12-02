@@ -59,7 +59,6 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
     except Exception:
         pool.close()
         await pool.wait_closed()
-        await pool.wait_closed()
         raise
     return pool
 
