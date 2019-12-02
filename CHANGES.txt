@@ -3,6 +3,32 @@ Changes
 
 .. towncrier release notes start
 
+1.3.1 (2019-12-02)
+^^^^^^^^^^^^^^^^^^
+Bugfixes
+~~~~~~~~
+
+- Fix transaction data decoding
+  (see `#657 <https://github.com/aio-libs/aioredis/issues/657>`_);
+- Fix duplicate calls to ``pool.wait_closed()`` upon ``create_pool()`` exception.
+  (see `#671 <https://github.com/aio-libs/aioredis/issues/671>`_);
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Drop explicit loop requirement in API.
+  Deprecate ``loop`` argument.
+  Throw warning in Python 3.8+ if explicit ``loop`` is passed to methods.
+  (see `#666 <https://github.com/aio-libs/aioredis/issues/666>`_);
+
+Misc
+~~~~
+
+- `#643 <https://github.com/aio-libs/aioredis/issues/643>`_,
+  `#646 <https://github.com/aio-libs/aioredis/issues/646>`_,
+  `#648 <https://github.com/aio-libs/aioredis/issues/648>`_;
+
+
 1.3.0 (2019-09-24)
 ^^^^^^^^^^^^^^^^^^
 Features

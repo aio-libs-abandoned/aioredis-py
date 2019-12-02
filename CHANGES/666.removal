@@ -1,3 +1,0 @@
-Drop explicit loop requirement in API.
-Deprecate ``loop`` argument.
-Throw warning in Python 3.8+ if explicit ``loop`` is passed to methods.

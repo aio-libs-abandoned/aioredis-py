@@ -1,1 +1,0 @@
-Fix duplicate calls to ``pool.wait_closed()`` upon ``create_pool()`` exception.
