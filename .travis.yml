@@ -17,6 +17,7 @@ python:
 - "3.5"
 - "3.6"
 - "3.7"
+- "3.8"
 - "nightly"
 - "pypy3.6-7.1.1"
 - "pypy3.6-7.2.0"
@@ -28,6 +29,7 @@ stages:
 
 jobs:
   allow_failures:
+  - python: "nightly"
   - python: "pypy3.6-7.2.0"
   include:
   # Add two extra tests with uvloop
