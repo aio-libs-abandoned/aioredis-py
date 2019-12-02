@@ -28,6 +28,7 @@ coroutine
 coroutines
 dataset
 decrement
+Deprecations
 DESC
 dev
 devel
