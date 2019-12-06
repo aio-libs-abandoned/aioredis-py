@@ -24,13 +24,13 @@ class HashCommandsMixin:
         fut = self.execute(b'HEXISTS', key, field)
         return wait_convert(fut, bool)
 
-    def hget(self, key, field, *, encoding=_NOTSET):
+    def hget(self, key, field, *, encoding=_NOTSET, errors=_NOTSET):
         """Get the value of a hash field."""
-        return self.execute(b'HGET', key, field, encoding=encoding)
+        return self.execute(b'HGET', key, field, encoding=encoding, errors=errors)
 
-    def hgetall(self, key, *, encoding=_NOTSET):
+    def hgetall(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Get all the fields and values in a hash."""
-        fut = self.execute(b'HGETALL', key, encoding=encoding)
+        fut = self.execute(b'HGETALL', key, encoding=encoding, errors=errors)
         return wait_make_dict(fut)
 
     def hincrby(self, key, field, increment=1):
@@ -42,17 +42,17 @@ class HashCommandsMixin:
         fut = self.execute(b'HINCRBYFLOAT', key, field, increment)
         return wait_convert(fut, float)
 
-    def hkeys(self, key, *, encoding=_NOTSET):
+    def hkeys(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Get all the fields in a hash."""
-        return self.execute(b'HKEYS', key, encoding=encoding)
+        return self.execute(b'HKEYS', key, encoding=encoding, errors=errors)
 
     def hlen(self, key):
         """Get the number of fields in a hash."""
         return self.execute(b'HLEN', key)
 
-    def hmget(self, key, field, *fields, encoding=_NOTSET):
+    def hmget(self, key, field, *fields, encoding=_NOTSET, errors=_NOTSET):
         """Get the values of all the given fields."""
-        return self.execute(b'HMGET', key, field, *fields, encoding=encoding)
+        return self.execute(b'HMGET', key, field, *fields, encoding=encoding, errors=errors)
 
     def hmset(self, key, field, value, *pairs):
         """Set multiple hash fields to multiple values."""
@@ -82,7 +82,7 @@ class HashCommandsMixin:
            if both specified and both have same key(s) -- ``kwargs`` will win:
 
            >>> await redis.hmset_dict('key', {'foo': 'bar'}, foo='baz')
-           >>> await redis.hget('key', 'foo', encoding='utf-8')
+           >>> await redis.hget('key', 'foo', encoding='utf-8', errors='strict')
            'baz'
 
         """
@@ -109,9 +109,9 @@ class HashCommandsMixin:
         """Set the value of a hash field, only if the field does not exist."""
         return self.execute(b'HSETNX', key, field, value)
 
-    def hvals(self, key, *, encoding=_NOTSET):
+    def hvals(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Get all the values in a hash."""
-        return self.execute(b'HVALS', key, encoding=encoding)
+        return self.execute(b'HVALS', key, encoding=encoding, errors=errors)
 
     def hscan(self, key, cursor=0, match=None, count=None):
         """Incrementally iterate hash fields and associated values."""

@@ -50,7 +50,7 @@ _PUBSUB_COMMANDS = (
 
 
 async def create_connection(address, *, db=None, password=None, ssl=None,
-                            encoding=None, parser=None, loop=None,
+                            encoding=None, errors=None, parser=None, loop=None,
                             timeout=None, connection_cls=None):
     """Creates redis connection.
 
@@ -85,6 +85,7 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
         db = options.setdefault('db', db)
         password = options.setdefault('password', password)
         encoding = options.setdefault('encoding', encoding)
+        errors = options.setdefault('errors', errors)
         timeout = options.setdefault('timeout', timeout)
         if 'ssl' in options:
             assert options['ssl'] or (not options['ssl'] and not ssl), (
@@ -125,7 +126,7 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
         if sock is not None:
             address = sock.getpeername()
 
-    conn = cls(reader, writer, encoding=encoding,
+    conn = cls(reader, writer, encoding=encoding, errors=errors,
                address=address, parser=parser)
 
     try:
@@ -143,7 +144,7 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
 class RedisConnection(AbcConnection):
     """Redis connection."""
 
-    def __init__(self, reader, writer, *, address, encoding=None,
+    def __init__(self, reader, writer, *, address, encoding=None, errors=None,
                  parser=None, loop=None):
         if loop is not None and sys.version_info >= (3, 8):
             warnings.warn("The loop argument is deprecated",
@@ -172,6 +173,7 @@ class RedisConnection(AbcConnection):
         self._pubsub_channels = coerced_keys_dict()
         self._pubsub_patterns = coerced_keys_dict()
         self._encoding = encoding
+        self._errors = errors
         self._pipeline_buffer = None
 
     def __repr__(self):
@@ -220,7 +222,7 @@ class RedisConnection(AbcConnection):
     def _process_data(self, obj):
         """Processes command results."""
         assert len(self._waiters) > 0, (type(obj), obj)
-        waiter, encoding, cb = self._waiters.popleft()
+        waiter, encoding, errors, cb = self._waiters.popleft()
         if isinstance(obj, RedisError):
             if isinstance(obj, ReplyError):
                 if obj.args[0].startswith('READONLY'):
@@ -231,7 +233,7 @@ class RedisConnection(AbcConnection):
         else:
             if encoding is not None:
                 try:
-                    obj = decode(obj, encoding)
+                    obj = decode(obj, encoding, errors)
                 except Exception as exc:
                     _set_exception(waiter, exc)
                     return
@@ -243,7 +245,7 @@ class RedisConnection(AbcConnection):
                     return
             _set_result(waiter, obj)
             if self._in_transaction is not None:
-                self._in_transaction.append((encoding, cb))
+                self._in_transaction.append((encoding, errors, cb))
 
     def _process_pubsub(self, obj, *, process_waiters=True):
         """Processes pubsub messages."""
@@ -306,7 +308,7 @@ class RedisConnection(AbcConnection):
         else:
             yield self
 
-    def execute(self, command, *args, encoding=_NOTSET):
+    def execute(self, command, *args, encoding=_NOTSET, errors=_NOTSET):
         """Executes redis command and returns Future waiting for the answer.
 
         Raises:
@@ -340,18 +342,21 @@ class RedisConnection(AbcConnection):
         elif command in ('EXEC', b'EXEC'):
             cb = partial(self._end_transaction, discard=False)
             encoding = None
+            errors = None
         elif command in ('DISCARD', b'DISCARD'):
             cb = partial(self._end_transaction, discard=True)
         else:
             cb = None
         if encoding is _NOTSET:
             encoding = self._encoding
+        if errors is _NOTSET:
+            errors = self._errors
         fut = get_event_loop().create_future()
         if self._pipeline_buffer is None:
             self._writer.write(encode_command(command, *args))
         else:
             encode_command(command, *args, buf=self._pipeline_buffer)
-        self._waiters.append((fut, encoding, cb))
+        self._waiters.append((fut, encoding, errors, cb))
         return fut
 
     def execute_pubsub(self, command, *channels):
@@ -448,6 +453,11 @@ class RedisConnection(AbcConnection):
         return self._encoding
 
     @property
+    def errors(self):
+        """Current codec decode error handling or None."""
+        return self._errors
+
+    @property
     def address(self):
         """Redis server address, either host-port tuple or str."""
         return self._address
@@ -491,11 +501,11 @@ class RedisConnection(AbcConnection):
         assert len(obj) == len(recall), (
             "Wrong number of result items in mutli-exec", obj, recall)
         res = []
-        for o, (encoding, cb) in zip(obj, recall):
+        for o, (encoding, errors, cb) in zip(obj, recall):
             if not isinstance(o, RedisError):
                 try:
                     if encoding:
-                        o = decode(o, encoding)
+                        o = decode(o, encoding, errors)
                     if cb:
                         o = cb(o)
                 except Exception as err:

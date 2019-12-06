@@ -40,11 +40,13 @@ def encode_command(*args, buf=None):
     return buf
 
 
-def decode(obj, encoding):
+def decode(obj, encoding, errors):
+    if errors is None:
+        errors = 'strict'
     if isinstance(obj, bytes):
-        return obj.decode(encoding)
+        return obj.decode(encoding, errors)
     elif isinstance(obj, list):
-        return [decode(o, encoding) for o in obj]
+        return [decode(o, encoding, errors) for o in obj]
     return obj
 
 
@@ -202,6 +204,8 @@ def _parse_uri_options(params, path, password):
 
     if 'encoding' in params:
         options['encoding'] = params['encoding']
+    if 'errors' in params:
+        options['errors'] = params['errors']
     if 'ssl' in params:
         assert params['ssl'] in ('true', 'false'), (
                 "Expected 'ssl' param to be 'true' or 'false' only",

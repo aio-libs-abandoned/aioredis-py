@@ -56,9 +56,9 @@ class GenericCommandsMixin:
         fut = self.execute(b'EXPIREAT', key, timestamp)
         return wait_convert(fut, bool)
 
-    def keys(self, pattern, *, encoding=_NOTSET):
+    def keys(self, pattern, *, encoding=_NOTSET, errors=_NOTSET):
         """Returns all keys matching pattern."""
-        return self.execute(b'KEYS', pattern, encoding=encoding)
+        return self.execute(b'KEYS', pattern, encoding=encoding, errors=errors)
 
     def migrate(self, host, port, key, dest_db, timeout, *,
                 copy=False, replace=False):
@@ -143,7 +143,7 @@ class GenericCommandsMixin:
         """Returns the kind of internal representation used in order
         to store the value associated with a key (OBJECT ENCODING).
         """
-        return self.execute(b'OBJECT', b'ENCODING', key, encoding='utf-8')
+        return self.execute(b'OBJECT', b'ENCODING', key, encoding='utf-8', errors='strict')
 
     def object_idletime(self, key):
         """Returns the number of seconds since the object is not requested
@@ -191,9 +191,9 @@ class GenericCommandsMixin:
         #       -1 to False - no expire
         return self.execute(b'PTTL', key)
 
-    def randomkey(self, *, encoding=_NOTSET):
+    def randomkey(self, *, encoding=_NOTSET, errors=_NOTSET):
         """Return a random key from the currently selected database."""
-        return self.execute(b'RANDOMKEY', encoding=encoding)
+        return self.execute(b'RANDOMKEY', encoding=encoding, errors=errors)
 
     def rename(self, key, newkey):
         """Renames key to newkey.

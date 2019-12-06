@@ -7,7 +7,7 @@ class ListCommandsMixin:
     For commands details see: http://redis.io/commands#list
     """
 
-    def blpop(self, key, *keys, timeout=0, encoding=_NOTSET):
+    def blpop(self, key, *keys, timeout=0, encoding=_NOTSET, errors=_NOTSET):
         """Remove and get the first element in a list, or block until
         one is available.
 
@@ -19,9 +19,9 @@ class ListCommandsMixin:
         if timeout < 0:
             raise ValueError("timeout must be greater equal 0")
         args = keys + (timeout,)
-        return self.execute(b'BLPOP', key, *args, encoding=encoding)
+        return self.execute(b'BLPOP', key, *args, encoding=encoding, errors=errors)
 
-    def brpop(self, key, *keys, timeout=0, encoding=_NOTSET):
+    def brpop(self, key, *keys, timeout=0, encoding=_NOTSET, errors=_NOTSET):
         """Remove and get the last element in a list, or block until one
         is available.
 
@@ -33,9 +33,9 @@ class ListCommandsMixin:
         if timeout < 0:
             raise ValueError("timeout must be greater equal 0")
         args = keys + (timeout,)
-        return self.execute(b'BRPOP', key, *args, encoding=encoding)
+        return self.execute(b'BRPOP', key, *args, encoding=encoding, errors=errors)
 
-    def brpoplpush(self, sourcekey, destkey, timeout=0, encoding=_NOTSET):
+    def brpoplpush(self, sourcekey, destkey, timeout=0, encoding=_NOTSET, errors=_NOTSET):
         """Remove and get the last element in a list, or block until one
         is available.
 
@@ -47,16 +47,16 @@ class ListCommandsMixin:
         if timeout < 0:
             raise ValueError("timeout must be greater equal 0")
         return self.execute(b'BRPOPLPUSH', sourcekey, destkey, timeout,
-                            encoding=encoding)
+                            encoding=encoding, errors=errors)
 
-    def lindex(self, key, index, *, encoding=_NOTSET):
+    def lindex(self, key, index, *, encoding=_NOTSET, errors=_NOTSET):
         """Get an element from a list by its index.
 
         :raises TypeError: if index is not int
         """
         if not isinstance(index, int):
             raise TypeError("index argument must be int")
-        return self.execute(b'LINDEX', key, index, encoding=encoding)
+        return self.execute(b'LINDEX', key, index, encoding=encoding, errors=errors)
 
     def linsert(self, key, pivot, value, before=False):
         """Inserts value in the list stored at key either before or
@@ -69,9 +69,9 @@ class ListCommandsMixin:
         """Returns the length of the list stored at key."""
         return self.execute(b'LLEN', key)
 
-    def lpop(self, key, *, encoding=_NOTSET):
+    def lpop(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Removes and returns the first element of the list stored at key."""
-        return self.execute(b'LPOP', key, encoding=encoding)
+        return self.execute(b'LPOP', key, encoding=encoding, errors=errors)
 
     def lpush(self, key, value, *values):
         """Insert all the specified values at the head of the list
@@ -85,7 +85,7 @@ class ListCommandsMixin:
         """
         return self.execute(b'LPUSHX', key, value)
 
-    def lrange(self, key, start, stop, *, encoding=_NOTSET):
+    def lrange(self, key, start, stop, *, encoding=_NOTSET, errors=_NOTSET):
         """Returns the specified elements of the list stored at key.
 
         :raises TypeError: if start or stop is not int
@@ -94,7 +94,7 @@ class ListCommandsMixin:
             raise TypeError("start argument must be int")
         if not isinstance(stop, int):
             raise TypeError("stop argument must be int")
-        return self.execute(b'LRANGE', key, start, stop, encoding=encoding)
+        return self.execute(b'LRANGE', key, start, stop, encoding=encoding, errors=errors)
 
     def lrem(self, key, count, value):
         """Removes the first count occurrences of elements equal to value
@@ -128,17 +128,17 @@ class ListCommandsMixin:
         fut = self.execute(b'LTRIM', key, start, stop)
         return wait_ok(fut)
 
-    def rpop(self, key, *, encoding=_NOTSET):
+    def rpop(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Removes and returns the last element of the list stored at key."""
-        return self.execute(b'RPOP', key, encoding=encoding)
+        return self.execute(b'RPOP', key, encoding=encoding, errors=errors)
 
-    def rpoplpush(self, sourcekey, destkey, *, encoding=_NOTSET):
+    def rpoplpush(self, sourcekey, destkey, *, encoding=_NOTSET, errors=_NOTSET):
         """Atomically returns and removes the last element (tail) of the
         list stored at source, and pushes the element at the first element
         (head) of the list stored at destination.
         """
         return self.execute(b'RPOPLPUSH', sourcekey, destkey,
-                            encoding=encoding)
+                            encoding=encoding, errors=errors)
 
     def rpush(self, key, value, *values):
         """Insert all the specified values at the tail of the list

@@ -34,12 +34,12 @@ class ServerCommandsMixin:
 
         Returns list of ClientInfo named tuples.
         """
-        fut = self.execute(b'CLIENT', b'LIST', encoding='utf-8')
+        fut = self.execute(b'CLIENT', b'LIST', encoding='utf-8', errors='strict')
         return wait_convert(fut, to_tuples)
 
     def client_getname(self, encoding=_NOTSET):
         """Get the current connection name."""
-        return self.execute(b'CLIENT', b'GETNAME', encoding=encoding)
+        return self.execute(b'CLIENT', b'GETNAME', encoding=encoding, errors=errors)
 
     def client_pause(self, timeout):
         """Stop processing commands from clients for *timeout* milliseconds.
@@ -65,21 +65,21 @@ class ServerCommandsMixin:
     def command(self):
         """Get array of Redis commands."""
         # TODO: convert result
-        return self.execute(b'COMMAND', encoding='utf-8')
+        return self.execute(b'COMMAND', encoding='utf-8', errors='strict')
 
     def command_count(self):
         """Get total number of Redis commands."""
         return self.execute(b'COMMAND', b'COUNT')
 
-    def command_getkeys(self, command, *args, encoding='utf-8'):
+    def command_getkeys(self, command, *args, encoding='utf-8', errors='strict'):
         """Extract keys given a full Redis command."""
         return self.execute(b'COMMAND', b'GETKEYS', command, *args,
-                            encoding=encoding)
+                            encoding=encoding, errors=errors)
 
     def command_info(self, command, *commands):
         """Get array of specific Redis command details."""
         return self.execute(b'COMMAND', b'INFO', command, *commands,
-                            encoding='utf-8')
+                            encoding='utf-8', errors='strict')
 
     def config_get(self, parameter='*'):
         """Get the value of a configuration parameter(s).
@@ -90,7 +90,7 @@ class ServerCommandsMixin:
         """
         if not isinstance(parameter, str):
             raise TypeError("parameter must be str")
-        fut = self.execute(b'CONFIG', b'GET', parameter, encoding='utf-8')
+        fut = self.execute(b'CONFIG', b'GET', parameter, encoding='utf-8', errors='strict')
         return wait_make_dict(fut)
 
     def config_rewrite(self):
@@ -165,7 +165,7 @@ class ServerCommandsMixin:
         """
         if not section:
             raise ValueError("invalid section")
-        fut = self.execute(b'INFO', section, encoding='utf-8')
+        fut = self.execute(b'INFO', section, encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_info)
 
     def lastsave(self):
@@ -187,7 +187,7 @@ class ServerCommandsMixin:
         Returns named tuples describing role of the instance.
         For fields information see http://redis.io/commands/role#output-format
         """
-        fut = self.execute(b'ROLE', encoding='utf-8')
+        fut = self.execute(b'ROLE', encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_role)
 
     def save(self):

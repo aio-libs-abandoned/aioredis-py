@@ -13,7 +13,7 @@ from .locks import Lock
 
 
 async def create_pool(address, *, db=None, password=None, ssl=None,
-                      encoding=None, minsize=1, maxsize=10,
+                      encoding=None, errors=None, minsize=1, maxsize=10,
                       parser=None, loop=None, create_connection_timeout=None,
                       pool_cls=None, connection_cls=None):
     # FIXME: rewrite docstring
@@ -40,6 +40,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
         db = options.setdefault('db', db)
         password = options.setdefault('password', password)
         encoding = options.setdefault('encoding', encoding)
+        errors = options.setdefault('errors', errors)
         create_connection_timeout = options.setdefault(
             'timeout', create_connection_timeout)
         if 'ssl' in options:
@@ -48,7 +49,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
             ssl = ssl or options['ssl']
         # TODO: minsize/maxsize
 
-    pool = cls(address, db, password, encoding,
+    pool = cls(address, db, password, encoding, errors,
                minsize=minsize, maxsize=maxsize,
                ssl=ssl, parser=parser,
                create_connection_timeout=create_connection_timeout,
@@ -66,7 +67,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
 class ConnectionsPool(AbcPool):
     """Redis connections pool."""
 
-    def __init__(self, address, db=None, password=None, encoding=None,
+    def __init__(self, address, db=None, password=None, encoding=None, errors=None,
                  *, minsize, maxsize, ssl=None, parser=None,
                  create_connection_timeout=None,
                  connection_cls=None,
@@ -86,6 +87,7 @@ class ConnectionsPool(AbcPool):
         self._password = password
         self._ssl = ssl
         self._encoding = encoding
+        self._errors = errors
         self._parser_class = parser
         self._minsize = minsize
         self._create_connection_timeout = create_connection_timeout
@@ -181,6 +183,11 @@ class ConnectionsPool(AbcPool):
     def encoding(self):
         """Current set codec or None."""
         return self._encoding
+
+    @property
+    def errors(self):
+        """Current codec decode error handling or None."""
+        return self._errors
 
     def execute(self, command, *args, **kw):
         """Executes redis command in a free connection and returns
@@ -408,6 +415,7 @@ class ConnectionsPool(AbcPool):
                                  password=self._password,
                                  ssl=self._ssl,
                                  encoding=self._encoding,
+                                 errors=self._errors,
                                  parser=self._parser_class,
                                  timeout=self._create_connection_timeout,
                                  connection_cls=self._connection_cls,

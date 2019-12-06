@@ -25,7 +25,7 @@ _logger = sentinel_logger.getChild('monitor')
 
 
 async def create_sentinel_pool(sentinels, *, db=None, password=None,
-                               encoding=None, minsize=1, maxsize=10,
+                               encoding=None, errors=None, minsize=1, maxsize=10,
                                ssl=None, parser=None, timeout=0.2, loop=None):
     """Create SentinelPool."""
     # FIXME: revise default timeout value
@@ -38,6 +38,7 @@ async def create_sentinel_pool(sentinels, *, db=None, password=None,
                         password=password,
                         ssl=ssl,
                         encoding=encoding,
+                        errors=errors,
                         parser=parser,
                         minsize=minsize,
                         maxsize=maxsize,
@@ -55,7 +56,7 @@ class SentinelPool:
     """
 
     def __init__(self, sentinels, *, db=None, password=None, ssl=None,
-                 encoding=None, parser=None, minsize, maxsize, timeout,
+                 encoding=None, errors=None, parser=None, minsize, maxsize, timeout,
                  loop=None):
         # TODO: deprecation note
         # if loop is None:
@@ -75,6 +76,7 @@ class SentinelPool:
         self._redis_password = password
         self._redis_ssl = ssl
         self._redis_encoding = encoding
+        self._redis_errors = errors
         self._redis_minsize = minsize
         self._redis_maxsize = maxsize
         self._close_state = CloseEvent(self._do_close)
@@ -84,7 +86,7 @@ class SentinelPool:
         async def echo_events():
             try:
                 while await monitor.wait_message():
-                    _, (ev, data) = await monitor.get(encoding='utf-8')
+                    _, (ev, data) = await monitor.get(encoding='utf-8', errors='strict')
                     ev = ev.decode('utf-8')
                     _logger.debug("%s: %s", ev, data)
                     if ev in ('+odown',):
@@ -122,6 +124,7 @@ class SentinelPool:
                 db=self._redis_db,
                 password=self._redis_password,
                 encoding=self._redis_encoding,
+                errors=self._redis_errors,
                 minsize=self._redis_minsize,
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
@@ -138,6 +141,7 @@ class SentinelPool:
                 db=self._redis_db,
                 password=self._redis_password,
                 encoding=self._redis_encoding,
+                errors=self._redis_errors,
                 minsize=self._redis_minsize,
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
@@ -337,7 +341,7 @@ class SentinelPool:
         #   as it can provide stale data so we repeat
         #   after redis-py and check service flags.
         state = await sentinel.execute(b'sentinel', b'master',
-                                       service, encoding='utf-8')
+                                       service, encoding='utf-8', errors='strict')
         if not state:
             raise UnknownService()
         state = make_dict(state)
@@ -350,7 +354,7 @@ class SentinelPool:
     async def _get_slave_address(self, sentinel, service):
         # Find and return single slave address
         slaves = await sentinel.execute(b'sentinel', b'slaves',
-                                        service, encoding='utf-8')
+                                        service, encoding='utf-8', errors='strict')
         if not slaves:
             raise UnknownService()
         for state in map(make_dict, slaves):
@@ -362,7 +366,7 @@ class SentinelPool:
         raise BadState()   # XXX: only last state
 
     async def _verify_service_role(self, conn, role):
-        res = await conn.execute(b'role', encoding='utf-8')
+        res = await conn.execute(b'role', encoding='utf-8', errors='strict')
         if res[0] != role:
             raise RoleMismatch(res)
 
@@ -379,10 +383,10 @@ class SentinelPool:
 class ManagedPool(ConnectionsPool):
 
     def __init__(self, sentinel, service, is_master,
-                 db=None, password=None, encoding=None, parser=None,
+                 db=None, password=None, encoding=None, errors=None, parser=None,
                  *, minsize, maxsize, ssl=None, loop=None):
         super().__init__(_NON_DISCOVERED,
-                         db=db, password=password, encoding=encoding,
+                         db=db, password=password, encoding=encoding, errors=None,
                          minsize=minsize, maxsize=maxsize, ssl=ssl,
                          parser=parser, loop=loop)
         assert self._address is _NON_DISCOVERED

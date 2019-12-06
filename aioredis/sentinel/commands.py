@@ -6,7 +6,7 @@ from .pool import create_sentinel_pool
 
 
 async def create_sentinel(sentinels, *, db=None, password=None,
-                          encoding=None, minsize=1, maxsize=10,
+                          encoding=None, errors=None, minsize=1, maxsize=10,
                           ssl=None, timeout=0.2, loop=None):
     """Creates Redis Sentinel client.
 
@@ -20,6 +20,7 @@ async def create_sentinel(sentinels, *, db=None, password=None,
                                       db=db,
                                       password=password,
                                       encoding=encoding,
+                                      errors=errors,
                                       minsize=minsize,
                                       maxsize=maxsize,
                                       ssl=ssl,
@@ -72,28 +73,28 @@ class RedisSentinel:
 
     def master(self, name):
         """Returns a dictionary containing the specified masters state."""
-        fut = self.execute(b'MASTER', name, encoding='utf-8')
+        fut = self.execute(b'MASTER', name, encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_sentinel_master)
 
     def master_address(self, name):
         """Returns a (host, port) pair for the given ``name``."""
-        fut = self.execute(b'get-master-addr-by-name', name, encoding='utf-8')
+        fut = self.execute(b'get-master-addr-by-name', name, encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_address)
 
     def masters(self):
         """Returns a list of dictionaries containing each master's state."""
-        fut = self.execute(b'MASTERS', encoding='utf-8')
+        fut = self.execute(b'MASTERS', encoding='utf-8', errors='strict')
         # TODO: process masters: we can adjust internal state
         return wait_convert(fut, parse_sentinel_masters)
 
     def slaves(self, name):
         """Returns a list of slaves for ``name``."""
-        fut = self.execute(b'SLAVES', name, encoding='utf-8')
+        fut = self.execute(b'SLAVES', name, encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def sentinels(self, name):
         """Returns a list of sentinels for ``name``."""
-        fut = self.execute(b'SENTINELS', name, encoding='utf-8')
+        fut = self.execute(b'SENTINELS', name, encoding='utf-8', errors='strict')
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def monitor(self, name, ip, port, quorum):

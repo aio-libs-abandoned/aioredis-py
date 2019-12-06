@@ -61,7 +61,7 @@ class Channel(AbcChannel):
         """
         return not self._queue.exhausted
 
-    async def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, errors=None, decoder=None):
         """Coroutine that waits for and returns a message.
 
         :raises aioredis.ChannelClosedError: If channel is unsubscribed
@@ -81,18 +81,18 @@ class Channel(AbcChannel):
         if self._is_pattern:
             dest_channel, msg = msg
         if encoding is not None:
-            msg = msg.decode(encoding)
+            msg = msg.decode(encoding, errors)
         if decoder is not None:
             msg = decoder(msg)
         if self._is_pattern:
             return dest_channel, msg
         return msg
 
-    async def get_json(self, encoding='utf-8'):
+    async def get_json(self, encoding='utf-8', errors='strict'):
         """Shortcut to get JSON messages."""
-        return (await self.get(encoding=encoding, decoder=json.loads))
+        return (await self.get(encoding=encoding, errors=errors, decoder=json.loads))
 
-    def iter(self, *, encoding=None, decoder=None):
+    def iter(self, *, encoding=None, errors=None, decoder=None):
         """Same as get method but its native coroutine.
 
         Usage example:
@@ -103,6 +103,7 @@ class Channel(AbcChannel):
         return _IterHelper(self,
                            is_active=lambda ch: ch.is_active,
                            encoding=encoding,
+                           errors=errors,
                            decoder=decoder)
 
     async def wait_message(self):
@@ -247,7 +248,7 @@ class Receiver:
             ch.name: ch for ch in self._refs.values()
             if ch.is_pattern})
 
-    async def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, errors=None, decoder=None):
         """Wait for and return pub/sub message from one of channels.
 
         Return value is either:
@@ -281,7 +282,7 @@ class Receiver:
         if ch.is_pattern:
             dest_ch, msg = msg
         if encoding is not None:
-            msg = msg.decode(encoding)
+            msg = msg.decode(encoding, errors)
         if decoder is not None:
             msg = decoder(msg)
         if ch.is_pattern:
@@ -316,7 +317,7 @@ class Receiver:
         #   if we drop _Senders here they will still be subscribed
         #   and will reside in memory although messages will be discarded.
 
-    def iter(self, *, encoding=None, decoder=None):
+    def iter(self, *, encoding=None, errors=None, decoder=None):
         """Returns async iterator.
 
         Usage example:
@@ -327,6 +328,7 @@ class Receiver:
         return _IterHelper(self,
                            is_active=lambda r: not r._queue.exhausted,
                            encoding=encoding,
+                           errors=errors,
                            decoder=decoder)
 
     def check_stop(self, channel, exc=None):
@@ -384,7 +386,7 @@ class _Sender(AbcChannel):
     def is_active(self):
         return not self._closed
 
-    async def get(self, *, encoding=None, decoder=None):
+    async def get(self, *, encoding=None, errors=None, decoder=None):
         raise RuntimeError("MPSC channel does not allow direct get() calls")
 
     def put_nowait(self, data):

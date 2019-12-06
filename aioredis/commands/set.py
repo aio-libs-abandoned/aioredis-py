@@ -35,26 +35,26 @@ class SetCommandsMixin:
         """Determine if a given value is a member of a set."""
         return self.execute(b'SISMEMBER', key, member)
 
-    def smembers(self, key, *, encoding=_NOTSET):
+    def smembers(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Get all the members in a set."""
-        return self.execute(b'SMEMBERS', key, encoding=encoding)
+        return self.execute(b'SMEMBERS', key, encoding=encoding, errors=errors)
 
     def smove(self, sourcekey, destkey, member):
         """Move a member from one set to another."""
         return self.execute(b'SMOVE', sourcekey, destkey, member)
 
-    def spop(self, key, count=None, *, encoding=_NOTSET):
+    def spop(self, key, count=None, *, encoding=_NOTSET, errors=_NOTSET):
         """Remove and return one or multiple random members from a set."""
         args = [key]
         if count is not None:
             args.append(count)
-        return self.execute(b'SPOP', *args, encoding=encoding)
+        return self.execute(b'SPOP', *args, encoding=encoding, errors=errors)
 
-    def srandmember(self, key, count=None, *, encoding=_NOTSET):
+    def srandmember(self, key, count=None, *, encoding=_NOTSET, errors=_NOTSET):
         """Get one or multiple random members from a set."""
         args = [key]
         count is not None and args.append(count)
-        return self.execute(b'SRANDMEMBER', *args, encoding=encoding)
+        return self.execute(b'SRANDMEMBER', *args, encoding=encoding, errors=errors)
 
     def srem(self, key, member, *members):
         """Remove one or more members from a set."""

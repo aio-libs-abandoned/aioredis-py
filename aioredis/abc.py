@@ -50,6 +50,11 @@ class AbcConnection(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def errors(self):
+        """Current set bytes decode error handling."""
+
+    @property
+    @abc.abstractmethod
     def in_pubsub(self):
         """Returns number of subscribed channels.
 

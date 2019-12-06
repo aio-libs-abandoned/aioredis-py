@@ -69,6 +69,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         return self._pool_or_conn.encoding
 
     @property
+    def errors(self):
+        """Current codec decode error handling or None."""
+        return self._pool_or_conn.errors
+
+    @property
     def connection(self):
         """Either :class:`aioredis.RedisConnection`,
         or :class:`aioredis.ConnectionsPool` instance.
@@ -98,11 +103,11 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """
         return self._pool_or_conn.auth(password)
 
-    def echo(self, message, *, encoding=_NOTSET):
+    def echo(self, message, *, encoding=_NOTSET, errors=_NOTSET):
         """Echo the given string."""
-        return self.execute('ECHO', message, encoding=encoding)
+        return self.execute('ECHO', message, encoding=encoding, errors=errors)
 
-    def ping(self, message=_NOTSET, *, encoding=_NOTSET):
+    def ping(self, message=_NOTSET, *, encoding=_NOTSET, errors=_NOTSET):
         """Ping the server.
 
         Accept optional echo message.
@@ -111,7 +116,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             args = (message,)
         else:
             args = ()
-        return self.execute('PING', *args, encoding=encoding)
+        return self.execute('PING', *args, encoding=encoding, errors=errors)
 
     def quit(self):
         """Close the connection."""
@@ -158,7 +163,7 @@ class ContextRedis(Redis):
 
 
 async def create_redis(address, *, db=None, password=None, ssl=None,
-                       encoding=None, commands_factory=Redis,
+                       encoding=None, errrors=None, commands_factory=Redis,
                        parser=None, timeout=None,
                        connection_cls=None, loop=None):
     """Creates high-level Redis interface.
@@ -169,6 +174,7 @@ async def create_redis(address, *, db=None, password=None, ssl=None,
                                    password=password,
                                    ssl=ssl,
                                    encoding=encoding,
+                                   errors=errors,
                                    parser=parser,
                                    timeout=timeout,
                                    connection_cls=connection_cls,
@@ -177,7 +183,7 @@ async def create_redis(address, *, db=None, password=None, ssl=None,
 
 
 async def create_redis_pool(address, *, db=None, password=None, ssl=None,
-                            encoding=None, commands_factory=Redis,
+                            encoding=None, errors=None, commands_factory=Redis,
                             minsize=1, maxsize=10, parser=None,
                             timeout=None, pool_cls=None,
                             connection_cls=None, loop=None):
@@ -189,6 +195,7 @@ async def create_redis_pool(address, *, db=None, password=None, ssl=None,
                              password=password,
                              ssl=ssl,
                              encoding=encoding,
+                             errors=errors,
                              minsize=minsize,
                              maxsize=maxsize,
                              parser=parser,

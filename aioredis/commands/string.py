@@ -80,9 +80,9 @@ class StringCommandsMixin:
             raise TypeError("decrement must be of type int")
         return self.execute(b'DECRBY', key, decrement)
 
-    def get(self, key, *, encoding=_NOTSET):
+    def get(self, key, *, encoding=_NOTSET, errors=_NOTSET):
         """Get the value of a key."""
-        return self.execute(b'GET', key, encoding=encoding)
+        return self.execute(b'GET', key, encoding=encoding, errors=errors)
 
     def getbit(self, key, offset):
         """Returns the bit value at offset in the string value stored at key.
@@ -96,7 +96,7 @@ class StringCommandsMixin:
             raise ValueError("offset must be greater equal 0")
         return self.execute(b'GETBIT', key, offset)
 
-    def getrange(self, key, start, end, *, encoding=_NOTSET):
+    def getrange(self, key, start, end, *, encoding=_NOTSET, errors=_NOTSET):
         """Get a substring of the string stored at a key.
 
         :raises TypeError: if start or end is not int
@@ -105,11 +105,11 @@ class StringCommandsMixin:
             raise TypeError("start argument must be int")
         if not isinstance(end, int):
             raise TypeError("end argument must be int")
-        return self.execute(b'GETRANGE', key, start, end, encoding=encoding)
+        return self.execute(b'GETRANGE', key, start, end, encoding=encoding, errors=errors)
 
-    def getset(self, key, value, *, encoding=_NOTSET):
+    def getset(self, key, value, *, encoding=_NOTSET, errors=_NOTSET):
         """Set the string value of a key and return its old value."""
-        return self.execute(b'GETSET', key, value, encoding=encoding)
+        return self.execute(b'GETSET', key, value, encoding=encoding, errors=errors)
 
     def incr(self, key):
         """Increment the integer value of a key by one."""
@@ -134,9 +134,9 @@ class StringCommandsMixin:
         fut = self.execute(b'INCRBYFLOAT', key, increment)
         return wait_convert(fut, float)
 
-    def mget(self, key, *keys, encoding=_NOTSET):
+    def mget(self, key, *keys, encoding=_NOTSET, errors=_NOTSET):
         """Get the values of all the given keys."""
-        return self.execute(b'MGET', key, *keys, encoding=encoding)
+        return self.execute(b'MGET', key, *keys, encoding=encoding, errors=errors)
 
     def mset(self, *args):
         """Set multiple keys to multiple values or unpack dict to keys & values.

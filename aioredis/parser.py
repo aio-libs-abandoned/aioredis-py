@@ -12,12 +12,13 @@ class PyReader:
     """
     def __init__(self, protocolError: Callable = ProtocolError,
                  replyError: Callable = ReplyError,
-                 encoding: Optional[str] = None):
+                 encoding: Optional[str] = None,
+                 errors: Optional[str] = None):
         if not callable(protocolError):
             raise TypeError("Expected a callable")
         if not callable(replyError):
             raise TypeError("Expected a callable")
-        self._parser = Parser(protocolError, replyError, encoding)
+        self._parser = Parser(protocolError, replyError, encoding, errors)
 
     def feed(self, data, o: int = 0, l: int = -1):
         """Feed data to parser."""
@@ -48,13 +49,14 @@ class PyReader:
 
 class Parser:
     def __init__(self, protocolError: Callable,
-                 replyError: Callable, encoding: Optional[str]):
+                 replyError: Callable, encoding: Optional[str], errors: Optional[str]):
 
         self.buf = bytearray()  # type: bytearray
         self.pos = 0  # type: int
         self.protocolError = protocolError  # type: Callable
         self.replyError = replyError  # type: Callable
         self.encoding = encoding  # type: Optional[str]
+        self.errors = errors  # type: Optional[str]
         self._err = None
         self._gen = None  # type: Optional[Generator]
 
@@ -108,7 +110,7 @@ class Parser:
             val = yield from self.readline()
             if self.encoding is not None:
                 try:
-                    return val.decode(self.encoding)
+                    return val.decode(self.encoding, self.errors)
                 except UnicodeDecodeError:
                     pass
             return bytes(val)
@@ -124,7 +126,7 @@ class Parser:
             val = yield from self.readline(val)
             if self.encoding:
                 try:
-                    return val.decode(self.encoding)
+                    return val.decode(self.encoding, self.errors)
                 except UnicodeDecodeError:
                     pass
             return bytes(val)

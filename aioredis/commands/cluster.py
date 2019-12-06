@@ -44,10 +44,10 @@ class ClusterCommandsMixin:
         fut = self.execute(b'CLUSTER', b'FORGET', node_id)
         return wait_ok(fut)
 
-    def cluster_get_keys_in_slots(self, slot, count, *, encoding):
+    def cluster_get_keys_in_slots(self, slot, count, *, encoding, errors):
         """Return local key names in the specified hash slot."""
         return self.execute(b'CLUSTER', b'GETKEYSINSLOT', slot, count,
-                            encoding=encoding)
+                            encoding=encoding, errors=errors)
 
     def cluster_info(self):
         """Provides info about Redis Cluster node state."""
