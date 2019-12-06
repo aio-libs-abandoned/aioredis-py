@@ -163,7 +163,7 @@ class ContextRedis(Redis):
 
 
 async def create_redis(address, *, db=None, password=None, ssl=None,
-                       encoding=None, errrors=None, commands_factory=Redis,
+                       encoding=None, errors=None, commands_factory=Redis,
                        parser=None, timeout=None,
                        connection_cls=None, loop=None):
     """Creates high-level Redis interface.
