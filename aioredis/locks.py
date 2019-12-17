@@ -146,7 +146,7 @@ class RedisLock:
                      key.
             time: 5, thread-2 acquired `my-lock` now that it's available.
                      thread-2 sets the token to "xyz"
-            time: 6, thread-1 finishes its work and calls release(). if the
+            time: 6, thread-1 finishes its work and calls release(). If the
                      token is *not* stored in thread local storage, then
                      thread-1 would see the token value as "xyz" and would be
                      able to successfully release the thread-2's lock.
