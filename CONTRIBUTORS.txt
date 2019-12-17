@@ -11,6 +11,7 @@ Andrew Svetlov
 Anton Salii
 Anton Verinov
 Artem Mazur
+Brian Wright
 <cynecx>
 David Francos
 Dima Kruk
