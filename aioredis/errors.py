@@ -112,3 +112,11 @@ class ConnectionForcedCloseError(ConnectionClosedError):
 
 class PoolClosedError(RedisError):
     """Raised if pool is closed."""
+
+
+class LockError(RedisError):
+    """Errors acquiring or releasing a lock."""
+
+
+class LockNotOwnedError(LockError):
+    """Error trying to extend or release a lock that is (no longer) owned."""
