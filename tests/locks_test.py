@@ -1,4 +1,6 @@
 import asyncio
+import pytest
+import time
 
 from aioredis.errors import LockError, LockNotOwnedError
 from aioredis.locks import Lock, RedisLock
