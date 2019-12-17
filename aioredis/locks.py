@@ -107,7 +107,8 @@ class RedisLock:
         return 1
     '''
 
-    def __init__(self, redis, name, *, timeout=None, sleep=0.1, blocking=True, blocking_timeout=None, thread_local=True):
+    def __init__(self, redis, name, *, timeout=None, sleep=0.1,
+                 blocking=True, blocking_timeout=None, thread_local=True):
         """
         Create a new Lock instance named ``name`` using the Redis client
         supplied by ``redis``.
@@ -181,7 +182,8 @@ class RedisLock:
     async def __aexit__(self, exc_type, exc, tb):
         await self.release()
 
-    async def acquire(self, *, blocking=None, blocking_timeout=None, token=None):
+    async def acquire(self, *, blocking=None, blocking_timeout=None,
+                      token=None):
         """
         Use Redis to hold a shared, distributed lock named ``name``.
         Returns True once the lock is acquired.
@@ -230,7 +232,9 @@ class RedisLock:
         else:
             timeout = None
 
-        if await self.redis.set(self.name, token, exist=self.redis.SET_IF_NOT_EXIST, pexpire=timeout):
+        if await self.redis.set(self.name, token,
+                                exist=self.redis.SET_IF_NOT_EXIST,
+                                pexpire=timeout):
             return True
 
         return False
@@ -242,7 +246,8 @@ class RedisLock:
     async def owned(self):
         """Returns True if this key is locked by this lock, otherwise False."""
         stored_token = await self.redis.get(self.name, encoding='utf-8')
-        return self.local.token is not None and stored_token == self.local.token
+        return self.local.token is not None and \
+            stored_token == self.local.token
 
     async def release(self):
         """Releases the already acquired lock."""
@@ -254,8 +259,11 @@ class RedisLock:
         await self.do_release(expected_token)
 
     async def do_release(self, expected_token):
-        if not bool(await self.redis.eval(self.LUA_RELEASE_SCRIPT, keys=[self.name], args=[expected_token])):
-            raise LockNotOwnedError("Cannot release a lock that's no longer owned")
+        if not bool(await self.redis.eval(self.LUA_RELEASE_SCRIPT,
+                                          keys=[self.name],
+                                          args=[expected_token])):
+            raise LockNotOwnedError("Cannot release a lock"
+                                    " that's no longer owned")
 
     async def extend(self, additional_time):
         """Adds more time to an already acquired lock.
@@ -273,8 +281,12 @@ class RedisLock:
 
     async def do_extend(self, additional_time):
         additional_time = int(additional_time * 1000)
-        if not bool(await self.redis.eval(self.LUA_EXTEND_SCRIPT, keys=[self.name], args=[self.local.token, additional_time])):
-            raise LockNotOwnedError("Cannot extend a lock that's no longer owned")
+        if not bool(await self.redis.eval(self.LUA_EXTEND_SCRIPT,
+                                          keys=[self.name],
+                                          args=[self.local.token,
+                                                additional_time])):
+            raise LockNotOwnedError("Cannot extend a lock"
+                                    " that's no longer owned")
 
         return True
 
@@ -290,7 +302,10 @@ class RedisLock:
 
     async def do_reacquire(self):
         timeout = int(self.timeout * 1000)
-        if not bool(await self.redis.eval(self.LUA_REACQUIRE_SCRIPT, keys=[self.name], args=[self.local.token, timeout])):
-            raise LockNotOwnedError("Cannot reacquire a lock that's no longer owned")
+        if not bool(await self.redis.eval(self.LUA_REACQUIRE_SCRIPT,
+                                          keys=[self.name],
+                                          args=[self.local.token, timeout])):
+            raise LockNotOwnedError("Cannot reacquire a lock"
+                                    " that's no longer owned")
 
         return True
