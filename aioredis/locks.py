@@ -240,11 +240,15 @@ class RedisLock:
         return False
 
     async def locked(self):
-        """Returns True if this key is locked by any process, otherwise False."""
+        """
+        Returns True if this key is locked by any process, otherwise False.
+        """
         return await self.redis.get(self.name, encoding='utf-8') is not None
 
     async def owned(self):
-        """Returns True if this key is locked by this lock, otherwise False."""
+        """
+        Returns True if this key is locked by this lock, otherwise False.
+        """
         stored_token = await self.redis.get(self.name, encoding='utf-8')
         return self.local.token is not None and \
             stored_token == self.local.token
