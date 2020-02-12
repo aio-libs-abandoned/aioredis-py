@@ -262,6 +262,9 @@ async def test_zlexcount(redis):
                                 include_max=False)
     assert res == 3
 
+    res = await redis.zlexcount(key, min='a', max='e')
+    assert res == 5
+
     with pytest.raises(TypeError):
         await redis.zlexcount(None, b'a', b'e')
     with pytest.raises(TypeError):
@@ -326,6 +329,10 @@ async def test_zrangebylex(redis):
     assert res == []
     res = await redis.zrangebylex(key, min=b'e', max=b'a')
     assert res == []
+
+    res = await redis.zrangebylex(key, min='-', max='+')
+    assert res == members
+
     res = await redis.zrangebylex(key, offset=1, count=2)
     assert res == members[1:3]
     with pytest.raises(TypeError):
@@ -462,8 +469,11 @@ async def test_zremrangebylex(redis):
     res = await redis.zrange(key, 0, -1)
     assert res == [b'ALPHA', b'aaaa', b'zap', b'zip']
 
+    res = await redis.zremrangebylex(key, 'a', 'zap')
+    assert res == 2
+
     res = await redis.zremrangebylex(key)
-    assert res == 4
+    assert res == 2
     res = await redis.zrange(key, 0, -1)
     assert res == []
 
@@ -717,6 +727,10 @@ async def test_zrevrangebylex(redis):
     assert res == rev_members
     res = await redis.zrevrangebylex(key, encoding='utf-8')
     assert res == rev_strings
+
+    res = await redis.zrevrangebylex(key, min='b', max='d')
+    assert res == rev_members[1:-1]
+
     res = await redis.zrevrangebylex(key, min=b'-', max=b'd')
     assert res == rev_members[1:]
     res = await redis.zrevrangebylex(key, min=b'a', max=b'e',

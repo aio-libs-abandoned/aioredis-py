@@ -148,13 +148,19 @@ class SortedSetCommandsMixin:
         """Count the number of members in a sorted set between a given
         lexicographical range.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
+        :raises TypeError: if min is not bytes or str
+        :raises TypeError: if max is not bytes or str
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME     Why only bytes?
-            raise TypeError("max argument must be bytes")
+        if not isinstance(min, (bytes, str)):
+            raise TypeError("min argument must be bytes or str")
+        if not isinstance(max, (bytes, str)):
+            raise TypeError("max argument must be bytes or str")
+
+        if isinstance(min, str):
+            min = min.encode('utf-8')
+        if isinstance(max, str):
+            max = max.encode('utf-8')
+
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
@@ -187,16 +193,22 @@ class SortedSetCommandsMixin:
                     encoding=_NOTSET):
         """Return a range of members in a sorted set, by lexicographical range.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
+        :raises TypeError: if min is not bytes or str
+        :raises TypeError: if max is not bytes or str
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not bytes
         :raises TypeError: if count is not bytes
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
+        if not isinstance(min, (bytes, str)):
+            raise TypeError("min argument must be bytes or str")
+        if not isinstance(max, (bytes, str)):
+            raise TypeError("max argument must be bytes or str")
+
+        if isinstance(min, str):
+            min = min.encode('utf-8')
+        if isinstance(max, str):
+            max = max.encode('utf-8')
+
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
@@ -266,13 +278,19 @@ class SortedSetCommandsMixin:
         """Remove all members in a sorted set between the given
         lexicographical range.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
+        :raises TypeError: if min is not bytes or str
+        :raises TypeError: if max is not bytes or str
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
+        if not isinstance(min, (bytes, str)):
+            raise TypeError("min argument must be bytes or str")
+        if not isinstance(max, (bytes, str)):
+            raise TypeError("max argument must be bytes or str")
+
+        if isinstance(min, str):
+            min = min.encode('utf-8')
+        if isinstance(max, str):
+            max = max.encode('utf-8')
+
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
@@ -368,16 +386,22 @@ class SortedSetCommandsMixin:
         """Return a range of members in a sorted set, by lexicographical range
         from high to low.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
+        :raises TypeError: if min is not bytes or str
+        :raises TypeError: if max is not bytes or str
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not bytes
         :raises TypeError: if count is not bytes
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
+        if not isinstance(min, (bytes, str)):
+            raise TypeError("min argument must be bytes or str")
+        if not isinstance(max, (bytes, str)):
+            raise TypeError("max argument must be bytes or str")
+
+        if isinstance(min, str):
+            min = min.encode('utf-8')
+        if isinstance(max, str):
+            max = max.encode('utf-8')
+
         if not min == b'-':
             min = (b'[' if include_min else b'(') + min
         if not max == b'+':
