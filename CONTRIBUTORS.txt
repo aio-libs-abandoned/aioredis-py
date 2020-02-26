@@ -45,6 +45,7 @@ Thanos Lefteris
 Thomas Steinacher
 Volodymyr Hotsyk
 Youngmin Koo <youngminz>
+Ziming Hu <hzmangel>
 Dima Kit
 <curiouscod3>
 Dmitry Vasilishin <dmvass>
