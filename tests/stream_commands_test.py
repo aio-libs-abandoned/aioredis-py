@@ -506,6 +506,17 @@ async def test_xdel_stream(redis):
     assert response >= 0
 
 
+async def test_xdel_multiple_ids_stream(redis):
+    message_id_1 = await redis.xadd('test_stream', {'a': 1})
+    message_id_2 = await redis.xadd('test_stream', {'a': 2})
+    message_id_3 = await redis.xadd('test_stream', {'a': 3})
+    response = await redis.xdel('test_stream',
+                                message_id_1,
+                                message_id_2,
+                                message_id_3)
+    assert response >= 0
+
+
 async def test_xtrim_stream(redis):
     await redis.xadd('test_stream', {'a': 1})
     await redis.xadd('test_stream', {'b': 1})
