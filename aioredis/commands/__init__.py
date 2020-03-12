@@ -160,7 +160,7 @@ class ContextRedis(Redis):
 async def create_redis(address, *, db=None, password=None, ssl=None,
                        encoding=None, commands_factory=Redis,
                        parser=None, timeout=None,
-                       connection_cls=None, loop=None):
+                       connection_cls=None, loop=None, name=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
@@ -172,7 +172,7 @@ async def create_redis(address, *, db=None, password=None, ssl=None,
                                    parser=parser,
                                    timeout=timeout,
                                    connection_cls=connection_cls,
-                                   loop=loop)
+                                   loop=loop, name=name)
     return commands_factory(conn)
 
 
@@ -180,7 +180,7 @@ async def create_redis_pool(address, *, db=None, password=None, ssl=None,
                             encoding=None, commands_factory=Redis,
                             minsize=1, maxsize=10, parser=None,
                             timeout=None, pool_cls=None,
-                            connection_cls=None, loop=None):
+                            connection_cls=None, loop=None, name=None):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
@@ -195,5 +195,6 @@ async def create_redis_pool(address, *, db=None, password=None, ssl=None,
                              create_connection_timeout=timeout,
                              pool_cls=pool_cls,
                              connection_cls=connection_cls,
-                             loop=loop)
+                             loop=loop,
+                             name=name)
     return commands_factory(pool)

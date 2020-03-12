@@ -542,3 +542,18 @@ async def test_pool__drop_closed(create_pool, server):
     pool._drop_closed()
     assert pool.freesize == 1
     assert pool.size == 1
+
+
+async def test_client_name(create_pool, server):
+    name = 'test'
+    pool = await create_pool(server.tcp_address, name=name)
+
+    with (await pool) as conn:
+        res = await conn.execute(b'CLIENT', b'GETNAME')
+        assert res == bytes(name, 'utf-8')
+
+    name = 'test2'
+    await pool.setname(name)
+    with (await pool) as conn:
+        res = await conn.execute(b'CLIENT', b'GETNAME')
+        assert res == bytes(name, 'utf-8')
