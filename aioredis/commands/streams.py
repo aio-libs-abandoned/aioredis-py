@@ -34,7 +34,6 @@ def parse_messages(messages):
     if messages is None:
         return []
 
-    messages = (message for message in messages if message is not None)
     return [
         (mid, fields_to_dict(values)) for mid, values in messages if values is not None
     ]
