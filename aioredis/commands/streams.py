@@ -31,12 +31,16 @@ def parse_messages(messages):
         ]
 
     """
-    if messages is None:
-        return []
+    parsed_messages = []
+    for message in messages:
+        if message is None:
+            # In some conditions redis will return a NIL message
+            parsed_messages.append((None, {}))
+        else:
+            mid, values = message
+            parsed_messages.append((mid, values))
 
-    return [
-        (mid, fields_to_dict(values)) for mid, values in messages if values is not None
-    ]
+    return parsed_messages
 
 
 def parse_messages_by_stream(messages_by_stream):
