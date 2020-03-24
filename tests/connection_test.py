@@ -59,7 +59,9 @@ async def test_connect_inject_connection_cls_invalid(
 
 async def test_connect_tcp_timeout(request, create_connection, server):
     with patch('aioredis.connection.open_connection') as open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
+        async def __side_effect(*a, **kw):
+            return await asyncio.sleep(0.2)
+        open_conn_mock.side_effect = __side_effect
         with pytest.raises(asyncio.TimeoutError):
             await create_connection(server.tcp_address, timeout=0.1)
 
@@ -84,7 +86,9 @@ async def test_connect_unixsocket(create_connection, server):
                     reason="No unixsocket on Windows")
 async def test_connect_unixsocket_timeout(create_connection, server):
     with patch('aioredis.connection.open_unix_connection') as open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
+        async def __side_effect(*a, **kw):
+            return await asyncio.sleep(0.2)
+        open_conn_mock.side_effect = __side_effect
         with pytest.raises(asyncio.TimeoutError):
             await create_connection(server.unixsocket, db=0, timeout=0.1)
 

@@ -15,7 +15,7 @@ from aioredis import (
     )
 from _testutils import redis_version
 
-BPO_34638 = sys.version_info >= (3, 8)
+BPO_34638 = (3, 8) < sys.version_info < (3, 8, 2)
 
 
 def _assert_defaults(pool):
@@ -59,7 +59,9 @@ async def test_maxsize(maxsize, create_pool, server):
 async def test_create_connection_timeout(create_pool, server):
     with patch('aioredis.connection.open_connection') as\
             open_conn_mock:
-        open_conn_mock.side_effect = lambda *a, **kw: asyncio.sleep(0.2)
+        async def __side_effect(*a, **kw):
+            return await asyncio.sleep(0.2)
+        open_conn_mock.side_effect = __side_effect
         with pytest.raises(asyncio.TimeoutError):
             await create_pool(
                 server.tcp_address,
