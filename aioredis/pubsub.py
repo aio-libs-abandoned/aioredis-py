@@ -88,9 +88,9 @@ class Channel(AbcChannel):
             return dest_channel, msg
         return msg
 
-    async def get_json(self, encoding='utf-8'):
+    async def get_json(self, encoding='utf-8', decoder=json.loads):
         """Shortcut to get JSON messages."""
-        return (await self.get(encoding=encoding, decoder=json.loads))
+        return (await self.get(encoding=encoding, decoder=decoder))
 
     def iter(self, *, encoding=None, decoder=None):
         """Same as get method but its native coroutine.

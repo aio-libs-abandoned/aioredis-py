@@ -13,9 +13,9 @@ class PubSubCommandsMixin:
         """Post a message to channel."""
         return self.execute(b'PUBLISH', channel, message)
 
-    def publish_json(self, channel, obj):
+    def publish_json(self, channel, obj, encoder=json.dumps):
         """Post a JSON-encoded message to channel."""
-        return self.publish(channel, json.dumps(obj))
+        return self.publish(channel, encoder(obj))
 
     def subscribe(self, channel, *channels):
         """Switch connection to Pub/Sub mode and

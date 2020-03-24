@@ -12,6 +12,7 @@ Anton Salii
 Anton Verinov
 Artem Mazur
 <cynecx>
+Daniil Kozhanov
 David Francos
 Dima Kruk
 <fuchaoqun>
