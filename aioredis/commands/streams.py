@@ -38,6 +38,7 @@ def parse_messages(messages):
             parsed_messages.append((None, {}))
         else:
             mid, values = message
+            values = values or {}
             parsed_messages.append((mid, fields_to_dict(values)))
 
     return parsed_messages
