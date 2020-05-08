@@ -40,7 +40,7 @@ class Lock(_Lock):
 
         def _wake_up_first(self):
             """Wake up the first waiter who isn't cancelled."""
-            for fut in self._waiters:
+            for fut in (self._waiters or []):
                 if not fut.done():
                     fut.set_result(True)
                     break
