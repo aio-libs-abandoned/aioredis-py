@@ -26,7 +26,8 @@ _logger = sentinel_logger.getChild('monitor')
 
 async def create_sentinel_pool(sentinels, *, db=None, password=None,
                                encoding=None, minsize=1, maxsize=10,
-                               ssl=None, parser=None, timeout=0.2, loop=None, sentinel_password=None):
+                               ssl=None, parser=None, timeout=0.2, loop=None,
+                               sentinel_password=None):
     """Create SentinelPool."""
     # FIXME: revise default timeout value
     assert isinstance(sentinels, (list, tuple)), sentinels
