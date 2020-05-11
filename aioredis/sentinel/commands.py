@@ -7,7 +7,7 @@ from .pool import create_sentinel_pool
 
 async def create_sentinel(sentinels, *, db=None, password=None,
                           encoding=None, minsize=1, maxsize=10,
-                          ssl=None, timeout=0.2, loop=None):
+                          ssl=None, timeout=0.2, loop=None, sentinel_password=None):
     """Creates Redis Sentinel client.
 
     `sentinels` is a list of sentinel nodes.
@@ -24,7 +24,8 @@ async def create_sentinel(sentinels, *, db=None, password=None,
                                       maxsize=maxsize,
                                       ssl=ssl,
                                       timeout=timeout,
-                                      loop=loop)
+                                      loop=loop,
+                                      sentinel_password=sentinel_password)
     return RedisSentinel(pool)
 
 

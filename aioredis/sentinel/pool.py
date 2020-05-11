@@ -26,7 +26,7 @@ _logger = sentinel_logger.getChild('monitor')
 
 async def create_sentinel_pool(sentinels, *, db=None, password=None,
                                encoding=None, minsize=1, maxsize=10,
-                               ssl=None, parser=None, timeout=0.2, loop=None):
+                               ssl=None, parser=None, timeout=0.2, loop=None, sentinel_password=None):
     """Create SentinelPool."""
     # FIXME: revise default timeout value
     assert isinstance(sentinels, (list, tuple)), sentinels
@@ -42,9 +42,16 @@ async def create_sentinel_pool(sentinels, *, db=None, password=None,
                         minsize=minsize,
                         maxsize=maxsize,
                         timeout=timeout,
-                        loop=loop)
-    await pool.discover()
-    return pool
+                        loop=loop,
+                        sentinel_password=sentinel_password)
+    try:
+        await pool.discover()
+    except BaseException:
+        pool.close()
+        await pool.wait_closed()
+        raise
+    else:
+        return pool
 
 
 class SentinelPool:
@@ -56,7 +63,7 @@ class SentinelPool:
 
     def __init__(self, sentinels, *, db=None, password=None, ssl=None,
                  encoding=None, parser=None, minsize, maxsize, timeout,
-                 loop=None):
+                 loop=None, sentinel_password=None):
         # TODO: deprecation note
         # if loop is None:
         #     loop = asyncio.get_event_loop()
@@ -80,6 +87,7 @@ class SentinelPool:
         self._close_state = CloseEvent(self._do_close)
         self._close_waiter = None
         self._monitor = monitor = Receiver()
+        self.sentinel_password = sentinel_password
 
         async def echo_events():
             try:
@@ -236,7 +244,7 @@ class SentinelPool:
             with async_timeout(timeout):
                 pool = await create_pool(
                     address, minsize=1, maxsize=2,
-                    parser=self._parser_class,
+                    parser=self._parser_class, password=self.sentinel_password
                     )
             pools.append(pool)
             return pool
