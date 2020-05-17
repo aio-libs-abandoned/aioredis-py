@@ -10,6 +10,7 @@ Aliaksei Urbanski
 Andrew Svetlov
 Anton Salii
 Anton Verinov
+Artem Fedotov
 Artem Mazur
 <cynecx>
 David Francos
