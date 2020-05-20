@@ -371,8 +371,8 @@ class SortedSetCommandsMixin:
         :raises TypeError: if min is not bytes
         :raises TypeError: if max is not bytes
         :raises TypeError: if both offset and count are not specified
-        :raises TypeError: if offset is not bytes
-        :raises TypeError: if count is not bytes
+        :raises TypeError: if offset is not int
+        :raises TypeError: if count is not int
         """
         if not isinstance(min, bytes):  # FIXME
             raise TypeError("min argument must be bytes")
