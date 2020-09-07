@@ -548,7 +548,6 @@ async def test_pool__drop_closed(create_pool, server):
 async def test_multiple_connection_acquire(create_pool, server):
     # see https://bugs.python.org/issue32734 for explanation
 
-    loop = asyncio.get_event_loop()
     pool = await create_pool(server.tcp_address, minsize=10, maxsize=10)
 
     with ExitStack() as stack:
