@@ -12,7 +12,7 @@ from .abc import AbcPool
 from .locks import Lock
 
 
-async def create_pool(address, *, db=None, password=None, ssl=None,
+async def create_pool(address, *, db=None, username=None, password=None, ssl=None,
                       encoding=None, minsize=1, maxsize=10,
                       parser=None, loop=None, create_connection_timeout=None,
                       pool_cls=None, connection_cls=None):
@@ -38,6 +38,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
     if isinstance(address, str):
         address, options = parse_url(address)
         db = options.setdefault('db', db)
+        username = options.setdefault('username', username)
         password = options.setdefault('password', password)
         encoding = options.setdefault('encoding', encoding)
         create_connection_timeout = options.setdefault(
@@ -48,7 +49,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
             ssl = ssl or options['ssl']
         # TODO: minsize/maxsize
 
-    pool = cls(address, db, password, encoding,
+    pool = cls(address, db, username, password, encoding,
                minsize=minsize, maxsize=maxsize,
                ssl=ssl, parser=parser,
                create_connection_timeout=create_connection_timeout,
@@ -66,7 +67,7 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
 class ConnectionsPool(AbcPool):
     """Redis connections pool."""
 
-    def __init__(self, address, db=None, password=None, encoding=None,
+    def __init__(self, address, db=None, username=None, password=None, encoding=None,
                  *, minsize, maxsize, ssl=None, parser=None,
                  create_connection_timeout=None,
                  connection_cls=None,
@@ -83,6 +84,7 @@ class ConnectionsPool(AbcPool):
                           DeprecationWarning)
         self._address = address
         self._db = db
+        self._username = username
         self._password = password
         self._ssl = ssl
         self._encoding = encoding
@@ -286,11 +288,12 @@ class ConnectionsPool(AbcPool):
             self._db = db
         return res
 
-    async def auth(self, password):
+    async def auth(self, username, password):
+        self._username = username
         self._password = password
         async with self._cond:
             for i in range(self.freesize):
-                await self._pool[i].auth(password)
+                await self._pool[i].auth(username, password)
 
     @property
     def in_pubsub(self):
@@ -405,6 +408,7 @@ class ConnectionsPool(AbcPool):
     def _create_new_connection(self, address):
         return create_connection(address,
                                  db=self._db,
+                                 username=self._username,
                                  password=self._password,
                                  ssl=self._ssl,
                                  encoding=self._encoding,

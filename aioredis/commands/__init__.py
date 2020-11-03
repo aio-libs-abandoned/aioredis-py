@@ -91,12 +91,12 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
         """True if connection is closed."""
         return self._pool_or_conn.closed
 
-    def auth(self, password):
+    def auth(self, username, password):
         """Authenticate to server.
 
         This method wraps call to :meth:`aioredis.RedisConnection.auth()`
         """
-        return self._pool_or_conn.auth(password)
+        return self._pool_or_conn.auth(username, password)
 
     def echo(self, message, *, encoding=_NOTSET):
         """Echo the given string."""

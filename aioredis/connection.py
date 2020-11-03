@@ -49,7 +49,7 @@ _PUBSUB_COMMANDS = (
     )
 
 
-async def create_connection(address, *, db=None, password=None, ssl=None,
+async def create_connection(address, *, db=None, username=None, password=None, ssl=None,
                             encoding=None, parser=None, loop=None,
                             timeout=None, connection_cls=None):
     """Creates redis connection.
@@ -83,6 +83,8 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
         address, options = parse_url(address)
         logger.debug("Parsed Redis URI %r", address)
         db = options.setdefault('db', db)
+        # TODO: Haven't checked/tested URI-based config with username.
+        username = options.setdefault('username', username)
         password = options.setdefault('password', password)
         encoding = options.setdefault('encoding', encoding)
         timeout = options.setdefault('timeout', timeout)
@@ -130,7 +132,7 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
 
     try:
         if password is not None:
-            await conn.auth(password)
+            await conn.auth(username, password)
         if db is not None:
             await conn.select(db)
     except Exception:
@@ -543,7 +545,8 @@ class RedisConnection(AbcConnection):
         """Returns read-only patterns dict."""
         return types.MappingProxyType(self._pubsub_patterns)
 
-    def auth(self, password):
+    def auth(self, username, password):
         """Authenticate to server."""
-        fut = self.execute('AUTH', password)
+        args = (username, password) if username else (password,)
+        fut = self.execute('AUTH', *args)
         return wait_ok(fut)

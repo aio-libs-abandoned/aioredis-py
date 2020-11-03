@@ -24,7 +24,7 @@ _NON_DISCOVERED = object()
 _logger = sentinel_logger.getChild('monitor')
 
 
-async def create_sentinel_pool(sentinels, *, db=None, password=None,
+async def create_sentinel_pool(sentinels, *, db=None, username=None, password=None,
                                encoding=None, minsize=1, maxsize=10,
                                ssl=None, parser=None, timeout=0.2, loop=None):
     """Create SentinelPool."""
@@ -35,6 +35,7 @@ async def create_sentinel_pool(sentinels, *, db=None, password=None,
     #     loop = asyncio.get_event_loop()
 
     pool = SentinelPool(sentinels, db=db,
+                        username=username,
                         password=password,
                         ssl=ssl,
                         encoding=encoding,
@@ -54,7 +55,7 @@ class SentinelPool:
     as well as services' connections.
     """
 
-    def __init__(self, sentinels, *, db=None, password=None, ssl=None,
+    def __init__(self, sentinels, *, db=None, username=None, password=None, ssl=None,
                  encoding=None, parser=None, minsize, maxsize, timeout,
                  loop=None):
         # TODO: deprecation note
@@ -72,6 +73,7 @@ class SentinelPool:
         self._slaves = {}
         self._parser_class = parser
         self._redis_db = db
+        self._redis_username = username
         self._redis_password = password
         self._redis_ssl = ssl
         self._redis_encoding = encoding
@@ -120,6 +122,7 @@ class SentinelPool:
             self._masters[service] = ManagedPool(
                 self, service, is_master=True,
                 db=self._redis_db,
+                username=self._redis_username,
                 password=self._redis_password,
                 encoding=self._redis_encoding,
                 minsize=self._redis_minsize,
@@ -136,6 +139,7 @@ class SentinelPool:
             self._slaves[service] = ManagedPool(
                 self, service, is_master=False,
                 db=self._redis_db,
+                username=self._redis_username,
                 password=self._redis_password,
                 encoding=self._redis_encoding,
                 minsize=self._redis_minsize,
@@ -379,10 +383,10 @@ class SentinelPool:
 class ManagedPool(ConnectionsPool):
 
     def __init__(self, sentinel, service, is_master,
-                 db=None, password=None, encoding=None, parser=None,
+                 db=None, username=None, password=None, encoding=None, parser=None,
                  *, minsize, maxsize, ssl=None, loop=None):
         super().__init__(_NON_DISCOVERED,
-                         db=db, password=password, encoding=encoding,
+                         db=db, username=username, password=password, encoding=encoding,
                          minsize=minsize, maxsize=maxsize, ssl=ssl,
                          parser=parser, loop=loop)
         assert self._address is _NON_DISCOVERED
