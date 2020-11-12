@@ -1,5 +1,5 @@
 sphinx==3.3.0
-sphinxcontrib-asyncio==0.2.0
+sphinxcontrib-asyncio==0.3.0
 sphinxcontrib-spelling==4.3.0
 sphinx-rtd-theme==0.4.3
 pyenchant==2.0.0
