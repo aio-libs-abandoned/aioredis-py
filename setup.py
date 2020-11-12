@@ -1,18 +1,12 @@
 import re
 import os.path
-import sys
-import platform
 from setuptools import setup, find_packages
 
 
-install_requires = ['async-timeout']
-if platform.python_implementation() == 'CPython':
-    install_requires.append('hiredis')
-
-PY_VER = sys.version_info
-
-if PY_VER < (3, 5):
-    raise RuntimeError("aioredis doesn't support Python version prior 3.5")
+install_requires = [
+    'async-timeout',
+    'hiredis; implementation_name=="cpython"'
+]
 
 
 def read(*parts):
@@ -62,4 +56,5 @@ setup(name='aioredis',
       packages=find_packages(exclude=["tests"]),
       install_requires=install_requires,
       include_package_data=True,
+      python_requires=">=3.5",
       )
