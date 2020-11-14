@@ -2,7 +2,8 @@ from .errors import ProtocolError, ReplyError
 from typing import Optional, Generator, Callable, Iterator  # noqa
 
 __all__ = [
-    'Reader', 'PyReader',
+    "Reader",
+    "PyReader",
 ]
 
 
@@ -10,9 +11,13 @@ class PyReader:
     """Pure-Python Redis protocol parser that follows hiredis.Reader
     interface (except setmaxbuf/getmaxbuf).
     """
-    def __init__(self, protocolError: Callable = ProtocolError,
-                 replyError: Callable = ReplyError,
-                 encoding: Optional[str] = None):
+
+    def __init__(
+        self,
+        protocolError: Callable = ProtocolError,
+        replyError: Callable = ReplyError,
+        encoding: Optional[str] = None,
+    ):
         if not callable(protocolError):
             raise TypeError("Expected a callable")
         if not callable(replyError):
@@ -27,7 +32,7 @@ class PyReader:
             raise ValueError("negative input")
         if o + l > len(data):
             raise ValueError("input is larger than buffer size")
-        self._parser.buf.extend(data[o:o + l])
+        self._parser.buf.extend(data[o : o + l])
 
     def gets(self):
         """Get parsed value or False otherwise.
@@ -47,8 +52,9 @@ class PyReader:
 
 
 class Parser:
-    def __init__(self, protocolError: Callable,
-                 replyError: Callable, encoding: Optional[str]):
+    def __init__(
+        self, protocolError: Callable, replyError: Callable, encoding: Optional[str]
+    ):
 
         self.buf = bytearray()  # type: bytearray
         self.pos = 0  # type: int
@@ -67,9 +73,9 @@ class Parser:
         yield from self.waitsome(len(self.buf) + 1)
 
     def readone(self):
-        if not self.buf[self.pos:self.pos + 1]:
+        if not self.buf[self.pos : self.pos + 1]:
             yield from self.waitany()
-        val = self.buf[self.pos:self.pos + 1]
+        val = self.buf[self.pos : self.pos + 1]
         self.pos += 1
         return val
 
@@ -78,16 +84,16 @@ class Parser:
             if len(self.buf) < size + 2 + self.pos:
                 yield from self.waitsome(size + 2)
             offset = self.pos + size
-            if self.buf[offset:offset + 2] != b'\r\n':
+            if self.buf[offset : offset + 2] != b"\r\n":
                 raise self.error("Expected b'\r\n'")
         else:
-            offset = self.buf.find(b'\r\n', self.pos)
+            offset = self.buf.find(b"\r\n", self.pos)
             while offset < 0:
                 yield from self.waitany()
-                offset = self.buf.find(b'\r\n', self.pos)
-        val = self.buf[self.pos:offset]
+                offset = self.buf.find(b"\r\n", self.pos)
+        val = self.buf[self.pos : offset]
         self.pos = 0
-        del self.buf[:offset + 2]
+        del self.buf[: offset + 2]
         return val
 
     def readint(self):
@@ -105,7 +111,7 @@ class Parser:
         if self._err is not None:
             raise self._err
         ctl = yield from self.readone()
-        if ctl == b'+':
+        if ctl == b"+":
             val = yield from self.readline()
             if self.encoding is not None:
                 try:
@@ -113,12 +119,12 @@ class Parser:
                 except UnicodeDecodeError:
                     pass
             return bytes(val)
-        elif ctl == b'-':
+        elif ctl == b"-":
             val = yield from self.readline()
-            return self.replyError(val.decode('utf-8'))
-        elif ctl == b':':
+            return self.replyError(val.decode("utf-8"))
+        elif ctl == b":":
             return (yield from self.readint())
-        elif ctl == b'$':
+        elif ctl == b"$":
             val = yield from self.readint()
             if val == -1:
                 return None
@@ -129,7 +135,7 @@ class Parser:
                 except UnicodeDecodeError:
                     pass
             return bytes(val)
-        elif ctl == b'*':
+        elif ctl == b"*":
             val = yield from self.readint()
             if val == -1:
                 return None
@@ -164,6 +170,7 @@ class Parser:
 
 try:
     import hiredis
+
     Reader = hiredis.Reader
 except ImportError:
     Reader = PyReader

@@ -9,19 +9,19 @@ class ScriptingCommandsMixin:
 
     def eval(self, script, keys=[], args=[]):
         """Execute a Lua script server side."""
-        return self.execute(b'EVAL', script, len(keys), *(keys + args))
+        return self.execute(b"EVAL", script, len(keys), *(keys + args))
 
     def evalsha(self, digest, keys=[], args=[]):
         """Execute a Lua script server side by its SHA1 digest."""
-        return self.execute(b'EVALSHA', digest, len(keys), *(keys + args))
+        return self.execute(b"EVALSHA", digest, len(keys), *(keys + args))
 
     def script_exists(self, digest, *digests):
         """Check existence of scripts in the script cache."""
-        return self.execute(b'SCRIPT', b'EXISTS', digest, *digests)
+        return self.execute(b"SCRIPT", b"EXISTS", digest, *digests)
 
     def script_kill(self):
         """Kill the script currently in execution."""
-        fut = self.execute(b'SCRIPT', b'KILL')
+        fut = self.execute(b"SCRIPT", b"KILL")
         return wait_ok(fut)
 
     def script_flush(self):
