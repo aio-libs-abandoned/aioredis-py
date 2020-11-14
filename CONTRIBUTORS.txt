@@ -37,6 +37,7 @@ Pau Freixes
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
+Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
 Taku Fukada
