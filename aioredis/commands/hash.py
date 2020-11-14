@@ -6,7 +6,7 @@ from aioredis.util import (
     wait_make_dict,
     _NOTSET,
     _ScanIter,
-    )
+)
 
 
 class HashCommandsMixin:

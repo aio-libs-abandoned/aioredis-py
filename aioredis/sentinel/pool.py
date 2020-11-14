@@ -126,7 +126,7 @@ class SentinelPool:
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
                 parser=self._parser_class,
-                )
+            )
         return self._masters[service]
 
     def slave_for(self, service):
@@ -142,7 +142,7 @@ class SentinelPool:
                 maxsize=self._redis_maxsize,
                 ssl=self._redis_ssl,
                 parser=self._parser_class,
-                )
+            )
         return self._slaves[service]
 
     def execute(self, command, *args, **kwargs):
@@ -237,7 +237,7 @@ class SentinelPool:
                 pool = await create_pool(
                     address, minsize=1, maxsize=2,
                     parser=self._parser_class,
-                    )
+                )
             pools.append(pool)
             return pool
         except asyncio.TimeoutError as err:

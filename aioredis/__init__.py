@@ -3,7 +3,7 @@ from .commands import (
     Redis, create_redis,
     create_redis_pool,
     GeoPoint, GeoMember,
-    )
+)
 from .pool import ConnectionsPool, create_pool
 from .pubsub import Channel
 from .sentinel import RedisSentinel, create_sentinel
@@ -25,7 +25,7 @@ from .errors import (
     SlaveNotFoundError,
     MasterReplyError,
     SlaveReplyError,
-    )
+)
 
 
 __version__ = '1.3.1'

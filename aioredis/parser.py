@@ -19,15 +19,15 @@ class PyReader:
             raise TypeError("Expected a callable")
         self._parser = Parser(protocolError, replyError, encoding)
 
-    def feed(self, data, o: int = 0, l: int = -1):
+    def feed(self, data, o: int = 0, l: int = -1):  # noqa: E741
         """Feed data to parser."""
-        if l == -1:
-            l = len(data) - o
+        if l == -1:  # noqa: E741
+            l = len(data) - o  # noqa: E741
         if o < 0 or l < 0:
             raise ValueError("negative input")
         if o + l > len(data):
             raise ValueError("input is larger than buffer size")
-        self._parser.buf.extend(data[o:o+l])
+        self._parser.buf.extend(data[o:o + l])
 
     def gets(self):
         """Get parsed value or False otherwise.
@@ -60,7 +60,7 @@ class Parser:
 
     def waitsome(self, size: int) -> Iterator[bool]:
         # keep yielding false until at least `size` bytes added to buf.
-        while len(self.buf) < self.pos+size:
+        while len(self.buf) < self.pos + size:
             yield False
 
     def waitany(self) -> Iterator[bool]:
@@ -78,7 +78,7 @@ class Parser:
             if len(self.buf) < size + 2 + self.pos:
                 yield from self.waitsome(size + 2)
             offset = self.pos + size
-            if self.buf[offset:offset+2] != b'\r\n':
+            if self.buf[offset:offset + 2] != b'\r\n':
                 raise self.error("Expected b'\r\n'")
         else:
             offset = self.buf.find(b'\r\n', self.pos)
@@ -100,7 +100,8 @@ class Parser:
         self._err = self.protocolError(msg)
         return self._err
 
-    def parse(self, is_bulk: bool = False):
+    # TODO: too complex. Clean this up.
+    def parse(self, is_bulk: bool = False):  # noqa: C901
         if self._err is not None:
             raise self._err
         ctl = yield from self.readone()

@@ -26,9 +26,9 @@ class ScriptingCommandsMixin:
 
     def script_flush(self):
         """Remove all the scripts from the script cache."""
-        fut = self.execute(b"SCRIPT",  b"FLUSH")
+        fut = self.execute(b"SCRIPT", b"FLUSH")
         return wait_ok(fut)
 
     def script_load(self, script):
         """Load the specified Lua script into the script cache."""
-        return self.execute(b"SCRIPT",  b"LOAD", script)
+        return self.execute(b"SCRIPT", b"LOAD", script)
