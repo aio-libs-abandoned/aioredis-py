@@ -7,12 +7,12 @@ from ..errors import (
     PipelineError,
     MultiExecError,
     ConnectionClosedError,
-    )
+)
 from ..util import (
     wait_ok,
     _set_exception,
     get_event_loop,
-    )
+)
 
 
 class TransactionsCommandsMixin:

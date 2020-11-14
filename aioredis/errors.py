@@ -1,6 +1,6 @@
 from typing import Optional, Sequence   # noqa
 
-__all__ = [
+__all__ = (
     'RedisError',
     'ProtocolError',
     'ReplyError',
@@ -16,7 +16,7 @@ __all__ = [
     'MasterNotFoundError',
     'SlaveNotFoundError',
     'ReadOnlyError',
-    ]
+)
 
 
 class RedisError(Exception):

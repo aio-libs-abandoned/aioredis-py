@@ -18,7 +18,7 @@ from .util import (
     decode,
     parse_url,
     get_event_loop,
-    )
+)
 from .parser import Reader
 from .stream import open_connection, open_unix_connection
 from .errors import (
@@ -30,7 +30,7 @@ from .errors import (
     WatchVariableError,
     ReadOnlyError,
     MaxClientsError
-    )
+)
 from .pubsub import Channel
 from .abc import AbcChannel
 from .abc import AbcConnection
@@ -46,7 +46,7 @@ _PUBSUB_COMMANDS = (
     'PSUBSCRIBE', b'PSUBSCRIBE',
     'UNSUBSCRIBE', b'UNSUBSCRIBE',
     'PUNSUBSCRIBE', b'PUNSUBSCRIBE',
-    )
+)
 
 
 async def create_connection(address, *, db=None, password=None, ssl=None,
@@ -95,8 +95,9 @@ async def create_connection(address, *, db=None, password=None, ssl=None,
         raise ValueError("Timeout has to be None or a number greater than 0")
 
     if connection_cls:
-        assert issubclass(connection_cls, AbcConnection),\
-                "connection_class does not meet the AbcConnection contract"
+        assert issubclass(connection_cls, AbcConnection), (
+            "connection_class does not meet the AbcConnection contract"
+        )
         cls = connection_cls
     else:
         cls = RedisConnection

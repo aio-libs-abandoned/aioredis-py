@@ -30,8 +30,9 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
     Returns RedisPool instance or a pool_cls if it is given.
     """
     if pool_cls:
-        assert issubclass(pool_cls, AbcPool),\
-                "pool_class does not meet the AbcPool contract"
+        assert issubclass(pool_cls, AbcPool), (
+            "pool_class does not meet the AbcPool contract"
+        )
         cls = pool_cls
     else:
         cls = ConnectionsPool

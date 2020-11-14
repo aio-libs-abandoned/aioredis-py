@@ -186,7 +186,8 @@ def _parse_uri_options(params, path, password):
     db1 = parse_db_num(path)
     db2 = parse_db_num(params.get('db'))
     assert db1 is None or db2 is None, (
-            "Single DB value expected, got path and query", db1, db2)
+        "Single DB value expected, got path and query", db1, db2
+    )
     if db1 is not None:
         options['db'] = db1
     elif db2 is not None:
@@ -194,7 +195,8 @@ def _parse_uri_options(params, path, password):
 
     password2 = params.get('password')
     assert not password or not password2, (
-            "Single password value is expected, got in net location and query")
+        "Single password value is expected, got in net location and query"
+    )
     if password:
         options['password'] = password
     elif password2:
@@ -204,8 +206,8 @@ def _parse_uri_options(params, path, password):
         options['encoding'] = params['encoding']
     if 'ssl' in params:
         assert params['ssl'] in ('true', 'false'), (
-                "Expected 'ssl' param to be 'true' or 'false' only",
-                params['ssl'])
+            "Expected 'ssl' param to be 'true' or 'false' only", params['ssl']
+        )
         options['ssl'] = params['ssl'] == 'true'
 
     if 'timeout' in params:

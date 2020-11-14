@@ -2,30 +2,27 @@ import pytest
 
 from aioredis.stream import StreamReader
 from aioredis.parser import PyReader
-from aioredis.errors import (
-    ProtocolError,
-    ReplyError
-)
+from aioredis.errors import ProtocolError, ReplyError
 
 
 @pytest.fixture
-def reader(loop):
-    reader = StreamReader(loop=loop)
-    reader.set_parser(
-        PyReader(protocolError=ProtocolError, replyError=ReplyError)
-    )
+def reader(event_loop):
+    reader = StreamReader(loop=event_loop)
+    reader.set_parser(PyReader(protocolError=ProtocolError, replyError=ReplyError))
     return reader
 
 
+@pytest.mark.asyncio
 async def test_feed_and_parse(reader):
-    reader.feed_data(b'+PONG\r\n')
-    assert (await reader.readobj()) == b'PONG'
+    reader.feed_data(b"+PONG\r\n")
+    assert (await reader.readobj()) == b"PONG"
 
 
+@pytest.mark.asyncio
 async def test_buffer_available_after_RST(reader):
-    reader.feed_data(b'+PONG\r\n')
+    reader.feed_data(b"+PONG\r\n")
     reader.set_exception(Exception())
-    assert (await reader.readobj()) == b'PONG'
+    assert (await reader.readobj()) == b"PONG"
     with pytest.raises(Exception):
         await reader.readobj()
 
@@ -33,7 +30,7 @@ async def test_buffer_available_after_RST(reader):
 def test_feed_with_eof(reader):
     reader.feed_eof()
     with pytest.raises(AssertionError):
-        reader.feed_data(b'+PONG\r\n')
+        reader.feed_data(b"+PONG\r\n")
 
 
 def test_feed_no_data(reader):
@@ -41,9 +38,9 @@ def test_feed_no_data(reader):
 
 
 @pytest.mark.parametrize(
-    'read_method',
-    ['read', 'readline', 'readuntil', 'readexactly']
+    "read_method", ["read", "readline", "readuntil", "readexactly"]
 )
+@pytest.mark.asyncio
 async def test_read_flavors_not_supported(reader, read_method):
     with pytest.raises(RuntimeError):
         await getattr(reader, read_method)()

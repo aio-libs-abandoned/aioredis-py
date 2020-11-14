@@ -79,7 +79,7 @@ def parse_messages_by_stream(messages_by_stream):
 
 def parse_lists_to_dicts(lists):
     """ Convert [[a, 1, b, 2], ...] into [{a:1, b: 2}, ...]"""
-    return [fields_to_dict(l, type_=dict) for l in lists]
+    return [fields_to_dict(l, type_=dict) for l in lists]  # noqa: E741
 
 
 class StreamCommandsMixin:
