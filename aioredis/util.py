@@ -15,8 +15,8 @@ _converters = {
     bytes: lambda val: val,
     bytearray: lambda val: val,
     str: lambda val: val.encode(),
-    int: lambda val: b'%d' % val,
-    float: lambda val: b'%r' % val,
+    int: lambda val: b"%d" % val,
+    float: lambda val: b"%r" % val,
 }
 
 
@@ -28,15 +28,17 @@ def encode_command(*args, buf=None):
     """
     if buf is None:
         buf = bytearray()
-    buf.extend(b'*%d\r\n' % len(args))
+    buf.extend(b"*%d\r\n" % len(args))
 
     try:
         for arg in args:
             barg = _converters[type(arg)](arg)
-            buf.extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
+            buf.extend(b"$%d\r\n%s\r\n" % (len(barg), barg))
     except KeyError:
-        raise TypeError("Argument {!r} expected to be of bytearray, bytes,"
-                        " float, int, or str type".format(arg))
+        raise TypeError(
+            "Argument {!r} expected to be of bytearray, bytes,"
+            " float, int, or str type".format(arg)
+        )
     return buf
 
 
@@ -50,28 +52,27 @@ def decode(obj, encoding):
 
 async def wait_ok(fut):
     res = await fut
-    if res in (b'QUEUED', 'QUEUED'):
+    if res in (b"QUEUED", "QUEUED"):
         return res
-    return res in (b'OK', 'OK')
+    return res in (b"OK", "OK")
 
 
 async def wait_convert(fut, type_, **kwargs):
     result = await fut
-    if result in (b'QUEUED', 'QUEUED'):
+    if result in (b"QUEUED", "QUEUED"):
         return result
     return type_(result, **kwargs)
 
 
 async def wait_make_dict(fut):
     res = await fut
-    if res in (b'QUEUED', 'QUEUED'):
+    if res in (b"QUEUED", "QUEUED"):
         return res
     it = iter(res)
     return dict(zip(it, it))
 
 
 class coerced_keys_dict(dict):
-
     def __getitem__(self, other):
         if not isinstance(other, bytes):
             other = _converters[type(other)](other)
@@ -85,11 +86,11 @@ class coerced_keys_dict(dict):
 
 class _ScanIter:
 
-    __slots__ = ('_scan', '_cur', '_ret')
+    __slots__ = ("_scan", "_cur", "_ret")
 
     def __init__(self, scan):
         self._scan = scan
-        self._cur = b'0'
+        self._cur = b"0"
         self._ret = []
 
     def __aiter__(self):
@@ -108,8 +109,7 @@ class _ScanIter:
 def _set_result(fut, result, *info):
     if fut.done():
         logger.debug("Waiter future is already done %r %r", fut, info)
-        assert fut.cancelled(), (
-            "waiting future is in wrong state", fut, result, info)
+        assert fut.cancelled(), ("waiting future is in wrong state", fut, result, info)
     else:
         fut.set_result(result)
 
@@ -117,8 +117,7 @@ def _set_result(fut, result, *info):
 def _set_exception(fut, exception):
     if fut.done():
         logger.debug("Waiter future is already done %r", fut)
-        assert fut.cancelled(), (
-            "waiting future is in wrong state", fut, exception)
+        assert fut.cancelled(), ("waiting future is in wrong state", fut, exception)
     else:
         fut.set_exception(exception)
 
@@ -145,9 +144,11 @@ def parse_url(url):
     """
     r = urlparse(url)
 
-    assert r.scheme in ('', 'redis', 'rediss', 'unix'), (
-        "Unsupported URI scheme", r.scheme)
-    if r.scheme == '':
+    assert r.scheme in ("", "redis", "rediss", "unix"), (
+        "Unsupported URI scheme",
+        r.scheme,
+    )
+    if r.scheme == "":
         return url, {}
     query = {}
     for p, v in parse_qsl(r.query, keep_blank_values=True):
@@ -155,61 +156,66 @@ def parse_url(url):
         assert v, ("Empty parameters are not allowed", p, v)
         query[p] = v
 
-    if r.scheme == 'unix':
+    if r.scheme == "unix":
         assert r.path, ("Empty path is not allowed", url)
-        assert not r.netloc, (
-            "Netlocation is not allowed for unix scheme", r.netloc)
-        return r.path, _parse_uri_options(query, '', r.password)
+        assert not r.netloc, ("Netlocation is not allowed for unix scheme", r.netloc)
+        return r.path, _parse_uri_options(query, "", r.password)
 
-    address = (r.hostname or 'localhost', int(r.port or 6379))
+    address = (r.hostname or "localhost", int(r.port or 6379))
     path = r.path
-    if path.startswith('/'):
+    if path.startswith("/"):
         path = r.path[1:]
     options = _parse_uri_options(query, path, r.password)
-    if r.scheme == 'rediss':
-        options['ssl'] = True
+    if r.scheme == "rediss":
+        options["ssl"] = True
     return address, options
 
 
 def _parse_uri_options(params, path, password):
-
     def parse_db_num(val):
         if not val:
             return
         assert val.isdecimal(), ("Invalid decimal integer", val)
-        assert val == '0' or not val.startswith('0'), (
-            "Expected integer without leading zeroes", val)
+        assert val == "0" or not val.startswith("0"), (
+            "Expected integer without leading zeroes",
+            val,
+        )
         return int(val)
 
     options = {}
 
     db1 = parse_db_num(path)
-    db2 = parse_db_num(params.get('db'))
+    db2 = parse_db_num(params.get("db"))
     assert db1 is None or db2 is None, (
-            "Single DB value expected, got path and query", db1, db2)
+        "Single DB value expected, got path and query",
+        db1,
+        db2,
+    )
     if db1 is not None:
-        options['db'] = db1
+        options["db"] = db1
     elif db2 is not None:
-        options['db'] = db2
+        options["db"] = db2
 
-    password2 = params.get('password')
-    assert not password or not password2, (
-            "Single password value is expected, got in net location and query")
+    password2 = params.get("password")
+    assert (
+        not password or not password2
+    ), "Single password value is expected, got in net location and query"
     if password:
-        options['password'] = password
+        options["password"] = password
     elif password2:
-        options['password'] = password2
+        options["password"] = password2
 
-    if 'encoding' in params:
-        options['encoding'] = params['encoding']
-    if 'ssl' in params:
-        assert params['ssl'] in ('true', 'false'), (
-                "Expected 'ssl' param to be 'true' or 'false' only",
-                params['ssl'])
-        options['ssl'] = params['ssl'] == 'true'
+    if "encoding" in params:
+        options["encoding"] = params["encoding"]
+    if "ssl" in params:
+        assert params["ssl"] in ("true", "false"), (
+            "Expected 'ssl' param to be 'true' or 'false' only",
+            params["ssl"],
+        )
+        options["ssl"] = params["ssl"] == "true"
 
-    if 'timeout' in params:
-        options['timeout'] = float(params['timeout'])
+    if "timeout" in params:
+        options["timeout"] = float(params["timeout"])
     return options
 
 
@@ -239,4 +245,4 @@ class CloseEvent:
         self._close_done.set()
 
 
-get_event_loop = getattr(asyncio, 'get_running_loop', asyncio.get_event_loop)
+get_event_loop = getattr(asyncio, "get_running_loop", asyncio.get_event_loop)

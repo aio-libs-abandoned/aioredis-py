@@ -12,10 +12,21 @@ from .abc import AbcPool
 from .locks import Lock
 
 
-async def create_pool(address, *, db=None, password=None, ssl=None,
-                      encoding=None, minsize=1, maxsize=10,
-                      parser=None, loop=None, create_connection_timeout=None,
-                      pool_cls=None, connection_cls=None):
+async def create_pool(
+    address,
+    *,
+    db=None,
+    password=None,
+    ssl=None,
+    encoding=None,
+    minsize=1,
+    maxsize=10,
+    parser=None,
+    loop=None,
+    create_connection_timeout=None,
+    pool_cls=None,
+    connection_cls=None
+):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
 
@@ -30,30 +41,42 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
     Returns RedisPool instance or a pool_cls if it is given.
     """
     if pool_cls:
-        assert issubclass(pool_cls, AbcPool),\
-                "pool_class does not meet the AbcPool contract"
+        assert issubclass(
+            pool_cls, AbcPool
+        ), "pool_class does not meet the AbcPool contract"
         cls = pool_cls
     else:
         cls = ConnectionsPool
     if isinstance(address, str):
         address, options = parse_url(address)
-        db = options.setdefault('db', db)
-        password = options.setdefault('password', password)
-        encoding = options.setdefault('encoding', encoding)
+        db = options.setdefault("db", db)
+        password = options.setdefault("password", password)
+        encoding = options.setdefault("encoding", encoding)
         create_connection_timeout = options.setdefault(
-            'timeout', create_connection_timeout)
-        if 'ssl' in options:
-            assert options['ssl'] or (not options['ssl'] and not ssl), (
-                "Conflicting ssl options are set", options['ssl'], ssl)
-            ssl = ssl or options['ssl']
+            "timeout", create_connection_timeout
+        )
+        if "ssl" in options:
+            assert options["ssl"] or (not options["ssl"] and not ssl), (
+                "Conflicting ssl options are set",
+                options["ssl"],
+                ssl,
+            )
+            ssl = ssl or options["ssl"]
         # TODO: minsize/maxsize
 
-    pool = cls(address, db, password, encoding,
-               minsize=minsize, maxsize=maxsize,
-               ssl=ssl, parser=parser,
-               create_connection_timeout=create_connection_timeout,
-               connection_cls=connection_cls,
-               loop=loop)
+    pool = cls(
+        address,
+        db,
+        password,
+        encoding,
+        minsize=minsize,
+        maxsize=maxsize,
+        ssl=ssl,
+        parser=parser,
+        create_connection_timeout=create_connection_timeout,
+        connection_cls=connection_cls,
+        loop=loop,
+    )
     try:
         await pool._fill_free(override_min=False)
     except Exception:
@@ -66,21 +89,35 @@ async def create_pool(address, *, db=None, password=None, ssl=None,
 class ConnectionsPool(AbcPool):
     """Redis connections pool."""
 
-    def __init__(self, address, db=None, password=None, encoding=None,
-                 *, minsize, maxsize, ssl=None, parser=None,
-                 create_connection_timeout=None,
-                 connection_cls=None,
-                 loop=None):
+    def __init__(
+        self,
+        address,
+        db=None,
+        password=None,
+        encoding=None,
+        *,
+        minsize,
+        maxsize,
+        ssl=None,
+        parser=None,
+        create_connection_timeout=None,
+        connection_cls=None,
+        loop=None
+    ):
         assert isinstance(minsize, int) and minsize >= 0, (
-            "minsize must be int >= 0", minsize, type(minsize))
+            "minsize must be int >= 0",
+            minsize,
+            type(minsize),
+        )
         assert maxsize is not None, "Arbitrary pool size is disallowed."
         assert isinstance(maxsize, int) and maxsize > 0, (
-            "maxsize must be int > 0", maxsize, type(maxsize))
-        assert minsize <= maxsize, (
-            "Invalid pool min/max sizes", minsize, maxsize)
+            "maxsize must be int > 0",
+            maxsize,
+            type(maxsize),
+        )
+        assert minsize <= maxsize, ("Invalid pool min/max sizes", minsize, maxsize)
         if loop is not None and sys.version_info >= (3, 8):
-            warnings.warn("The loop argument is deprecated",
-                          DeprecationWarning)
+            warnings.warn("The loop argument is deprecated", DeprecationWarning)
         self._address = address
         self._db = db
         self._password = password
@@ -98,9 +135,9 @@ class ConnectionsPool(AbcPool):
         self._connection_cls = connection_cls
 
     def __repr__(self):
-        return '<{} [db:{}, size:[{}:{}], free:{}]>'.format(
-            self.__class__.__name__, self.db,
-            self.minsize, self.maxsize, self.freesize)
+        return "<{} [db:{}, size:[{}:{}], free:{}]>".format(
+            self.__class__.__name__, self.db, self.minsize, self.maxsize, self.freesize
+        )
 
     @property
     def minsize(self):
@@ -256,7 +293,7 @@ class ConnectionsPool(AbcPool):
         """Acquire connection and execute command."""
         conn = await self.acquire(command, args)
         try:
-            return (await conn.execute(command, *args, **kw))
+            return await conn.execute(command, *args, **kw)
         finally:
             self.release(conn)
 
@@ -264,7 +301,9 @@ class ConnectionsPool(AbcPool):
         if self.closed:
             raise PoolClosedError("Pool is closed")
         assert self._pubsub_conn is None or self._pubsub_conn.closed, (
-            "Expected no or closed connection", self._pubsub_conn)
+            "Expected no or closed connection",
+            self._pubsub_conn,
+        )
         async with self._cond:
             if self.closed:
                 raise PoolClosedError("Pool is closed")
@@ -272,7 +311,7 @@ class ConnectionsPool(AbcPool):
                 conn = await self._create_new_connection(address)
                 self._pubsub_conn = conn
             conn = self._pubsub_conn
-            return (await conn.execute_pubsub(command, *args, **kw))
+            return await conn.execute_pubsub(command, *args, **kw)
 
     async def select(self, db):
         """Changes db index for all free connections.
@@ -338,21 +377,17 @@ class ConnectionsPool(AbcPool):
         the connection will be closed and dropped.
         When queue of free connections is full the connection will be dropped.
         """
-        assert conn in self._used, (
-            "Invalid connection, maybe from other pool", conn)
+        assert conn in self._used, ("Invalid connection, maybe from other pool", conn)
         self._used.remove(conn)
         if not conn.closed:
             if conn.in_transaction:
-                logger.warning(
-                    "Connection %r is in transaction, closing it.", conn)
+                logger.warning("Connection %r is in transaction, closing it.", conn)
                 conn.close()
             elif conn.in_pubsub:
-                logger.warning(
-                    "Connection %r is in subscribe mode, closing it.", conn)
+                logger.warning("Connection %r is in subscribe mode, closing it.", conn)
                 conn.close()
             elif conn._waiters:
-                logger.warning(
-                    "Connection %r has pending commands, closing it.", conn)
+                logger.warning("Connection %r has pending commands, closing it.", conn)
                 conn.close()
             elif conn.db == self.db:
                 if self.maxsize and self.freesize < self.maxsize:
@@ -383,7 +418,7 @@ class ConnectionsPool(AbcPool):
                 conn = await self._create_new_connection(self._address)
                 # check the healthy of that connection, if
                 # something went wrong just trigger the Exception
-                await conn.execute('ping')
+                await conn.execute("ping")
                 self._pool.append(conn)
             finally:
                 self._acquiring -= 1
@@ -403,15 +438,16 @@ class ConnectionsPool(AbcPool):
                     self._drop_closed()
 
     def _create_new_connection(self, address):
-        return create_connection(address,
-                                 db=self._db,
-                                 password=self._password,
-                                 ssl=self._ssl,
-                                 encoding=self._encoding,
-                                 parser=self._parser_class,
-                                 timeout=self._create_connection_timeout,
-                                 connection_cls=self._connection_cls,
-                                 )
+        return create_connection(
+            address,
+            db=self._db,
+            password=self._password,
+            ssl=self._ssl,
+            encoding=self._encoding,
+            parser=self._parser_class,
+            timeout=self._create_connection_timeout,
+            connection_cls=self._connection_cls,
+        )
 
     async def _wakeup(self, closing_conn=None):
         async with self._cond:
@@ -420,11 +456,10 @@ class ConnectionsPool(AbcPool):
             await closing_conn.wait_closed()
 
     def __enter__(self):
-        raise RuntimeError(
-            "'await' should be used as a context manager expression")
+        raise RuntimeError("'await' should be used as a context manager expression")
 
     def __exit__(self, *args):
-        pass    # pragma: nocover
+        pass  # pragma: nocover
 
     def __await__(self):
         # To make `with await pool` work
@@ -432,17 +467,17 @@ class ConnectionsPool(AbcPool):
         return _ConnectionContextManager(self, conn)
 
     def get(self):
-        '''Return async context manager for working with connection.
+        """Return async context manager for working with connection.
 
         async with pool.get() as conn:
             await conn.execute('get', 'my-key')
-        '''
+        """
         return _AsyncConnectionContextManager(self)
 
 
 class _ConnectionContextManager:
 
-    __slots__ = ('_pool', '_conn')
+    __slots__ = ("_pool", "_conn")
 
     def __init__(self, pool, conn):
         self._pool = pool
@@ -461,7 +496,7 @@ class _ConnectionContextManager:
 
 class _AsyncConnectionContextManager:
 
-    __slots__ = ('_pool', '_conn')
+    __slots__ = ("_pool", "_conn")
 
     def __init__(self, pool):
         self._pool = pool
