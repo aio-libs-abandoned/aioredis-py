@@ -14,5 +14,4 @@ def test_return_adhoc_class():
 
 
 def test_return_max_clients_error():
-    assert isinstance(
-        ReplyError("ERR max number of clients reached"), MaxClientsError)
+    assert isinstance(ReplyError("ERR max number of clients reached"), MaxClientsError)
