@@ -178,7 +178,8 @@ async def create_redis(
     parser=None,
     timeout=None,
     connection_cls=None,
-    loop=None
+    loop=None,
+    name=None
 ):
     """Creates high-level Redis interface.
 
@@ -194,6 +195,7 @@ async def create_redis(
         timeout=timeout,
         connection_cls=connection_cls,
         loop=loop,
+        name=name
     )
     return commands_factory(conn)
 
@@ -212,7 +214,8 @@ async def create_redis_pool(
     timeout=None,
     pool_cls=None,
     connection_cls=None,
-    loop=None
+    loop=None,
+    name=None
 ):
     """Creates high-level Redis interface.
 
@@ -231,5 +234,6 @@ async def create_redis_pool(
         pool_cls=pool_cls,
         connection_cls=connection_cls,
         loop=loop,
+        name=name
     )
     return commands_factory(pool)

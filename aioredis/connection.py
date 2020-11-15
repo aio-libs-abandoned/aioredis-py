@@ -63,7 +63,8 @@ async def create_connection(
     parser=None,
     loop=None,
     timeout=None,
-    connection_cls=None
+    connection_cls=None,
+    name=None
 ):
     """Creates redis connection.
 
@@ -148,6 +149,8 @@ async def create_connection(
             await conn.auth(password)
         if db is not None:
             await conn.select(db)
+        if name is not None:
+            await conn.setname(name)
     except Exception:
         conn.close()
         await conn.wait_closed()
@@ -159,20 +162,15 @@ class RedisConnection(AbcConnection):
     """Redis connection."""
 
     def __init__(
-        self, reader, writer, *, address, encoding=None, parser=None, loop=None
+        self, reader, writer, *, address, encoding=None, parser=None, loop=None, name=None
     ):
         if loop is not None and sys.version_info >= (3, 8):
             warnings.warn("The loop argument is deprecated", DeprecationWarning)
         if parser is None:
             parser = Reader
-        assert callable(parser), ("Parser argument is not callable", parser)
-        self._reader = reader
-        self._writer = writer
-        self._address = address
         self._waiters = deque()
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)
-        )
         self._reader_task = asyncio.ensure_future(self._read_data())
         self._close_msg = None
         self._db = 0
@@ -187,6 +185,7 @@ class RedisConnection(AbcConnection):
         self._pubsub_patterns = coerced_keys_dict()
         self._encoding = encoding
         self._pipeline_buffer = None
+        self._name = name
 
     def __repr__(self):
         return "<RedisConnection [db:{}]>".format(self._db)
@@ -570,4 +569,9 @@ class RedisConnection(AbcConnection):
     def auth(self, password):
         """Authenticate to server."""
         fut = self.execute("AUTH", password)
+        return wait_ok(fut)
+
+    def setname(self, name):
+        """Set the current connection name."""
+        fut = self.execute(b'CLIENT', b'SETNAME', name)
         return wait_ok(fut)
