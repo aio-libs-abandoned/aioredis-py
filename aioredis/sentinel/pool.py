@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 
-from concurrent.futures import ALL_COMPLETED
 from async_timeout import timeout as async_timeout
 
 from ..log import sentinel_logger
