@@ -13,6 +13,7 @@ from asyncio.locks import Lock as _Lock
 class Lock(_Lock):
 
     if sys.version_info < (3, 7, 0):
+
         async def acquire(self):
             """Acquire a lock.
             This method blocks until the lock is unlocked, then sets it to
