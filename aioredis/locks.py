@@ -1,7 +1,7 @@
 import asyncio
+import sys
 
 from asyncio.locks import Lock as _Lock
-from asyncio import coroutine
 
 # Fixes an issue with all Python versions that leaves pending waiters
 # without being awakened when the first waiter is canceled.
@@ -12,33 +12,34 @@ from asyncio import coroutine
 
 class Lock(_Lock):
 
-    @coroutine
-    def acquire(self):
-        """Acquire a lock.
-        This method blocks until the lock is unlocked, then sets it to
-        locked and returns True.
-        """
-        if not self._locked and all(w.cancelled() for w in self._waiters):
-            self._locked = True
-            return True
+    if sys.version_info < (3, 7, 0):
 
-        fut = self._loop.create_future()
+        async def acquire(self):
+            """Acquire a lock.
+            This method blocks until the lock is unlocked, then sets it to
+            locked and returns True.
+            """
+            if not self._locked and all(w.cancelled() for w in self._waiters):
+                self._locked = True
+                return True
 
-        self._waiters.append(fut)
-        try:
-            yield from fut
-            self._locked = True
-            return True
-        except asyncio.CancelledError:
-            if not self._locked:  # pragma: no cover
-                self._wake_up_first()
-            raise
-        finally:
-            self._waiters.remove(fut)
+            fut = self._loop.create_future()
 
-    def _wake_up_first(self):
-        """Wake up the first waiter who isn't cancelled."""
-        for fut in self._waiters:
-            if not fut.done():
-                fut.set_result(True)
-                break
+            self._waiters.append(fut)
+            try:
+                await fut
+                self._locked = True
+                return True
+            except asyncio.CancelledError:
+                if not self._locked:  # pragma: no cover
+                    self._wake_up_first()
+                raise
+            finally:
+                self._waiters.remove(fut)
+
+        def _wake_up_first(self):
+            """Wake up the first waiter who isn't cancelled."""
+            for fut in self._waiters:
+                if not fut.done():
+                    fut.set_result(True)
+                    break

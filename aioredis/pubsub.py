@@ -2,9 +2,11 @@ import asyncio
 import json
 import types
 import collections
+import warnings
+import sys
 
 from .abc import AbcChannel
-from .util import _converters   # , _set_result
+from .util import _converters  # , _set_result
 from .errors import ChannelClosedError
 from .log import logger
 
@@ -23,14 +25,16 @@ class Channel(AbcChannel):
     """Wrapper around asyncio.Queue."""
 
     def __init__(self, name, is_pattern, loop=None):
-        self._queue = ClosableQueue(loop=loop)
+        if loop is not None and sys.version_info >= (3, 8):
+            warnings.warn("The loop argument is deprecated", DeprecationWarning)
+        self._queue = ClosableQueue()
         self._name = _converters[type(name)](name)
         self._is_pattern = is_pattern
 
     def __repr__(self):
         return "<{} name:{!r}, is_pattern:{}, qsize:{}>".format(
-            self.__class__.__name__,
-            self._name, self._is_pattern, self._queue.qsize())
+            self.__class__.__name__, self._name, self._is_pattern, self._queue.qsize()
+        )
 
     @property
     def name(self):
@@ -83,9 +87,9 @@ class Channel(AbcChannel):
             return dest_channel, msg
         return msg
 
-    async def get_json(self, encoding='utf-8'):
+    async def get_json(self, encoding="utf-8"):
         """Shortcut to get JSON messages."""
-        return (await self.get(encoding=encoding, decoder=json.loads))
+        return await self.get(encoding=encoding, decoder=json.loads)
 
     def iter(self, *, encoding=None, decoder=None):
         """Same as get method but its native coroutine.
@@ -95,10 +99,9 @@ class Channel(AbcChannel):
         >>> async for msg in ch.iter():
         ...     print(msg)
         """
-        return _IterHelper(self,
-                           is_active=lambda ch: ch.is_active,
-                           encoding=encoding,
-                           decoder=decoder)
+        return _IterHelper(
+            self, is_active=lambda ch: ch.is_active, encoding=encoding, decoder=decoder
+        )
 
     async def wait_message(self):
         """Waits for message to become available in channel
@@ -133,7 +136,7 @@ class Channel(AbcChannel):
 
 class _IterHelper:
 
-    __slots__ = ('_ch', '_is_active', '_args', '_kw')
+    __slots__ = ("_ch", "_is_active", "_args", "_kw")
 
     def __init__(self, ch, is_active, *args, **kw):
         self._ch = ch
@@ -146,10 +149,10 @@ class _IterHelper:
 
     async def __anext__(self):
         if not self._is_active(self._ch):
-            raise StopAsyncIteration    # noqa
+            raise StopAsyncIteration  # noqa
         msg = await self._ch.get(*self._args, **self._kw)
         if msg is None:
-            raise StopAsyncIteration    # noqa
+            raise StopAsyncIteration  # noqa
         return msg
 
 
@@ -165,7 +168,7 @@ class Receiver:
 
     >>> from aioredis.pubsub import Receiver
     >>> from aioredis.abc import AbcChannel
-    >>> mpsc = Receiver(loop=loop)
+    >>> mpsc = Receiver()
     >>> async def reader(mpsc):
     ...     async for channel, msg in mpsc.iter():
     ...         assert isinstance(channel, AbcChannel)
@@ -187,18 +190,21 @@ class Receiver:
 
     def __init__(self, loop=None, on_close=None):
         assert on_close is None or callable(on_close), (
-            "on_close must be None or callable", on_close)
-        if loop is None:
-            loop = asyncio.get_event_loop()
+            "on_close must be None or callable",
+            on_close,
+        )
+        if loop is not None:
+            warnings.warn("The loop argument is deprecated", DeprecationWarning)
         if on_close is None:
             on_close = self.check_stop
-        self._queue = ClosableQueue(loop=loop)
+        self._queue = ClosableQueue()
         self._refs = {}
         self._on_close = on_close
 
     def __repr__(self):
-        return ('<Receiver is_active:{}, senders:{}, qsize:{}>'
-                .format(self.is_active, len(self._refs), self._queue.qsize()))
+        return "<Receiver is_active:{}, senders:{}, qsize:{}>".format(
+            self.is_active, len(self._refs), self._queue.qsize()
+        )
 
     def channel(self, name):
         """Create a channel.
@@ -208,8 +214,7 @@ class Receiver:
         """
         enc_name = _converters[type(name)](name)
         if (enc_name, False) not in self._refs:
-            ch = _Sender(self, enc_name,
-                         is_pattern=False)
+            ch = _Sender(self, enc_name, is_pattern=False)
             self._refs[(enc_name, False)] = ch
             return ch
         return self._refs[(enc_name, False)]
@@ -222,24 +227,23 @@ class Receiver:
         """
         enc_pattern = _converters[type(pattern)](pattern)
         if (enc_pattern, True) not in self._refs:
-            ch = _Sender(self, enc_pattern,
-                         is_pattern=True)
+            ch = _Sender(self, enc_pattern, is_pattern=True)
             self._refs[(enc_pattern, True)] = ch
         return self._refs[(enc_pattern, True)]
 
     @property
     def channels(self):
         """Read-only channels dict."""
-        return types.MappingProxyType({
-            ch.name: ch for ch in self._refs.values()
-            if not ch.is_pattern})
+        return types.MappingProxyType(
+            {ch.name: ch for ch in self._refs.values() if not ch.is_pattern}
+        )
 
     @property
     def patterns(self):
         """Read-only patterns dict."""
-        return types.MappingProxyType({
-            ch.name: ch for ch in self._refs.values()
-            if ch.is_pattern})
+        return types.MappingProxyType(
+            {ch.name: ch for ch in self._refs.values() if ch.is_pattern}
+        )
 
     async def get(self, *, encoding=None, decoder=None):
         """Wait for and return pub/sub message from one of channels.
@@ -318,10 +322,12 @@ class Receiver:
         >>> async for ch, msg in mpsc.iter():
         ...     print(ch, msg)
         """
-        return _IterHelper(self,
-                           is_active=lambda r: not r._queue.exhausted,
-                           encoding=encoding,
-                           decoder=decoder)
+        return _IterHelper(
+            self,
+            is_active=lambda r: not r._queue.exhausted,
+            encoding=encoding,
+            decoder=decoder,
+        )
 
     def check_stop(self, channel, exc=None):
         """TBD"""
@@ -336,9 +342,11 @@ class Receiver:
 
     def _put_nowait(self, data, *, sender):
         if self._queue.closed:
-            logger.warning("Pub/Sub listener message after stop:"
-                           " sender: %r, data: %r",
-                           sender, data)
+            logger.warning(
+                "Pub/Sub listener message after stop:" " sender: %r, data: %r",
+                sender,
+                data,
+            )
             return
         self._queue.put((sender, data))
 
@@ -361,8 +369,8 @@ class _Sender(AbcChannel):
 
     def __repr__(self):
         return "<{} name:{!r}, is_pattern:{}, receiver:{!r}>".format(
-            self.__class__.__name__,
-            self._name, self._is_pattern, self._receiver)
+            self.__class__.__name__, self._name, self._is_pattern, self._receiver
+        )
 
     @property
     def name(self):
@@ -395,10 +403,9 @@ class _Sender(AbcChannel):
 
 
 class ClosableQueue:
-
-    def __init__(self, *, loop=None):
+    def __init__(self):
         self._queue = collections.deque()
-        self._event = asyncio.Event(loop=loop)
+        self._event = asyncio.Event()
         self._closed = False
 
     async def wait(self):
@@ -409,7 +416,10 @@ class ClosableQueue:
     async def get(self):
         await self.wait()
         assert self._queue or self._closed, (
-            "Unexpected queue state", self._queue, self._closed)
+            "Unexpected queue state",
+            self._queue,
+            self._closed,
+        )
         if not self._queue and self._closed:
             return EndOfStream
         item = self._queue.popleft()
@@ -443,5 +453,5 @@ class ClosableQueue:
         return len(self._queue)
 
     def __repr__(self):
-        closed = 'closed' if self._closed else 'open'
-        return '<Queue {} size:{}>'.format(closed, len(self._queue))
+        closed = "closed" if self._closed else "open"
+        return "<Queue {} size:{}>".format(closed, len(self._queue))

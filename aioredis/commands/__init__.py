@@ -18,34 +18,44 @@ from .geo import GeoCommandsMixin, GeoPoint, GeoMember
 from .streams import StreamCommandsMixin
 
 __all__ = [
-    'create_redis',
-    'create_redis_pool',
-    'Redis',
-    'Pipeline',
-    'MultiExec',
-    'GeoPoint',
-    'GeoMember',
+    "create_redis",
+    "create_redis_pool",
+    "Redis",
+    "Pipeline",
+    "MultiExec",
+    "GeoPoint",
+    "GeoMember",
 ]
 
 
-class Redis(GenericCommandsMixin, StringCommandsMixin,
-            HyperLogLogCommandsMixin, SetCommandsMixin,
-            HashCommandsMixin, TransactionsCommandsMixin,
-            SortedSetCommandsMixin, ListCommandsMixin,
-            ScriptingCommandsMixin, ServerCommandsMixin,
-            PubSubCommandsMixin, ClusterCommandsMixin,
-            GeoCommandsMixin, StreamCommandsMixin):
+class Redis(
+    GenericCommandsMixin,
+    StringCommandsMixin,
+    HyperLogLogCommandsMixin,
+    SetCommandsMixin,
+    HashCommandsMixin,
+    TransactionsCommandsMixin,
+    SortedSetCommandsMixin,
+    ListCommandsMixin,
+    ScriptingCommandsMixin,
+    ServerCommandsMixin,
+    PubSubCommandsMixin,
+    ClusterCommandsMixin,
+    GeoCommandsMixin,
+    StreamCommandsMixin,
+):
     """High-level Redis interface.
 
     Gathers in one place Redis commands implemented in mixins.
 
     For commands details see: http://redis.io/commands/#connection
     """
+
     def __init__(self, pool_or_conn):
         self._pool_or_conn = pool_or_conn
 
     def __repr__(self):
-        return '<{} {!r}>'.format(self.__class__.__name__, self._pool_or_conn)
+        return "<{} {!r}>".format(self.__class__.__name__, self._pool_or_conn)
 
     def execute(self, command, *args, **kwargs):
         return self._pool_or_conn.execute(command, *args, **kwargs)
@@ -100,7 +110,7 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
 
     def echo(self, message, *, encoding=_NOTSET):
         """Echo the given string."""
-        return self.execute('ECHO', message, encoding=encoding)
+        return self.execute("ECHO", message, encoding=encoding)
 
     def ping(self, message=_NOTSET, *, encoding=_NOTSET):
         """Ping the server.
@@ -111,22 +121,19 @@ class Redis(GenericCommandsMixin, StringCommandsMixin,
             args = (message,)
         else:
             args = ()
-        return self.execute('PING', *args, encoding=encoding)
+        return self.execute("PING", *args, encoding=encoding)
 
     def quit(self):
         """Close the connection."""
         # TODO: warn when using pool
-        return self.execute('QUIT')
+        return self.execute("QUIT")
 
     def select(self, db):
-        """Change the selected database for the current connection.
-
-        This method wraps call to :meth:`aioredis.RedisConnection.select()`
-        """
+        """Change the selected database."""
         return self._pool_or_conn.select(db)
 
     def swapdb(self, from_index, to_index):
-        return wait_ok(self.execute(b'SWAPDB', from_index, to_index))
+        return wait_ok(self.execute(b"SWAPDB", from_index, to_index))
 
     def __await__(self):
         if isinstance(self._pool_or_conn, AbcPool):
@@ -160,43 +167,73 @@ class ContextRedis(Redis):
         yield
 
 
-async def create_redis(address, *, db=None, password=None, ssl=None,
-                       encoding=None, commands_factory=Redis,
-                       parser=None, timeout=None,
-                       connection_cls=None, loop=None):
+async def create_redis(
+    address,
+    *,
+    db=None,
+    password=None,
+    ssl=None,
+    encoding=None,
+    commands_factory=Redis,
+    parser=None,
+    timeout=None,
+    connection_cls=None,
+    loop=None,
+    name=None
+):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    conn = await create_connection(address, db=db,
-                                   password=password,
-                                   ssl=ssl,
-                                   encoding=encoding,
-                                   parser=parser,
-                                   timeout=timeout,
-                                   connection_cls=connection_cls,
-                                   loop=loop)
+    conn = await create_connection(
+        address,
+        db=db,
+        password=password,
+        ssl=ssl,
+        encoding=encoding,
+        parser=parser,
+        timeout=timeout,
+        connection_cls=connection_cls,
+        loop=loop,
+        name=name
+    )
     return commands_factory(conn)
 
 
-async def create_redis_pool(address, *, db=None, password=None, ssl=None,
-                            encoding=None, commands_factory=Redis,
-                            minsize=1, maxsize=10, parser=None,
-                            timeout=None, pool_cls=None,
-                            connection_cls=None, loop=None):
+async def create_redis_pool(
+    address,
+    *,
+    db=None,
+    password=None,
+    ssl=None,
+    encoding=None,
+    commands_factory=Redis,
+    minsize=1,
+    maxsize=10,
+    parser=None,
+    timeout=None,
+    pool_cls=None,
+    connection_cls=None,
+    loop=None,
+    name=None
+):
     """Creates high-level Redis interface.
 
     This function is a coroutine.
     """
-    pool = await create_pool(address, db=db,
-                             password=password,
-                             ssl=ssl,
-                             encoding=encoding,
-                             minsize=minsize,
-                             maxsize=maxsize,
-                             parser=parser,
-                             create_connection_timeout=timeout,
-                             pool_cls=pool_cls,
-                             connection_cls=connection_cls,
-                             loop=loop)
+    pool = await create_pool(
+        address,
+        db=db,
+        password=password,
+        ssl=ssl,
+        encoding=encoding,
+        minsize=minsize,
+        maxsize=maxsize,
+        parser=parser,
+        create_connection_timeout=timeout,
+        pool_cls=pool_cls,
+        connection_cls=connection_cls,
+        loop=loop,
+        name=name
+    )
     return commands_factory(pool)

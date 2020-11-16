@@ -1,20 +1,22 @@
-__all__ = [
-    'RedisError',
-    'ProtocolError',
-    'ReplyError',
-    'MaxClientsError',
-    'AuthError',
-    'PipelineError',
-    'MultiExecError',
-    'WatchVariableError',
-    'ChannelClosedError',
-    'ConnectionClosedError',
-    'ConnectionForcedCloseError',
-    'PoolClosedError',
-    'MasterNotFoundError',
-    'SlaveNotFoundError',
-    'ReadOnlyError',
-    ]
+from typing import Optional, Sequence  # noqa
+
+__all__ = (
+    "RedisError",
+    "ProtocolError",
+    "ReplyError",
+    "MaxClientsError",
+    "AuthError",
+    "PipelineError",
+    "MultiExecError",
+    "WatchVariableError",
+    "ChannelClosedError",
+    "ConnectionClosedError",
+    "ConnectionForcedCloseError",
+    "PoolClosedError",
+    "MasterNotFoundError",
+    "SlaveNotFoundError",
+    "ReadOnlyError",
+)
 
 
 class RedisError(Exception):
@@ -28,7 +30,7 @@ class ProtocolError(RedisError):
 class ReplyError(RedisError):
     """Raised for redis error replies (-ERR)."""
 
-    MATCH_REPLY = None
+    MATCH_REPLY = None  # type: Optional[Sequence[str]]
 
     def __new__(cls, msg, *args):
         for klass in cls.__subclasses__():
@@ -47,14 +49,24 @@ class MaxClientsError(ReplyError):
 class AuthError(ReplyError):
     """Raised when authentication errors occurs."""
 
-    MATCH_REPLY = ("NOAUTH ", "ERR invalid password")
+    MATCH_REPLY = (
+        "NOAUTH ",
+        "ERR invalid password",
+        "ERR Client sent AUTH, but no password is set",
+    )
+
+
+class BusyGroupError(ReplyError):
+    """Raised if Consumer Group name already exists."""
+
+    MATCH_REPLY = "BUSYGROUP Consumer Group name already exists"
 
 
 class PipelineError(RedisError):
     """Raised if command within pipeline raised error."""
 
     def __init__(self, errors):
-        super().__init__('{} errors:'.format(self.__class__.__name__), errors)
+        super().__init__("{} errors:".format(self.__class__.__name__), errors)
 
 
 class MultiExecError(PipelineError):

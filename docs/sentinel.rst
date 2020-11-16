@@ -28,9 +28,12 @@ Sample usage:
 .. corofunction:: create_sentinel(sentinels, \*, db=None, password=None,\
                                   encoding=None, minsize=1, maxsize=10,\
                                   ssl=None, parser=None,\
-                                  loop=None)
+                                  )
 
    Creates Redis Sentinel client.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    :param sentinels: A list of Sentinel node addresses.
    :type sentinels: list[tuple]
@@ -58,10 +61,6 @@ Sample usage:
    :param parser: Protocol parser class. Can be used to set custom protocol
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
-
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :rtype: RedisSentinel
 
