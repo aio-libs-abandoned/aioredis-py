@@ -168,9 +168,14 @@ class RedisConnection(AbcConnection):
             warnings.warn("The loop argument is deprecated", DeprecationWarning)
         if parser is None:
             parser = Reader
+        assert callable(parser), ("Parser argument is not callable", parser)
+        self._reader = reader
+        self._writer = writer
+        self._address = address
         self._waiters = deque()
         self._reader.set_parser(
             parser(protocolError=ProtocolError, replyError=ReplyError)
+        )
         self._reader_task = asyncio.ensure_future(self._read_data())
         self._close_msg = None
         self._db = 0
