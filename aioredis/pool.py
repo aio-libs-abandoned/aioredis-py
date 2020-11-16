@@ -25,7 +25,8 @@ async def create_pool(
     loop=None,
     create_connection_timeout=None,
     pool_cls=None,
-    connection_cls=None
+    connection_cls=None,
+    name=None
 ):
     # FIXME: rewrite docstring
     """Creates Redis Pool.
@@ -76,6 +77,7 @@ async def create_pool(
         create_connection_timeout=create_connection_timeout,
         connection_cls=connection_cls,
         loop=loop,
+        name=name
     )
     try:
         await pool._fill_free(override_min=False)
@@ -102,7 +104,8 @@ class ConnectionsPool(AbcPool):
         parser=None,
         create_connection_timeout=None,
         connection_cls=None,
-        loop=None
+        loop=None,
+        name=None
     ):
         assert isinstance(minsize, int) and minsize >= 0, (
             "minsize must be int >= 0",
@@ -133,6 +136,7 @@ class ConnectionsPool(AbcPool):
         self._close_state = CloseEvent(self._do_close)
         self._pubsub_conn = None
         self._connection_cls = connection_cls
+        self._name = name
 
     def __repr__(self):
         return "<{} [db:{}, size:[{}:{}], free:{}]>".format(
@@ -331,6 +335,13 @@ class ConnectionsPool(AbcPool):
             for i in range(self.freesize):
                 await self._pool[i].auth(password)
 
+    async def setname(self, name):
+        """Set the current connection name."""
+        self._name = name
+        async with self._cond:
+            for i in range(self.freesize):
+                await self._pool[i].setname(name)
+
     @property
     def in_pubsub(self):
         if self._pubsub_conn and not self._pubsub_conn.closed:
@@ -447,6 +458,7 @@ class ConnectionsPool(AbcPool):
             parser=self._parser_class,
             timeout=self._create_connection_timeout,
             connection_cls=self._connection_cls,
+            name=self._name
         )
 
     async def _wakeup(self, closing_conn=None):

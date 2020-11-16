@@ -8,9 +8,11 @@ Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
+Andrew Chen Wang
 Anton Salii
 Anton Verinov
 Artem Fedotov
+Arsh <prdx23>
 Artem Mazur
 <cynecx>
 David Francos
@@ -50,3 +52,4 @@ Youngmin Koo <youngminz>
 Dima Kit
 <curiouscod3>
 Dmitry Vasilishin <dmvass>
+Aviram Hassan <aviramha>
