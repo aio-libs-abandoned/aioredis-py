@@ -3,6 +3,29 @@ Changes
 
 .. towncrier release notes start
 
+1.3.1 (2020-11-16)
+^^^^^^^^^^^^^^^^^^
+Features
+~~~~~~~~
+
+- Add support for client name in Connection/Pool objects to be set automatically upon connecting.
+  (see `#713 <https://github.com/aio-libs/aioredis/issues/713>`_);
+- Drop Python 3.5 support
+  (see `#824 <https://github.com/aio-libs/aioredis/issues/824>`_);
+
+Bugfixes
+~~~~~~~~
+
+- Add support for mapping with multiple field/value pairs to hset().
+  (see `#705 <https://github.com/aio-libs/aioredis/issues/705>`_);
+
+Misc
+~~~~
+
+- `#825 <https://github.com/aio-libs/aioredis/issues/825>`_,
+  `#840 <https://github.com/aio-libs/aioredis/issues/840>`_;
+
+
 1.3.1 (2019-12-02)
 ^^^^^^^^^^^^^^^^^^
 Bugfixes
