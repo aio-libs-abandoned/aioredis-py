@@ -233,12 +233,8 @@ class SentinelPool:
             timeout = self.discover_timeout
         pools = []
         tasks = [self._connect_sentinel(addr, timeout, pools) for addr in self._sentinels]
-        done = await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-        for task in done:
-            result = task.result()
-            if isinstance(result, Exception):
-                continue  # FIXME
         if not pools:
             raise Exception("Could not connect to any sentinel")
         pools, self._pools[:] = self._pools[:], pools
