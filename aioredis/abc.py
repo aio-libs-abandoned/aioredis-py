@@ -6,9 +6,9 @@ import abc
 
 
 __all__ = [
-    'AbcConnection',
-    'AbcPool',
-    'AbcChannel',
+    "AbcConnection",
+    "AbcPool",
+    "AbcChannel",
 ]
 
 
