@@ -1,0 +1,1 @@
+Deprecate hmset() and hmset_dict(), use hset() instead.
