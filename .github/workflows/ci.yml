@@ -50,7 +50,7 @@ jobs:
         make mypy
     - name: Install spell checker
       run: |
-        apt install enchant aspell aspell-en
+        sudo apt install enchant aspell aspell-en
         pip install -r docs/requirements.txt
         pip install -e. -c tests/requirements.txt
     - name: Run docs spelling
@@ -97,7 +97,7 @@ jobs:
             pip-ci-${{ runner.os }}-${{ matrix.pyver }}-
     - name: Install Redis Server
       run: |
-        apt install socat
+        sudo apt install socat
         make ci-prune-old-redis
         make -j ci-build-redis
     - name: Get pip cache dir
