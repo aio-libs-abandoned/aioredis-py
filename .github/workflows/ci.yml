@@ -90,10 +90,10 @@ jobs:
     - name: Cache Redis Server
       uses: actions/cache@v2
       with:
-        key: pip-ci-${{ runner.os }}-${{ matrix.pyver }}-${{ hashFiles('**/requirements.txt') }}
+        key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt', 'Makefile') }}
         path: ${{ github.workspace }}/redis
         restore-keys: |
-            pip-ci-${{ runner.os }}-${{ matrix.pyver }}-
+            pip-ci-${{ runner.os }}-
     - name: Install Redis Server
       run: |
         sudo apt install socat
