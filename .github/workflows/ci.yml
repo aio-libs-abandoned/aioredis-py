@@ -70,17 +70,16 @@ jobs:
     strategy:
       matrix:
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
-        uvloop: ['n']
+        uvloop: ['no-uvloop']
         include:
         - pyver: 3.6
-          uvloop: 'y'  
+          uvloop: 'uvloop'  
         - pyver: 3.8
-          uvloop: 'y'  
+          uvloop: 'uvloop'  
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      INSTALL_DIR: $HOME/redis
-      PYTEST_ADDOPTS: "${{ matrix.uvloop == 'y' && '--uvloop'}}"
+      INSTALL_DIR: ${{ github.workspace }}/redis
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -92,7 +91,7 @@ jobs:
       uses: actions/cache@v2
       with:
         key: pip-ci-${{ runner.os }}-${{ matrix.pyver }}-${{ hashFiles('**/requirements.txt') }}
-        path: $HOME/redis
+        path: ${{ github.workspace }}/redis
         restore-keys: |
             pip-ci-${{ runner.os }}-${{ matrix.pyver }}-
     - name: Install Redis Server
@@ -116,7 +115,7 @@ jobs:
       with:
         path: tests/requirements.txt
     - name: Install uvloop
-      if: ${{ matrix.uvloop == 'y' }}
+      if: ${{ matrix.uvloop == 'uvloop' }}
       run: pip install uvloop
     - name: Install Self
       run: |
@@ -125,6 +124,8 @@ jobs:
       run: |
         make ci-test
         python -m coverage xml
+      env:
+        PYTEST_ADDOPTS: "${{ matrix.uvloop == 'uvloop' && '--uvloop'}}"
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
