@@ -80,7 +80,7 @@ jobs:
     timeout-minutes: 15
     env:
       INSTALL_DIR: $HOME/redis
-      PYTEST_ADDOPTS: "-n auto ${{ matrix.uvloop == 'y' && '--uvloop'}}"
+      PYTEST_ADDOPTS: "${{ matrix.uvloop == 'y' && '--uvloop'}}"
     steps:
     - name: Checkout
       uses: actions/checkout@v2
