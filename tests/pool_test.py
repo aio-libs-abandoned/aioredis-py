@@ -565,7 +565,4 @@ async def test_multiple_connection_acquire(create_pool, server):
             await conn_fut2
 
         await conn_fut3
-
-        # did not raise!!
-        # with pytest.raises(RuntimeError, match='Lock is not acquired'):
         await conn_fut4
