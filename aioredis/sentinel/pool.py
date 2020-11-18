@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 
-from concurrent.futures import ALL_COMPLETED
 from async_timeout import timeout as async_timeout
 
 from ..log import sentinel_logger
@@ -232,17 +231,10 @@ class SentinelPool:
         # TODO: discovery must be done with some customizable timeout.
         if timeout is None:
             timeout = self.discover_timeout
-        tasks = []
         pools = []
-        for addr in self._sentinels:  # iterate over unordered set
-            tasks.append(self._connect_sentinel(addr, timeout, pools))
-        done, pending = await asyncio.wait(tasks, return_when=ALL_COMPLETED)
-        assert not pending, ("Expected all tasks to complete", done, pending)
+        tasks = [self._connect_sentinel(addr, timeout, pools) for addr in self._sentinels]
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-        for task in done:
-            result = task.result()
-            if isinstance(result, Exception):
-                continue  # FIXME
         if not pools:
             raise Exception("Could not connect to any sentinel")
         pools, self._pools[:] = self._pools[:], pools
