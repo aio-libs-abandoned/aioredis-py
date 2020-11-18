@@ -5,7 +5,7 @@ from aioredis.errors import (
     ReplyError,
     AuthError,
     MaxClientsError,
-    )
+)
 from aioredis.parser import PyReader
 
 
@@ -23,16 +23,17 @@ def test_error_when_feeding_non_string(reader):
         reader.feed(1)
 
 
-@pytest.mark.parametrize('data', [
-    b'x', b'$5\r\nHello world',
-    b':None\r\n', b':1.2\r\n', b':1,2\r\n',
-], ids=[
-    'Bad control char',
-    'Invalid bulk length',
-    'Invalid int - none',
-    'Invalid int - dot',
-    'Invalid int - comma',
-])
+@pytest.mark.parametrize(
+    "data",
+    [b"x", b"$5\r\nHello world", b":None\r\n", b":1.2\r\n", b":1,2\r\n",],
+    ids=[
+        "Bad control char",
+        "Invalid bulk length",
+        "Invalid int - none",
+        "Invalid int - dot",
+        "Invalid int - comma",
+    ],
+)
 def test_protocol_error(reader, data):
     reader.feed(data)
     with pytest.raises(ProtocolError):
@@ -46,10 +47,11 @@ class CustomExc(Exception):
     pass
 
 
-@pytest.mark.parametrize('exc,arg', [
-    (RuntimeError, RuntimeError),
-    (CustomExc, lambda e: CustomExc(e)),
-    ], ids=['RuntimeError', 'callable'])
+@pytest.mark.parametrize(
+    "exc,arg",
+    [(RuntimeError, RuntimeError), (CustomExc, lambda e: CustomExc(e)),],
+    ids=["RuntimeError", "callable"],
+)
 def test_protocol_error_with_custom_class(exc, arg):
     reader = PyReader(protocolError=arg)
     reader.feed(b"x")
@@ -57,10 +59,11 @@ def test_protocol_error_with_custom_class(exc, arg):
         reader.gets()
 
 
-@pytest.mark.parametrize('init', [
-    dict(protocolError="wrong"),
-    dict(replyError="wrong"),
-], ids=['wrong protocolError', 'wrong replyError'])
+@pytest.mark.parametrize(
+    "init",
+    [dict(protocolError="wrong"), dict(replyError="wrong"),],
+    ids=["wrong protocolError", "wrong replyError"],
+)
 def test_fail_with_wrong_error_class(init):
     with pytest.raises(TypeError):
         PyReader(**init)
@@ -74,11 +77,14 @@ def test_error_string(reader):
     assert error.args == ("error",)
 
 
-@pytest.mark.parametrize('error_kind,data', [
-    (AuthError, b"-NOAUTH auth required\r\n"),
-    (AuthError, b"-ERR invalid password\r\n"),
-    (MaxClientsError, b"-ERR max number of clients reached\r\n"),
-])
+@pytest.mark.parametrize(
+    "error_kind,data",
+    [
+        (AuthError, b"-NOAUTH auth required\r\n"),
+        (AuthError, b"-ERR invalid password\r\n"),
+        (MaxClientsError, b"-ERR max number of clients reached\r\n"),
+    ],
+)
 def test_error_construction(reader, error_kind, data):
     reader.feed(data)
     error = reader.gets()
@@ -86,10 +92,11 @@ def test_error_construction(reader, error_kind, data):
     assert isinstance(error, error_kind)
 
 
-@pytest.mark.parametrize('exc,arg', [
-    (RuntimeError, RuntimeError),
-    (CustomExc, lambda e: CustomExc(e)),
-    ], ids=['RuntimeError', 'callable'])
+@pytest.mark.parametrize(
+    "exc,arg",
+    [(RuntimeError, RuntimeError), (CustomExc, lambda e: CustomExc(e)),],
+    ids=["RuntimeError", "callable"],
+)
 def test_error_string_with_custom_class(exc, arg):
     reader = PyReader(replyError=arg)
     reader.feed(b"-error\r\n")
@@ -108,7 +115,7 @@ def test_errors_in_nested_multi_bulk(reader):
 
 
 def test_integer(reader):
-    value = 2**63-1  # Largest 64-bit signed integer
+    value = 2 ** 63 - 1  # Largest 64-bit signed integer
     reader.feed((":%d\r\n" % value).encode("ascii"))
     assert reader.gets() == value
 
@@ -118,11 +125,11 @@ def test_status_string(reader):
     assert reader.gets() == b"ok"
 
 
-@pytest.mark.parametrize('data,expected', [
-    (b'$0\r\n\r\n', b''),
-    (b'$-1\r\n', None),
-    (b'$5\r\nhello\r\n', b'hello'),
-], ids=['Empty', 'null', 'hello'])
+@pytest.mark.parametrize(
+    "data,expected",
+    [(b"$0\r\n\r\n", b""), (b"$-1\r\n", None), (b"$5\r\nhello\r\n", b"hello"),],
+    ids=["Empty", "null", "hello"],
+)
 def test_bulk_string(reader, data, expected):
     reader.feed(data)
     assert reader.gets() == expected
@@ -134,10 +141,11 @@ def test_bulk_string_without_encoding(reader):
     assert reader.gets() == snowman
 
 
-@pytest.mark.parametrize('encoding,expected', [
-    ('utf-8', b"\xe2\x98\x83".decode('utf-8')),
-    ('utf-32', b"\xe2\x98\x83"),
-], ids=['utf-8', 'utf-32'])
+@pytest.mark.parametrize(
+    "encoding,expected",
+    [("utf-8", b"\xe2\x98\x83".decode("utf-8")), ("utf-32", b"\xe2\x98\x83"),],
+    ids=["utf-8", "utf-32"],
+)
 def test_bulk_string_with_encoding(encoding, expected):
     snowman = b"\xe2\x98\x83"
     reader = PyReader(encoding=encoding)
@@ -153,33 +161,38 @@ def test_bulk_string_with_invalid_encoding():
 
 
 def test_bulk_string_wait_buffer(reader):
-    reader.feed(b'$5\r\nH')
+    reader.feed(b"$5\r\nH")
     assert not reader.gets()
-    reader.feed(b'ello')
+    reader.feed(b"ello")
     assert not reader.gets()
-    reader.feed(b'\r\n')
-    assert reader.gets() == b'Hello'
+    reader.feed(b"\r\n")
+    assert reader.gets() == b"Hello"
 
 
-@pytest.mark.parametrize('data,expected', [
-    (b"*-1\r\n", None),
-    (b"*0\r\n", []),
-    (b"*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n", [b'hello', b'world']),
-], ids=['Null', 'Empty list', 'hello world'])
+@pytest.mark.parametrize(
+    "data,expected",
+    [
+        (b"*-1\r\n", None),
+        (b"*0\r\n", []),
+        (b"*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n", [b"hello", b"world"]),
+    ],
+    ids=["Null", "Empty list", "hello world"],
+)
 def test_null_multi_bulk(reader, data, expected):
     reader.feed(data)
     assert reader.gets() == expected
 
 
-@pytest.mark.parametrize('data', [
-    (b"*2\r\n$5\r\nhello\r\n", b':1'),
-    (b'*2\r\n:1\r\n*1\r\n', b'+hello'),
-    (b'*2\r\n+hello\r\n+world',),
-    (b'*2\r\n*1\r\n+hello\r\n*1\r\n+world',),
-], ids=['First in bulk',
-        'Error in nested',
-        'Multiple errors',
-        'Multiple nested'])
+@pytest.mark.parametrize(
+    "data",
+    [
+        (b"*2\r\n$5\r\nhello\r\n", b":1"),
+        (b"*2\r\n:1\r\n*1\r\n", b"+hello"),
+        (b"*2\r\n+hello\r\n+world",),
+        (b"*2\r\n*1\r\n+hello\r\n*1\r\n+world",),
+    ],
+    ids=["First in bulk", "Error in nested", "Multiple errors", "Multiple nested"],
+)
 def test_multi_bulk_with_invalid_encoding_and_partial_reply(data):
     reader = PyReader(encoding="unknown")
     for chunk in data:
@@ -189,7 +202,7 @@ def test_multi_bulk_with_invalid_encoding_and_partial_reply(data):
     with pytest.raises(LookupError):
         reader.gets()
 
-    reader.feed(b':1\r\n')
+    reader.feed(b":1\r\n")
     assert reader.gets() == 1
 
 
@@ -203,10 +216,11 @@ def test_nested_multi_bulk_depth(reader):
     assert reader.gets() == [[[[b"!"]]]]
 
 
-@pytest.mark.parametrize('encoding,expected', [
-    ('utf-8', b"\xe2\x98\x83".decode('utf-8')),
-    ('utf-32', b"\xe2\x98\x83"),
-], ids=['utf-8', 'utf-32'])
+@pytest.mark.parametrize(
+    "encoding,expected",
+    [("utf-8", b"\xe2\x98\x83".decode("utf-8")), ("utf-32", b"\xe2\x98\x83"),],
+    ids=["utf-8", "utf-32"],
+)
 def test_simple_string_with_encoding(encoding, expected):
     snowman = b"\xe2\x98\x83"
     reader = PyReader(encoding=encoding)
@@ -234,7 +248,7 @@ def test_ok_offset(reader):
 
 def test_ok_length(reader):
     data = b"blah+ok\r\n"
-    reader.feed(data, 4, len(data)-4)
+    reader.feed(data, 4, len(data) - 4)
     assert reader.gets() == b"ok"
 
 

@@ -5,41 +5,37 @@ import sys
 from .util import get_event_loop
 
 __all__ = [
-    'open_connection',
-    'open_unix_connection',
-    'StreamReader',
+    "open_connection",
+    "open_unix_connection",
+    "StreamReader",
 ]
 
 
-async def open_connection(host=None, port=None, *,
-                          limit, loop=None,
-                          parser=None, **kwds):
+async def open_connection(
+    host=None, port=None, *, limit, loop=None, parser=None, **kwds
+):
     # XXX: parser is not used (yet)
     if loop is not None and sys.version_info >= (3, 8):
-        warnings.warn("The loop argument is deprecated",
-                      DeprecationWarning)
+        warnings.warn("The loop argument is deprecated", DeprecationWarning)
     reader = StreamReader(limit=limit)
     protocol = asyncio.StreamReaderProtocol(reader)
     transport, _ = await get_event_loop().create_connection(
-        lambda: protocol, host, port, **kwds)
-    writer = asyncio.StreamWriter(transport, protocol, reader,
-                                  loop=get_event_loop())
+        lambda: protocol, host, port, **kwds
+    )
+    writer = asyncio.StreamWriter(transport, protocol, reader, loop=get_event_loop())
     return reader, writer
 
 
-async def open_unix_connection(address, *,
-                               limit, loop=None,
-                               parser=None, **kwds):
+async def open_unix_connection(address, *, limit, loop=None, parser=None, **kwds):
     # XXX: parser is not used (yet)
     if loop is not None and sys.version_info >= (3, 8):
-        warnings.warn("The loop argument is deprecated",
-                      DeprecationWarning)
+        warnings.warn("The loop argument is deprecated", DeprecationWarning)
     reader = StreamReader(limit=limit)
     protocol = asyncio.StreamReaderProtocol(reader)
     transport, _ = await get_event_loop().create_unix_connection(
-        lambda: protocol, address, **kwds)
-    writer = asyncio.StreamWriter(transport, protocol, reader,
-                                  loop=get_event_loop())
+        lambda: protocol, address, **kwds
+    )
+    writer = asyncio.StreamWriter(transport, protocol, reader, loop=get_event_loop())
     return reader, writer
 
 
@@ -52,6 +48,7 @@ class StreamReader(asyncio.StreamReader):
     get rid of one coroutine step. Data flows from the buffer
     to the Redis parser directly.
     """
+
     _parser = None
 
     def set_parser(self, parser):
@@ -61,7 +58,7 @@ class StreamReader(asyncio.StreamReader):
             del self._buffer[:]
 
     def feed_data(self, data):
-        assert not self._eof, 'feed_data after feed_eof'
+        assert not self._eof, "feed_data after feed_eof"
 
         if not data:
             return
@@ -99,11 +96,11 @@ class StreamReader(asyncio.StreamReader):
             if self._eof:
                 break
 
-            await self._wait_for_data('readobj')
+            await self._wait_for_data("readobj")
         # NOTE: after break we return None which must be handled as b''
 
     async def _read_not_allowed(self, *args, **kwargs):
-        raise RuntimeError('Use readobj')
+        raise RuntimeError("Use readobj")
 
     read = _read_not_allowed
     readline = _read_not_allowed

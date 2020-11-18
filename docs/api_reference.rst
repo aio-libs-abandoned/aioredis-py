@@ -43,7 +43,7 @@ Connection usage is as simple as:
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
                                   encoding=None, parser=None,\
-                                  timeout=None, connection_cls=None)
+                                  timeout=None, connection_cls=None, name=None)
 
    Creates Redis connection.
 
@@ -91,6 +91,9 @@ Connection usage is as simple as:
 
    :param connection_cls: Custom connection class. ``None`` by default.
    :type connection_cls: :class:`abc.AbcConnection` or None
+
+   :param name: Client name to set upon connecting.
+   :type name: str or None
 
    :return: :class:`RedisConnection` instance.
 
@@ -256,7 +259,7 @@ The library provides connections pool. The basic usage is as follows:
                           encoding=None, minsize=1, maxsize=10, \
                           parser=None, \
                           create_connection_timeout=None, \
-                          pool_cls=None, connection_cls=None)
+                          pool_cls=None, connection_cls=None, name=None)
 
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
@@ -328,6 +331,9 @@ The library provides connections pool. The basic usage is as follows:
       connection classes. This argument **must be** a subclass of
       :class:`~aioredis.abc.AbcConnection`.
    :type connection_cls: aioredis.abc.AbcConnection
+
+   :param name: Client name to set upon connecting.
+   :type name: str or None
 
    :return: :class:`ConnectionsPool` instance.
 
