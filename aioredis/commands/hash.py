@@ -1,3 +1,4 @@
+import warnings
 from itertools import chain
 
 from aioredis.util import (
@@ -55,13 +56,26 @@ class HashCommandsMixin:
         return self.execute(b"HMGET", key, field, *fields, encoding=encoding)
 
     def hmset(self, key, field, value, *pairs):
-        """Set multiple hash fields to multiple values."""
+        """Set multiple hash fields to multiple values.
+
+        .. deprecated::
+            HMSET is deprecated since redis 4.0.0, use HSET instead.
+
+        """
+        warnings.warn(
+            "%s.hmset() is deprecated since redis 4.0.0, use %s.hset() instead"
+            % (self.__class__.__name__, self.__class__.__name__),
+            DeprecationWarning
+        )
         if len(pairs) % 2 != 0:
             raise TypeError("length of pairs must be even number")
         return wait_ok(self.execute(b"HMSET", key, field, value, *pairs))
 
     def hmset_dict(self, key, *args, **kwargs):
         """Set multiple hash fields to multiple values.
+
+        .. deprecated::
+            HMSET is deprecated since redis 4.0.0, use HSET instead.
 
         dict can be passed as first positional argument:
 
@@ -86,6 +100,12 @@ class HashCommandsMixin:
            'baz'
 
         """
+        warnings.warn(
+            "%s.hmset() is deprecated since redis 4.0.0, use %s.hset() instead"
+            % (self.__class__.__name__, self.__class__.__name__),
+            DeprecationWarning
+        )
+
         if not args and not kwargs:
             raise TypeError("args or kwargs must be specified")
         pairs = ()
@@ -100,9 +120,31 @@ class HashCommandsMixin:
         kwargs_pairs = chain.from_iterable(kwargs.items())
         return wait_ok(self.execute(b"HMSET", key, *chain(pairs, kwargs_pairs)))
 
-    def hset(self, key, field, value):
-        """Set the string value of a hash field."""
-        return self.execute(b"HSET", key, field, value)
+    def hset(self, key, field=None, value=None, mapping=None):
+        """Set multiple hash fields to multiple values.
+
+        Setting a single hash field to a value:
+        >>> await redis.hset('key', 'some_field', 'some_value')
+
+        Setting values for multipe has fields at once:
+        >>> await redis.hset('key', mapping={'field1': 'abc', 'field2': 'def'})
+
+        .. note:: Using both the field/value pair and mapping at the same time
+           will also work.
+
+        """
+        if not field and not mapping:
+            raise ValueError("hset needs either a field/value pair or mapping")
+        if mapping and not isinstance(mapping, dict):
+            raise TypeError("'mapping' should be dict")
+
+        items = []
+        if field:
+            items.extend((field, value))
+        if mapping:
+            for item in mapping.items():
+                items.extend(item)
+        return self.execute(b"HSET", key, *items)
 
     def hsetnx(self, key, field, value):
         """Set the value of a hash field, only if the field does not exist."""

@@ -317,6 +317,44 @@ async def test_hset(redis):
         await redis.hset(None, field, value)
 
 
+@redis_version(4, 0, 0, reason="HSET changed to variadic in redis 4.0.0")
+@pytest.mark.asyncio
+async def test_hset_multiple(redis):
+    test_key = b"key:hset_multiple"
+
+    #  raises ValueError if field/value pair and mapping both are missing
+    with pytest.raises(ValueError):
+        await redis.hset(test_key)
+
+    #  raises TypeError if mapping is not a dict
+    with pytest.raises(TypeError):
+        await redis.hset(test_key, mapping="not a dict")
+
+    #  test multiple fields and string values
+    mapping = {b"a": b"1", b"b": b"2", b"c": b"test1", b"d": b"test string"}
+    #  insert mapping through hset
+    test_value = await redis.hset(test_key, mapping=mapping)
+    #  check if 4 values were added
+    assert test_value == 4
+
+    for field, value in mapping.items():
+        #  check if each field exists in the hash
+        result = await redis.hexists(test_key, field)
+        assert result == True
+
+        #  check value of each field matches the correct value
+        test_value = await redis.hget(test_key, field)
+        assert test_value == value
+
+    #  test imput of both field/value pair and mapping at same time
+    test_value = await redis.hset(test_key, "e", "5", mapping={"f": "6"})
+    assert test_value == 2
+    value1 = await redis.hget(test_key, "e")
+    value2 = await redis.hget(test_key, "f")
+    assert value1 == b"5"
+    assert value2 == b"6"
+
+
 @pytest.mark.asyncio
 async def test_hsetnx(redis):
     key, field, value = b"key:hsetnx", b"bar", b"zap"

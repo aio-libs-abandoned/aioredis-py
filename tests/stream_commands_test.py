@@ -574,12 +574,12 @@ def test_parse_messages_ok():
 def test_parse_messages_null_fields():
     # Redis can sometimes respond with a fields value of 'null',
     # so ensure we handle that sensibly
-    message = [(b"123", None)]
-    assert parse_messages(message) == []
+    message = [(b'123', None)]
+    assert parse_messages(message) == [(b'123', OrderedDict())]
 
 
 def test_parse_messages_null_message():
     # Redis can sometimes respond with a fields value of 'null',
     # so ensure we handle that sensibly
     message = [None]
-    assert parse_messages(message) == []
+    assert parse_messages(message) == [(None, OrderedDict())]

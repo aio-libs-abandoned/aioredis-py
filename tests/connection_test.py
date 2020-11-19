@@ -491,7 +491,7 @@ async def test_connection_idle_close(create_connection, start_server):
     ok = await conn.execute("config", "set", "timeout", 1)
     assert ok == b"OK"
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(6)
 
     with pytest.raises(ConnectionClosedError):
         assert await conn.execute("ping") is None
@@ -522,3 +522,10 @@ async def test_create_connection__unix_url(create_connection, server_unix_url, k
     assert await conn.execute("ping") == pong
     assert conn.db == db
     assert conn.encoding == enc
+
+
+async def test_connect_setname(request, create_connection, server):
+    name = 'test'
+    conn = await create_connection(server.tcp_address, name=name)
+    res = await conn.execute(b'CLIENT', b'GETNAME')
+    assert res == bytes(name, 'utf-8')

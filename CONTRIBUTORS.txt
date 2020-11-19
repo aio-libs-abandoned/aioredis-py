@@ -8,10 +8,14 @@ Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
+Andrew Chen Wang
 Anton Salii
 Anton Verinov
+Arsh <prdx23>
 Artem Mazur
+Chao Guo <jeffguorg>
 <cynecx>
+Daniil Kozhanov
 David Francos
 Dima Kruk
 <fuchaoqun>
@@ -50,3 +54,4 @@ Dima Kit
 <curiouscod3>
 Dmitry Vasilishin <dmvass>
 Anton Ilyushenkov <driverx>
+Aviram Hassan <aviramha>

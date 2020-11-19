@@ -530,6 +530,7 @@ async def test_pool__drop_closed(create_pool, server):
     assert pool.size == 1
 
 
+@pytest.mark.asyncio
 async def test_multiple_connection_acquire(create_pool, server):
     # see https://bugs.python.org/issue32734 for explanation
 
@@ -566,3 +567,19 @@ async def test_multiple_connection_acquire(create_pool, server):
 
         await conn_fut3
         await conn_fut4
+
+
+@pytest.mark.asyncio
+async def test_client_name(create_pool, server):
+    name = 'test'
+    pool = await create_pool(server.tcp_address, name=name)
+
+    with (await pool) as conn:
+        res = await conn.execute(b'CLIENT', b'GETNAME')
+        assert res == bytes(name, 'utf-8')
+
+    name = 'test2'
+    await pool.setname(name)
+    with (await pool) as conn:
+        res = await conn.execute(b'CLIENT', b'GETNAME')
+        assert res == bytes(name, 'utf-8')
