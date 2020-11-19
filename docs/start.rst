@@ -50,7 +50,7 @@ TCP or UNIX socket address (ex: ``'unix://var/run/redis.sock'``,
 ``'//var/run/redis.sock'``, ``redis://redis-host-or-ip:6379/1``).
 
 Closing the client. Calling ``redis.close()`` and then ``redis.wait_closed()``
-is strongly encouraged as this will methods will shutdown all open connections
+is strongly encouraged as these methods will shutdown all open connections
 and cleanup resources.
 
 See the :doc:`commands reference </mixins>` for the full list of supported commands.

@@ -13,12 +13,15 @@ from asyncio.locks import Lock as _Lock
 class Lock(_Lock):
 
     if sys.version_info < (3, 7, 0):
+
         async def acquire(self):
             """Acquire a lock.
             This method blocks until the lock is unlocked, then sets it to
             locked and returns True.
             """
-            if not self._locked and all(w.cancelled() for w in self._waiters):
+            if (not self._locked and (self._waiters is None
+                                      or all(w.cancelled()
+                                             for w in self._waiters))):
                 self._locked = True
                 return True
 
@@ -38,7 +41,7 @@ class Lock(_Lock):
 
         def _wake_up_first(self):
             """Wake up the first waiter who isn't cancelled."""
-            for fut in self._waiters:
+            for fut in (self._waiters or []):
                 if not fut.done():
                     fut.set_result(True)
                     break

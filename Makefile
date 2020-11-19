@@ -30,7 +30,7 @@ spelling:
 
 ifeq ($(PYTHON_IMPL), cpython)
 flake:
-	$(FLAKE) aioredis tests examples
+	$(FLAKE) aioredis
 else
 flake:
 	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."

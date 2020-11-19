@@ -8,10 +8,14 @@ Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
 Andrew Svetlov
+Andrew Chen Wang
 Anton Salii
 Anton Verinov
+Arsh <prdx23>
 Artem Mazur
+Chao Guo <jeffguorg>
 <cynecx>
+Daniil Kozhanov
 David Francos
 Dima Kruk
 <fuchaoqun>
@@ -37,6 +41,7 @@ Pau Freixes
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
+Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
 Taku Fukada
@@ -49,3 +54,4 @@ Ziming Hu <hzmangel>
 Dima Kit
 <curiouscod3>
 Dmitry Vasilishin <dmvass>
+Aviram Hassan <aviramha>

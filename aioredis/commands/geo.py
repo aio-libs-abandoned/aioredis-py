@@ -3,8 +3,8 @@ from collections import namedtuple
 from aioredis.util import wait_convert, _NOTSET
 
 
-GeoPoint = namedtuple('GeoPoint', ('longitude', 'latitude'))
-GeoMember = namedtuple('GeoMember', ('member', 'dist', 'hash', 'coord'))
+GeoPoint = namedtuple("GeoPoint", ("longitude", "latitude"))
+GeoMember = namedtuple("GeoMember", ("member", "dist", "hash", "coord"))
 
 
 class GeoCommandsMixin:
@@ -20,7 +20,7 @@ class GeoCommandsMixin:
         :rtype: int
         """
         return self.execute(
-            b'GEOADD', key, longitude, latitude, member, *args, **kwargs
+            b"GEOADD", key, longitude, latitude, member, *args, **kwargs
         )
 
     def geohash(self, key, member, *members, **kwargs):
@@ -28,29 +28,39 @@ class GeoCommandsMixin:
 
         :rtype: list[str or bytes or None]
         """
-        return self.execute(
-            b'GEOHASH', key, member, *members, **kwargs
-        )
+        return self.execute(b"GEOHASH", key, member, *members, **kwargs)
 
     def geopos(self, key, member, *members, **kwargs):
         """Returns longitude and latitude of members of a geospatial index.
 
         :rtype: list[GeoPoint or None]
         """
-        fut = self.execute(b'GEOPOS', key, member, *members, **kwargs)
+        fut = self.execute(b"GEOPOS", key, member, *members, **kwargs)
         return wait_convert(fut, make_geopos)
 
-    def geodist(self, key, member1, member2, unit='m'):
+    def geodist(self, key, member1, member2, unit="m"):
         """Returns the distance between two members of a geospatial index.
 
         :rtype: list[float or None]
         """
-        fut = self.execute(b'GEODIST', key, member1, member2, unit)
+        fut = self.execute(b"GEODIST", key, member1, member2, unit)
         return wait_convert(fut, make_geodist)
 
-    def georadius(self, key, longitude, latitude, radius, unit='m', *,
-                  with_dist=False, with_hash=False, with_coord=False,
-                  count=None, sort=None, encoding=_NOTSET):
+    def georadius(
+        self,
+        key,
+        longitude,
+        latitude,
+        radius,
+        unit="m",
+        *,
+        with_dist=False,
+        with_hash=False,
+        with_coord=False,
+        count=None,
+        sort=None,
+        encoding=_NOTSET
+    ):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a point.
 
@@ -80,19 +90,39 @@ class GeoCommandsMixin:
         )
 
         fut = self.execute(
-            b'GEORADIUS', key, longitude, latitude, radius,
-            unit, *args, encoding=encoding
+            b"GEORADIUS",
+            key,
+            longitude,
+            latitude,
+            radius,
+            unit,
+            *args,
+            encoding=encoding
         )
         if with_dist or with_hash or with_coord:
-            return wait_convert(fut, make_geomember,
-                                with_dist=with_dist,
-                                with_hash=with_hash,
-                                with_coord=with_coord)
+            return wait_convert(
+                fut,
+                make_geomember,
+                with_dist=with_dist,
+                with_hash=with_hash,
+                with_coord=with_coord,
+            )
         return fut
 
-    def georadiusbymember(self, key, member, radius, unit='m', *,
-                          with_dist=False, with_hash=False, with_coord=False,
-                          count=None, sort=None, encoding=_NOTSET):
+    def georadiusbymember(
+        self,
+        key,
+        member,
+        radius,
+        unit="m",
+        *,
+        with_dist=False,
+        with_hash=False,
+        with_coord=False,
+        count=None,
+        sort=None,
+        encoding=_NOTSET
+    ):
         """Query a sorted set representing a geospatial index to fetch members
         matching a given maximum distance from a member.
 
@@ -122,37 +152,41 @@ class GeoCommandsMixin:
         )
 
         fut = self.execute(
-            b'GEORADIUSBYMEMBER', key, member, radius,
-            unit, *args, encoding=encoding)
+            b"GEORADIUSBYMEMBER", key, member, radius, unit, *args, encoding=encoding
+        )
         if with_dist or with_hash or with_coord:
-            return wait_convert(fut, make_geomember,
-                                with_dist=with_dist,
-                                with_hash=with_hash,
-                                with_coord=with_coord)
+            return wait_convert(
+                fut,
+                make_geomember,
+                with_dist=with_dist,
+                with_hash=with_hash,
+                with_coord=with_coord,
+            )
         return fut
 
 
-def validate_georadius_options(radius, unit, with_dist, with_hash, with_coord,
-                               count, sort):
+def validate_georadius_options(
+    radius, unit, with_dist, with_hash, with_coord, count, sort
+):
     args = []
 
     if with_dist:
-        args.append(b'WITHDIST')
+        args.append(b"WITHDIST")
     if with_hash:
-        args.append(b'WITHHASH')
+        args.append(b"WITHHASH")
     if with_coord:
-        args.append(b'WITHCOORD')
+        args.append(b"WITHCOORD")
 
-    if unit not in ['m', 'km', 'mi', 'ft']:
+    if unit not in ["m", "km", "mi", "ft"]:
         raise ValueError("unit argument must be 'm', 'km', 'mi' or 'ft'")
     if not isinstance(radius, (int, float)):
         raise TypeError("radius argument must be int or float")
     if count:
         if not isinstance(count, int):
             raise TypeError("count argument must be int")
-        args += [b'COUNT', count]
+        args += [b"COUNT", count]
     if sort:
-        if sort not in ['ASC', 'DESC']:
+        if sort not in ["ASC", "DESC"]:
             raise ValueError("sort argument must be euqal 'ASC' or 'DESC'")
         args.append(sort)
     return args
