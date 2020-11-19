@@ -607,6 +607,19 @@ async def test_scan(redis):
         test_values.extend(values)
     assert len(test_values) == 7
 
+    cursor, test_values = b"0", []
+    while cursor:
+        cursor, values = await redis.scan(cursor=cursor, match=b"key:scan:bar:*",
+                                          key_type=b"zset")
+        test_values.extend(values)
+    assert len(test_values) == 0
+
+    cursor, test_values = b"0", []
+    while cursor:
+        cursor, values = await redis.scan(cursor=cursor, key_type=b"string")
+        test_values.extend(values)
+    assert len(test_values) == 10
+
     # SCAN family functions do not guarantee that the number of
     # elements returned per call are in a given range. So here
     # just dummy test, that *count* argument does not break something
