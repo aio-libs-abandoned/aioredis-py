@@ -675,7 +675,6 @@ Pub/Sub Channel object
          ...     print(msg)
 
       .. versionadded:: 0.2.5
-         Available for Python 3.5 only
 
 
 ----

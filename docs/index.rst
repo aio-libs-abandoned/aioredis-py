@@ -25,13 +25,13 @@ Pub/Sub support                     Yes
 Sentinel support                    Yes
 Redis Cluster support               WIP
 Trollius (python 2.7)               No
-Tested CPython versions             `3.5.3, 3.6, 3.7 <travis_>`_ [1]_
-Tested PyPy3 versions               `pypy3.5-7.0 pypy3.6-7.1.1 <travis_>`_
+Tested CPython versions             `3.6, 3.7, 3.8 <travis_>`_ [1]_
+Tested PyPy3 versions               `pypy3.6-7.1.1, pypy3.6-7.2.0 <travis_>`_
 Tested for Redis server             `2.6, 2.8, 3.0, 3.2, 4.0 5.0 <travis_>`_
 Support for dev Redis server        through low-level API
 ================================  ==============================
 
-.. [1] For Python 3.3, 3.4 support use aioredis v0.3.
+.. [1] For Python 3.5 support use aioredis v1.x. For Python 3.3, 3.4 support use aioredis v0.3.
 
 Installation
 ------------
@@ -43,7 +43,7 @@ The easiest way to install aioredis is by using the package on PyPi::
 Requirements
 ------------
 
-- Python 3.5.3+
+- Python 3.6+
 - :term:`hiredis`
 
 Benchmarks

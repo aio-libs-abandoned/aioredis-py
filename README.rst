@@ -99,7 +99,7 @@ Using a pool among multiple coroutine calls:
 Requirements
 ------------
 
-* Python_ 3.5.3+
+* Python_ 3.6+
 * hiredis_
 
 .. note::
