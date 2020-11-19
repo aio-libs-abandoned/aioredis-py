@@ -216,7 +216,7 @@ class GenericCommandsMixin:
         """Creates a key associated with a value that is obtained via DUMP."""
         return self.execute(b"RESTORE", key, ttl, value)
 
-    def scan(self, cursor=0, match=None, count=None):
+    def scan(self, cursor=0, match=None, count=None, key_type=None):
         """Incrementally iterate the keys space.
 
         Usage example:
@@ -234,6 +234,8 @@ class GenericCommandsMixin:
             args += [b"MATCH", match]
         if count is not None:
             args += [b"COUNT", count]
+        if key_type is not None:
+            args += [b"TYPE", key_type]
         fut = self.execute(b"SCAN", cursor, *args)
         return wait_convert(fut, lambda o: (int(o[0]), o[1]))
 
