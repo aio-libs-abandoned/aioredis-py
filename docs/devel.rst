@@ -61,6 +61,9 @@ Running tests
 
 You can run tests in any of the following ways::
 
+   # first install aioredis (must use -e for tests to work)
+   $ pip install -e .
+
    # will run tests in a verbose mode
    $ make test
    # or
