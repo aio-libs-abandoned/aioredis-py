@@ -55,5 +55,6 @@ Ziming Hu <hzmangel>
 Dima Kit
 <curiouscod3>
 Dmitry Vasilishin <dmvass>
+Anton Ilyushenkov <driverx>
 Aviram Hassan <aviramha>
 Evgenii Morozov <emorozov>

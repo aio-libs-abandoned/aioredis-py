@@ -3,6 +3,7 @@ import pytest
 import async_timeout
 import logging
 import sys
+from contextlib import ExitStack
 
 from unittest.mock import patch
 
@@ -529,6 +530,46 @@ async def test_pool__drop_closed(create_pool, server):
     assert pool.size == 1
 
 
+@pytest.mark.asyncio
+async def test_multiple_connection_acquire(create_pool, server):
+    # see https://bugs.python.org/issue32734 for explanation
+
+    pool = await create_pool(server.tcp_address, minsize=10, maxsize=10)
+
+    with ExitStack() as stack:
+        fill_free_event = asyncio.Event()
+
+        async def fill_free_se(override_min):
+            await asyncio.sleep(0)
+            await fill_free_event.wait()
+
+        mocked_fill_free = stack.enter_context(
+            patch.object(pool, '_fill_free', side_effect=fill_free_se)
+        )
+
+        conn_fut1 = asyncio.ensure_future(pool.acquire())
+        conn_fut2 = asyncio.ensure_future(pool.acquire())
+        conn_fut3 = asyncio.ensure_future(pool.acquire())
+        conn_fut4 = asyncio.ensure_future(pool.acquire())
+
+        # acquire multiple Condition._lock
+        await asyncio.sleep(0)
+        conn_fut1.cancel()
+        conn_fut2.cancel()
+        fill_free_event.set()
+
+        assert mocked_fill_free.call_count == 1
+
+        with pytest.raises(asyncio.CancelledError):
+            await conn_fut1
+        with pytest.raises(asyncio.CancelledError):
+            await conn_fut2
+
+        await conn_fut3
+        await conn_fut4
+
+
+@pytest.mark.asyncio
 async def test_client_name(create_pool, server):
     name = 'test'
     pool = await create_pool(server.tcp_address, name=name)
