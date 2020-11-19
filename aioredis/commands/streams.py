@@ -217,7 +217,6 @@ class StreamCommandsMixin:
         """Removes the specified entries(IDs) from a stream"""
         return self.execute(b'XDEL', stream, id, *ids)
 
-
     def xtrim(self, stream, max_len, exact_len=False):
         """trims the stream to a given number of items, evicting older items"""
         args = []
