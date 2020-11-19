@@ -292,6 +292,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
         raise RuntimeError("Redis startup timeout expired")
 
     def maker(name, config_lines=None, *, slaveof=None, password=None):
+        print("Start REDIS", name)
         assert slaveof is None or isinstance(slaveof, RedisServer), slaveof
         if name in servers:
             return servers[name]
@@ -387,6 +388,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
                         break
         info = RedisServer(name, tcp_address, unixsocket, version, password)
         servers.setdefault(name, info)
+        print("Ready REDIS", name)
         return info
 
     return maker
