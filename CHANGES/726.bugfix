@@ -1,1 +1,1 @@
-Fix "'NoneType' object is not iterable" when iterate over self._waiters.
+Fix "'NoneType' object is not iterable" when iterating over self._waiters.

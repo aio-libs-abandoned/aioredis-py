@@ -1,1 +1,1 @@
-Reveting fix to handling of instances were Redis returns null fields for a stream message. Nil values will now be returned.
+Revert fix to handling of instances where Redis returns null fields for a stream message. Nil values will now be returned.

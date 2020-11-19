@@ -1,1 +1,1 @@
-Drop Python 3.5 support
+Drop Python 3.5 support.
