@@ -76,6 +76,7 @@ jobs:
           uvloop: 'uvloop'  
         - pyver: 3.8
           uvloop: 'uvloop'  
+      fail-fast: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
