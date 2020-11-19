@@ -141,21 +141,10 @@ class SortedSetCommandsMixin:
         fut = self.execute(b"ZINTERSTORE", destkey, numkeys, *args)
         return fut
 
-    def zlexcount(self, key, min=b"-", max=b"+", include_min=True, include_max=True):
+    def zlexcount(self, key, min=b"-", max=b"+"):
         """Count the number of members in a sorted set between a given
         lexicographical range.
-
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME     Why only bytes?
-            raise TypeError("max argument must be bytes")
-        if not min == b"-":
-            min = (b"[" if include_min else b"(") + min
-        if not max == b"+":
-            max = (b"[" if include_max else b"(") + max
         return self.execute(b"ZLEXCOUNT", key, min, max)
 
     def zrange(self, key, start=0, stop=-1, withscores=False, encoding=_NOTSET):
@@ -182,29 +171,16 @@ class SortedSetCommandsMixin:
         key,
         min=b"-",
         max=b"+",
-        include_min=True,
-        include_max=True,
         offset=None,
         count=None,
         encoding=_NOTSET,
     ):
         """Return a range of members in a sorted set, by lexicographical range.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
         :raises TypeError: if both offset and count are not specified
-        :raises TypeError: if offset is not bytes
-        :raises TypeError: if count is not bytes
+        :raises TypeError: if offset is not int
+        :raises TypeError: if count is not int
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
-        if not min == b"-":
-            min = (b"[" if include_min else b"(") + min
-        if not max == b"+":
-            max = (b"[" if include_max else b"(") + max
-
         if (offset is not None and count is None) or (
             count is not None and offset is None
         ):
@@ -273,23 +249,10 @@ class SortedSetCommandsMixin:
         """Remove one or more members from a sorted set."""
         return self.execute(b"ZREM", key, member, *members)
 
-    def zremrangebylex(
-        self, key, min=b"-", max=b"+", include_min=True, include_max=True
-    ):
+    def zremrangebylex(self, key, min=b"-", max=b"+"):
         """Remove all members in a sorted set between the given
         lexicographical range.
-
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
-        if not min == b"-":
-            min = (b"[" if include_min else b"(") + min
-        if not max == b"+":
-            max = (b"[" if include_max else b"(") + max
         return self.execute(b"ZREMRANGEBYLEX", key, min, max)
 
     def zremrangebyrank(self, key, start, stop):
@@ -389,8 +352,6 @@ class SortedSetCommandsMixin:
         key,
         min=b"-",
         max=b"+",
-        include_min=True,
-        include_max=True,
         offset=None,
         count=None,
         encoding=_NOTSET,
@@ -398,21 +359,10 @@ class SortedSetCommandsMixin:
         """Return a range of members in a sorted set, by lexicographical range
         from high to low.
 
-        :raises TypeError: if min is not bytes
-        :raises TypeError: if max is not bytes
         :raises TypeError: if both offset and count are not specified
         :raises TypeError: if offset is not int
         :raises TypeError: if count is not int
         """
-        if not isinstance(min, bytes):  # FIXME
-            raise TypeError("min argument must be bytes")
-        if not isinstance(max, bytes):  # FIXME
-            raise TypeError("max argument must be bytes")
-        if not min == b"-":
-            min = (b"[" if include_min else b"(") + min
-        if not max == b"+":
-            max = (b"[" if include_max else b"(") + max
-
         if (offset is not None and count is None) or (
             count is not None and offset is None
         ):
