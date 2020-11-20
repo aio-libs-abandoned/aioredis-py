@@ -34,6 +34,7 @@ Nickolai Novik
 Oleg Butuzov
 Oleksandr Tykhonruk
 Pau Freixes
+Paul Becotte
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
