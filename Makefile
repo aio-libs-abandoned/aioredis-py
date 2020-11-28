@@ -3,7 +3,7 @@ FLAKE ?= flake8
 PYTEST ?= pytest
 MYPY ?= mypy
 
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.5
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
@@ -89,7 +89,7 @@ certificate:
 
 ci-test: $(REDIS_TARGETS)
 	$(PYTEST) \
-		--cov --cov-report=xml \
+		--cov --cov-report=xml -vvvs\
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server
