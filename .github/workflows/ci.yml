@@ -40,22 +40,7 @@ jobs:
         path: tests/requirements.txt
     - name: Run linter
       run: |
-        make flake
-    - name: Install mypy dependencies
-      uses: py-actions/py-dependency-install@v2
-      with:
-        path: tests/requirements-mypy.txt
-    - name: Run mypy
-      run: |
-        make mypy
-    - name: Install spell checker
-      run: |
-        sudo apt install enchant aspell aspell-en
-        pip install -r docs/requirements.txt
-        pip install -e. -c tests/requirements.txt
-    - name: Run docs spelling
-      run: |
-        make spelling
+        make lint
     - name: Prepare twine checker
       run: |
         pip install -U twine wheel
