@@ -73,9 +73,9 @@ jobs:
         uvloop: ['no-uvloop']
         include:
         - pyver: 3.6
-          uvloop: 'uvloop'  
+          uvloop: 'uvloop'
         - pyver: 3.8
-          uvloop: 'uvloop'  
+          uvloop: 'uvloop'
       fail-fast: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -121,12 +121,18 @@ jobs:
     - name: Install Self
       run: |
         pip install -e . -c tests/requirements.txt
-    - name: Run unittests
+    - name: Run unittests (no-uvloop)
+      if: matrix.uvloop == 'no-uvloop'
+      run: |
+        make ci-test
+        python -m coverage xml
+    - name: Run unittests (uvloop)
+      if: matrix.uvloop == 'uvloop'
       run: |
         make ci-test
         python -m coverage xml
       env:
-        PYTEST_ADDOPTS: "${{ matrix.uvloop == 'uvloop' && '--uvloop'}}"
+        PYTEST_ADDOPTS: "--uvloop"
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
