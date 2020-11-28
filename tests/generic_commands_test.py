@@ -10,7 +10,6 @@ from aioredis import ReplyError
 from tests.testutils import redis_version
 
 
-@pytest.mark.asyncio
 async def add(redis, key, value):
     ok = await redis.connection.execute("set", key, value)
     assert ok == b"OK"
@@ -606,20 +605,6 @@ async def test_scan(redis):
         cursor, values = await redis.scan(cursor=cursor, match=b"key:scan:bar:*")
         test_values.extend(values)
     assert len(test_values) == 7
-
-    cursor, test_values = b"0", []
-    while cursor:
-        cursor, values = await redis.scan(cursor=cursor, match=b"key:scan:bar:*",
-                                          key_type=b"zset")
-        test_values.extend(values)
-    assert len(test_values) == 0
-
-    cursor, test_values = b"0", []
-    while cursor:
-        cursor, values = await redis.scan(cursor=cursor, key_type=b"string")
-        test_values.extend(values)
-    assert len(test_values) == 10
-
     # SCAN family functions do not guarantee that the number of
     # elements returned per call are in a given range. So here
     # just dummy test, that *count* argument does not break something
@@ -630,6 +615,28 @@ async def test_scan(redis):
 
         test_values.extend(values)
     assert len(test_values) == 10
+
+
+async def zadd(redis, key, value):
+    ok = await redis.connection.execute("zadd", key, value, value)
+    assert ok == 1
+
+
+@redis_version(6, 0, 0, reason="SCAN ... TYPE is available since redis>=6.0.0")
+@pytest.mark.asyncio
+async def test_scan_type(redis):
+    for i in range(1, 11):
+        foo_or_bar = "bar" if i % 3 else "foo"
+        key = "key:scan:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        print(key)
+        await zadd(redis, key, i)
+
+    cursor, test_values = b"0", []
+    while cursor:
+        cursor, values = await redis.scan(cursor=cursor, match=b"key:scan:bar:*",
+                                          key_type=b"zset")
+        test_values.extend(values)
+    assert len(test_values) == 7
 
 
 @pytest.mark.asyncio
