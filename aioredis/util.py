@@ -1,7 +1,6 @@
 import asyncio
 import sys
-
-from urllib.parse import urlparse, parse_qsl
+from urllib.parse import parse_qsl, urlparse
 
 from .log import logger
 
@@ -100,7 +99,7 @@ class _ScanIter:
         while not self._ret and self._cur:
             self._cur, self._ret = await self._scan(self._cur)
         if not self._cur and not self._ret:
-            raise StopAsyncIteration  # noqa
+            raise StopAsyncIteration
         else:
             ret = self._ret.pop(0)
             return ret

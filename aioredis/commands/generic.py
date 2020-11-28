@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, wait_ok, _NOTSET, _ScanIter
+from aioredis.util import _NOTSET, _ScanIter, wait_convert, wait_ok
 
 
 class GenericCommandsMixin:
@@ -35,7 +35,7 @@ class GenericCommandsMixin:
         if isinstance(timeout, float):
             return self.pexpire(key, int(timeout * 1000))
         if not isinstance(timeout, int):
-            raise TypeError("timeout argument must be int, not {!r}".format(timeout))
+            raise TypeError(f"timeout argument must be int, not {timeout!r}")
         fut = self.execute(b"EXPIRE", key, timeout)
         return wait_convert(fut, bool)
 
@@ -50,9 +50,7 @@ class GenericCommandsMixin:
         if isinstance(timestamp, float):
             return self.pexpireat(key, int(timestamp * 1000))
         if not isinstance(timestamp, int):
-            raise TypeError(
-                "timestamp argument must be int, not {!r}".format(timestamp)
-            )
+            raise TypeError(f"timestamp argument must be int, not {timestamp!r}")
         fut = self.execute(b"EXPIREAT", key, timestamp)
         return wait_convert(fut, bool)
 
@@ -124,9 +122,9 @@ class GenericCommandsMixin:
         :raises ValueError: if db is less than 0
         """
         if not isinstance(db, int):
-            raise TypeError("db argument must be int, not {!r}".format(db))
+            raise TypeError(f"db argument must be int, not {db!r}")
         if db < 0:
-            raise ValueError("db argument must be not less than 0, {!r}".format(db))
+            raise ValueError(f"db argument must be not less than 0, {db!r}")
         fut = self.execute(b"MOVE", key, db)
         return wait_convert(fut, bool)
 
@@ -159,7 +157,7 @@ class GenericCommandsMixin:
         :raises TypeError: if timeout is not int
         """
         if not isinstance(timeout, int):
-            raise TypeError("timeout argument must be int, not {!r}".format(timeout))
+            raise TypeError(f"timeout argument must be int, not {timeout!r}")
         fut = self.execute(b"PEXPIRE", key, timeout)
         return wait_convert(fut, bool)
 
@@ -169,9 +167,7 @@ class GenericCommandsMixin:
         :raises TypeError: if timeout is not int
         """
         if not isinstance(timestamp, int):
-            raise TypeError(
-                "timestamp argument must be int, not {!r}".format(timestamp)
-            )
+            raise TypeError(f"timestamp argument must be int, not {timestamp!r}")
         fut = self.execute(b"PEXPIREAT", key, timestamp)
         return wait_convert(fut, bool)
 
@@ -259,7 +255,7 @@ class GenericCommandsMixin:
         count=None,
         asc=None,
         alpha=False,
-        store=None
+        store=None,
     ):
         """Sort the elements in a list, set or sorted set."""
         args = []
@@ -297,8 +293,7 @@ class GenericCommandsMixin:
         return self.execute(b"TTL", key)
 
     def type(self, key):
-        """Returns the string representation of the value's type stored at key.
-        """
+        """Returns the string representation of the value's type stored at key."""
         # NOTE: for non-existent keys TYPE returns b'none'
         return self.execute(b"TYPE", key)
 

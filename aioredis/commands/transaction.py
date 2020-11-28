@@ -2,17 +2,8 @@ import asyncio
 import functools
 
 from ..abc import AbcPool
-from ..errors import (
-    RedisError,
-    PipelineError,
-    MultiExecError,
-    ConnectionClosedError,
-)
-from ..util import (
-    wait_ok,
-    _set_exception,
-    get_event_loop,
-)
+from ..errors import ConnectionClosedError, MultiExecError, PipelineError, RedisError
+from ..util import _set_exception, get_event_loop, wait_ok
 
 
 class TransactionsCommandsMixin:
@@ -40,8 +31,7 @@ class TransactionsCommandsMixin:
         return wait_ok(fut)
 
     def watch(self, key, *keys):
-        """Watch the given keys to determine execution of the MULTI/EXEC block.
-        """
+        """Watch the given keys to determine execution of the MULTI/EXEC block."""
         # FIXME: we can send watch through one connection and then issue
         #   'multi/exec' command through other.
         # Possible fix:

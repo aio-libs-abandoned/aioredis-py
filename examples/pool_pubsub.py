@@ -1,6 +1,6 @@
 import asyncio
-import aioredis
 
+import aioredis
 
 STOPWORD = "STOP"
 
@@ -12,7 +12,7 @@ async def pubsub():
         while await channel.wait_message():
             msg = await channel.get(encoding="utf-8")
             # ... process message ...
-            print("message in {}: {}".format(channel.name, msg))
+            print(f"message in {channel.name}: {msg}")
 
             if msg == STOPWORD:
                 return

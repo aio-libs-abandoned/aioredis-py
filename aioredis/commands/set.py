@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET, _ScanIter
+from aioredis.util import _NOTSET, _ScanIter, wait_convert
 
 
 class SetCommandsMixin:

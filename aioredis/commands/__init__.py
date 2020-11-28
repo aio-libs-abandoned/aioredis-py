@@ -1,21 +1,22 @@
+from aioredis.abc import AbcPool
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
 from aioredis.util import _NOTSET, wait_ok
-from aioredis.abc import AbcPool
+
+from .cluster import ClusterCommandsMixin
 from .generic import GenericCommandsMixin
-from .string import StringCommandsMixin
+from .geo import GeoCommandsMixin, GeoMember, GeoPoint
 from .hash import HashCommandsMixin
 from .hyperloglog import HyperLogLogCommandsMixin
-from .set import SetCommandsMixin
-from .sorted_set import SortedSetCommandsMixin
-from .transaction import TransactionsCommandsMixin, Pipeline, MultiExec
 from .list import ListCommandsMixin
+from .pubsub import PubSubCommandsMixin
 from .scripting import ScriptingCommandsMixin
 from .server import ServerCommandsMixin
-from .pubsub import PubSubCommandsMixin
-from .cluster import ClusterCommandsMixin
-from .geo import GeoCommandsMixin, GeoPoint, GeoMember
+from .set import SetCommandsMixin
+from .sorted_set import SortedSetCommandsMixin
 from .streams import StreamCommandsMixin
+from .string import StringCommandsMixin
+from .transaction import MultiExec, Pipeline, TransactionsCommandsMixin
 
 __all__ = [
     "create_redis",
@@ -55,7 +56,7 @@ class Redis(
         self._pool_or_conn = pool_or_conn
 
     def __repr__(self):
-        return "<{} {!r}>".format(self.__class__.__name__, self._pool_or_conn)
+        return f"<{self.__class__.__name__} {self._pool_or_conn!r}>"
 
     def execute(self, command, *args, **kwargs):
         return self._pool_or_conn.execute(command, *args, **kwargs)
@@ -179,7 +180,7 @@ async def create_redis(
     timeout=None,
     connection_cls=None,
     loop=None,
-    name=None
+    name=None,
 ):
     """Creates high-level Redis interface.
 
@@ -195,7 +196,7 @@ async def create_redis(
         timeout=timeout,
         connection_cls=connection_cls,
         loop=loop,
-        name=name
+        name=name,
     )
     return commands_factory(conn)
 
@@ -215,7 +216,7 @@ async def create_redis_pool(
     pool_cls=None,
     connection_cls=None,
     loop=None,
-    name=None
+    name=None,
 ):
     """Creates high-level Redis interface.
 
@@ -234,6 +235,6 @@ async def create_redis_pool(
         pool_cls=pool_cls,
         connection_cls=connection_cls,
         loop=loop,
-        name=name
+        name=name,
     )
     return commands_factory(pool)

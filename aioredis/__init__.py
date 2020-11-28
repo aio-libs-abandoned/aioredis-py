@@ -1,34 +1,27 @@
+from .commands import GeoMember, GeoPoint, Redis, create_redis, create_redis_pool
 from .connection import RedisConnection, create_connection
-from .commands import (
-    Redis,
-    create_redis,
-    create_redis_pool,
-    GeoPoint,
-    GeoMember,
-)
-from .pool import ConnectionsPool, create_pool
-from .pubsub import Channel
-from .sentinel import RedisSentinel, create_sentinel
 from .errors import (
+    AuthError,
+    ChannelClosedError,
     ConnectionClosedError,
     ConnectionForcedCloseError,
     MasterNotFoundError,
+    MasterReplyError,
+    MaxClientsError,
     MultiExecError,
     PipelineError,
+    PoolClosedError,
     ProtocolError,
     ReadOnlyError,
     RedisError,
     ReplyError,
-    MaxClientsError,
-    AuthError,
-    ChannelClosedError,
-    WatchVariableError,
-    PoolClosedError,
     SlaveNotFoundError,
-    MasterReplyError,
     SlaveReplyError,
+    WatchVariableError,
 )
-
+from .pool import ConnectionsPool, create_pool
+from .pubsub import Channel
+from .sentinel import RedisSentinel, create_sentinel
 
 __version__ = "1.3.1"
 

@@ -5,8 +5,7 @@ import aioredis
 
 async def blocking_commands():
     # Redis client bound to pool of connections (auto-reconnecting).
-    redis = await aioredis.create_redis_pool(
-        'redis://localhost')
+    redis = await aioredis.create_redis_pool("redis://localhost")
 
     async def get_message():
         # Redis blocking commands block the connection they are on
@@ -22,7 +21,7 @@ async def blocking_commands():
             return await r.brpop("my-key")
 
     future = asyncio.create_task(get_message())
-    await redis.lpush('my-key', 'value')
+    await redis.lpush("my-key", "value")
     await future
     print(future.result())
 
@@ -31,5 +30,5 @@ async def blocking_commands():
     await redis.wait_closed()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(blocking_commands())

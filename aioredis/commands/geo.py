@@ -1,7 +1,6 @@
 from collections import namedtuple
 
-from aioredis.util import wait_convert, _NOTSET
-
+from aioredis.util import _NOTSET, wait_convert
 
 GeoPoint = namedtuple("GeoPoint", ("longitude", "latitude"))
 GeoMember = namedtuple("GeoMember", ("member", "dist", "hash", "coord"))

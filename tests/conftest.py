@@ -1,25 +1,23 @@
 import asyncio
+import atexit
+import contextlib
 import functools
-
-import pytest
+import inspect
+import os
 import socket
+import ssl
 import subprocess
 import sys
-import contextlib
-import os
-import ssl
-import time
 import tempfile
-import atexit
-import inspect
-
+import time
 from collections import namedtuple
 from urllib.parse import urlencode, urlunparse
+
+import pytest
 from async_timeout import timeout as async_timeout
 
 import aioredis
 import aioredis.sentinel
-
 
 TCPAddress = namedtuple("TCPAddress", "host port")
 
@@ -247,7 +245,7 @@ def _read_server_version(redis_bin):
         if part.startswith("v="):
             break
     else:
-        raise RuntimeError("No version info can be found in {}".format(version))
+        raise RuntimeError(f"No version info can be found in {version}")
     return tuple(map(int, part[2:].split(".")))
 
 
@@ -302,14 +300,14 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
         if sys.platform == "win32":
             unixsocket = None
         else:
-            unixsocket = "/tmp/aioredis.{}.sock".format(port)
-        dumpfile = "dump-{}.rdb".format(port)
+            unixsocket = f"/tmp/aioredis.{port}.sock"
+        dumpfile = f"dump-{port}.rdb"
         data_dir = tempfile.gettempdir()
         dumpfile_path = os.path.join(data_dir, dumpfile)
-        stdout_file = os.path.join(data_dir, "aioredis.{}.stdout".format(port))
+        stdout_file = os.path.join(data_dir, f"aioredis.{port}.stdout")
         tmp_files = [dumpfile_path, stdout_file]
         if config_lines:
-            config = os.path.join(data_dir, "aioredis.{}.conf".format(port))
+            config = os.path.join(data_dir, f"aioredis.{port}.conf")
             with config_writer(config) as write:
                 write("daemonize no")
                 write('save ""')
@@ -320,7 +318,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
                     write("unixsocket", unixsocket)
                     tmp_files.append(unixsocket)
                 if password:
-                    write('requirepass "{}"'.format(password))
+                    write(f'requirepass "{password}"')
                 write("# extra config")
                 for line in config_lines:
                     write(line)
@@ -331,7 +329,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
                         )
                     )
                     if password:
-                        write('masterauth "{}"'.format(password))
+                        write(f'masterauth "{password}"')
             args = [config]
             tmp_files.append(config)
         else:
@@ -353,7 +351,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
                     unixsocket,
                 ]
             if password:
-                args += ['--requirepass "{}"'.format(password)]
+                args += [f'--requirepass "{password}"']
             if slaveof is not None:
                 args += [
                     "--slaveof",
@@ -361,7 +359,7 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
                     str(slaveof.tcp_address.port),
                 ]
                 if password:
-                    args += ['--masterauth "{}"'.format(password)]
+                    args += [f'--masterauth "{password}"']
         f = open(stdout_file, "w")
         atexit.register(f.close)
         proc = _proc(
@@ -369,9 +367,9 @@ def start_server(_proc, request, tcp_port_factory, server_bin):
             *args,
             stdout=f,
             stderr=subprocess.STDOUT,
-            _clear_tmp_files=tmp_files
+            _clear_tmp_files=tmp_files,
         )
-        with open(stdout_file, "rt") as f:
+        with open(stdout_file) as f:
             for _ in timeout(10):
                 assert proc.poll() is None, ("Process terminated", proc.returncode)
                 log = f.readline()
@@ -414,7 +412,7 @@ def start_sentinel(_proc, request, tcp_port_factory, server_bin):
         quorum=1,
         noslaves=False,
         down_after_milliseconds=3000,
-        failover_timeout=1000
+        failover_timeout=1000,
     ):
         key = (name,) + masters
         if key in sentinels:
@@ -422,15 +420,13 @@ def start_sentinel(_proc, request, tcp_port_factory, server_bin):
         port = tcp_port_factory()
         tcp_address = TCPAddress("localhost", port)
         data_dir = tempfile.gettempdir()
-        config = os.path.join(data_dir, "aioredis-sentinel.{}.conf".format(port))
-        stdout_file = os.path.join(data_dir, "aioredis-sentinel.{}.stdout".format(port))
+        config = os.path.join(data_dir, f"aioredis-sentinel.{port}.conf")
+        stdout_file = os.path.join(data_dir, f"aioredis-sentinel.{port}.stdout")
         tmp_files = [config, stdout_file]
         if sys.platform == "win32":
             unixsocket = None
         else:
-            unixsocket = os.path.join(
-                data_dir, "aioredis-sentinel.{}.sock".format(port)
-            )
+            unixsocket = os.path.join(data_dir, f"aioredis-sentinel.{port}.sock")
             tmp_files.append(unixsocket)
 
         with config_writer(config) as write:
@@ -472,16 +468,16 @@ def start_sentinel(_proc, request, tcp_port_factory, server_bin):
             all_slaves = {}
         else:
             all_slaves = {m.name for m in masters}
-        with open(stdout_file, "rt") as f:
+        with open(stdout_file) as f:
             for _ in timeout(30):
                 assert proc.poll() is None, ("Process terminated", proc.returncode)
                 log = f.readline()
                 if log and verbose:
                     print(name, ":", log, end="")
                 for m in masters:
-                    if "# +monitor master {}".format(m.name) in log:
+                    if f"# +monitor master {m.name}" in log:
                         all_masters.discard(m.name)
-                    if "* +slave slave" in log and "@ {}".format(m.name) in log:
+                    if "* +slave slave" in log and f"@ {m.name}" in log:
                         all_slaves.discard(m.name)
                 if not all_masters and not all_slaves:
                     break
@@ -530,7 +526,7 @@ def ssl_proxy(_proc, request, tcp_port_factory):
             "cert={cert},verify=0,fork".format(
                 port=secure_port, param=dhfile, cert=certfile
             ),
-            "tcp-connect:localhost:{}".format(unsecure_port),
+            f"tcp-connect:localhost:{unsecure_port}",
         )
         time.sleep(1)  # XXX
         by_port[unsecure_port] = secure_port, ssl_ctx

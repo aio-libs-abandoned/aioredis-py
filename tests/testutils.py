@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Callable, Awaitable
+from typing import Awaitable, Callable
 
 import pytest
 

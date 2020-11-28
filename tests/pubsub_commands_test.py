@@ -1,7 +1,8 @@
 import asyncio
-import pytest
-import aioredis
 
+import pytest
+
+import aioredis
 from tests.testutils import redis_version
 
 
@@ -63,7 +64,10 @@ async def test_subscribe(redis):
 
 
 @pytest.mark.parametrize(
-    "create_redis", [pytest.param(aioredis.create_redis_pool, id="pool"),]
+    "create_redis",
+    [
+        pytest.param(aioredis.create_redis_pool, id="pool"),
+    ],
 )
 @pytest.mark.asyncio
 async def test_subscribe_empty_pool(create_redis, server, _closable):
@@ -109,7 +113,10 @@ async def test_psubscribe(redis, create_redis, server):
 
 
 @pytest.mark.parametrize(
-    "create_redis", [pytest.param(aioredis.create_redis_pool, id="pool"),]
+    "create_redis",
+    [
+        pytest.param(aioredis.create_redis_pool, id="pool"),
+    ],
 )
 @pytest.mark.asyncio
 async def test_psubscribe_empty_pool(create_redis, server, _closable):
@@ -278,7 +285,9 @@ async def test_subscribe_concurrency(create_redis, server):
         return await pub.publish(*args)
 
     res = await asyncio.gather(
-        subscribe("channel:0"), publish("channel:0", "Hello"), subscribe("channel:1"),
+        subscribe("channel:0"),
+        publish("channel:0", "Hello"),
+        subscribe("channel:1"),
     )
     (ch1,), subs, (ch2,) = res
 

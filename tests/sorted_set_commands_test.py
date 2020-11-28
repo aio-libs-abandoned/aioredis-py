@@ -75,7 +75,10 @@ async def test_zadd(redis):
 
 
 @redis_version(
-    3, 0, 2, reason="ZADD options is available since redis>=3.0.2",
+    3,
+    0,
+    2,
+    reason="ZADD options is available since redis>=3.0.2",
 )
 @pytest.mark.asyncio
 async def test_zadd_options(redis):
@@ -84,7 +87,14 @@ async def test_zadd_options(redis):
     res = await redis.zadd(key, 0, b"one")
     assert res == 1
 
-    res = await redis.zadd(key, 1, b"one", 2, b"two", exist=redis.ZSET_IF_EXIST,)
+    res = await redis.zadd(
+        key,
+        1,
+        b"one",
+        2,
+        b"two",
+        exist=redis.ZSET_IF_EXIST,
+    )
     assert res == 0
 
     res = await redis.zscore(key, b"one")
@@ -93,7 +103,14 @@ async def test_zadd_options(redis):
     res = await redis.zscore(key, b"two")
     assert res is None
 
-    res = await redis.zadd(key, 1, b"one", 2, b"two", exist=redis.ZSET_IF_NOT_EXIST,)
+    res = await redis.zadd(
+        key,
+        1,
+        b"one",
+        2,
+        b"two",
+        exist=redis.ZSET_IF_NOT_EXIST,
+    )
     assert res == 1
 
     res = await redis.zscore(key, b"one")
@@ -729,7 +746,7 @@ async def test_zscan(redis):
 
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        members.append("zmem:{}:{}".format(foo_or_bar, i).encode("utf-8"))
+        members.append(f"zmem:{foo_or_bar}:{i}".encode("utf-8"))
         scores.append(i)
     pairs = list(itertools.chain(*zip(scores, members)))
     rev_pairs = set(zip(members, scores))
@@ -763,7 +780,7 @@ async def test_izscan(redis):
 
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        members.append("zmem:{}:{}".format(foo_or_bar, i).encode("utf-8"))
+        members.append(f"zmem:{foo_or_bar}:{i}".encode("utf-8"))
         scores.append(i)
     pairs = list(itertools.chain(*zip(scores, members)))
     await redis.zadd(key, *pairs)
@@ -779,10 +796,10 @@ async def test_izscan(redis):
     assert set(ret) == set(vals)
 
     ret = await coro(redis.izscan(key, match=b"zmem:foo:*"))
-    assert set(ret) == set(v for v in vals if b"foo" in v[0])
+    assert set(ret) == {v for v in vals if b"foo" in v[0]}
 
     ret = await coro(redis.izscan(key, match=b"zmem:bar:*"))
-    assert set(ret) == set(v for v in vals if b"bar" in v[0])
+    assert set(ret) == {v for v in vals if b"bar" in v[0]}
 
     # SCAN family functions do not guarantee that the number (count) of
     # elements returned per call are in a given range. So here

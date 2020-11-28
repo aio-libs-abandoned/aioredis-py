@@ -4,7 +4,6 @@ These are intended to be used for implementing custom connection managers.
 """
 import abc
 
-
 __all__ = [
     "AbcConnection",
     "AbcPool",

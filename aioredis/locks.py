@@ -1,6 +1,5 @@
 import asyncio
 import sys
-
 from asyncio.locks import Lock as _Lock
 
 # Fixes an issue with all Python versions that leaves pending waiters
@@ -16,15 +15,16 @@ from asyncio.locks import Lock as _Lock
 class Lock(_Lock):
 
     if sys.version_info < (3, 6, 5):
+
         async def acquire(self):
             """Acquire a lock.
 
             This method blocks until the lock is unlocked, then sets it to
             locked and returns True.
             """
-            if (not self._locked and (self._waiters is None
-                                      or all(w.cancelled()
-                                             for w in self._waiters))):
+            if not self._locked and (
+                self._waiters is None or all(w.cancelled() for w in self._waiters)
+            ):
                 self._locked = True
                 return True
 
@@ -62,7 +62,7 @@ class Lock(_Lock):
                 self._locked = False
                 self._wake_up_first()
             else:
-                raise RuntimeError('Lock is not acquired.')
+                raise RuntimeError("Lock is not acquired.")
 
         def _wake_up_first(self):
             """Wake up the first waiter if it isn't done."""

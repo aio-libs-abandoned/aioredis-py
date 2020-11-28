@@ -1,7 +1,7 @@
 import asyncio
 
-from ..util import wait_ok, wait_convert
 from ..commands import Redis
+from ..util import wait_convert, wait_ok
 from .pool import create_sentinel_pool
 
 

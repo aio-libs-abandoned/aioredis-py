@@ -1,41 +1,38 @@
-import types
 import asyncio
 import socket
-import warnings
 import sys
-
-from functools import partial
+import types
+import warnings
 from collections import deque
 from contextlib import contextmanager
+from functools import partial
 
-from .util import (
-    encode_command,
-    wait_ok,
-    _NOTSET,
-    _set_result,
-    _set_exception,
-    coerced_keys_dict,
-    decode,
-    parse_url,
-    get_event_loop,
-)
-from .parser import Reader
-from .stream import open_connection, open_unix_connection
+from .abc import AbcChannel, AbcConnection
 from .errors import (
     ConnectionClosedError,
     ConnectionForcedCloseError,
-    RedisError,
+    MaxClientsError,
     ProtocolError,
+    ReadOnlyError,
+    RedisError,
     ReplyError,
     WatchVariableError,
-    ReadOnlyError,
-    MaxClientsError,
 )
-from .pubsub import Channel
-from .abc import AbcChannel
-from .abc import AbcConnection
 from .log import logger
-
+from .parser import Reader
+from .pubsub import Channel
+from .stream import open_connection, open_unix_connection
+from .util import (
+    _NOTSET,
+    _set_exception,
+    _set_result,
+    coerced_keys_dict,
+    decode,
+    encode_command,
+    get_event_loop,
+    parse_url,
+    wait_ok,
+)
 
 __all__ = ["create_connection", "RedisConnection"]
 
@@ -64,7 +61,7 @@ async def create_connection(
     loop=None,
     timeout=None,
     connection_cls=None,
-    name=None
+    name=None,
 ):
     """Creates redis connection.
 
@@ -162,7 +159,15 @@ class RedisConnection(AbcConnection):
     """Redis connection."""
 
     def __init__(
-        self, reader, writer, *, address, encoding=None, parser=None, loop=None, name=None
+        self,
+        reader,
+        writer,
+        *,
+        address,
+        encoding=None,
+        parser=None,
+        loop=None,
+        name=None,
     ):
         if loop is not None and sys.version_info >= (3, 8):
             warnings.warn("The loop argument is deprecated", DeprecationWarning)
@@ -193,7 +198,7 @@ class RedisConnection(AbcConnection):
         self._name = name
 
     def __repr__(self):
-        return "<RedisConnection [db:{}]>".format(self._db)
+        return f"<RedisConnection [db:{self._db}]>"
 
     async def _read_data(self):
         """Response reader task."""
@@ -392,9 +397,7 @@ class RedisConnection(AbcConnection):
             ch if isinstance(ch, AbcChannel) else mkchannel(ch) for ch in channels
         ]
         if not all(ch.is_pattern == is_pattern for ch in channels):
-            raise ValueError(
-                "Not all channels {} match command {}".format(channels, command)
-            )
+            raise ValueError(f"Not all channels {channels} match command {command}")
         cmd = encode_command(command, *(ch.name for ch in channels))
         res = []
         for ch in channels:
@@ -474,9 +477,9 @@ class RedisConnection(AbcConnection):
     def select(self, db):
         """Change the selected database for the current connection."""
         if not isinstance(db, int):
-            raise TypeError("DB must be of int type, not {!r}".format(db))
+            raise TypeError(f"DB must be of int type, not {db!r}")
         if db < 0:
-            raise ValueError("DB must be greater or equal 0, got {!r}".format(db))
+            raise ValueError(f"DB must be greater or equal 0, got {db!r}")
         fut = self.execute("SELECT", db)
         return wait_ok(fut)
 
@@ -578,5 +581,5 @@ class RedisConnection(AbcConnection):
 
     def setname(self, name):
         """Set the current connection name."""
-        fut = self.execute(b'CLIENT', b'SETNAME', name)
+        fut = self.execute(b"CLIENT", b"SETNAME", name)
         return wait_ok(fut)

@@ -1,5 +1,6 @@
+from typing import Callable, Generator, Iterator, Optional
+
 from .errors import ProtocolError, ReplyError
-from typing import Optional, Generator, Callable, Iterator  # noqa
 
 __all__ = [
     "Reader",
@@ -151,7 +152,7 @@ class Parser:
                 raise error
             return bulk_array
         else:
-            raise self.error("Invalid first byte: {!r}".format(ctl))
+            raise self.error(f"Invalid first byte: {ctl!r}")
 
     def parse_one(self):
         if self._gen is None:

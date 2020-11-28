@@ -1,4 +1,5 @@
 import asyncio
+
 import pytest
 
 import aioredis
@@ -21,16 +22,15 @@ def pool_or_redis(_closable, server):
 
 
 async def simple_get_set(pool, idx):
-    """A simple test to make sure Redis(pool) can be used as old Pool(Redis).
-    """
-    val = "val:{}".format(idx)
+    """A simple test to make sure Redis(pool) can be used as old Pool(Redis)."""
+    val = f"val:{idx}"
     with await pool as redis:
         assert await redis.set("key", val)
         await redis.get("key", encoding="utf-8")
 
 
 async def pipeline(pool, val):
-    val = "val:{}".format(val)
+    val = f"val:{val}"
     with await pool as redis:
         f1 = redis.set("key", val)
         f2 = redis.get("key", encoding="utf-8")
@@ -38,7 +38,7 @@ async def pipeline(pool, val):
 
 
 async def transaction(pool, val):
-    val = "val:{}".format(val)
+    val = f"val:{val}"
     with await pool as redis:
         tr = redis.multi_exec()
         tr.set("key", val)

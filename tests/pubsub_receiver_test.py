@@ -1,10 +1,10 @@
-import pytest
 import asyncio
 import json
-import sys
 import logging
-
+import sys
 from unittest import mock
+
+import pytest
 
 from aioredis import ChannelClosedError
 from aioredis.abc import AbcChannel
@@ -328,7 +328,7 @@ async def test_pubsub_receiver_call_stop_with_empty_queue(
 
     now = event_loop.time()
     event_loop.call_later(0.5, mpsc.stop)
-    async for i in mpsc.iter():  # noqa (flake8 bug with async for)
+    async for i in mpsc.iter():  # (flake8 bug with async for)
         assert False, "StopAsyncIteration not raised"
     dt = event_loop.time() - now
     assert dt <= 1.5
