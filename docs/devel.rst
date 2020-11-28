@@ -61,6 +61,9 @@ Running tests
 
 You can run tests in any of the following ways::
 
+   # first install aioredis (must use -e for tests to work)
+   $ pip install -e .
+
    # will run tests in a verbose mode
    $ make test
    # or
@@ -103,9 +106,6 @@ To run tests with :term:`uvloop`::
 
    $ pip install uvloop
    $ pytest --uvloop
-
-.. note:: Until Python 3.5.2 EventLoop has no ``create_future`` method
-   so aioredis won't benefit from uvloop's futures.
 
 
 Writing tests

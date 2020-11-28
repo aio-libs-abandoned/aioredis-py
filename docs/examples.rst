@@ -63,3 +63,10 @@ Connections pool example
 :download:`get source code<../examples/pool.py>`
 
 .. literalinclude:: ../examples/pool.py
+
+
+Blocking command example
+
+:download:`get source code<../examples/blocking.py>`
+
+.. literalinclude:: ../examples/blocking.py

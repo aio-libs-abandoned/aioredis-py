@@ -1,14 +1,23 @@
 import asyncio
 
-from ..util import wait_ok, wait_convert
 from ..commands import Redis
+from ..util import wait_convert, wait_ok
 from .pool import create_sentinel_pool
 
 
-async def create_sentinel(sentinels, *, db=None, password=None,
-                          encoding=None, minsize=1, maxsize=10,
-                          ssl=None, timeout=0.2, loop=None,
-                          sentinel_password=None):
+async def create_sentinel(
+    sentinels,
+    *,
+    db=None,
+    password=None,
+    encoding=None,
+    minsize=1,
+    maxsize=10,
+    ssl=None,
+    timeout=0.2,
+    loop=None,
+    sentinel_password=None,
+):
     """Creates Redis Sentinel client.
 
     `sentinels` is a list of sentinel nodes.
@@ -17,16 +26,18 @@ async def create_sentinel(sentinels, *, db=None, password=None,
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    pool = await create_sentinel_pool(sentinels,
-                                      db=db,
-                                      password=password,
-                                      encoding=encoding,
-                                      minsize=minsize,
-                                      maxsize=maxsize,
-                                      ssl=ssl,
-                                      timeout=timeout,
-                                      loop=loop,
-                                      sentinel_password=sentinel_password)
+    pool = await create_sentinel_pool(
+        sentinels,
+        db=db,
+        password=password,
+        encoding=encoding,
+        minsize=minsize,
+        maxsize=maxsize,
+        ssl=ssl,
+        timeout=timeout,
+        loop=loop,
+        sentinel_password=sentinel_password,
+    )
     return RedisSentinel(pool)
 
 
@@ -64,48 +75,47 @@ class RedisSentinel:
 
         It will be prefixed with SENTINEL automatically.
         """
-        return self._pool.execute(
-            b'SENTINEL', command, *args, **kwargs)
+        return self._pool.execute(b"SENTINEL", command, *args, **kwargs)
 
     async def ping(self):
         """Send PING command to Sentinel instance(s)."""
         # TODO: add kwargs allowing to pick sentinel to send command to.
-        return await self._pool.execute(b'PING')
+        return await self._pool.execute(b"PING")
 
     def master(self, name):
         """Returns a dictionary containing the specified masters state."""
-        fut = self.execute(b'MASTER', name, encoding='utf-8')
+        fut = self.execute(b"MASTER", name, encoding="utf-8")
         return wait_convert(fut, parse_sentinel_master)
 
     def master_address(self, name):
         """Returns a (host, port) pair for the given ``name``."""
-        fut = self.execute(b'get-master-addr-by-name', name, encoding='utf-8')
+        fut = self.execute(b"get-master-addr-by-name", name, encoding="utf-8")
         return wait_convert(fut, parse_address)
 
     def masters(self):
         """Returns a list of dictionaries containing each master's state."""
-        fut = self.execute(b'MASTERS', encoding='utf-8')
+        fut = self.execute(b"MASTERS", encoding="utf-8")
         # TODO: process masters: we can adjust internal state
         return wait_convert(fut, parse_sentinel_masters)
 
     def slaves(self, name):
         """Returns a list of slaves for ``name``."""
-        fut = self.execute(b'SLAVES', name, encoding='utf-8')
+        fut = self.execute(b"SLAVES", name, encoding="utf-8")
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def sentinels(self, name):
         """Returns a list of sentinels for ``name``."""
-        fut = self.execute(b'SENTINELS', name, encoding='utf-8')
+        fut = self.execute(b"SENTINELS", name, encoding="utf-8")
         return wait_convert(fut, parse_sentinel_slaves_and_sentinels)
 
     def monitor(self, name, ip, port, quorum):
         """Add a new master to Sentinel to be monitored."""
-        fut = self.execute(b'MONITOR', name, ip, port, quorum)
+        fut = self.execute(b"MONITOR", name, ip, port, quorum)
         return wait_ok(fut)
 
     def remove(self, name):
         """Remove a master from Sentinel's monitoring."""
-        fut = self.execute(b'REMOVE', name)
+        fut = self.execute(b"REMOVE", name)
         return wait_ok(fut)
 
     def set(self, name, option, value):
@@ -115,7 +125,7 @@ class RedisSentinel:
 
     def failover(self, name):
         """Force a failover of a named master."""
-        fut = self.execute(b'FAILOVER', name)
+        fut = self.execute(b"FAILOVER", name)
         return wait_ok(fut)
 
     def check_quorum(self, name):
@@ -124,36 +134,36 @@ class RedisSentinel:
         to reach the quorum needed to failover a master,
         and the majority needed to authorize the failover.
         """
-        return self.execute(b'CKQUORUM', name)
+        return self.execute(b"CKQUORUM", name)
 
 
 SENTINEL_STATE_TYPES = {
-    'can-failover-its-master': int,
-    'config-epoch': int,
-    'down-after-milliseconds': int,
-    'failover-timeout': int,
-    'info-refresh': int,
-    'last-hello-message': int,
-    'last-ok-ping-reply': int,
-    'last-ping-reply': int,
-    'last-ping-sent': int,
-    'master-link-down-time': int,
-    'master-port': int,
-    'num-other-sentinels': int,
-    'num-slaves': int,
-    'o-down-time': int,
-    'pending-commands': int,
-    'link-pending-commands': int,
-    'link-refcount': int,
-    'parallel-syncs': int,
-    'port': int,
-    'quorum': int,
-    'role-reported-time': int,
-    's-down-time': int,
-    'slave-priority': int,
-    'slave-repl-offset': int,
-    'voted-leader-epoch': int,
-    'flags': lambda s: frozenset(s.split(',')),  # TODO: make flags enum?
+    "can-failover-its-master": int,
+    "config-epoch": int,
+    "down-after-milliseconds": int,
+    "failover-timeout": int,
+    "info-refresh": int,
+    "last-hello-message": int,
+    "last-ok-ping-reply": int,
+    "last-ping-reply": int,
+    "last-ping-sent": int,
+    "master-link-down-time": int,
+    "master-port": int,
+    "num-other-sentinels": int,
+    "num-slaves": int,
+    "o-down-time": int,
+    "pending-commands": int,
+    "link-pending-commands": int,
+    "link-refcount": int,
+    "parallel-syncs": int,
+    "port": int,
+    "quorum": int,
+    "role-reported-time": int,
+    "s-down-time": int,
+    "slave-priority": int,
+    "slave-repl-offset": int,
+    "voted-leader-epoch": int,
+    "flags": lambda s: frozenset(s.split(",")),  # TODO: make flags enum?
 }
 
 
@@ -176,13 +186,12 @@ def parse_sentinel_masters(response):
     result = {}
     for item in response:
         state = pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
-        result[state['name']] = state
+        result[state["name"]] = state
     return result
 
 
 def parse_sentinel_slaves_and_sentinels(response):
-    return [pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
-            for item in response]
+    return [pairs_to_dict_typed(item, SENTINEL_STATE_TYPES) for item in response]
 
 
 def parse_sentinel_master(response):

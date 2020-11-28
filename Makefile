@@ -1,9 +1,8 @@
 PYTHON ?= python3
-FLAKE ?= flake8
 PYTEST ?= pytest
 MYPY ?= mypy
 
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.5
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9 6.0.9
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
@@ -16,8 +15,8 @@ PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
 
 EXAMPLES = $(sort $(wildcard examples/*.py examples/*/*.py))
 
-.PHONY: all flake doc man-doc spelling test cov dist devel clean mypy
-all: aioredis.egg-info flake doc cov
+.PHONY: all lint init-hooks doc man-doc spelling test cov dist devel clean mypy
+all: aioredis.egg-info lint doc cov
 
 doc: spelling
 	$(MAKE) -C docs html
@@ -27,14 +26,6 @@ man-doc: spelling
 spelling:
 	@echo "Running spelling check"
 	$(MAKE) -C docs spelling
-
-ifeq ($(PYTHON_IMPL), cpython)
-flake:
-	$(FLAKE) aioredis tests examples
-else
-flake:
-	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."
-endif
 
 mypy:
 	$(MYPY) aioredis --ignore-missing-imports
@@ -52,7 +43,15 @@ clean:
 	-rm -r docs/_build
 	-rm -r build dist aioredis.egg-info
 
-devel: aioredis.egg-info
+init-hooks:
+	pip install -U pre-commit
+	pre-commit install
+	pre-commit install-hooks
+
+lint: init-hooks
+	pre-commit run --all-files
+
+devel: aioredis.egg-info init-hooks
 	pip install -U pip
 	pip install -U \
 		-r tests/requirements.txt \
@@ -89,7 +88,7 @@ certificate:
 
 ci-test: $(REDIS_TARGETS)
 	$(PYTEST) \
-		--cov --cov-report=xml \
+		--cov --cov-report=xml -vvvs\
 		$(foreach T,$(REDIS_TARGETS),--redis-server=$T)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server

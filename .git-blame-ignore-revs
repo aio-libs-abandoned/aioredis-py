@@ -1,0 +1,5 @@
+# Migrate code style to Black
+# https://github.com/psf/black#migrating-your-code-style-without-ruining-git-blame
+efb57dd2a251a07467d2d7cf9de49e801695f3f7
+# Add and run pre-commit
+e6d563cf2d12edf81e8d601157bef0144c4e5571

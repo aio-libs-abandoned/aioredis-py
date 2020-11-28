@@ -1,0 +1,1 @@
+Z*LEX functions no longer take `include_min`/`include_max`, and the user must prefix the bounds with `[` or `(`, as per the [redis command](https://redis.io/commands/zrangebylex#how-to-specify-intervals).

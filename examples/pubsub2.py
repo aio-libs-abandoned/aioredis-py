@@ -1,20 +1,20 @@
 import asyncio
+
 import aioredis
 
 
 async def pubsub():
-    sub = await aioredis.create_redis(
-         'redis://localhost')
+    sub = await aioredis.create_redis("redis://localhost")
 
-    ch1, ch2 = await sub.subscribe('channel:1', 'channel:2')
+    ch1, ch2 = await sub.subscribe("channel:1", "channel:2")
     assert isinstance(ch1, aioredis.Channel)
     assert isinstance(ch2, aioredis.Channel)
 
     async def async_reader(channel):
         while await channel.wait_message():
-            msg = await channel.get(encoding='utf-8')
+            msg = await channel.get(encoding="utf-8")
             # ... process message ...
-            print("message in {}: {}".format(channel.name, msg))
+            print(f"message in {channel.name}: {msg}")
 
     tsk1 = asyncio.ensure_future(async_reader(ch1))
 
@@ -22,24 +22,23 @@ async def pubsub():
 
     async def async_reader2(channel):
         while True:
-            msg = await channel.get(encoding='utf-8')
+            msg = await channel.get(encoding="utf-8")
             if msg is None:
                 break
             # ... process message ...
-            print("message in {}: {}".format(channel.name, msg))
+            print(f"message in {channel.name}: {msg}")
 
     tsk2 = asyncio.ensure_future(async_reader2(ch2))
 
     # Publish messages and terminate
-    pub = await aioredis.create_redis(
-        'redis://localhost')
+    pub = await aioredis.create_redis("redis://localhost")
     while True:
-        channels = await pub.pubsub_channels('channel:*')
+        channels = await pub.pubsub_channels("channel:*")
         if len(channels) == 2:
             break
 
     for msg in ("Hello", ",", "world!"):
-        for ch in ('channel:1', 'channel:2'):
+        for ch in ("channel:1", "channel:2"):
             await pub.publish(ch, msg)
     await asyncio.sleep(0.1)
     pub.close()
@@ -49,7 +48,8 @@ async def pubsub():
     await asyncio.gather(tsk1, tsk2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
-    if 'redis_version:2.6' not in os.environ.get('REDIS_VERSION', ''):
+
+    if "redis_version:2.6" not in os.environ.get("REDIS_VERSION", ""):
         asyncio.run(pubsub())

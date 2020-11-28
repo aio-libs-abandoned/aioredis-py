@@ -1,20 +1,30 @@
-Contributors
 ------------
-
+<curiouscod3>
+<cynecx>
+<fuchaoqun>
 Adam Charnock
 Adam Rothman
 Aider Ibragimov
 Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
+Andrew Chen Wang
 Andrew Svetlov
+Anton Ilyushenkov <driverx>
 Anton Salii
 Anton Verinov
+Arsh <prdx23>
 Artem Mazur
-<cynecx>
+Aviram Hassan <aviramha>
+Bruce Merry
+Chao Guo <jeffguorg>
+Contributors
+Daniil Kozhanov
 David Francos
+Dima Kit
 Dima Kruk
-<fuchaoqun>
+Dmitry Vasilishin <dmvass>
+Evgenii Morozov <emorozov>
 Hugo <hugovk>
 Ihor Gorobets
 Ihor Liubymov
@@ -34,9 +44,11 @@ Nickolai Novik
 Oleg Butuzov
 Oleksandr Tykhonruk
 Pau Freixes
+Paul Becotte
 Paul Colomiets
 Samuel Colvin
 Samuel Dion-Girardeau
+Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
 Taku Fukada
@@ -45,6 +57,4 @@ Thanos Lefteris
 Thomas Steinacher
 Volodymyr Hotsyk
 Youngmin Koo <youngminz>
-Dima Kit
-<curiouscod3>
-Dmitry Vasilishin <dmvass>
+Ziming Hu <hzmangel>

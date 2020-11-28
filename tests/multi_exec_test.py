@@ -1,9 +1,8 @@
 import asyncio
-from unittest import mock
 from contextlib import contextmanager
+from unittest import mock
 
-from aioredis.commands import MultiExec
-from aioredis.commands import Redis
+from aioredis.commands import MultiExec, Redis
 
 
 @contextmanager
@@ -12,9 +11,7 @@ def nullcontext(result):
 
 
 def test_global_loop():
-    conn = mock.Mock(spec=(
-        'execute closed _transaction_error _buffered'
-        .split()))
+    conn = mock.Mock(spec=("execute closed _transaction_error _buffered".split()))
     try:
         old_loop = asyncio.get_event_loop()
     except (AssertionError, RuntimeError):
@@ -27,12 +24,12 @@ def test_global_loop():
 
     def make_fut(cmd, *args, **kw):
         fut = asyncio.get_event_loop().create_future()
-        if cmd == 'PING':
-            fut.set_result(b'QUEUED')
-        elif cmd == 'EXEC':
-            fut.set_result([b'PONG'])
+        if cmd == "PING":
+            fut.set_result(b"QUEUED")
+        elif cmd == "EXEC":
+            fut.set_result([b"PONG"])
         else:
-            fut.set_result(b'OK')
+            fut.set_result(b"OK")
         return fut
 
     conn.execute.side_effect = make_fut
@@ -43,6 +40,7 @@ def test_global_loop():
     async def go():
         tr.ping()
         res = await tr.execute()
-        assert res == [b'PONG']
+        assert res == [b"PONG"]
+
     loop.run_until_complete(go())
     asyncio.set_event_loop(old_loop)
