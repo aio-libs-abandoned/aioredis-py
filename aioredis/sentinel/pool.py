@@ -3,19 +3,18 @@ import contextlib
 
 from async_timeout import timeout as async_timeout
 
-from ..log import sentinel_logger
-from ..pubsub import Receiver
-from ..pool import create_pool, ConnectionsPool
 from ..errors import (
     MasterNotFoundError,
-    SlaveNotFoundError,
+    MasterReplyError,
     PoolClosedError,
     RedisError,
-    MasterReplyError,
+    SlaveNotFoundError,
     SlaveReplyError,
 )
+from ..log import sentinel_logger
+from ..pool import ConnectionsPool, create_pool
+from ..pubsub import Receiver
 from ..util import CloseEvent
-
 
 # Address marker for discovery
 _NON_DISCOVERED = object()
@@ -34,7 +33,7 @@ async def create_sentinel_pool(
     ssl=None,
     parser=None,
     timeout=0.2,
-    loop=None
+    loop=None,
 ):
     """Create SentinelPool."""
     # FIXME: revise default timeout value
@@ -78,7 +77,7 @@ class SentinelPool:
         minsize,
         maxsize,
         timeout,
-        loop=None
+        loop=None,
     ):
         # TODO: deprecation note
         # if loop is None:
@@ -232,7 +231,9 @@ class SentinelPool:
         if timeout is None:
             timeout = self.discover_timeout
         pools = []
-        tasks = [self._connect_sentinel(addr, timeout, pools) for addr in self._sentinels]
+        tasks = [
+            self._connect_sentinel(addr, timeout, pools) for addr in self._sentinels
+        ]
         await asyncio.gather(*tasks, return_exceptions=True)
 
         if not pools:
@@ -254,7 +255,10 @@ class SentinelPool:
         try:
             with async_timeout(timeout):
                 pool = await create_pool(
-                    address, minsize=1, maxsize=2, parser=self._parser_class,
+                    address,
+                    minsize=1,
+                    maxsize=2,
+                    parser=self._parser_class,
                 )
             pools.append(pool)
             return pool
@@ -307,13 +311,13 @@ class SentinelPool:
                 await asyncio.sleep(idle_timeout)
                 continue
             except RedisError as err:
-                raise MasterReplyError("Service {} error".format(service), err)
+                raise MasterReplyError(f"Service {service} error", err)
             except Exception:
                 # TODO: clear (drop) connections to schedule reconnect
                 await asyncio.sleep(idle_timeout)
                 continue
         # Otherwise
-        raise MasterNotFoundError("No master found for {}".format(service))
+        raise MasterNotFoundError(f"No master found for {service}")
 
     async def discover_slave(self, service, timeout, **kwargs):
         """Perform Slave discovery for specified service."""
@@ -342,11 +346,11 @@ class SentinelPool:
                 await asyncio.sleep(idle_timeout)
                 continue
             except RedisError as err:
-                raise SlaveReplyError("Service {} error".format(service), err)
+                raise SlaveReplyError(f"Service {service} error", err)
             except Exception:
                 await asyncio.sleep(idle_timeout)
                 continue
-        raise SlaveNotFoundError("No slave found for {}".format(service))
+        raise SlaveNotFoundError(f"No slave found for {service}")
 
     async def _get_masters_address(self, sentinel, service):
         # NOTE: we don't use `get-master-addr-by-name`
@@ -408,7 +412,7 @@ class ManagedPool(ConnectionsPool):
         minsize,
         maxsize,
         ssl=None,
-        loop=None
+        loop=None,
     ):
         super().__init__(
             _NON_DISCOVERED,

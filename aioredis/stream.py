@@ -1,6 +1,6 @@
 import asyncio
-import warnings
 import sys
+import warnings
 
 from .util import get_event_loop
 

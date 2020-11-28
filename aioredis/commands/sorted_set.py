@@ -1,4 +1,4 @@
-from aioredis.util import wait_convert, _NOTSET, _ScanIter
+from aioredis.util import _NOTSET, _ScanIter, wait_convert
 
 
 class SortedSetCommandsMixin:
@@ -206,7 +206,7 @@ class SortedSetCommandsMixin:
         count=None,
         *,
         exclude=None,
-        encoding=_NOTSET
+        encoding=_NOTSET,
     ):
         """Return a range of members in a sorted set, by score.
 
@@ -311,7 +311,7 @@ class SortedSetCommandsMixin:
         withscores=False,
         offset=None,
         count=None,
-        encoding=_NOTSET
+        encoding=_NOTSET,
     ):
         """Return a range of members in a sorted set, by score,
         with scores ordered from high to low.
@@ -475,11 +475,11 @@ class SortedSetCommandsMixin:
 
 def _encode_min_max(flag, min, max):
     if flag is SortedSetCommandsMixin.ZSET_EXCLUDE_MIN:
-        return "({}".format(min), max
+        return f"({min}", max
     elif flag is SortedSetCommandsMixin.ZSET_EXCLUDE_MAX:
-        return min, "({}".format(max)
+        return min, f"({max}"
     elif flag is SortedSetCommandsMixin.ZSET_EXCLUDE_BOTH:
-        return "({}".format(min), "({}".format(max)
+        return f"({min}", f"({max}"
     return min, max
 
 

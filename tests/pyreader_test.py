@@ -1,11 +1,6 @@
 import pytest
 
-from aioredis.errors import (
-    ProtocolError,
-    ReplyError,
-    AuthError,
-    MaxClientsError,
-)
+from aioredis.errors import AuthError, MaxClientsError, ProtocolError, ReplyError
 from aioredis.parser import PyReader
 
 
@@ -25,7 +20,13 @@ def test_error_when_feeding_non_string(reader):
 
 @pytest.mark.parametrize(
     "data",
-    [b"x", b"$5\r\nHello world", b":None\r\n", b":1.2\r\n", b":1,2\r\n",],
+    [
+        b"x",
+        b"$5\r\nHello world",
+        b":None\r\n",
+        b":1.2\r\n",
+        b":1,2\r\n",
+    ],
     ids=[
         "Bad control char",
         "Invalid bulk length",
@@ -49,7 +50,10 @@ class CustomExc(Exception):
 
 @pytest.mark.parametrize(
     "exc,arg",
-    [(RuntimeError, RuntimeError), (CustomExc, lambda e: CustomExc(e)),],
+    [
+        (RuntimeError, RuntimeError),
+        (CustomExc, lambda e: CustomExc(e)),
+    ],
     ids=["RuntimeError", "callable"],
 )
 def test_protocol_error_with_custom_class(exc, arg):
@@ -61,7 +65,10 @@ def test_protocol_error_with_custom_class(exc, arg):
 
 @pytest.mark.parametrize(
     "init",
-    [dict(protocolError="wrong"), dict(replyError="wrong"),],
+    [
+        dict(protocolError="wrong"),
+        dict(replyError="wrong"),
+    ],
     ids=["wrong protocolError", "wrong replyError"],
 )
 def test_fail_with_wrong_error_class(init):
@@ -94,7 +101,10 @@ def test_error_construction(reader, error_kind, data):
 
 @pytest.mark.parametrize(
     "exc,arg",
-    [(RuntimeError, RuntimeError), (CustomExc, lambda e: CustomExc(e)),],
+    [
+        (RuntimeError, RuntimeError),
+        (CustomExc, lambda e: CustomExc(e)),
+    ],
     ids=["RuntimeError", "callable"],
 )
 def test_error_string_with_custom_class(exc, arg):
@@ -127,7 +137,11 @@ def test_status_string(reader):
 
 @pytest.mark.parametrize(
     "data,expected",
-    [(b"$0\r\n\r\n", b""), (b"$-1\r\n", None), (b"$5\r\nhello\r\n", b"hello"),],
+    [
+        (b"$0\r\n\r\n", b""),
+        (b"$-1\r\n", None),
+        (b"$5\r\nhello\r\n", b"hello"),
+    ],
     ids=["Empty", "null", "hello"],
 )
 def test_bulk_string(reader, data, expected):
@@ -143,7 +157,10 @@ def test_bulk_string_without_encoding(reader):
 
 @pytest.mark.parametrize(
     "encoding,expected",
-    [("utf-8", b"\xe2\x98\x83".decode("utf-8")), ("utf-32", b"\xe2\x98\x83"),],
+    [
+        ("utf-8", b"\xe2\x98\x83".decode("utf-8")),
+        ("utf-32", b"\xe2\x98\x83"),
+    ],
     ids=["utf-8", "utf-32"],
 )
 def test_bulk_string_with_encoding(encoding, expected):
@@ -218,7 +235,10 @@ def test_nested_multi_bulk_depth(reader):
 
 @pytest.mark.parametrize(
     "encoding,expected",
-    [("utf-8", b"\xe2\x98\x83".decode("utf-8")), ("utf-32", b"\xe2\x98\x83"),],
+    [
+        ("utf-8", b"\xe2\x98\x83".decode("utf-8")),
+        ("utf-32", b"\xe2\x98\x83"),
+    ],
     ids=["utf-8", "utf-32"],
 )
 def test_simple_string_with_encoding(encoding, expected):

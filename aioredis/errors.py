@@ -1,4 +1,4 @@
-from typing import Optional, Sequence  # noqa
+from typing import Optional, Sequence
 
 __all__ = (
     "RedisError",
@@ -66,7 +66,7 @@ class PipelineError(RedisError):
     """Raised if command within pipeline raised error."""
 
     def __init__(self, errors):
-        super().__init__("{} errors:".format(self.__class__.__name__), errors)
+        super().__init__(f"{self.__class__.__name__} errors:", errors)
 
 
 class MultiExecError(PipelineError):
@@ -78,8 +78,7 @@ class WatchVariableError(MultiExecError):
 
 
 class ChannelClosedError(RedisError):
-    """Raised when Pub/Sub channel is unsubscribed and messages queue is empty.
-    """
+    """Raised when Pub/Sub channel is unsubscribed and messages queue is empty."""
 
 
 class ReadOnlyError(RedisError):

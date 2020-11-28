@@ -1,6 +1,6 @@
 from itertools import chain
 
-from aioredis.util import wait_convert, wait_ok, _NOTSET
+from aioredis.util import _NOTSET, wait_convert, wait_ok
 
 
 class StringCommandsMixin:

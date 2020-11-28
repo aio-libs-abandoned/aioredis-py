@@ -1,10 +1,11 @@
-import re
 import os.path
-from setuptools import setup, find_packages
+import re
+
+from setuptools import find_packages, setup
 
 
 def read(*parts):
-    with open(os.path.join(*parts), "rt") as f:
+    with open(os.path.join(*parts)) as f:
         return f.read().strip()
 
 
@@ -16,7 +17,7 @@ def read_version():
             match = regexp.match(line)
             if match is not None:
                 return match.group(1)
-        raise RuntimeError("Cannot find version in {}".format(init_py))
+        raise RuntimeError(f"Cannot find version in {init_py}")
 
 
 classifiers = [

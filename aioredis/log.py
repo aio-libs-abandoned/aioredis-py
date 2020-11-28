@@ -1,7 +1,6 @@
+import logging
 import os
 import sys
-import logging
-
 
 logger = logging.getLogger("aioredis")
 sentinel_logger = logger.getChild("sentinel")

@@ -1,13 +1,10 @@
-import pytest
 import asyncio
 import sys
 
-from aioredis import (
-    SlaveNotFoundError,
-    ReadOnlyError,
-)
-from tests.testutils import redis_version
+import pytest
 
+from aioredis import ReadOnlyError, SlaveNotFoundError
+from tests.testutils import redis_version
 
 pytestmark = redis_version(2, 8, 12, reason="Sentinel v2 required")
 if sys.platform == "win32":

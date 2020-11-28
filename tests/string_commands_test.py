@@ -1,4 +1,5 @@
 import asyncio
+
 import pytest
 
 from aioredis import ReplyError
@@ -434,7 +435,10 @@ async def test_mset(redis):
 @pytest.mark.asyncio
 async def test_mset_with_dict(redis):
     array = [str(n) for n in range(10)]
-    _dict = dict.fromkeys(array, "default value",)
+    _dict = dict.fromkeys(
+        array,
+        "default value",
+    )
 
     await redis.mset(_dict)
 
@@ -442,7 +446,9 @@ async def test_mset_with_dict(redis):
     assert test_values == [str.encode(val) for val in _dict.values()]
 
     with pytest.raises(TypeError):
-        await redis.mset("param",)
+        await redis.mset(
+            "param",
+        )
 
 
 @pytest.mark.asyncio

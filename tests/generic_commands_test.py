@@ -1,10 +1,10 @@
 import asyncio
-import time
 import math
-import pytest
 import sys
-
+import time
 from unittest import mock
+
+import pytest
 
 from aioredis import ReplyError
 from tests.testutils import redis_version
@@ -586,7 +586,7 @@ async def test_restore(redis):
 async def test_scan(redis):
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        key = "key:scan:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        key = f"key:scan:{foo_or_bar}:{i}".encode("utf-8")
         await add(redis, key, i)
 
     cursor, values = await redis.scan()
@@ -627,14 +627,15 @@ async def zadd(redis, key, value):
 async def test_scan_type(redis):
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        key = "key:scan:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        key = f"key:scan:{foo_or_bar}:{i}".encode("utf-8")
         print(key)
         await zadd(redis, key, i)
 
     cursor, test_values = b"0", []
     while cursor:
-        cursor, values = await redis.scan(cursor=cursor, match=b"key:scan:bar:*",
-                                          key_type=b"zset")
+        cursor, values = await redis.scan(
+            cursor=cursor, match=b"key:scan:bar:*", key_type=b"zset"
+        )
         test_values.extend(values)
     assert len(test_values) == 7
 
@@ -758,7 +759,7 @@ async def test_iscan(redis):
     for i in range(1, 11):
         is_bar = i % 3
         foo_or_bar = "bar" if is_bar else "foo"
-        key = "key:scan:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        key = f"key:scan:{foo_or_bar}:{i}".encode("utf-8")
         full.add(key)
         if is_bar:
             bar.add(key)

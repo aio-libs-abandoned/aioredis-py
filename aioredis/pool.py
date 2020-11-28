@@ -1,15 +1,15 @@
 import asyncio
 import collections
+import sys
 import types
 import warnings
-import sys
 
-from .connection import create_connection, _PUBSUB_COMMANDS
-from .log import logger
-from .util import parse_url, CloseEvent
-from .errors import PoolClosedError
 from .abc import AbcPool
+from .connection import _PUBSUB_COMMANDS, create_connection
+from .errors import PoolClosedError
 from .locks import Lock
+from .log import logger
+from .util import CloseEvent, parse_url
 
 
 async def create_pool(
@@ -77,7 +77,7 @@ async def create_pool(
         create_connection_timeout=create_connection_timeout,
         connection_cls=connection_cls,
         loop=loop,
-        name=name
+        name=name,
     )
     try:
         await pool._fill_free(override_min=False)
@@ -199,8 +199,7 @@ class ConnectionsPool(AbcPool):
             logger.debug("Closed %d connection(s)", len(waiters))
 
     def close(self):
-        """Close all free and in-progress connections and mark pool as closed.
-        """
+        """Close all free and in-progress connections and mark pool as closed."""
         if not self._close_state.is_set():
             self._close_state.set()
 
@@ -458,7 +457,7 @@ class ConnectionsPool(AbcPool):
             parser=self._parser_class,
             timeout=self._create_connection_timeout,
             connection_cls=self._connection_cls,
-            name=self._name
+            name=self._name,
         )
 
     async def _wakeup(self, closing_conn=None):

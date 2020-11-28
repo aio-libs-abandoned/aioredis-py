@@ -19,7 +19,7 @@ Sample usage:
    assert await redis.set('key', 'value')
    assert await redis.get('key', encoding='utf-8') == 'value'
 
-   # redis client will reconnect/reconfigure automatically 
+   # redis client will reconnect/reconfigure automatically
    #  by sentinel client instance
 
 ``RedisSentinel``

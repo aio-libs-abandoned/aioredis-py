@@ -1,5 +1,6 @@
-import pytest
 import asyncio
+
+import pytest
 
 from aioredis import ReplyError
 

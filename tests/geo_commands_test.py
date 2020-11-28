@@ -1,6 +1,6 @@
 import pytest
 
-from aioredis import GeoPoint, GeoMember
+from aioredis import GeoMember, GeoPoint
 from tests.testutils import redis_version
 
 

@@ -1,8 +1,13 @@
 import asyncio
+
 import pytest
 
-from aioredis import ReplyError, MultiExecError, WatchVariableError
-from aioredis import ConnectionClosedError
+from aioredis import (
+    ConnectionClosedError,
+    MultiExecError,
+    ReplyError,
+    WatchVariableError,
+)
 
 
 @pytest.mark.asyncio

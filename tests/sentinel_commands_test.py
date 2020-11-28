@@ -1,12 +1,13 @@
 import asyncio
-import pytest
-import sys
 import logging
+import sys
 
-from aioredis import RedisError, ReplyError, PoolClosedError
+import pytest
+
+from aioredis import PoolClosedError, RedisError, ReplyError
+from aioredis.abc import AbcPool
 from aioredis.errors import MasterReplyError
 from aioredis.sentinel.commands import RedisSentinel
-from aioredis.abc import AbcPool
 from tests.testutils import redis_version
 
 pytestmark = redis_version(2, 8, 12, reason="Sentinel v2 required")
@@ -297,7 +298,7 @@ async def test_sentinel_master_pool_size(sentinel, create_sentinel, caplog):
         (
             "aioredis.sentinel",
             logging.DEBUG,
-            "Discoverred new address {} for main-no-fail".format(main.address),
+            f"Discoverred new address {main.address} for main-no-fail",
         ),
     ]
     assert main.connection.size == 10

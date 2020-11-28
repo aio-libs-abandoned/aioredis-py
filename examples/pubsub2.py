@@ -1,4 +1,5 @@
 import asyncio
+
 import aioredis
 
 
@@ -13,7 +14,7 @@ async def pubsub():
         while await channel.wait_message():
             msg = await channel.get(encoding="utf-8")
             # ... process message ...
-            print("message in {}: {}".format(channel.name, msg))
+            print(f"message in {channel.name}: {msg}")
 
     tsk1 = asyncio.ensure_future(async_reader(ch1))
 
@@ -25,7 +26,7 @@ async def pubsub():
             if msg is None:
                 break
             # ... process message ...
-            print("message in {}: {}".format(channel.name, msg))
+            print(f"message in {channel.name}: {msg}")
 
     tsk2 = asyncio.ensure_future(async_reader2(ch2))
 

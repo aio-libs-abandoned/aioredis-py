@@ -1,9 +1,9 @@
-import pytest
 import asyncio
 
-from aioredis import ConnectionClosedError, ReplyError
+import pytest
+
+from aioredis import ConnectionClosedError, Redis, ReplyError
 from aioredis.pool import ConnectionsPool
-from aioredis import Redis
 from tests.testutils import redis_version
 
 

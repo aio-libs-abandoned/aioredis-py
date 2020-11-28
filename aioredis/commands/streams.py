@@ -10,7 +10,7 @@ def fields_to_dict(fields, type_=OrderedDict):
 
 
 def parse_messages(messages):
-    """ Parse messages as returned by Redis into something useful
+    """Parse messages as returned by Redis into something useful
 
     Messages returned by XRANGE arrive in the form:
 
@@ -45,7 +45,7 @@ def parse_messages(messages):
 
 
 def parse_messages_by_stream(messages_by_stream):
-    """ Parse messages returned by stream
+    """Parse messages returned by stream
 
     Messages returned by XREAD arrive in the form:
         [stream_name,
@@ -215,7 +215,7 @@ class StreamCommandsMixin:
 
     def xdel(self, stream, id, *ids):
         """Removes the specified entries(IDs) from a stream"""
-        return self.execute(b'XDEL', stream, id, *ids)
+        return self.execute(b"XDEL", stream, id, *ids)
 
     def xtrim(self, stream, max_len, exact_len=False):
         """trims the stream to a given number of items, evicting older items"""
@@ -275,7 +275,7 @@ class StreamCommandsMixin:
         if timeout is None:
             block_args = []
         elif not isinstance(timeout, int):
-            raise TypeError("timeout argument must be int, not {!r}".format(timeout))
+            raise TypeError(f"timeout argument must be int, not {timeout!r}")
         else:
             block_args = [b"BLOCK", timeout]
 

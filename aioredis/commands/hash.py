@@ -1,13 +1,7 @@
 import warnings
 from itertools import chain
 
-from aioredis.util import (
-    wait_ok,
-    wait_convert,
-    wait_make_dict,
-    _NOTSET,
-    _ScanIter,
-)
+from aioredis.util import _NOTSET, _ScanIter, wait_convert, wait_make_dict, wait_ok
 
 
 class HashCommandsMixin:
@@ -65,7 +59,7 @@ class HashCommandsMixin:
         warnings.warn(
             "%s.hmset() is deprecated since redis 4.0.0, use %s.hset() instead"
             % (self.__class__.__name__, self.__class__.__name__),
-            DeprecationWarning
+            DeprecationWarning,
         )
         if len(pairs) % 2 != 0:
             raise TypeError("length of pairs must be even number")
@@ -103,7 +97,7 @@ class HashCommandsMixin:
         warnings.warn(
             "%s.hmset() is deprecated since redis 4.0.0, use %s.hset() instead"
             % (self.__class__.__name__, self.__class__.__name__),
-            DeprecationWarning
+            DeprecationWarning,
         )
 
         if not args and not kwargs:

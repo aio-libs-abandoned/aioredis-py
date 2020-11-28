@@ -1,18 +1,18 @@
 import asyncio
-import pytest
-import async_timeout
 import logging
 import sys
 from contextlib import ExitStack
-
 from unittest.mock import patch
 
+import async_timeout
+import pytest
+
 from aioredis import (
-    ReplyError,
-    PoolClosedError,
     ConnectionClosedError,
     ConnectionsPool,
     MaxClientsError,
+    PoolClosedError,
+    ReplyError,
 )
 from tests.testutils import redis_version
 
@@ -178,7 +178,8 @@ async def test_release_pending(create_pool, server, caplog):
         with (await pool) as conn:
             try:
                 await asyncio.wait_for(
-                    conn.execute(b"blpop", b"somekey:not:exists", b"0"), 0.05,
+                    conn.execute(b"blpop", b"somekey:not:exists", b"0"),
+                    0.05,
                 )
             except asyncio.TimeoutError:
                 pass
@@ -275,7 +276,11 @@ async def test_select_and_create(create_pool, server):
 
     # TODO: refactor this test as there's no _wait_select any more.
     with async_timeout.timeout(10):
-        pool = await create_pool(server.tcp_address, minsize=1, db=0,)
+        pool = await create_pool(
+            server.tcp_address,
+            minsize=1,
+            db=0,
+        )
         db = 0
         while True:
             db = (db + 1) & 1
@@ -544,7 +549,7 @@ async def test_multiple_connection_acquire(create_pool, server):
             await fill_free_event.wait()
 
         mocked_fill_free = stack.enter_context(
-            patch.object(pool, '_fill_free', side_effect=fill_free_se)
+            patch.object(pool, "_fill_free", side_effect=fill_free_se)
         )
 
         conn_fut1 = asyncio.ensure_future(pool.acquire())
@@ -571,15 +576,15 @@ async def test_multiple_connection_acquire(create_pool, server):
 
 @pytest.mark.asyncio
 async def test_client_name(create_pool, server):
-    name = 'test'
+    name = "test"
     pool = await create_pool(server.tcp_address, name=name)
 
     with (await pool) as conn:
-        res = await conn.execute(b'CLIENT', b'GETNAME')
-        assert res == bytes(name, 'utf-8')
+        res = await conn.execute(b"CLIENT", b"GETNAME")
+        assert res == bytes(name, "utf-8")
 
-    name = 'test2'
+    name = "test2"
     await pool.setname(name)
     with (await pool) as conn:
-        res = await conn.execute(b'CLIENT', b'GETNAME')
-        assert res == bytes(name, 'utf-8')
+        res = await conn.execute(b"CLIENT", b"GETNAME")
+        assert res == bytes(name, "utf-8")

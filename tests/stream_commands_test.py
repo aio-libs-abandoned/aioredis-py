@@ -1,8 +1,8 @@
-import pytest
 import asyncio
-
 from collections import OrderedDict
 from unittest import mock
+
+import pytest
 
 from aioredis.commands.streams import parse_messages
 from aioredis.errors import BusyGroupError
@@ -19,7 +19,12 @@ async def add_message_with_sleep(redis, stream, fields):
 
 @pytest.mark.asyncio
 async def test_xadd(redis, server_bin):
-    fields = OrderedDict(((b"field1", b"value1"), (b"field2", b"value2"),))
+    fields = OrderedDict(
+        (
+            (b"field1", b"value1"),
+            (b"field2", b"value2"),
+        )
+    )
     message_id = await redis.xadd("test_stream", fields)
 
     # Check the result is in the expected format (i.e: 1507400517949-0)
@@ -38,7 +43,7 @@ async def test_xadd(redis, server_bin):
 
 @pytest.mark.asyncio
 async def test_xadd_maxlen_exact(redis, server_bin):
-    message_id1 = await redis.xadd("test_stream", {"f1": "v1"})  # noqa
+    message_id1 = await redis.xadd("test_stream", {"f1": "v1"})
 
     # Ensure the millisecond-based message ID increments
     await asyncio.sleep(0.001)
@@ -100,10 +105,15 @@ async def test_xadd_maxlen_inexact(redis, server_bin):
 @pytest.mark.asyncio
 async def test_xrange(redis, server_bin):
     stream = "test_stream"
-    fields = OrderedDict(((b"field1", b"value1"), (b"field2", b"value2"),))
+    fields = OrderedDict(
+        (
+            (b"field1", b"value1"),
+            (b"field2", b"value2"),
+        )
+    )
     message_id1 = await redis.xadd(stream, fields)
     message_id2 = await redis.xadd(stream, fields)
-    message_id3 = await redis.xadd(stream, fields)  # noqa
+    message_id3 = await redis.xadd(stream, fields)
 
     # Test no parameters
     messages = await redis.xrange(stream)
@@ -146,10 +156,15 @@ async def test_xrange(redis, server_bin):
 @pytest.mark.asyncio
 async def test_xrevrange(redis, server_bin):
     stream = "test_stream"
-    fields = OrderedDict(((b"field1", b"value1"), (b"field2", b"value2"),))
+    fields = OrderedDict(
+        (
+            (b"field1", b"value1"),
+            (b"field2", b"value2"),
+        )
+    )
     message_id1 = await redis.xadd(stream, fields)
     message_id2 = await redis.xadd(stream, fields)
-    message_id3 = await redis.xadd(stream, fields)  # noqa
+    message_id3 = await redis.xadd(stream, fields)
 
     # Test no parameters
     messages = await redis.xrevrange(stream)
@@ -193,9 +208,14 @@ async def test_xrevrange(redis, server_bin):
 async def test_xread_selection(redis, server_bin):
     """Test use of counts and starting IDs"""
     stream = "test_stream"
-    fields = OrderedDict(((b"field1", b"value1"), (b"field2", b"value2"),))
+    fields = OrderedDict(
+        (
+            (b"field1", b"value1"),
+            (b"field2", b"value2"),
+        )
+    )
     message_id1 = await redis.xadd(stream, fields)
-    message_id2 = await redis.xadd(stream, fields)  # noqa
+    message_id2 = await redis.xadd(stream, fields)
     message_id3 = await redis.xadd(stream, fields)
 
     messages = await redis.xread([stream], timeout=1, latest_ids=["0000000000000-0"])
@@ -216,7 +236,12 @@ async def test_xread_selection(redis, server_bin):
 @pytest.mark.asyncio
 async def test_xread_blocking(redis, create_redis, server, server_bin):
     """Test the blocking read features"""
-    fields = OrderedDict(((b"field1", b"value1"), (b"field2", b"value2"),))
+    fields = OrderedDict(
+        (
+            (b"field1", b"value1"),
+            (b"field2", b"value2"),
+        )
+    )
     other_redis = await create_redis(server.tcp_address)
 
     # create blocking task in separate connection
@@ -501,13 +526,10 @@ async def test_xdel_stream(redis):
 
 @pytest.mark.asyncio
 async def test_xdel_multiple_ids_stream(redis):
-    message_id_1 = await redis.xadd('test_stream', {'a': 1})
-    message_id_2 = await redis.xadd('test_stream', {'a': 2})
-    message_id_3 = await redis.xadd('test_stream', {'a': 3})
-    response = await redis.xdel('test_stream',
-                                message_id_1,
-                                message_id_2,
-                                message_id_3)
+    message_id_1 = await redis.xadd("test_stream", {"a": 1})
+    message_id_2 = await redis.xadd("test_stream", {"a": 2})
+    message_id_3 = await redis.xadd("test_stream", {"a": 3})
+    response = await redis.xdel("test_stream", message_id_1, message_id_2, message_id_3)
     assert response >= 0
 
 
@@ -586,8 +608,8 @@ def test_parse_messages_ok():
 def test_parse_messages_null_fields():
     # Redis can sometimes respond with a fields value of 'null',
     # so ensure we handle that sensibly
-    message = [(b'123', None)]
-    assert parse_messages(message) == [(b'123', OrderedDict())]
+    message = [(b"123", None)]
+    assert parse_messages(message) == [(b"123", OrderedDict())]
 
 
 def test_parse_messages_null_message():

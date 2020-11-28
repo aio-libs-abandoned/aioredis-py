@@ -137,7 +137,12 @@ def test_url_assertions(url, expected_error):
 
 @pytest.mark.parametrize(
     "url",
-    ["redis:///bad-db-num", "redis:///0/1", "redis:///?db=bad-num", "redis:///?db=-1",],
+    [
+        "redis:///bad-db-num",
+        "redis:///0/1",
+        "redis:///?db=bad-num",
+        "redis:///?db=-1",
+    ],
 )
 def test_db_num_assertions(url):
     with pytest.raises(AssertionError, match="Invalid decimal integer"):

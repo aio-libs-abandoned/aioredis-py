@@ -1,21 +1,20 @@
-import pytest
 import asyncio
 import sys
 from unittest import mock
-
 from unittest.mock import patch
 
+import pytest
+
 from aioredis import (
+    Channel,
     ConnectionClosedError,
+    MaxClientsError,
     ProtocolError,
     RedisConnection,
     RedisError,
     ReplyError,
-    Channel,
-    MaxClientsError,
 )
-
-from tests.testutils import redis_version, delay_exc, select_opener
+from tests.testutils import delay_exc, redis_version, select_opener
 
 
 @pytest.mark.asyncio
@@ -497,7 +496,15 @@ async def test_connection_idle_close(create_connection, start_server):
         assert await conn.execute("ping") is None
 
 
-@pytest.mark.parametrize("kwargs", [{}, {"db": 1}, {"encoding": "utf-8"},], ids=repr)
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"db": 1},
+        {"encoding": "utf-8"},
+    ],
+    ids=repr,
+)
 @pytest.mark.asyncio
 async def test_create_connection__tcp_url(create_connection, server_tcp_url, kwargs):
     url = server_tcp_url(**kwargs)
@@ -511,7 +518,15 @@ async def test_create_connection__tcp_url(create_connection, server_tcp_url, kwa
 
 
 @pytest.mark.skipif('sys.platform == "win32"', reason="No unix sockets on Windows")
-@pytest.mark.parametrize("kwargs", [{}, {"db": 1}, {"encoding": "utf-8"},], ids=repr)
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"db": 1},
+        {"encoding": "utf-8"},
+    ],
+    ids=repr,
+)
 @pytest.mark.asyncio
 async def test_create_connection__unix_url(create_connection, server_unix_url, kwargs):
     url = server_unix_url(**kwargs)
@@ -526,7 +541,7 @@ async def test_create_connection__unix_url(create_connection, server_unix_url, k
 
 @pytest.mark.asyncio
 async def test_connect_setname(request, create_connection, server):
-    name = 'test'
+    name = "test"
     conn = await create_connection(server.tcp_address, name=name)
-    res = await conn.execute(b'CLIENT', b'GETNAME')
-    assert res == bytes(name, 'utf-8')
+    res = await conn.execute(b"CLIENT", b"GETNAME")
+    assert res == bytes(name, "utf-8")

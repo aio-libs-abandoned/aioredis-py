@@ -1,14 +1,14 @@
 import asyncio
-import json
-import types
 import collections
-import warnings
+import json
 import sys
+import types
+import warnings
 
 from .abc import AbcChannel
-from .util import _converters  # , _set_result
 from .errors import ChannelClosedError
 from .log import logger
+from .util import _converters  # , _set_result
 
 __all__ = [
     "Channel",
@@ -149,10 +149,10 @@ class _IterHelper:
 
     async def __anext__(self):
         if not self._is_active(self._ch):
-            raise StopAsyncIteration  # noqa
+            raise StopAsyncIteration
         msg = await self._ch.get(*self._args, **self._kw)
         if msg is None:
-            raise StopAsyncIteration  # noqa
+            raise StopAsyncIteration
         return msg
 
 

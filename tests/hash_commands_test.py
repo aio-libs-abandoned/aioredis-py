@@ -402,8 +402,8 @@ async def test_hscan(redis):
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        f = "field:{}:{}".format(foo_or_bar, i).encode("utf-8")
-        v = "value:{}".format(i).encode("utf-8")
+        f = f"field:{foo_or_bar}:{i}".encode("utf-8")
+        v = f"value:{i}".encode("utf-8")
         await add(redis, key, f, v)
     # fetch 'field:foo:*' items expected tuple with 3 fields and 3 values
     cursor, values = await redis.hscan(key, match=b"field:foo:*")
@@ -484,8 +484,8 @@ async def test_ihscan(redis):
     # setup initial values 3 "field:foo:*" items and 7 "field:bar:*" items
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        f = "field:{}:{}".format(foo_or_bar, i).encode("utf-8")
-        v = "value:{}".format(i).encode("utf-8")
+        f = f"field:{foo_or_bar}:{i}".encode("utf-8")
+        v = f"value:{i}".encode("utf-8")
         assert await redis.hset(key, f, v) == 1
 
     async def coro(cmd):

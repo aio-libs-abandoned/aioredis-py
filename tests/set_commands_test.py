@@ -444,7 +444,7 @@ async def test_sscan(redis):
     key = b"key:sscan"
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        member = "member:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        member = f"member:{foo_or_bar}:{i}".encode("utf-8")
         await add(redis, key, member)
 
     cursor, values = await redis.sscan(key, match=b"member:foo:*")
@@ -473,7 +473,7 @@ async def test_isscan(redis):
     key = b"key:sscan"
     for i in range(1, 11):
         foo_or_bar = "bar" if i % 3 else "foo"
-        member = "member:{}:{}".format(foo_or_bar, i).encode("utf-8")
+        member = f"member:{foo_or_bar}:{i}".encode("utf-8")
         assert await redis.sadd(key, member) == 1
 
     async def coro(cmd):

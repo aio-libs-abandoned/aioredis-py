@@ -1,8 +1,8 @@
-import time
-import pytest
 import sys
-
+import time
 from unittest import mock
+
+import pytest
 
 from aioredis import ReplyError
 from tests.testutils import redis_version
@@ -50,7 +50,7 @@ async def test_client_list__unixsocket(create_redis, server, request):
     res = await redis.client_list()
     info = [dict(i._asdict()) for i in res]
     expected = {
-        "addr": "{}:0".format(server.unixsocket),
+        "addr": f"{server.unixsocket}:0",
         "fd": mock.ANY,
         "age": mock.ANY,
         "idle": mock.ANY,
@@ -272,7 +272,10 @@ async def test_save(redis):
 
 @pytest.mark.parametrize(
     "encoding",
-    [pytest.param(None, id="no decoding"), pytest.param("utf-8", id="with decoding"),],
+    [
+        pytest.param(None, id="no decoding"),
+        pytest.param("utf-8", id="with decoding"),
+    ],
 )
 @pytest.mark.asyncio
 async def test_time(create_redis, server, encoding):
