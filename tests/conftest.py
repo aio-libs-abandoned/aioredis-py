@@ -413,7 +413,7 @@ def start_sentinel(_proc, request, tcp_port_factory, server_bin):
         noslaves=False,
         down_after_milliseconds=3000,
         failover_timeout=1000,
-        sentinel_password=None
+        sentinel_password=None,
     ):
         key = (name,) + masters
         if key in sentinels:
@@ -437,7 +437,9 @@ def start_sentinel(_proc, request, tcp_port_factory, server_bin):
             if unixsocket:
                 write("unixsocket", unixsocket)
             write("loglevel debug")
-            if sentinel_password and version[0] >= 3:  # Checkout redis/redis/pull/3329 on github
+            if (
+                sentinel_password and version[0] >= 3
+            ):  # Checkout redis/redis/pull/3329 on github
                 write(f"requirepass {sentinel_password}")
 
             for master in masters:

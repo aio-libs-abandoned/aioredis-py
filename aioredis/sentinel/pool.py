@@ -66,6 +66,7 @@ async def create_sentinel_pool(
     else:
         return pool
 
+
 class SentinelPool:
     """Sentinel connections pool.
 

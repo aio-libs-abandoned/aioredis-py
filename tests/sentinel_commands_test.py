@@ -321,9 +321,13 @@ async def test_sentinel_with_password(start_server, start_sentinel, create_senti
     password = "qwert"
     n = start_server("redis-normal")
     if n.version[0] < 3:
-        pytest.mark.skip(reason="Redis does not support sentinel password before version 3")
+        pytest.mark.skip(
+            reason="Redis does not support sentinel password before version 3"
+        )
         return
 
     s = start_sentinel("sentinel-normal", n, sentinel_password=password)
-    client = await create_sentinel([s.tcp_address], sentinel_password=password, timeout=10)
+    client = await create_sentinel(
+        [s.tcp_address], sentinel_password=password, timeout=10
+    )
     assert await client.ping() == b"PONG"
