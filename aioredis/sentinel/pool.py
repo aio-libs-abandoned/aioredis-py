@@ -111,7 +111,7 @@ class SentinelPool:
         self._close_state = CloseEvent(self._do_close)
         self._close_waiter = None
         self._monitor = monitor = Receiver()
-        self.sentinel_password = sentinel_password
+        self._sentinel_password = sentinel_password
 
         async def echo_events():
             try:
@@ -269,7 +269,7 @@ class SentinelPool:
                     minsize=1,
                     maxsize=2,
                     parser=self._parser_class,
-                    password=self.sentinel_password,
+                    password=self._sentinel_password,
                 )
             pools.append(pool)
             return pool
