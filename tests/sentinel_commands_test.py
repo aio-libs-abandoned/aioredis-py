@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from collections import namedtuple
 
 import pytest
 
@@ -303,3 +304,26 @@ async def test_sentinel_master_pool_size(sentinel, create_sentinel, caplog):
     ]
     assert main.connection.size == 10
     assert main.connection.freesize == 10
+
+
+@pytest.mark.asyncio
+async def test_sentinel_no_discovered_pool(tcp_port_factory, create_sentinel):
+    tcp_address = namedtuple("TCPAddress", "host port")
+    port = tcp_port_factory()
+    addr = tcp_address("localhost", port)
+
+    with pytest.raises(Exception):
+        await create_sentinel([addr], timeout=2)
+
+
+@pytest.mark.asyncio
+async def test_sentinel_with_password(start_server, start_sentinel, create_sentinel):
+    password = "qwert"
+    n = start_server("redis-normal")
+    if n.version[0] < 3:
+        pytest.mark.skip(reason="Redis does not support sentinel password before version 3")
+        return
+
+    s = start_sentinel("sentinel-normal", n, sentinel_password=password)
+    client = await create_sentinel([s.tcp_address], sentinel_password=password, timeout=10)
+    assert await client.ping() == b"PONG"
