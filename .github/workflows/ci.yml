@@ -54,6 +54,7 @@ jobs:
     needs: lint
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
         uvloop: ['no-uvloop']
         include:
@@ -62,9 +63,10 @@ jobs:
         - pyver: 3.8
           uvloop: 'uvloop'
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
+      OS: ${{ matrix.os }}
       INSTALL_DIR: ${{ github.workspace }}/redis
     steps:
     - name: Checkout
@@ -74,17 +76,31 @@ jobs:
       with:
         python-version: ${{ matrix.pyver }}
     - name: Cache Redis Server
+      if: startsWith(runner.os, 'Linux')
       uses: actions/cache@v2
       with:
         key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt', 'Makefile') }}
         path: ${{ github.workspace }}/redis
         restore-keys: |
             pip-ci-${{ runner.os }}-
+    - name: Cache Redis server
+      uses: actions/cache@v2
+      if: startsWith(runner.os, 'Windows')
+      with:
+        key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+        path: ${{ github.workspace }}\redis
+        restore-keys: |
+          pip-ci-${{ runner.os }}-
     - name: Install Redis Server
+      if: startsWith(runner.os, 'Linux')
       run: |
         sudo apt install socat
         make ci-prune-old-redis
         make -j ci-build-redis
+    - name: Install Redis Server
+      if: startsWith(runner.os, 'Windows')
+      run: |
+        choco install redis-64
     - name: Get pip cache dir
       id: pip-cache
       run: |
@@ -104,18 +120,33 @@ jobs:
       if: ${{ matrix.uvloop == 'uvloop' }}
       run: pip install uvloop
     - name: Install Self
+      if: startsWith(runner.os, 'Linux')
       run: |
         pip install -e . -c tests/requirements.txt
+    - name: Install Self
+      if: startsWith(runner.os, 'Windows')
+      run: |
+        pip install -e . -c tests\requirements.txt
     - name: Run unittests (no-uvloop)
-      if: matrix.uvloop == 'no-uvloop'
+      if: matrix.uvloop == 'no-uvloop' && startsWith(runner.os, 'Linux')
       run: |
         make ci-test
         python -m coverage xml
     - name: Run unittests (uvloop)
-      if: matrix.uvloop == 'uvloop'
+      if: matrix.uvloop == 'uvloop' && startsWith(runner.os, 'Linux')
       run: |
         make ci-test
         python -m coverage xml
+      env:
+        PYTEST_ADDOPTS: "--uvloop"
+    - name: Run unittests (no-uvloop)
+      if: matrix.uvloop == 'no-uvloop' && startsWith(runner.os, 'Windows')
+      run: |
+        python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml
+    - name: Run unittests (uvloop)
+      if: matrix.uvloop == 'uvloop' && startsWith(runner.os, 'Windows')
+      run: |
+        python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml
       env:
         PYTEST_ADDOPTS: "--uvloop"
     - name: Upload coverage
@@ -123,6 +154,7 @@ jobs:
       with:
         file: ./coverage.xml
         flags: unit
+        env_vars: OS
         fail_ci_if_error: false
 
   # deploy:
