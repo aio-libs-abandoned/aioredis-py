@@ -2,7 +2,7 @@ PYTHON ?= python3
 PYTEST ?= pytest
 MYPY ?= mypy
 
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9 6.0.9
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
