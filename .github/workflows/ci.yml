@@ -49,35 +49,25 @@ jobs:
       run: |
         twine check dist/*
 
-  test:
-    name: Test
+  test-unix:
+    name: Test Unix
     needs: lint
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
-        uvloop: ['no-uvloop']
-        include:
-        - os: ubuntu-latest
-        - os: windows-latest
-        - pyver: 3.6
-          uvloop: 'uvloop'
+        uvloop: [uvloop, no-uvloop]
+        exclude:
+        - pyver: pypy3
+          uvloop: uvloop
           os: ubuntu-latest
-        - pyver: 3.6
-          uvloop: 'uvloop'
-          os: windows-latest
-        - pyver: 3.8
-          uvloop: 'uvloop'
-          os: ubuntu-latest
-        - pyver: 3.8
-          uvloop: 'uvloop'
-          os: windows-latest
       fail-fast: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       OS: ${{ matrix.os }}
       INSTALL_DIR: ${{ github.workspace }}/redis
+      PYTEST_ADDOPTS: --${{ matrix.uvloop }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -85,32 +75,19 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.pyver }}
-    - name: Cache Redis Server
-      if: startsWith(runner.os, 'Linux')
+    - name: Cache Redis Server (${{ runner.os }})
       uses: actions/cache@v2
       with:
         key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt', 'Makefile') }}
         path: ${{ github.workspace }}/redis
         restore-keys: |
             pip-ci-${{ runner.os }}-
-    - name: Cache Redis server
-      uses: actions/cache@v2
-      if: startsWith(runner.os, 'Windows')
-      with:
-        key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
-        path: ${{ github.workspace }}\redis
-        restore-keys: |
-          pip-ci-${{ runner.os }}-
-    - name: Install Redis Server
+    - name: Install Redis Server (${{ runner.os }})
       if: startsWith(runner.os, 'Linux')
       run: |
         sudo apt install socat
         make ci-prune-old-redis
         make -j ci-build-redis
-    - name: Install Redis Server
-      if: startsWith(runner.os, 'Windows')
-      run: |
-        choco install redis-64
     - name: Get pip cache dir
       id: pip-cache
       run: |
@@ -130,35 +107,77 @@ jobs:
       if: ${{ matrix.uvloop == 'uvloop' }}
       run: pip install uvloop
     - name: Install Self
-      if: startsWith(runner.os, 'Linux')
       run: |
         pip install -e . -c tests/requirements.txt
-    - name: Install Self
-      if: startsWith(runner.os, 'Windows')
+    - name: Run unittests (${{ matrix.uvloop }}, ${{ matrix.os }})
+      run: |
+        make ci-test
+        python -m coverage xml
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
+        flags: unit
+        env_vars: OS
+        fail_ci_if_error: false
+
+test-windows:
+    name: Test Windows
+    needs: lint
+    strategy:
+      matrix:
+        os: [windows-latest]
+        pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
+        uvloop: [no-uvloop]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    timeout-minutes: 15
+    env:
+      OS: ${{ matrix.os }}
+      INSTALL_DIR: ${{ github.workspace }}/redis
+      PYTEST_ADDOPTS: --${{ matrix.uvloop }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Python ${{ matrix.pyver }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.pyver }}
+    - name: Cache Redis server
+      uses: actions/cache@v2
+      if: ${{ startsWith(runner.os, 'Windows') }}
+      with:
+        key: pip-ci-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+        path: ${{ github.workspace }}\redis
+        restore-keys: |
+          pip-ci-${{ runner.os }}-
+    - name: Install Redis Server
+      run: |
+        choco install redis-64
+    - name: Get pip cache dir
+      id: pip-cache
+      run: |
+        echo "::set-output name=dir::$(pip cache dir)"    # - name: Cache
+    - name: Cache PyPI
+      uses: actions/cache@v2
+      with:
+        key: pip-ci-${{ runner.os }}-${{ matrix.pyver }}-${{ hashFiles('**/requirements.txt') }}
+        path: ${{ steps.pip-cache.outputs.dir }}
+        restore-keys: |
+            pip-ci-${{ runner.os }}-${{ matrix.pyver }}-
+    - name: Install dependencies
+      uses: py-actions/py-dependency-install@v2
+      with:
+        path: tests/requirements.txt
+    - name: Install Self (windows)
+      if: ${{ startsWith(runner.os, 'Windows') }}
       run: |
         pip install -e . -c tests\requirements.txt
-    - name: Run unittests (no-uvloop)
-      if: matrix.uvloop == 'no-uvloop' && startsWith(runner.os, 'Linux')
-      run: |
-        make ci-test
-        python -m coverage xml
-    - name: Run unittests (uvloop)
-      if: matrix.uvloop == 'uvloop' && startsWith(runner.os, 'Linux')
-      run: |
-        make ci-test
-        python -m coverage xml
-      env:
-        PYTEST_ADDOPTS: "--uvloop"
-    - name: Run unittests (no-uvloop)
-      if: matrix.uvloop == 'no-uvloop' && startsWith(runner.os, 'Windows')
+    - name: Run unittests
+      if: ${{ startsWith(runner.os, 'Windows') }}
       run: |
         python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml
-    - name: Run unittests (uvloop)
-      if: matrix.uvloop == 'uvloop' && startsWith(runner.os, 'Windows')
-      run: |
-        python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml
-      env:
-        PYTEST_ADDOPTS: "--uvloop"
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
