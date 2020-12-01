@@ -54,14 +54,24 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'windows-latest']
+        os: [ubuntu-latest, windows-latest]
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
         uvloop: ['no-uvloop']
         include:
+        - os: ubuntu-latest
+        - os: windows-latest
         - pyver: 3.6
           uvloop: 'uvloop'
+          os: ubuntu-latest
+        - pyver: 3.6
+          uvloop: 'uvloop'
+          os: windows-latest
         - pyver: 3.8
           uvloop: 'uvloop'
+          os: ubuntu-latest
+        - pyver: 3.8
+          uvloop: 'uvloop'
+          os: windows-latest
       fail-fast: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
