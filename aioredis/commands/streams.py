@@ -78,7 +78,7 @@ def parse_messages_by_stream(messages_by_stream, encoding=None):
     parsed_messages = []
 
     for stream, messages in messages_by_stream:
-        if encoding is True:
+        if encoding is not None:
             stream = stream.decode(encoding)
             for message_id, fields in parse_messages(messages, encoding=encoding):
                 message_id = message_id.decode(encoding)
