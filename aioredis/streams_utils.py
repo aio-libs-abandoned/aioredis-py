@@ -140,8 +140,7 @@ class ReadStreams:
         self._check_pending = False if len(messages) == 0 else True
 
         logger.info("Received %d messages..." % len(messages))
-        for message in messages:
-            await self._queue.put(message)
+        await asyncio.gather(*(self._queue.put(m) for m in messages))
 
     async def _get_messages(self):
         streams, latest_ids = self._stream_with_latest_ids()
@@ -155,8 +154,7 @@ class ReadStreams:
 
         logger.info("Received %d messages..." % len(messages))
 
-        for message in messages:
-            await self._queue.put(message)
+        await asyncio.gather(*(self._queue.put(m) for m in messages))
 
     async def get(self):
         """Coroutine that waits for and returns a message.
