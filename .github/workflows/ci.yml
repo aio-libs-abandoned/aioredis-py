@@ -121,7 +121,7 @@ jobs:
         env_vars: OS
         fail_ci_if_error: false
 
-test-windows:
+  test-windows:
     name: Test Windows
     needs: lint
     strategy:
