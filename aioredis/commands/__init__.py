@@ -1,8 +1,8 @@
 from aioredis.abc import AbcPool
 from aioredis.connection import create_connection
 from aioredis.pool import create_pool
-from aioredis.util import _NOTSET, wait_ok
 from aioredis.streams_utils import ReadStreams
+from aioredis.util import _NOTSET, wait_ok
 
 from .cluster import ClusterCommandsMixin
 from .generic import GenericCommandsMixin

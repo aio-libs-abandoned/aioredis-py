@@ -142,7 +142,7 @@ class StreamCommandsMixin:
                             not match
         """
         args = self._xread(streams, timeout, count, latest_ids)
-        fut = self.execute(b'XREAD', *args)
+        fut = self.execute(b"XREAD", *args)
         return wait_convert(fut, parse_messages_by_stream, encoding=encoding)
 
     def xread_group(
@@ -162,9 +162,7 @@ class StreamCommandsMixin:
                             not match
         """
         args = self._xread(streams, timeout, count, latest_ids, no_ack)
-        fut = self.execute(
-            b'XREADGROUP', b'GROUP', group_name, consumer_name, *args
-        )
+        fut = self.execute(b"XREADGROUP", b"GROUP", group_name, consumer_name, *args)
         return wait_convert(fut, parse_messages_by_stream, encoding=encoding)
 
     def xgroup_create(self, stream, group_name, latest_id="$", mkstream=False):

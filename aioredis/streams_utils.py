@@ -13,6 +13,7 @@ class ReadStreams:
     Redis Streams pretty interface
 
     """
+
     def __init__(self, redis):
         self._redis = redis
         self._is_group = False
@@ -22,9 +23,7 @@ class ReadStreams:
 
     def __repr__(self):
         return "<{} name:{!r}, qsize:{}>".format(
-            self.__class__.__name__,
-            self._streams,
-            self._queue.qsize()
+            self.__class__.__name__, self._streams, self._queue.qsize()
         )
 
     def __aiter__(self):
@@ -32,7 +31,9 @@ class ReadStreams:
 
     async def __anext__(self):
         if self._configured is False:
-            raise ValueError("Streams have to be initialized correcly with `consumer` or `consumer_with_group` before")
+            raise ValueError(
+                "Streams have to be initialized correcly with `consumer` or `consumer_with_group` before"
+            )
         msg = await self.get()
         if msg:
             return msg
@@ -105,7 +106,10 @@ class ReadStreams:
         stream = self._streams[0]
         group_name = self._group_name
         await self._redis.xack(stream=stream, group_name=group_name, id=id)
-        logger.debug("<message:%s, stream:%s group_name:%s> acknowleged" % (id, stream, group_name))
+        logger.debug(
+            "<message:%s, stream:%s group_name:%s> acknowleged"
+            % (id, stream, group_name)
+        )
 
     def _stream_with_latest_ids(self):
         streams = []
@@ -119,7 +123,7 @@ class ReadStreams:
 
     async def _get_messages_from_group(self):
         if self._check_pending:
-            latest_ids = ['0']
+            latest_ids = ["0"]
             logger.debug("Checking pending messages for stream `%s`" % self._streams[0])
         else:
             latest_ids = [">"]
@@ -130,7 +134,7 @@ class ReadStreams:
             streams=self._streams,
             count=self._count,
             latest_ids=latest_ids,
-            encoding=self._encoding
+            encoding=self._encoding,
         )
 
         self._check_pending = False if len(messages) == 0 else True
@@ -146,7 +150,7 @@ class ReadStreams:
             streams=streams,
             count=self._count,
             latest_ids=latest_ids,
-            encoding=self._encoding
+            encoding=self._encoding,
         )
 
         logger.info("Received %d messages..." % len(messages))
