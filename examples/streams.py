@@ -1,4 +1,5 @@
 import asyncio
+from collections import OrderedDict
 
 import aioredis
 
@@ -12,64 +13,73 @@ then from another terminal
 AIOREDIS_DEBUG=1 python experiment.py
 """
 
+STREAM = "my-stream"
 
-async def stream_low():
+
+async def add_messages(number=10):
     redis = await aioredis.create_redis("redis://localhost")
+
+    for i in range(number):
+
+        fields = OrderedDict(((b"message", number),))
+        await redis.xadd(STREAM, fields)
+        print(f"Message n.{i} published")
+
+        await asyncio.sleep(2)
+
+
+async def streams_low_level():
+    redis = await aioredis.create_redis("redis://localhost")
+
+    messages = await redis.xread([STREAM])
 
     while True:
-        messages = await self._redis.xread(
-            streams=streams, count=self._count, latest_ids=latest_ids
-        )
+        messages = await redis.xread([STREAM])
         for message in messages:
-            print(msg)
+            print(message)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
 
 
-async def stream():
+async def streams_high_level():
     redis = await aioredis.create_redis("redis://localhost")
-    streams = redis.streams.consumer(["mystream"], encoding="utf-8")
+    streams = redis.streams.consumer([STREAM], encoding="utf-8")
 
     while True:
         msg = await streams.get()
         print(msg)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
 
 
-async def with_group():
+async def streams_with_group():
     redis = await aioredis.create_redis("redis://localhost")
     streams = redis.streams.consumer_with_group(
-        ["mystream"], group_name="mygroup", consumer_name="Alice", encoding="utf-8"
+        [STREAM], group_name="mygroup", consumer_name="Alice", encoding="utf-8"
     )
 
     while True:
-        msg = await streams.get()
-        print(msg)
-        await streams.ack_message(msg[1])
-        await asyncio.sleep(5)
+        message = await streams.get()
+        print(message)
+        await streams.ack_message(message[1])
 
-
-async def another_task():
-    while True:
-        print("Tired")
         await asyncio.sleep(2)
-        print("Rested")
 
 
 async def stream_async_for():
     redis = await aioredis.create_redis("redis://localhost")
-    streams = redis.streams.consumer(["mystream"], encoding="utf-8")
+    streams = redis.streams.consumer([STREAM], encoding="utf-8")
 
     async for message in streams:
         print(message)
-        await asyncio.sleep(5)
+
+        await asyncio.sleep(2)
 
 
 async def stream_async_for_group():
     redis = await aioredis.create_redis("redis://localhost")
     streams = redis.streams.consumer_with_group(
-        ["mystream"], group_name="mygroup", consumer_name="Alice", encoding="utf-8"
+        [STREAM], group_name="mygroup", consumer_name="Alice", encoding="utf-8"
     )
 
     async for message in streams:
@@ -82,6 +92,6 @@ async def stream_async_for_group():
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.create_task(stream_async_for_group())
-    # loop.create_task(another_task())
+    # loop.create_task(add_messages())
+    loop.create_task(streams_high_level())
     loop.run_forever()
