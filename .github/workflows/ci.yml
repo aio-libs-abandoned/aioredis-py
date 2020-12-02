@@ -177,7 +177,7 @@ jobs:
     - name: Run unittests
       if: ${{ startsWith(runner.os, 'Windows') }}
       run: |
-        python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml
+        python -m pytest -svv --cov --cov-report=xml --junitxml=coverage.xml --redis-server=C:\\ProgramData\\chocolatey\\lib\\redis-64\\redis-server.exe
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
