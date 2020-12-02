@@ -70,11 +70,12 @@ def parse_messages_by_stream(messages_by_stream, encoding=None):
     parsed = []
 
     for stream, messages in messages_by_stream:
-        if encoding is not None:
+        if encoding is True:
             stream = stream.decode(encoding)
-
-        for message_id, fields in parse_messages(messages, encoding=encoding):
-            if encoding is not None:
+            for message_id, fields in parse_messages(messages, encoding=encoding):
+                message_id = message_id.decode(encoding)
+        else:
+            for message_id, fields in parse_messages(messages, encoding=encoding):
                 message_id = message_id.decode(encoding)
 
             parsed.append((stream, message_id, fields))
