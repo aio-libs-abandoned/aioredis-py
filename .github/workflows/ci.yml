@@ -154,7 +154,7 @@ jobs:
           pip-ci-${{ runner.os }}-
     - name: Install Redis Server
       run: |
-        choco install redis-64
+        choco install redis-64 --version 3.0.503
     - name: Get pip cache dir
       id: pip-cache
       run: |
