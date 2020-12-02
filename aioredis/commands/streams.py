@@ -85,7 +85,6 @@ def parse_messages_by_stream(messages_by_stream, encoding=None):
                 parsed_messages.append((stream, message_id, fields))
         else:
             for message_id, fields in parse_messages(messages, encoding=encoding):
-                message_id = message_id.decode(encoding)
                 parsed_messages.append((stream, message_id, fields))
 
     return parsed_messages
