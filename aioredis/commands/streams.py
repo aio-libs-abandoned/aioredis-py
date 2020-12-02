@@ -154,6 +154,7 @@ class StreamCommandsMixin:
         count=None,
         latest_ids=None,
         no_ack=False,
+        encoding=None,
     ):
         """Perform a blocking read on the given stream as part of a consumer group
 
