@@ -1,21 +1,21 @@
 import asyncio
+
 import aioredis
 
 
 async def main():
-    redis = await aioredis.create_redis(
-        'redis://localhost')
+    redis = await aioredis.create_redis("redis://localhost")
 
     # No pipelining;
     async def wait_each_command():
-        val = await redis.get('foo')    # wait until `val` is available
-        cnt = await redis.incr('bar')   # wait until `cnt` is available
+        val = await redis.get("foo")  # wait until `val` is available
+        cnt = await redis.incr("bar")  # wait until `cnt` is available
         return val, cnt
 
     # Sending multiple commands and then gathering results
     async def pipelined():
-        fut1 = redis.get('foo')      # issue command and return future
-        fut2 = redis.incr('bar')     # issue command and return future
+        fut1 = redis.get("foo")  # issue command and return future
+        fut2 = redis.incr("bar")  # issue command and return future
         # block until results are available
         val, cnt = await asyncio.gather(fut1, fut2)
         return val, cnt
@@ -23,8 +23,8 @@ async def main():
     # Explicit pipeline
     async def explicit_pipeline():
         pipe = redis.pipeline()
-        fut1 = pipe.get('foo')
-        fut2 = pipe.incr('bar')
+        fut1 = pipe.get("foo")
+        fut2 = pipe.incr("bar")
         result = await pipe.execute()
         val, cnt = await asyncio.gather(fut1, fut2)
         assert result == [val, cnt]
@@ -41,6 +41,5 @@ async def main():
     await redis.wait_closed()
 
 
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+if __name__ == "__main__":
+    asyncio.run(main())

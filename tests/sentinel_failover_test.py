@@ -1,64 +1,76 @@
-import pytest
 import asyncio
 import sys
 
-from aioredis import (
-    SlaveNotFoundError,
-    ReadOnlyError,
-    )
+import pytest
 
+from aioredis import ReadOnlyError, SlaveNotFoundError
+from tests.testutils import redis_version
 
-pytestmark = pytest.redis_version(2, 8, 12, reason="Sentinel v2 required")
-if sys.platform == 'win32':
+pytestmark = redis_version(2, 8, 12, reason="Sentinel v2 required")
+if sys.platform == "win32":
     pytestmark = pytest.mark.skip(reason="unstable on windows")
 
 
-@pytest.mark.xfail
-@pytest.mark.run_loop(timeout=40)
-async def test_auto_failover(start_sentinel, start_server,
-                             create_sentinel, create_connection, loop):
-    server1 = start_server('master-failover', ['slave-read-only yes'])
-    start_server('slave-failover1', ['slave-read-only yes'], slaveof=server1)
-    start_server('slave-failover2', ['slave-read-only yes'], slaveof=server1)
+@pytest.mark.timeout(40)
+@pytest.mark.asyncio
+async def test_auto_failover(
+    start_sentinel, start_server, create_sentinel, create_connection
+):
+    server1 = start_server("master-failover", ["slave-read-only yes"])
+    start_server("slave-failover1", ["slave-read-only yes"], slaveof=server1)
+    start_server("slave-failover2", ["slave-read-only yes"], slaveof=server1)
 
-    sentinel1 = start_sentinel('sentinel-failover1', server1, quorum=2)
-    sentinel2 = start_sentinel('sentinel-failover2', server1, quorum=2)
+    sentinel1 = start_sentinel(
+        "sentinel-failover1",
+        server1,
+        quorum=2,
+        down_after_milliseconds=300,
+        failover_timeout=1000,
+    )
+    sentinel2 = start_sentinel(
+        "sentinel-failover2",
+        server1,
+        quorum=2,
+        down_after_milliseconds=300,
+        failover_timeout=1000,
+    )
+    # Wait a bit for sentinels to sync
+    await asyncio.sleep(3)
 
-    sp = await create_sentinel([sentinel1.tcp_address,
-                                sentinel2.tcp_address],
-                               timeout=1)
+    sp = await create_sentinel(
+        [sentinel1.tcp_address, sentinel2.tcp_address], timeout=1
+    )
 
     _, old_port = await sp.master_address(server1.name)
     # ignoring host
     assert old_port == server1.tcp_address.port
     master = sp.master_for(server1.name)
     res = await master.role()
-    assert res.role == 'master'
+    assert res.role == "master"
     assert master.address is not None
     assert master.address[1] == old_port
 
     # wait failover
     conn = await create_connection(server1.tcp_address)
-    await conn.execute("debug", "sleep", 6)
-    await asyncio.sleep(3, loop=loop)
+    await conn.execute("debug", "sleep", 5)
 
     # _, new_port = await sp.master_address(server1.name)
     # assert new_port != old_port
     # assert new_port == server2.tcp_address.port
-    assert (await master.set("key", "val"))
+    assert await master.set("key", "val")
     assert master.address is not None
     assert master.address[1] != old_port
 
 
-@pytest.mark.run_loop
+@pytest.mark.asyncio
 async def test_sentinel_normal(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
-    redis = redis_sentinel.master_for('masterA')
+    redis = redis_sentinel.master_for("mainA")
 
     info = await redis.role()
-    assert info.role == 'master'
+    assert info.role == "master"
 
-    key, field, value = b'key:hset', b'bar', b'zap'
+    key, field, value = b"key:hset", b"bar", b"zap"
     exists = await redis.hexists(key, field)
     if exists:
         ret = await redis.hdel(key, field)
@@ -71,15 +83,15 @@ async def test_sentinel_normal(sentinel, create_sentinel):
 
 
 @pytest.mark.xfail(reason="same sentinel; single master;")
-@pytest.mark.run_loop
+@pytest.mark.asyncio
 async def test_sentinel_slave(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
-    redis = redis_sentinel.slave_for('masterA')
+    redis = redis_sentinel.slave_for("mainA")
 
     info = await redis.role()
-    assert info.role == 'slave'
+    assert info.role == "slave"
 
-    key, field, value = b'key:hset', b'bar', b'zap'
+    key, field, value = b"key:hset", b"bar", b"zap"
     # redis = await get_slave_connection()
     exists = await redis.hexists(key, field)
     if exists:
@@ -91,13 +103,13 @@ async def test_sentinel_slave(sentinel, create_sentinel):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-@pytest.mark.run_loop       # (timeout=600)
-async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
+@pytest.mark.asyncio
+async def test_sentinel_slave_fail(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
-    key, field, value = b'key:hset', b'bar', b'zap'
+    key, field, value = b"key:hset", b"bar", b"zap"
 
-    redis = redis_sentinel.slave_for('masterA')
+    redis = redis_sentinel.slave_for("mainA")
     exists = await redis.hexists(key, field)
     if exists:
         with pytest.raises(ReadOnlyError):
@@ -106,19 +118,19 @@ async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
     with pytest.raises(ReadOnlyError):
         await redis.hset(key, field, value)
 
-    ret = await redis_sentinel.failover('masterA')
+    ret = await redis_sentinel.failover("mainA")
     assert ret is True
-    await asyncio.sleep(2, loop=loop)
+    await asyncio.sleep(2)
 
     with pytest.raises(ReadOnlyError):
         await redis.hset(key, field, value)
 
-    ret = await redis_sentinel.failover('masterA')
+    ret = await redis_sentinel.failover("mainA")
     assert ret is True
-    await asyncio.sleep(2, loop=loop)
+    await asyncio.sleep(2)
     while True:
         try:
-            await asyncio.sleep(1, loop=loop)
+            await asyncio.sleep(1)
             await redis.hset(key, field, value)
         except SlaveNotFoundError:
             continue
@@ -127,12 +139,12 @@ async def test_sentinel_slave_fail(sentinel, create_sentinel, loop):
 
 
 @pytest.mark.xfail(reason="Need proper sentinel configuration")
-@pytest.mark.run_loop
-async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
+@pytest.mark.asyncio
+async def test_sentinel_normal_fail(sentinel, create_sentinel):
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
 
-    key, field, value = b'key:hset', b'bar', b'zap'
-    redis = redis_sentinel.master_for('masterA')
+    key, field, value = b"key:hset", b"bar", b"zap"
+    redis = redis_sentinel.master_for("mainA")
     exists = await redis.hexists(key, field)
     if exists:
         ret = await redis.hdel(key, field)
@@ -140,52 +152,66 @@ async def test_sentinel_normal_fail(sentinel, create_sentinel, loop):
 
     ret = await redis.hset(key, field, value)
     assert ret == 1
-    ret = await redis_sentinel.failover('masterA')
+    ret = await redis_sentinel.failover("mainA")
     assert ret is True
-    await asyncio.sleep(2, loop=loop)
+    await asyncio.sleep(2)
     ret = await redis.hset(key, field, value)
     assert ret == 0
-    ret = await redis_sentinel.failover('masterA')
+    ret = await redis_sentinel.failover("mainA")
     assert ret is True
-    await asyncio.sleep(2, loop=loop)
-    redis = redis_sentinel.slave_for('masterA')
+    await asyncio.sleep(2)
+    redis = redis_sentinel.slave_for("mainA")
     while True:
         try:
             await redis.hset(key, field, value)
-            await asyncio.sleep(1, loop=loop)
+            await asyncio.sleep(1)
             # redis = await get_slave_connection()
         except ReadOnlyError:
             break
 
 
-@pytest.mark.xfail(reason="same sentinel; single master;")
-@pytest.mark.run_loop
-async def test_failover_command(sentinel, create_sentinel, loop):
-    master_name = 'masterA'
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
+async def test_failover_command(start_server, start_sentinel, create_sentinel):
+    server = start_server("master-failover-cmd", ["slave-read-only yes"])
+    start_server("slave-failover-cmd", ["slave-read-only yes"], slaveof=server)
+
+    sentinel = start_sentinel(
+        "sentinel-failover-cmd",
+        server,
+        quorum=1,
+        down_after_milliseconds=300,
+        failover_timeout=1000,
+    )
+
+    name = "master-failover-cmd"
     redis_sentinel = await create_sentinel([sentinel.tcp_address], timeout=1)
+    # Wait a bit for sentinels to sync
+    await asyncio.sleep(3)
 
-    orig_master = await redis_sentinel.master_address(master_name)
-    ret = await redis_sentinel.failover(master_name)
-    assert ret is True
-    await asyncio.sleep(2, loop=loop)
+    orig_master = await redis_sentinel.master_address(name)
+    assert await redis_sentinel.failover(name) is True
+    await asyncio.sleep(2)
 
-    new_master = await redis_sentinel.master_address(master_name)
+    new_master = await redis_sentinel.master_address(name)
     assert orig_master != new_master
 
-    ret = await redis_sentinel.failover(master_name)
+    ret = await redis_sentinel.failover(name)
     assert ret is True
-    await asyncio.sleep(2, loop=loop)
+    await asyncio.sleep(2)
 
-    new_master = await redis_sentinel.master_address(master_name)
+    new_master = await redis_sentinel.master_address(name)
     assert orig_master == new_master
 
-    redis = redis_sentinel.slave_for(master_name)
-    key, field, value = b'key:hset', b'bar', b'zap'
-    while True:
-        try:
-            await asyncio.sleep(1, loop=loop)
-            await redis.hset(key, field, value)
-        except SlaveNotFoundError:
-            pass
-        except ReadOnlyError:
-            break
+    # This part takes almost 10 seconds (waiting for '+convert-to-slave').
+    # Disabled for time being.
+
+    # redis = redis_sentinel.slave_for(name)
+    # while True:
+    #     try:
+    #         await asyncio.sleep(.2)
+    #         await redis.set('foo', 'bar')
+    #     except SlaveNotFoundError:
+    #         pass
+    #     except ReadOnlyError:
+    #         break

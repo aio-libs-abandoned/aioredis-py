@@ -1,6 +1,122 @@
 Changes
 -------
 
+.. towncrier release notes start
+
+1.3.1 (2019-12-02)
+^^^^^^^^^^^^^^^^^^
+Bugfixes
+~~~~~~~~
+
+- Fix transaction data decoding
+  (see `#657 <https://github.com/aio-libs/aioredis/issues/657>`_);
+- Fix duplicate calls to ``pool.wait_closed()`` upon ``create_pool()`` exception.
+  (see `#671 <https://github.com/aio-libs/aioredis/issues/671>`_);
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Drop explicit loop requirement in API.
+  Deprecate ``loop`` argument.
+  Throw warning in Python 3.8+ if explicit ``loop`` is passed to methods.
+  (see `#666 <https://github.com/aio-libs/aioredis/issues/666>`_);
+
+Misc
+~~~~
+
+- `#643 <https://github.com/aio-libs/aioredis/issues/643>`_,
+  `#646 <https://github.com/aio-libs/aioredis/issues/646>`_,
+  `#648 <https://github.com/aio-libs/aioredis/issues/648>`_;
+
+
+1.3.0 (2019-09-24)
+^^^^^^^^^^^^^^^^^^
+Features
+~~~~~~~~
+
+- Added ``xdel`` and ``xtrim`` method which missed in ``commands/streams.py`` & also added unit test code for them
+  (see `#438 <https://github.com/aio-libs/aioredis/issues/438>`_);
+- Add ``count`` argument to ``spop`` command
+  (see `#485 <https://github.com/aio-libs/aioredis/issues/485>`_);
+- Add support for ``zpopmax`` and ``zpopmin`` redis commands
+  (see `#550 <https://github.com/aio-libs/aioredis/issues/550>`_);
+- Add ``towncrier``: change notes are now stored in ``CHANGES.txt``
+  (see `#576 <https://github.com/aio-libs/aioredis/issues/576>`_);
+- Type hints for the library
+  (see `#584 <https://github.com/aio-libs/aioredis/issues/584>`_);
+- A few additions to the sorted set commands:
+
+  - the blocking pop commands: ``BZPOPMAX`` and ``BZPOPMIN``
+
+  - the ``CH`` and ``INCR`` options of the ``ZADD`` command
+
+  (see `#618 <https://github.com/aio-libs/aioredis/issues/618>`_);
+- Added ``no_ack`` parameter to ``xread_group`` streams method in ``commands/streams.py``
+  (see `#625 <https://github.com/aio-libs/aioredis/issues/625>`_);
+
+Bugfixes
+~~~~~~~~
+
+- Fix for sensitive logging
+  (see `#459 <https://github.com/aio-libs/aioredis/issues/459>`_);
+- Fix slow memory leak in ``wait_closed`` implementation
+  (see `#498 <https://github.com/aio-libs/aioredis/issues/498>`_);
+- Fix handling of instances were Redis returns null fields for a stream message
+  (see `#605 <https://github.com/aio-libs/aioredis/issues/605>`_);
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Rewrite "Getting started" documentation.
+  (see `#641 <https://github.com/aio-libs/aioredis/issues/641>`_);
+
+Misc
+~~~~
+
+- `#585 <https://github.com/aio-libs/aioredis/issues/585>`_,
+  `#611 <https://github.com/aio-libs/aioredis/issues/611>`_,
+  `#612 <https://github.com/aio-libs/aioredis/issues/612>`_,
+  `#619 <https://github.com/aio-libs/aioredis/issues/619>`_,
+  `#620 <https://github.com/aio-libs/aioredis/issues/620>`_,
+  `#642 <https://github.com/aio-libs/aioredis/issues/642>`_;
+
+
+1.2.0 (2018-10-24)
+^^^^^^^^^^^^^^^^^^
+
+**NEW**:
+
+* Implemented new Stream command support
+  (see `#299 <https://github.com/aio-libs/aioredis/pull/299>`_);
+
+* Reduce ``encode_command()`` cost about 60%
+  (see `#397 <https://github.com/aio-libs/aioredis/pull/397>`_);
+
+
+**FIX**:
+
+* Fix pipeline commands buffering was causing multiple ``sendto`` syscalls
+  (see `#464 <https://github.com/aio-libs/aioredis/pull/464>`_
+  and  `#473 <https://github.com/aio-libs/aioredis/pull/473>`_);
+
+* Python 3.7 compatibility fixes
+  (see `#426 <https://github.com/aio-libs/aioredis/pull/426>`_);
+
+* Fix typos in documentation
+  (see `#400 <https://github.com/aio-libs/aioredis/pull/400>`_);
+
+* Fix ``INFO`` command result parsing
+  (see `#405 <https://github.com/aio-libs/aioredis/pull/405>`_);
+
+* Fix bug in ``ConnectionsPool._drop_closed`` method
+  (see `#461 <https://github.com/aio-libs/aioredis/pull/461>`_);
+
+**MISC**:
+
+* Update dependencies versions;
+
+* Multiple tests improvements;
+
 1.1.0 (2018-02-16)
 ^^^^^^^^^^^^^^^^^^
 
@@ -313,7 +429,7 @@ Changes
 * Fixed cancellation of wait_closed
   (see `#118 <https://github.com/aio-libs/aioredis/issues/118>`_);
 
-* Fixed ``time()`` convertion to float
+* Fixed ``time()`` conversion to float
   (see `#126 <https://github.com/aio-libs/aioredis/issues/126>`_);
 
 * Fixed ``hmset()`` method to return bool instead of ``b'OK'``

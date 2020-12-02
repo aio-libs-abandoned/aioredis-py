@@ -42,8 +42,8 @@ Connection usage is as simple as:
 
 
 .. cofunction:: create_connection(address, \*, db=0, password=None, ssl=None,\
-                                  encoding=None, parser=None, loop=None,\
-                                  timeout=None)
+                                  encoding=None, parser=None,\
+                                  timeout=None, connection_cls=None, name=None)
 
    Creates Redis connection.
 
@@ -52,6 +52,9 @@ Connection usage is as simple as:
 
    .. versionchanged:: v1.0
       ``parser`` argument added.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    :param address: An address where to connect.
       Can be one of the following:
@@ -81,14 +84,16 @@ Connection usage is as simple as:
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
 
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
-
    :param timeout: Max time to open a connection, otherwise
                    raise :exc:`asyncio.TimeoutError` exception.
                    ``None`` by default
    :type timeout: float greater than 0 or None
+
+   :param connection_cls: Custom connection class. ``None`` by default.
+   :type connection_cls: :class:`abc.AbcConnection` or None
+
+   :param name: Client name to set upon connecting.
+   :type name: str or None
 
    :return: :class:`RedisConnection` instance.
 
@@ -171,7 +176,7 @@ Connection usage is as simple as:
       Method also accept :class:`aioredis.Channel` instances as command
       arguments::
 
-         >>> ch1 = Channel('A', is_pattern=False, loop=loop)
+         >>> ch1 = Channel('A', is_pattern=False)
          >>> await conn.execute_pubsub('subscribe', ch1)
          [[b'subscribe', b'A', 1]]
 
@@ -252,9 +257,9 @@ The library provides connections pool. The basic usage is as follows:
 
 .. function:: create_pool(address, \*, db=0, password=None, ssl=None, \
                           encoding=None, minsize=1, maxsize=10, \
-                          parser=None, loop=None, \
+                          parser=None, \
                           create_connection_timeout=None, \
-                          pool_cls=None, connection_cls=None)
+                          pool_cls=None, connection_cls=None, name=None)
 
    A :ref:`coroutine<coroutine>` that instantiates a pool of
    :class:`~.RedisConnection`.
@@ -276,6 +281,9 @@ The library provides connections pool. The basic usage is as follows:
 
    .. versionadded:: v1.0
       ``parser``, ``pool_cls`` and ``connection_cls`` arguments added.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    :param address: An address where to connect.
       Can be one of the following:
@@ -311,10 +319,6 @@ The library provides connections pool. The basic usage is as follows:
       reader; expected same interface as :class:`hiredis.Reader`.
    :type parser: callable or None
 
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
-
    :param create_connection_timeout: Max time to open a connection,
       otherwise raise an :exc:`asyncio.TimeoutError`. ``None`` by default.
    :type create_connection_timeout: float greater than 0 or None
@@ -327,6 +331,9 @@ The library provides connections pool. The basic usage is as follows:
       connection classes. This argument **must be** a subclass of
       :class:`~aioredis.abc.AbcConnection`.
    :type connection_cls: aioredis.abc.AbcConnection
+
+   :param name: Client name to set upon connecting.
+   :type name: str or None
 
    :return: :class:`ConnectionsPool` instance.
 
@@ -449,83 +456,6 @@ The library provides connections pool. The basic usage is as follows:
       Wait until pool gets closed (when all connections are closed).
 
       .. versionadded:: v0.2.8
-
-
-----
-
-.. _aioredis-channel:
-
-Pub/Sub Channel object
-----------------------
-
-`Channel` object is a wrapper around queue for storing received pub/sub messages.
-
-
-.. class:: Channel(name, is_pattern, loop=None)
-
-   Bases: :class:`abc.AbcChannel`
-
-   Object representing Pub/Sub messages queue.
-   It's basically a wrapper around :class:`asyncio.Queue`.
-
-   .. attribute:: name
-
-      Holds encoded channel/pattern name.
-
-   .. attribute:: is_pattern
-
-      Set to True for pattern channels.
-
-   .. attribute:: is_active
-
-      Set to True if there are messages in queue and connection is still
-      subscribed to this channel.
-
-   .. comethod:: get(\*, encoding=None, decoder=None)
-
-      Coroutine that waits for and returns a message.
-
-      Return value is message received or ``None`` signifying that channel has
-      been unsubscribed and no more messages will be received.
-
-      :param str encoding: If not None used to decode resulting bytes message.
-
-      :param callable decoder: If specified used to decode message,
-                               ex. :func:`json.loads()`
-
-      :raise aioredis.ChannelClosedError: If channel is unsubscribed and
-                                          has no more messages.
-
-   .. method:: get_json(\*, encoding="utf-8")
-
-      Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
-
-   .. comethod:: wait_message()
-
-      Waits for message to become available in channel
-      or channel is closed (unsubscribed).
-
-      Main idea is to use it in loops:
-
-      >>> ch = redis.channels['channel:1']
-      >>> while await ch.wait_message():
-      ...     msg = await ch.get()
-
-      :rtype: bool
-
-   .. comethod:: iter(, \*, encoding=None, decoder=None)
-      :async-for:
-      :coroutine:
-
-      Same as :meth:`~.get` method but it is a native coroutine.
-
-      Usage example::
-
-         >>> async for msg in ch.iter():
-         ...     print(msg)
-
-      .. versionadded:: 0.2.5
-         Available for Python 3.5 only
 
 ----
 
@@ -670,6 +600,83 @@ Exceptions Hierarchy
          MasterReplyError
          SlaveReplyError
 
+
+----
+
+.. _aioredis-channel:
+
+Pub/Sub Channel object
+----------------------
+
+`Channel` object is a wrapper around queue for storing received pub/sub messages.
+
+
+.. class:: Channel(name, is_pattern)
+
+   Bases: :class:`abc.AbcChannel`
+
+   Object representing Pub/Sub messages queue.
+   It's basically a wrapper around :class:`asyncio.Queue`.
+
+   .. attribute:: name
+
+      Holds encoded channel/pattern name.
+
+   .. attribute:: is_pattern
+
+      Set to True for pattern channels.
+
+   .. attribute:: is_active
+
+      Set to True if there are messages in queue and connection is still
+      subscribed to this channel.
+
+   .. comethod:: get(\*, encoding=None, decoder=None)
+
+      Coroutine that waits for and returns a message.
+
+      Return value is message received or ``None`` signifying that channel has
+      been unsubscribed and no more messages will be received.
+
+      :param str encoding: If not None used to decode resulting bytes message.
+
+      :param callable decoder: If specified used to decode message,
+                               ex. :func:`json.loads()`
+
+      :raise aioredis.ChannelClosedError: If channel is unsubscribed and
+                                          has no more messages.
+
+   .. method:: get_json(\*, encoding="utf-8")
+
+      Shortcut to ``get(encoding="utf-8", decoder=json.loads)``
+
+   .. comethod:: wait_message()
+
+      Waits for message to become available in channel
+      or channel is closed (unsubscribed).
+
+      Main idea is to use it in loops:
+
+      >>> ch = redis.channels['channel:1']
+      >>> while await ch.wait_message():
+      ...     msg = await ch.get()
+
+      :rtype: bool
+
+   .. comethod:: iter(, \*, encoding=None, decoder=None)
+      :async-for:
+      :coroutine:
+
+      Same as :meth:`~.get` method but it is a native coroutine.
+
+      Usage example::
+
+         >>> async for msg in ch.iter():
+         ...     print(msg)
+
+      .. versionadded:: 0.2.5
+
+
 ----
 
 .. _aioredis-redis:
@@ -712,7 +719,7 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 .. cofunction:: create_redis(address, \*, db=0, password=None, ssl=None,\
                              encoding=None, commands_factory=Redis,\
                              parser=None, timeout=None,\
-                             connection_cls=None, loop=None)
+                             connection_cls=None)
 
    This :ref:`coroutine<coroutine>` creates high-level Redis
    interface instance bound to single Redis connection
@@ -720,6 +727,9 @@ see :ref:`commands mixins reference <aioredis-commands>`.
 
    .. versionadded:: v1.0
       ``parser``, ``timeout`` and ``connection_cls`` arguments added.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    See also :class:`~aioredis.RedisConnection` for parameters description.
 
@@ -760,10 +770,6 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       :class:`~aioredis.abc.AbcConnection`.
    :type connection_cls: aioredis.abc.AbcConnection
 
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
-
    :returns: Redis client (result of ``commands_factory`` call),
              :class:`Redis` by default.
 
@@ -773,7 +779,7 @@ see :ref:`commands mixins reference <aioredis-commands>`.
                                   minsize=1, maxsize=10,\
                                   parser=None, timeout=None,\
                                   pool_cls=None, connection_cls=None,\
-                                  loop=None)
+                                  )
 
    This :ref:`coroutine<coroutine>` create high-level Redis client instance
    bound to connections pool (this allows auto-reconnect and simple pub/sub
@@ -784,6 +790,9 @@ see :ref:`commands mixins reference <aioredis-commands>`.
    .. versionchanged:: v1.0
       ``parser``, ``timeout``, ``pool_cls`` and ``connection_cls``
       arguments added.
+
+   .. deprecated:: v1.3.1
+      ``loop`` argument deprecated for Python 3.8 compatibility.
 
    :param address: An address where to connect. Can be a (host, port) tuple,
                    unix domain socket path string or a Redis URI string.
@@ -830,10 +839,6 @@ see :ref:`commands mixins reference <aioredis-commands>`.
       connection classes. This argument **must be** a subclass of
       :class:`~aioredis.abc.AbcConnection`.
    :type connection_cls: aioredis.abc.AbcConnection
-
-   :param loop: An optional *event loop* instance
-                (uses :func:`asyncio.get_event_loop` if not specified).
-   :type loop: :ref:`EventLoop<asyncio-event-loop>`
 
    :returns: Redis client (result of ``commands_factory`` call),
              :class:`Redis` by default.

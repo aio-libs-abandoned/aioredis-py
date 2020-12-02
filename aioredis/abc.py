@@ -3,19 +3,15 @@
 These are intended to be used for implementing custom connection managers.
 """
 import abc
-import asyncio
-
-from abc import ABC
-
 
 __all__ = [
-    'AbcConnection',
-    'AbcPool',
-    'AbcChannel',
+    "AbcConnection",
+    "AbcPool",
+    "AbcChannel",
 ]
 
 
-class AbcConnection(ABC):
+class AbcConnection(abc.ABC):
     """Abstract connection interface."""
 
     @abc.abstractmethod
@@ -30,9 +26,8 @@ class AbcConnection(ABC):
     def close(self):
         """Perform connection(s) close and resources cleanup."""
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def wait_closed(self):
+    async def wait_closed(self):
         """
         Coroutine waiting until all resources are closed/released/cleaned up.
         """
@@ -84,20 +79,19 @@ class AbcPool(AbcConnection):
     """
 
     @abc.abstractmethod
-    def get_connection(self):   # TODO: arguments
+    def get_connection(self, command, args=()):
         """
         Gets free connection from pool in a sync way.
 
         If no connection available — returns None.
         """
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def acquire(self):  # TODO: arguments
+    async def acquire(self, command=None, args=()):
         """Acquires connection from pool."""
 
     @abc.abstractmethod
-    def release(self, conn):  # TODO: arguments
+    def release(self, conn):
         """Releases connection to pool.
 
         :param AbcConnection conn: Owned connection to be released.
@@ -109,7 +103,7 @@ class AbcPool(AbcConnection):
         """Connection address or None."""
 
 
-class AbcChannel(ABC):
+class AbcChannel(abc.ABC):
     """Abstract Pub/Sub Channel interface."""
 
     @property
@@ -128,9 +122,8 @@ class AbcChannel(ABC):
         """Flag indicating that channel has unreceived messages
         and not marked as closed."""
 
-    @asyncio.coroutine
     @abc.abstractmethod
-    def get(self):
+    async def get(self):
         """Wait and return new message.
 
         Will raise ``ChannelClosedError`` if channel is not active.

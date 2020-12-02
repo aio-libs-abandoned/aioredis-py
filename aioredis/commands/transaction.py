@@ -2,16 +2,8 @@ import asyncio
 import functools
 
 from ..abc import AbcPool
-from ..errors import (
-    RedisError,
-    PipelineError,
-    MultiExecError,
-    ConnectionClosedError,
-    )
-from ..util import (
-    wait_ok,
-    _set_exception,
-    )
+from ..errors import ConnectionClosedError, MultiExecError, PipelineError, RedisError
+from ..util import _set_exception, get_event_loop, wait_ok
 
 
 class TransactionsCommandsMixin:
@@ -35,13 +27,17 @@ class TransactionsCommandsMixin:
 
     def unwatch(self):
         """Forget about all watched keys."""
-        fut = self._pool_or_conn.execute(b'UNWATCH')
+        fut = self._pool_or_conn.execute(b"UNWATCH")
         return wait_ok(fut)
 
     def watch(self, key, *keys):
-        """Watch the given keys to determine execution of the MULTI/EXEC block.
-        """
-        fut = self._pool_or_conn.execute(b'WATCH', key, *keys)
+        """Watch the given keys to determine execution of the MULTI/EXEC block."""
+        # FIXME: we can send watch through one connection and then issue
+        #   'multi/exec' command through other.
+        # Possible fix:
+        #   "Remember" a connection that was used for 'watch' command
+        #   and then send 'multi / exec / discard' through it.
+        fut = self._pool_or_conn.execute(b"WATCH", key, *keys)
         return wait_ok(fut)
 
     def multi_exec(self):
@@ -58,8 +54,7 @@ class TransactionsCommandsMixin:
         >>> await asyncio.gather(fut1, fut2)
         [1, 1]
         """
-        return MultiExec(self._pool_or_conn, self.__class__,
-                         loop=self._pool_or_conn._loop)
+        return MultiExec(self._pool_or_conn, self.__class__)
 
     def pipeline(self):
         """Returns :class:`Pipeline` object to execute bulk of commands.
@@ -85,20 +80,18 @@ class TransactionsCommandsMixin:
         >>> await asyncio.gather(fut1, fut2)
         [2, 2]
         """
-        return Pipeline(self._pool_or_conn, self.__class__,
-                        loop=self._pool_or_conn._loop)
+        return Pipeline(self._pool_or_conn, self.__class__)
 
 
 class _RedisBuffer:
-
     def __init__(self, pipeline, *, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         self._pipeline = pipeline
-        self._loop = loop
 
     def execute(self, cmd, *args, **kw):
-        fut = self._loop.create_future()
+        fut = get_event_loop().create_future()
         self._pipeline.append((fut, cmd, args, kw))
         return fut
 
@@ -120,17 +113,19 @@ class Pipeline:
     >>> await fut2
     1
     """
+
     error_class = PipelineError
 
-    def __init__(self, pool_or_connection, commands_factory=lambda conn: conn,
-                 *, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+    def __init__(
+        self, pool_or_connection, commands_factory=lambda conn: conn, *, loop=None
+    ):
+        # TODO: deprecation note
+        # if loop is None:
+        #     loop = asyncio.get_event_loop()
         self._pool_or_conn = pool_or_connection
-        self._loop = loop
         self._pipeline = []
         self._results = []
-        self._buffer = _RedisBuffer(self._pipeline, loop=loop)
+        self._buffer = _RedisBuffer(self._pipeline)
         self._redis = commands_factory(self._buffer)
         self._done = False
 
@@ -142,13 +137,13 @@ class Pipeline:
             @functools.wraps(attr)
             def wrapper(*args, **kw):
                 try:
-                    task = asyncio.ensure_future(attr(*args, **kw),
-                                                 loop=self._loop)
+                    task = asyncio.ensure_future(attr(*args, **kw))
                 except Exception as exc:
-                    task = self._loop.create_future()
+                    task = get_event_loop().create_future()
                     task.set_exception(exc)
                 self._results.append(task)
                 return task
+
             return wrapper
         return attr
 
@@ -168,18 +163,17 @@ class Pipeline:
             if isinstance(self._pool_or_conn, AbcPool):
                 async with self._pool_or_conn.get() as conn:
                     return await self._do_execute(
-                        conn, return_exceptions=return_exceptions)
+                        conn, return_exceptions=return_exceptions
+                    )
             else:
                 return await self._do_execute(
-                    self._pool_or_conn,
-                    return_exceptions=return_exceptions)
+                    self._pool_or_conn, return_exceptions=return_exceptions
+                )
         else:
             return await self._gather_result(return_exceptions)
 
     async def _do_execute(self, conn, *, return_exceptions=False):
-        await asyncio.gather(*self._send_pipeline(conn),
-                             loop=self._loop,
-                             return_exceptions=True)
+        await asyncio.gather(*self._send_pipeline(conn), return_exceptions=True)
         return await self._gather_result(return_exceptions)
 
     async def _gather_result(self, return_exceptions):
@@ -197,15 +191,17 @@ class Pipeline:
         return results
 
     def _send_pipeline(self, conn):
-        for fut, cmd, args, kw in self._pipeline:
-            try:
-                result_fut = conn.execute(cmd, *args, **kw)
-                result_fut.add_done_callback(
-                    functools.partial(self._check_result, waiter=fut))
-            except Exception as exc:
-                fut.set_exception(exc)
-            else:
-                yield result_fut
+        with conn._buffered():
+            for fut, cmd, args, kw in self._pipeline:
+                try:
+                    result_fut = conn.execute(cmd, *args, **kw)
+                    result_fut.add_done_callback(
+                        functools.partial(self._check_result, waiter=fut)
+                    )
+                except Exception as exc:
+                    fut.set_exception(exc)
+                else:
+                    yield result_fut
 
     def _check_result(self, fut, waiter):
         if fut.cancelled():
@@ -251,18 +247,19 @@ class MultiExec(Pipeline):
     >>> ok2 = await wait_ok_coro
     >>> # for this to work `wait_ok_coro` must be wrapped in Future
     """
+
     error_class = MultiExecError
 
     async def _do_execute(self, conn, *, return_exceptions=False):
         self._waiters = waiters = []
-        multi = conn.execute('MULTI')
-        coros = list(self._send_pipeline(conn))
-        exec_ = conn.execute('EXEC')
-        gather = asyncio.gather(multi, *coros, loop=self._loop,
-                                return_exceptions=True)
+        with conn._buffered():
+            multi = conn.execute("MULTI")
+            coros = list(self._send_pipeline(conn))
+            exec_ = conn.execute("EXEC")
+        gather = asyncio.gather(multi, *coros, return_exceptions=True)
         last_error = None
         try:
-            await asyncio.shield(gather, loop=self._loop)
+            await asyncio.shield(gather)
         except asyncio.CancelledError:
             await gather
         except Exception as err:
@@ -287,9 +284,12 @@ class MultiExec(Pipeline):
                         fut.set_exception(err)
                 else:
                     assert len(results) == len(waiters), (
-                        "Results does not match waiters", results, waiters)
+                        "Results does not match waiters",
+                        results,
+                        waiters,
+                    )
                     self._resolve_waiters(results, return_exceptions)
-            return (await self._gather_result(return_exceptions))
+            return await self._gather_result(return_exceptions)
 
     def _resolve_waiters(self, results, return_exceptions):
         errors = []
@@ -305,10 +305,10 @@ class MultiExec(Pipeline):
     def _check_result(self, fut, waiter):
         assert waiter not in self._waiters, (fut, waiter, self._waiters)
         assert not waiter.done(), waiter
-        if fut.cancelled():     # await gather was cancelled
+        if fut.cancelled():  # await gather was cancelled
             waiter.cancel()
-        elif fut.exception():   # server replied with error
+        elif fut.exception():  # server replied with error
             waiter.set_exception(fut.exception())
-        elif fut.result() in {b'QUEUED', 'QUEUED'}:
+        elif fut.result() in {b"QUEUED", "QUEUED"}:
             # got result, it should be QUEUED
             self._waiters.append(waiter)

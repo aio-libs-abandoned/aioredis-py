@@ -1,40 +1,34 @@
 PYTHON ?= python3
-FLAKE ?= flake8
-PYTEST ?= py.test
+PYTEST ?= pytest
+MYPY ?= mypy
 
-REDIS_VERSION ?= "$(shell redis-cli INFO SERVER | sed -n 2p)"
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.8 4.0.2 unstable
+REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9
 
 ARCHIVE_URL = https://github.com/antirez/redis/archive
 INSTALL_DIR ?= build
 
-TEST_ARGS ?= "-n 4"
-
 REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
+OBSOLETE_TARGETS = $(filter-out $(REDIS_TARGETS),$(wildcard $(INSTALL_DIR)/*/redis-server))
 
 # Python implementation
 PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
 
-EXAMPLES = $(shell find examples -name "*.py")
+EXAMPLES = $(sort $(wildcard examples/*.py examples/*/*.py))
 
-.PHONY: all flake doc man-doc spelling test cov dist devel clean
-all: aioredis.egg-info flake doc cov
+.PHONY: all lint init-hooks doc man-doc spelling test cov dist devel clean mypy
+all: aioredis.egg-info lint doc cov
 
 doc: spelling
-	make -C docs html
+	$(MAKE) -C docs html
+	@echo "open file://`pwd`/docs/_build/html/index.html"
 man-doc: spelling
-	make -C docs man
+	$(MAKE) -C docs man
 spelling:
 	@echo "Running spelling check"
-	make -C docs spelling
+	$(MAKE) -C docs spelling
 
-ifeq ($(PYTHON_IMPL), cpython)
-flake:
-	$(FLAKE) aioredis tests examples
-else
-flake:
-	@echo "Job is not configured to run on $(PYTHON_IMPL); skipped."
-endif
+mypy:
+	$(MYPY) aioredis --ignore-missing-imports
 
 test:
 	$(PYTEST)
@@ -49,15 +43,21 @@ clean:
 	-rm -r docs/_build
 	-rm -r build dist aioredis.egg-info
 
-devel: aioredis.egg-info
+init-hooks:
+	pip install -U pre-commit
+	pre-commit install
+	pre-commit install-hooks
+
+lint: init-hooks
+	pre-commit run --all-files
+
+devel: aioredis.egg-info init-hooks
 	pip install -U pip
 	pip install -U \
-		sphinx \
-		sphinx_rtd_theme \
+		-r tests/requirements.txt \
+		-r docs/requirements.txt \
 		bumpversion \
 		wheel
-	pip install -Ur tests/requirements.txt
-	pip install -Ur docs/requirements.txt
 
 aioredis.egg-info:
 	pip install -Ue .
@@ -73,9 +73,9 @@ $(EXAMPLES):
 	@export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
 	$(PYTHON) $@
 
-.start-redis: $(lastword $(REDIS_TARGETS))
-	$< ./examples/redis.conf
-	$< ./examples/redis-sentinel.conf --sentinel
+.start-redis:
+	$(shell which redis-server) ./examples/redis.conf
+	$(shell which redis-server) ./examples/redis-sentinel.conf --sentinel
 	sleep 5s
 	echo "QUIT" | nc localhost 6379
 	echo "QUIT" | nc localhost 26379
@@ -84,21 +84,29 @@ $(EXAMPLES):
 
 
 certificate:
-	make -C tests/ssl
+	$(MAKE) -C tests/ssl
 
 ci-test: $(REDIS_TARGETS)
-	@$(call echo, "Tests run")
-	py.test -rsxX --cov \
-		$(foreach T,$(REDIS_TARGETS),--redis-server=$T) $(TEST_ARGS)
+	$(PYTEST) \
+		--cov --cov-report=xml -vvvs\
+		$(foreach T,$(REDIS_TARGETS),--redis-server=$T)
 
 ci-test-%: $(INSTALL_DIR)/%/redis-server
-	py.test -rsxX --cov --redis-server=$< $(TEST_ARGS)
+	$(PYTEST) --cov --redis-server=$<
 
 ci-build-redis: $(REDIS_TARGETS)
 
-$(INSTALL_DIR)/%/redis-server:
+ci-prune-old-redis: $(OBSOLETE_TARGETS)
+$(OBSOLETE_TARGETS):
+	rm -r $@
+.PHONY: $(OBSOLETE_TARGETS)
+
+$(INSTALL_DIR)/%/redis-server: /tmp/redis-%/src/redis-server
+	mkdir -p $(abspath $(dir $@))
+	cp -p $< $(abspath $@)
+	@echo "Done building redis-$*"
+
+/tmp/redis-%/src/redis-server:
 	@echo "Building redis-$*..."
 	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
-	make -j -C /tmp/redis-$* \
-		INSTALL_BIN=$(abspath $(INSTALL_DIR))/$* install >/dev/null 2>/dev/null
-	@echo "Done building redis-$*"
+	$(MAKE) -j -C $(dir $@) redis-server >/dev/null 2>/dev/null

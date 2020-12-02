@@ -182,10 +182,10 @@ Sorted set commands (like ``zrange``, ``zrevrange`` and others) that accept
 |        |                                                                    |
 |        |     redis = await aioredis.create_redis(('localhost', 6379))       |
 |        |     await redis.zadd('zset-key', 1, 'one', 2, 'two')               |
-|        |     res = await redis.zrage('zset-key', withscores=True)           |
+|        |     res = await redis.zrange('zset-key', withscores=True)          |
 |        |     assert res == [b'one', 1, b'two', 2]                           |
 |        |                                                                    |
-|        |     # not an esiest way to make a dict                             |
+|        |     # not an easy way to make a dict                               |
 |        |     it = iter(res)                                                 |
 |        |     assert dict(zip(it, it)) == {b'one': 1, b'two': 2}             |
 |        |                                                                    |
@@ -195,7 +195,7 @@ Sorted set commands (like ``zrange``, ``zrevrange`` and others) that accept
 |        |                                                                    |
 |        |     redis = await aioredis.create_redis(('localhost', 6379))       |
 |        |     await redis.zadd('zset-key', 1, 'one', 2, 'two')               |
-|        |     res = await redis.zrage('zset-key', withscores=True)           |
+|        |     res = await redis.zrange('zset-key', withscores=True)          |
 |        |     assert res == [(b'one', 1), (b'two', 2)]                       |
 |        |                                                                    |
 |        |     # now its easier to make a dict of it                          |
@@ -219,7 +219,7 @@ mixed key/value list.
 |        |     cur, data = await redis.hscan('hash')                          |
 |        |     assert data == [b'one', b'1', b'two', b'2']                    |
 |        |                                                                    |
-|        |     # not an esiest way to make a dict                             |
+|        |     # not an easy way to make a dict                               |
 |        |     it = iter(data)                                                |
 |        |     assert dict(zip(it, it)) == {b'one': b'1', b'two': b'2'}       |
 |        |                                                                    |
