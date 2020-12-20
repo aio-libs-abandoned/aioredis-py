@@ -34,7 +34,7 @@ Support for dev Redis server        through low-level API
 ================================  ==============================
 
 .. [1] For Python 3.3, 3.4 support use aioredis v0.3.
-.. [2] For Python 3.5 support use aioredis v1.22.
+.. [2] For Python 3.5 support use aioredis v1.2.
 
 Documentation
 -------------
