@@ -1,0 +1,1 @@
+Fix pool hang when pubsub connection died.

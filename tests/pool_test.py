@@ -210,6 +210,38 @@ async def test_release_bad_connection(create_pool, create_redis, server):
 
 
 @pytest.mark.asyncio
+async def test_release_pubsub_closed(create_pool, server):
+    """
+    Check `_used` connections list cleanup after pubsub connection died
+    """
+    pool = await create_pool(server.tcp_address, minsize=1, maxsize=2)
+    assert pool.size == 1
+    assert pool.freesize == 1
+    assert pool.maxsize == 2
+
+    await pool.execute("set", "key", "val")
+    await pool.execute_pubsub("subscribe", "channel:1")
+    assert pool.size == 1
+
+    res = await pool.execute("get", "key")
+    assert res == b"val"
+    assert pool.size == 2
+
+    conn, _ = pool.get_connection("subscribe")
+    assert conn and not conn.closed
+    assert conn.in_pubsub
+    conn.close()
+    await conn.wait_closed()
+
+    await pool.execute_pubsub("subscribe", "channel:1")
+
+    # Here we could get timeout if `_used` list was not cleaned properly
+    with async_timeout.timeout(5):
+        res = await pool.execute("get", "key")
+        assert res == b"val"
+
+
+@pytest.mark.asyncio
 async def test_select_db(create_pool, server):
     pool = await create_pool(server.tcp_address)
 
