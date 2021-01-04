@@ -270,6 +270,7 @@ class ConnectionsPool(AbcPool):
         if is_pubsub and self._pubsub_conn:
             if not self._pubsub_conn.closed:
                 return self._pubsub_conn, self._pubsub_conn.address
+            self._used.remove(self._pubsub_conn)
             self._pubsub_conn = None
         for i in range(self.freesize):
             conn = self._pool[0]

@@ -46,6 +46,7 @@ Oleksandr Tykhonruk
 Pau Freixes
 Paul Becotte
 Paul Colomiets
+Roman Ovsyannikov
 Samuel Colvin
 Samuel Dion-Girardeau
 Sean Stewart <seandstewart>
