@@ -106,7 +106,7 @@ def create_sentinel(_closable):
     """Helper instantiating RedisSentinel client."""
 
     async def f(*args, **kw):
-        # make it fail fast on slow CIs (if timeout argument is ommitted)
+        # make it fail fast on slow CIs (if timeout argument is omitted)
         kw.setdefault("timeout", 0.001)
         client = await aioredis.sentinel.create_sentinel(*args, **kw)
         _closable(client)
