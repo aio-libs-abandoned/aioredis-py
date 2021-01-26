@@ -2,8 +2,6 @@ import argparse
 import asyncio
 import random
 from distutils.version import StrictVersion
-from typing import Type
-from unittest.mock import AsyncMock
 from urllib.parse import urlparse
 
 import pytest
@@ -12,11 +10,12 @@ import aioredis
 from aioredis.client import Monitor
 from aioredis.connection import parse_url
 
+from .compat import mock
+
 # redis 6 release candidates report a version number of 5.9.x. Use this
 # constant for skip_if decorators as a placeholder until 6.0.0 is officially
 # released
 REDIS_6_VERSION = "5.9.0"
-
 
 REDIS_INFO = {}
 default_redis_url = "redis://localhost:6379/9"
@@ -126,40 +125,30 @@ def skip_unless_arch_bits(arch_bits):
     )
 
 
-async def _get_client(
-    cls: Type[aioredis.Redis],
-    request,
-    event_loop: asyncio.AbstractEventLoop,
-    single_connection_client: bool = True,
-    flushdb: bool = True,
-    **kwargs,
-) -> aioredis.Redis:
-    """
-    Helper for fixtures or tests that need a Redis client
+@pytest.fixture(params=[True, False], ids=["single", "pool"])
+def create_redis(request, event_loop):
+    """Wrapper around aioredis.create_redis."""
+    single_connection = request.param
 
-    Uses the "--redis-url" command line argument for connection info. Unlike
-    ConnectionPool.from_url, keyword arguments to this function override
-    values specified in the URL.
-    """
-    redis_url = request.config.getoption("--redis-url")
-    url_options = parse_url(redis_url)
-    url_options.update(kwargs)
-    pool = aioredis.ConnectionPool(**url_options)
-    client: aioredis.Redis = cls(connection_pool=pool)
-    if single_connection_client:
-        client = client.client()
-        await client.initialize()
-    if request:
+    async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
+        url_options = parse_url(url)
+        url_options.update(kwargs)
+        pool = aioredis.ConnectionPool(**url_options)
+        client: aioredis.Redis = aioredis.Redis(connection_pool=pool)
+        if single_connection:
+            client = client.client()
+            await client.initialize()
 
         def teardown():
             async def ateardown():
-                if flushdb:
-                    try:
-                        await client.flushdb()
-                    except aioredis.ConnectionError:
-                        # handle cases where a test disconnected a client
-                        # just manually retry the flushdb
-                        await client.flushdb()
+                if "username" in kwargs:
+                    return
+                try:
+                    await client.flushdb()
+                except aioredis.ConnectionError:
+                    # handle cases where a test disconnected a client
+                    # just manually retry the flushdb
+                    await client.flushdb()
                 await client.close()
                 await client.connection_pool.disconnect()
 
@@ -169,44 +158,45 @@ async def _get_client(
                 event_loop.run_until_complete(ateardown())
 
         request.addfinalizer(teardown)
-    return client
+
+        return client
+
+    return f
 
 
 @pytest.fixture()
-async def r(request, event_loop):
-    async with (await _get_client(aioredis.Redis, request, event_loop)) as client:
-        yield client
+async def r(create_redis):
+    yield await create_redis()
 
 
 @pytest.fixture()
-async def r2(request, event_loop):
+async def r2(create_redis):
     """A second client for tests that need multiple"""
-    async with (await _get_client(aioredis.Redis, request, event_loop)) as client:
-        yield client
+    yield await create_redis()
 
 
 def _gen_cluster_mock_resp(r, response):
-    connection = AsyncMock()
+    connection = mock.AsyncMock()
     connection.read_response.return_value = response
     r.connection = connection
     return r
 
 
 @pytest.fixture()
-async def mock_cluster_resp_ok(request, event_loop, **kwargs):
-    r = await _get_client(aioredis.Redis, request, event_loop, **kwargs)
+async def mock_cluster_resp_ok(create_redis, **kwargs):
+    r = await create_redis(**kwargs)
     return _gen_cluster_mock_resp(r, "OK")
 
 
 @pytest.fixture()
-async def mock_cluster_resp_int(request, event_loop, **kwargs):
-    r = await _get_client(aioredis.Redis, request, event_loop, **kwargs)
+async def mock_cluster_resp_int(create_redis, **kwargs):
+    r = await create_redis(**kwargs)
     return _gen_cluster_mock_resp(r, "2")
 
 
 @pytest.fixture()
-async def mock_cluster_resp_info(request, event_loop, **kwargs):
-    r = await _get_client(aioredis.Redis, request, event_loop, **kwargs)
+async def mock_cluster_resp_info(create_redis, **kwargs):
+    r = await create_redis(**kwargs)
     response = (
         "cluster_state:ok\r\ncluster_slots_assigned:16384\r\n"
         "cluster_slots_ok:16384\r\ncluster_slots_pfail:0\r\n"
@@ -219,8 +209,8 @@ async def mock_cluster_resp_info(request, event_loop, **kwargs):
 
 
 @pytest.fixture()
-async def mock_cluster_resp_nodes(request, event_loop, **kwargs):
-    r = await _get_client(aioredis.Redis, request, event_loop, **kwargs)
+async def mock_cluster_resp_nodes(create_redis, **kwargs):
+    r = await create_redis(**kwargs)
     response = (
         "c8253bae761cb1ecb2b61857d85dfe455a0fec8b 172.17.0.7:7006 "
         "slave aa90da731f673a99617dfe930306549a09f83a6b 0 "
@@ -243,8 +233,8 @@ async def mock_cluster_resp_nodes(request, event_loop, **kwargs):
 
 
 @pytest.fixture()
-async def mock_cluster_resp_slaves(request, event_loop, **kwargs):
-    r = await _get_client(aioredis.Redis, request, event_loop, **kwargs)
+async def mock_cluster_resp_slaves(create_redis, **kwargs):
+    r = await create_redis(**kwargs)
     response = (
         "['1df047e5a594f945d82fc140be97a1452bcbf93e 172.17.0.7:7007 "
         "slave 19efe5a631f3296fdf21a5441680f893e8cc96ec 0 "

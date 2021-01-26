@@ -1,14 +1,6 @@
-  PYTHON ?= python3
+PYTHON ?= python3
 PYTEST ?= pytest
 MYPY ?= mypy
-
-REDIS_TAGS ?= 2.6.17 2.8.22 3.0.7 3.2.13 4.0.14 5.0.9 6.0.10
-
-ARCHIVE_URL = https://github.com/antirez/redis/archive
-INSTALL_DIR ?= build
-
-REDIS_TARGETS = $(foreach T,$(REDIS_TAGS),$(INSTALL_DIR)/$T/redis-server)
-OBSOLETE_TARGETS = $(filter-out $(REDIS_TARGETS),$(wildcard $(INSTALL_DIR)/*/redis-server))
 
 # Python implementation
 PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
@@ -31,7 +23,7 @@ mypy:
 	$(MYPY) aioredis --ignore-missing-imports
 
 test:
-	$(PYTEST) --timeout=60
+	$(PYTEST)
 
 cov coverage:
 	$(PYTEST) --cov
@@ -69,40 +61,10 @@ $(EXAMPLES):
 	@export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
 	$(PYTHON) $@
 
-.start-redis:
-	$(shell which redis-server) ./examples/redis.conf
-	$(shell which redis-server) ./examples/redis-sentinel.conf --sentinel
-	sleep 5s
-	echo "QUIT" | nc localhost 6379
-	echo "QUIT" | nc localhost 26379
-
-.PHONY: $(EXAMPLES)
-
 
 certificate:
 	$(MAKE) -C tests/ssl
 
-ci-test: $(REDIS_TARGETS)
-	$(PYTEST) \
-		--timeout=60 --cov --cov-report=xml -vvvs\
-		$(foreach $(REDIS_TARGETS))
 
-ci-test-%: $(INSTALL_DIR)/%/redis-server
-	$(PYTEST) --cov
-
-ci-build-redis: $(REDIS_TARGETS)
-
-ci-prune-old-redis: $(OBSOLETE_TARGETS)
-$(OBSOLETE_TARGETS):
-	rm -r $@
-.PHONY: $(OBSOLETE_TARGETS)
-
-$(INSTALL_DIR)/%/redis-server: /tmp/redis-%/src/redis-server
-	mkdir -p $(abspath $(dir $@))
-	cp -p $< $(abspath $@)
-	@echo "Done building redis-$*"
-
-/tmp/redis-%/src/redis-server:
-	@echo "Building redis-$*..."
-	wget -nv -c $(ARCHIVE_URL)/$*.tar.gz -O - | tar -xzC /tmp
-	$(MAKE) -j -C $(dir $@) redis-server >/dev/null 2>/dev/null
+ci-test:
+	$(PYTEST) --cov --cov-append --cov-report=xml

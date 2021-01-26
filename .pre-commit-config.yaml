@@ -57,7 +57,7 @@ repos:
   rev: 'v2.10.0'
   hooks:
   - id: pyupgrade
-    args: ['--py36-plus']
+    args: ['--py36-plus', '--keep-mock']
 - repo: https://gitlab.com/pycqa/flake8
   rev: '3.9.0'
   hooks:

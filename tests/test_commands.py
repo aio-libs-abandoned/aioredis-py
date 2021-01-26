@@ -9,10 +9,8 @@ import pytest
 import aioredis
 from aioredis import exceptions
 from aioredis.client import parse_info
-
-from .conftest import (
+from tests.conftest import (
     REDIS_6_VERSION,
-    _get_client,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
@@ -234,7 +232,7 @@ class TestRedisCommands:
         assert "user %s off -@all" % username in users
 
     @skip_if_server_version_lt(REDIS_6_VERSION)
-    async def test_acl_log(self, r: aioredis.Redis, request, event_loop):
+    async def test_acl_log(self, r: aioredis.Redis, request, event_loop, create_redis):
         username = "redis-py-user"
 
         def teardown():
@@ -255,9 +253,7 @@ class TestRedisCommands:
         )
         await r.acl_log_reset()
 
-        user_client = await _get_client(
-            aioredis.Redis, request, event_loop, flushdb=False, username=username
-        )
+        user_client = await create_redis(username=username)
 
         # Valid operation and key
         assert await user_client.set("cache:0", 1)
@@ -2160,7 +2156,6 @@ class TestRedisCommands:
             None,
         ]
 
-    @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
     async def test_geopos(self, r: aioredis.Redis):
         values = (2.1909389952632, 41.433791470673, "place1") + (

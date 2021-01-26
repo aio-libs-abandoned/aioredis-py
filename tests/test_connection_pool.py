@@ -2,14 +2,14 @@ import asyncio
 import os
 import re
 import time
-from unittest import mock
 
 import pytest
 
 import aioredis
 from aioredis.connection import Connection, to_bool
 
-from .conftest import REDIS_6_VERSION, _get_client, skip_if_server_version_lt
+from .compat import mock
+from .conftest import REDIS_6_VERSION, skip_if_server_version_lt
 from .test_pubsub import wait_for_message
 
 pytestmark = pytest.mark.asyncio
@@ -501,7 +501,8 @@ class TestConnection:
         """
         with pytest.raises(aioredis.BusyLoadingError):
             await r.execute_command("DEBUG", "ERROR", "LOADING fake message")
-        assert not r.connection._reader
+        if r.connection:
+            assert not r.connection._reader
 
     @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
@@ -578,61 +579,60 @@ class TestConnection:
 
 class TestMultiConnectionClient:
     @pytest.fixture()
-    async def r(self, request, event_loop):
-        return await _get_client(
-            aioredis.Redis, request, event_loop, single_connection_client=False
-        )
-
-    async def test_multi_connection_command(self, r):
-        assert not r.connection
-        assert await r.set("a", "123")
-        assert (await r.get("a")) == b"123"
+    async def r(self, create_redis, server):
+        redis = await create_redis(single_connection_client=False)
+        yield redis
+        await redis.flushall()
 
 
 class TestHealthCheck:
     interval = 60
 
     @pytest.fixture()
-    async def r(self, request, event_loop):
-        return await _get_client(
-            aioredis.Redis, request, event_loop, health_check_interval=self.interval
-        )
+    async def r(self, create_redis):
+        redis = await create_redis(health_check_interval=self.interval)
+        yield redis
+        await redis.flushall()
 
     def assert_interval_advanced(self, connection):
         diff = connection.next_health_check - time.time()
         assert self.interval > diff > (self.interval - 1)
 
     async def test_health_check_runs(self, r):
-        r.connection.next_health_check = time.time() - 1
-        await r.connection.check_health()
-        self.assert_interval_advanced(r.connection)
+        if r.connection:
+            r.connection.next_health_check = time.time() - 1
+            await r.connection.check_health()
+            self.assert_interval_advanced(r.connection)
 
     async def test_arbitrary_command_invokes_health_check(self, r):
         # invoke a command to make sure the connection is entirely setup
-        await r.get("foo")
-        r.connection.next_health_check = time.time()
-        with mock.patch.object(
-            r.connection, "send_command", wraps=r.connection.send_command
-        ) as m:
+        if r.connection:
             await r.get("foo")
-            m.assert_called_with("PING", check_health=False)
+            r.connection.next_health_check = time.time()
+            with mock.patch.object(
+                r.connection, "send_command", wraps=r.connection.send_command
+            ) as m:
+                await r.get("foo")
+                m.assert_called_with("PING", check_health=False)
 
-        self.assert_interval_advanced(r.connection)
+            self.assert_interval_advanced(r.connection)
 
     async def test_arbitrary_command_advances_next_health_check(self, r):
-        await r.get("foo")
-        next_health_check = r.connection.next_health_check
-        await r.get("foo")
-        assert next_health_check < r.connection.next_health_check
+        if r.connection:
+            await r.get("foo")
+            next_health_check = r.connection.next_health_check
+            await r.get("foo")
+            assert next_health_check < r.connection.next_health_check
 
     async def test_health_check_not_invoked_within_interval(self, r):
-        await r.get("foo")
-        with mock.patch.object(
-            r.connection, "send_command", wraps=r.connection.send_command
-        ) as m:
+        if r.connection:
             await r.get("foo")
-            ping_call_spec = (("PING",), {"check_health": False})
-            assert ping_call_spec not in m.call_args_list
+            with mock.patch.object(
+                r.connection, "send_command", wraps=r.connection.send_command
+            ) as m:
+                await r.get("foo")
+                ping_call_spec = (("PING",), {"check_health": False})
+                assert ping_call_spec not in m.call_args_list
 
     async def test_health_check_in_pipeline(self, r):
         async with r.pipeline(transaction=False) as pipe:
