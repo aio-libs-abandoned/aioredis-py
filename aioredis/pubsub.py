@@ -177,7 +177,7 @@ class Receiver:
     >>> await redis.subscribe(mpsc.channel('channel:1'),
     ...                       mpsc.channel('channel:3'))
     ...                       mpsc.channel('channel:5'))
-    >>> await redis.psubscribe(mpsc.pattern('hello'))
+    >>> await redis.psubscribe(mpsc.pattern('hello*'))
     >>> # publishing 'Hello world' into 'hello-channel'
     >>> # will print this message:
     Got b'Hello world' in channel b'hello-channel'
