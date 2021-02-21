@@ -127,10 +127,10 @@ class StringCommandsMixin:
     def incrbyfloat(self, key, increment):
         """Increment the float value of a key by the given amount.
 
-        :raises TypeError: if increment is not int
+        :raises TypeError: if increment is not float
         """
         if not isinstance(increment, float):
-            raise TypeError("increment must be of type int")
+            raise TypeError("increment must be of type float")
         fut = self.execute(b"INCRBYFLOAT", key, increment)
         return wait_convert(fut, float)
 
