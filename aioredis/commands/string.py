@@ -196,7 +196,7 @@ class StringCommandsMixin:
             args.append(b"NX")
 
         """
-        ``keepttl`` if True, retain the time to live associated with the key.
+        keepttl if True, retain the time to live associated with the key.
             (Available since Redis 6.0)
         """
         if keepttl:
