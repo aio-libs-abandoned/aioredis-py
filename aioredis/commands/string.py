@@ -174,7 +174,7 @@ class StringCommandsMixin:
         fut = self.execute(b"PSETEX", key, milliseconds, value)
         return wait_ok(fut)
 
-    def set(self, key, value, *, expire=0, pexpire=0, exist=None):
+    def set(self, key, value, *, expire=0, pexpire=0, exist=None, keepttl=False):
         """Set the string value of a key.
 
         :raises TypeError: if expire or pexpire is not int
@@ -194,6 +194,14 @@ class StringCommandsMixin:
             args.append(b"XX")
         elif exist is self.SET_IF_NOT_EXIST:
             args.append(b"NX")
+
+        """
+        ``keepttl`` if True, retain the time to live associated with the key.
+            (Available since Redis 6.0)
+        """
+        if keepttl:
+            args.append('KEEPTTL')
+
         fut = self.execute(b"SET", key, value, *args)
         return wait_ok(fut)
 
