@@ -200,7 +200,7 @@ class StringCommandsMixin:
             (Available since Redis 6.0)
         """
         if keepttl:
-            args.append('KEEPTTL')
+            args.append(b"KEEPTTL")
 
         fut = self.execute(b"SET", key, value, *args)
         return wait_ok(fut)
