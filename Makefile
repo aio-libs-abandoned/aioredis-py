@@ -5,16 +5,13 @@ MYPY ?= mypy
 # Python implementation
 PYTHON_IMPL = $(shell $(PYTHON) -c "import sys; print(sys.implementation.name)")
 
-EXAMPLES = $(sort $(wildcard examples/*.py examples/*/*.py))
+EXAMPLES = $(sort $(wildcard docs/examples/*.py docs/examples/*/*.py))
 
-.PHONY: all lint init-hooks doc man-doc spelling test cov dist devel clean mypy
+.PHONY: all lint init-hooks doc spelling test cov dist devel clean mypy
 all: aioredis.egg-info lint doc cov
 
 doc: spelling
-	$(MAKE) -C docs html
-	@echo "open file://`pwd`/docs/_build/html/index.html"
-man-doc: spelling
-	$(MAKE) -C docs man
+	mkdocs build
 spelling:
 	@echo "Running spelling check"
 	$(MAKE) -C docs spelling
@@ -28,11 +25,11 @@ test:
 cov coverage:
 	$(PYTEST) --cov
 
-dist: clean man-doc
+dist: clean
 	$(PYTHON) setup.py sdist bdist_wheel
 
 clean:
-	-rm -r docs/_build
+	-rm -r docs/build
 	-rm -r build dist aioredis.egg-info
 
 init-hooks:

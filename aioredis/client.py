@@ -4267,7 +4267,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 loop.create_task(self.reset())
             else:
                 loop.run_until_complete(self.reset())
-            super().close()
+            super().__del__()
         except Exception:
             pass
 
