@@ -1,5 +1,5 @@
 async-timeout==3.0.1
-coverage==5.4
+coverage==5.5
 flake8==3.9.0
 hiredis==1.1.0
 pytest==6.2.2
