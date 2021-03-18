@@ -1,5 +1,18 @@
 # Contributing
 
+## Preamble
+
+`aioredis-py` is currently designed to be a full asyncio-native port of `redis-py`. As
+such, our main focus is to keep in lockstep with feature and bug development on the part
+of the `redis-py` library. As a rule of thumb:
+
+1. If the issue is with connection management, it should be routed here.
+2. If the issue is with an implementation of high-level clients (commands, pipelining,
+   locking, etc.) it should be routed to
+   [redis-py](https://github.com/andymccurdy/redis-py/issues)
+
+## Getting Started
+
 To start contributing you must read all the following.
 
 First you must fork/clone repo from
