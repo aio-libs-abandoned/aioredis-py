@@ -1,1 +1,0 @@
-Fix multiple acquire airedis.locks.Lock (see https://bugs.python.org/issue32734)

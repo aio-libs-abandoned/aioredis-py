@@ -39,16 +39,21 @@ classifiers = [
 setup(
     name="aioredis",
     version=read_version(),
-    description=("asyncio (PEP 3156) Redis support"),
-    long_description="\n\n".join((read("README.rst"), read("CHANGES.txt"))),
+    description="asyncio (PEP 3156) Redis support",
+    long_description="\n\n".join((read("README.md"), read("CHANGELOG.md"))),
+    long_description_content_type="text/markdown",
     classifiers=classifiers,
     platforms=["POSIX"],
-    author="Alexey Popravka",
-    author_email="alexey.popravka@horsedevel.com",
     url="https://github.com/aio-libs/aioredis",
     license="MIT",
     packages=find_packages(exclude=["tests"]),
-    install_requires=["async-timeout", 'hiredis; implementation_name=="cpython"'],
+    install_requires=[
+        "async-timeout",
+        "typing-extensions",
+    ],
+    extras_require={
+        "hiredis": 'hiredis>=1.0; implementation_name=="cpython"',
+    },
     python_requires=">=3.6",
     include_package_data=True,
 )
