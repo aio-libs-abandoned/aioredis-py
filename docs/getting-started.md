@@ -6,15 +6,12 @@
 pip install aioredis
 ```
 
-This will install `aioredis`, alongside `hiredis` and `async-timeout`.
+This will install `aioredis`, `async-timeout`.
 
-### Without Dependencies
-
-If you find yourself in a situation where you cannot support `hiredis` in your
-application, you can install aioredis without that dependency:
+### With hiredis
 
 ```shell
-pip install --no-deps aioredis async-timeout
+pip install aioredis[hiredis]
 ```
 
 ### Installing from Git
