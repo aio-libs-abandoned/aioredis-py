@@ -1,8 +1,9 @@
 [tool.towncrier]
+package = "aioredis"
 filename = "docs/changelog.md"
 directory = "CHANGES/"
 start_string = "# Changelog\n"
-issue_format = "[#{issue}](https://gitlab.com/group/project/-/issues/{issue})"
+issue_format = "#{issue}"
 underlines = ["", ""]
 template = ".towncrier.md.jinja"
-title_format = "## [{version}] - {project_date}"
+title_format = "## {version} - ({project_date})"

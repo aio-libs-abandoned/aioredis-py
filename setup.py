@@ -40,7 +40,7 @@ setup(
     name="aioredis",
     version=read_version(),
     description="asyncio (PEP 3156) Redis support",
-    long_description="\n\n".join((read("README.md"), read("CHANGES.md"))),
+    long_description="\n\n".join((read("README.md"), read("CHANGELOG.md"))),
     long_description_content_type="text/markdown",
     classifiers=classifiers,
     platforms=["POSIX"],
