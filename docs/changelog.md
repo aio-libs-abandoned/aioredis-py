@@ -2,6 +2,17 @@
 
 # Changelog
 
+## 2.0.0 - (2021-03-18)
+
+### Features
+
+- Port redis-py's client implementation to aioredis.  
+  (see #891)
+
+- Make hiredis an optional dependency.  
+  (see #917)
+
+
 ## 1.3.1 (2019-12-02)
 
 ### Bugfixes
