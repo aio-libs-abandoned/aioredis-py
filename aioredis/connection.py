@@ -632,7 +632,7 @@ class Connection:
                 if loop.is_running():
                     loop.create_task(coro)
                 else:
-                    loop.run_until_complete(self.disconnect())
+                    loop.run_until_complete(coro)
         except Exception:
             pass
 
