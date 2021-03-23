@@ -15,7 +15,7 @@ repos:
   hooks:
   - id: yesqa
 - repo: https://github.com/pycqa/isort
-  rev: '5.7.0'
+  rev: '5.8.0'
   hooks:
   - id: isort
     args: ["--profile", "black"]
@@ -32,6 +32,7 @@ repos:
       ^docs/[^/]*\.svg$
   - id: requirements-txt-fixer
   - id: trailing-whitespace
+    types: [python]
   - id: file-contents-sorter
     files: |
       CONTRIBUTORS.txt|
@@ -54,12 +55,12 @@ repos:
   - id: detect-private-key
     exclude: ^examples|(?:tests/ssl)/
 - repo: https://github.com/asottile/pyupgrade
-  rev: 'v2.7.4'
+  rev: 'v2.11.0'
   hooks:
   - id: pyupgrade
-    args: ['--py36-plus']
+    args: ['--py36-plus', '--keep-mock']
 - repo: https://gitlab.com/pycqa/flake8
-  rev: '3.8.4'
+  rev: '3.9.0'
   hooks:
   - id: flake8
     exclude: "^docs/"

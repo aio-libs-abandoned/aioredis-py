@@ -1,0 +1,64 @@
+site_name: aioredis
+site_author: Sean D Stewart
+copyright: "Copyright &copy; 2020 - 2021 Sean Stewart"
+site_url: http://aioredis.readthedocs.io/
+repo_url: https://github.com/aio-libs/aioredis
+repo_name: aio-libs/aioredis
+theme:
+  name: "material"
+nav:
+- index.md
+- getting-started.md
+- examples.md
+- migration.md
+- devel.md
+- 'API Reference':
+  - api/high-level.md
+  - api/low-level.md
+- changelog.md
+- license.md
+plugins:
+- search
+- mkdocstrings:
+    handlers:
+      python:
+        setup_commands:
+        - import sys
+        - sys.path.append("aioredis")
+        selection:
+          docstring_style: restructured-text
+          new_path_syntax: yes
+- autorefs
+markdown_extensions:
+- toc:
+    permalink: true
+- abbr
+- smarty
+- admonition
+- footnotes
+- codehilite
+- pymdownx.arithmatex
+- pymdownx.inlinehilite
+- pymdownx.superfences
+- pymdownx.betterem:
+    smart_enable: all
+- pymdownx.caret
+- pymdownx.critic
+- pymdownx.details
+- pymdownx.emoji
+- pymdownx.magiclink:
+    repo_url_shorthand: true
+- pymdownx.mark
+- pymdownx.smartsymbols
+- pymdownx.tasklist:
+    custom_checkbox: true
+- pymdownx.tilde
+- pymdownx.snippets:
+    check_paths: true
+    base_path: docs
+extra:
+  social:
+  - icon: "fontawesome/brands/github-alt"
+    link: "https://github.com/aio-libs/aioredis"
+extra_css:
+- static/stylesheets/extra.css

@@ -54,7 +54,7 @@ coverage.xml
 *.pot
 
 # Sphinx documentation
-docs/_build/
+sphinx/_build/
 
 # OS hidden files
 .DS_Store
