@@ -66,15 +66,13 @@ class SentinelTestCluster:
 
 
 @pytest.fixture()
-def cluster(request, master_ip):
-    def teardown():
-        aioredis.sentinel.Redis = saved_Redis
+async def cluster(master_ip):
 
     cluster = SentinelTestCluster(ip=master_ip)
     saved_Redis = aioredis.sentinel.Redis
     aioredis.sentinel.Redis = cluster.client
-    request.addfinalizer(teardown)
-    return cluster
+    yield cluster
+    aioredis.sentinel.Redis = saved_Redis
 
 
 @pytest.fixture()
