@@ -632,7 +632,7 @@ class Connection:
                 if loop.is_running():
                     loop.create_task(coro)
                 else:
-                    loop.run_until_complete(self.disconnect())
+                    loop.run_until_complete(coro)
         except Exception:
             pass
 
@@ -844,7 +844,7 @@ class Connection:
     async def read_response(self):
         """Read the response from a previously sent command"""
         try:
-            with async_timeout.timeout(self.socket_timeout):
+            async with async_timeout.timeout(self.socket_timeout):
                 response = await self._parser.read_response()
         except asyncio.TimeoutError:
             await self.disconnect()
@@ -1071,7 +1071,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         return pieces
 
     async def _connect(self):
-        with async_timeout.timeout(self._connect_timeout):
+        async with async_timeout.timeout(self._connect_timeout):
             reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._reader = reader
         self._writer = writer

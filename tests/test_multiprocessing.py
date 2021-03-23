@@ -26,9 +26,8 @@ class TestMultiprocessing:
     # use a multi-connection client as that's the only type that is
     # actually fork/process-safe
     @pytest.fixture()
-    async def r(self, create_redis, server):
+    async def r(self, create_redis):
         redis = await create_redis(
-            server.tcp_address,
             single_connection_client=False,
         )
         yield redis
