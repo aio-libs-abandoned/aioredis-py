@@ -131,11 +131,12 @@ def create_redis(request, event_loop):
     single_connection = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
+        single = kwargs.pop("single_connection_client", False) or single_connection
         url_options = parse_url(url)
         url_options.update(kwargs)
         pool = aioredis.ConnectionPool(**url_options)
         client: aioredis.Redis = aioredis.Redis(connection_pool=pool)
-        if single_connection:
+        if single:
             client = client.client()
             await client.initialize()
 
