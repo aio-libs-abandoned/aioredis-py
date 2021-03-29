@@ -1,5 +1,5 @@
 mkdocs==1.1.2
 mkdocs-awesome-pages-plugin==2.5.0
-mkdocs-material==7.0.6
+mkdocs-material==7.0.7
 mkdocs-material-extensions==1.0.1
 pydoc-markdown==3.10.0
