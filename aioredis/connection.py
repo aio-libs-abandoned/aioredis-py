@@ -404,7 +404,7 @@ class PythonParser(BaseParser):
             length = int(response)
             if length == -1:
                 return None
-            response = [(await self.read_response()) for i in range(length)]
+            response = [(await self.read_response()) for _ in range(length)]
         if isinstance(response, bytes):
             response = self.encoder.decode(response)
         return response
@@ -743,7 +743,7 @@ class Connection:
         # if a client_name is given, set it
         if self.client_name:
             await self.send_command("CLIENT", "SETNAME", self.client_name)
-            if str_if_bytes(self.read_response()) != "OK":
+            if str_if_bytes(await self.read_response()) != "OK":
                 raise ConnectionError("Error setting client name")
 
         # if a database is specified, switch to it
