@@ -1278,16 +1278,16 @@ class Redis:
                     pieces.append(b"-@%s" % category[1:])
                 else:
                     raise DataError(
-                        'Category "%s" must be prefixed with '
-                        '"+" or "-"' % encoder.decode(category, force=True)
+                        f'Category "{encoder.decode(category, force=True)}" must be '
+                        'prefixed with "+" or "-"'
                     )
         if commands:
             for cmd in commands:
                 cmd = encoder.encode(cmd)
                 if not cmd.startswith(b"+") and not cmd.startswith(b"-"):
                     raise DataError(
-                        'Command "%s" must be prefixed with '
-                        '"+" or "-"' % encoder.decode(cmd, force=True)
+                        f'Command "{encoder.decode(cmd, force=True)}" must be '
+                        'prefixed with "+" or "-"'
                     )
                 pieces.append(cmd)
 
@@ -3413,8 +3413,8 @@ class Redis:
         key and value from the ``mapping`` dict.
         """
         warnings.warn(
-            "%s.hmset() is deprecated. Use %s.hset() instead."
-            % (self.__class__.__name__, self.__class__.__name__),
+            f"{self.__class__.__name__}.hmset() is deprecated. "
+            f"Use {self.__class__.__name__}.hset() instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -3761,7 +3761,7 @@ class Monitor:
         # check that monitor returns 'OK', but don't return it to user
         response = await self.connection.read_response()
         if not bool_ok(response):
-            raise RedisError("MONITOR failed: %s" % response)
+            raise RedisError(f"MONITOR failed: {response}")
         return self
 
     async def __aexit__(self, *args):
@@ -4137,10 +4137,10 @@ class PubSub:
     ) -> "PubSubWorkerThread":
         for channel, handler in self.channels.items():
             if handler is None:
-                raise PubSubError("Channel: '%s' has no handler registered" % channel)
+                raise PubSubError(f"Channel: '{channel}' has no handler registered")
         for pattern, handler in self.patterns.items():
             if handler is None:
-                raise PubSubError("Pattern: '%s' has no handler registered" % pattern)
+                raise PubSubError(f"Pattern: '{pattern}' has no handler registered")
 
         thread = PubSubWorkerThread(
             self, daemon=daemon, exception_handler=exception_handler
