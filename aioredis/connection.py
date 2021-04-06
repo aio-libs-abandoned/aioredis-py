@@ -1005,7 +1005,7 @@ class RedisSSLContext:
             }
             if cert_reqs not in CERT_REQS:
                 raise RedisError(
-                    "Invalid SSL Certificate Requirements Flag: %s" % cert_reqs
+                    f"Invalid SSL Certificate Requirements Flag: {cert_reqs}"
                 )
             self.cert_reqs = CERT_REQS[cert_reqs]
         self.ca_certs = ca_certs
@@ -1133,7 +1133,7 @@ def parse_url(url: str) -> ConnectKwargs:
                 try:
                     kwargs[name] = parser(value)
                 except (TypeError, ValueError):
-                    raise ValueError("Invalid value for `%s` in connection URL." % name)
+                    raise ValueError(f"Invalid value for `{name}` in connection URL.")
             else:
                 kwargs[name] = value
 
@@ -1167,8 +1167,7 @@ def parse_url(url: str) -> ConnectKwargs:
     else:
         valid_schemes = "redis://, rediss://, unix://"
         raise ValueError(
-            "Redis URL must specify one of the following "
-            "schemes (%s)" % valid_schemes
+            f"Redis URL must specify one of the following schemes ({valid_schemes})"
         )
 
     return kwargs
