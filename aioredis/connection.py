@@ -7,6 +7,7 @@ import socket
 import ssl
 import threading
 import time
+import sys
 import warnings
 from distutils.version import StrictVersion
 from itertools import chain
@@ -677,9 +678,13 @@ class Connection:
 
     async def _connect(self):
         """Create a TCP socket connection"""
+        if sys.version_info < (3, 7): # Only python 3.6 needs loop
+            loop_kwargs = {"loop": self._loop}
+        else:
+            loop_kwargs = {}
         async with async_timeout.timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_connection(
-                host=self.host, port=self.port, ssl=self.ssl_context
+                host=self.host, port=self.port, ssl=self.ssl_context, **loop_kwargs
             )
         self._reader = reader
         self._writer = writer
