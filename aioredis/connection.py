@@ -678,7 +678,9 @@ class Connection:
 
     async def _connect(self):
         """Create a TCP socket connection"""
-        if sys.version_info < (3, 7): # Only python 3.6 needs loop
+        # only python 3.6 and older needs loop to work correctly
+        # see https://stackoverflow.com/questions/8686225/pythonic-way-to-pass-keyword-arguments-on-conditional/27669794
+        if sys.version_info < (3, 7):
             loop_kwargs = {"loop": self._loop}
         else:
             loop_kwargs = {}
