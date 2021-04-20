@@ -681,7 +681,7 @@ class Connection:
             reader, writer = await asyncio.open_connection(
                 host=self.host,
                 port=self.port,
-                ssl=self.ssl_context.get(),
+                ssl=self.ssl_context.get() if self.ssl_context else None,
                 loop=self._loop,
             )
         self._reader = reader
