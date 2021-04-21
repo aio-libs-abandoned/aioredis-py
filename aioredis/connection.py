@@ -679,7 +679,10 @@ class Connection:
         """Create a TCP socket connection"""
         async with async_timeout.timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_connection(
-                host=self.host, port=self.port, ssl=self.ssl_context, loop=self._loop
+                host=self.host,
+                port=self.port,
+                ssl=self.ssl_context.get() if self.ssl_context else None,
+                loop=self._loop,
             )
         self._reader = reader
         self._writer = writer
