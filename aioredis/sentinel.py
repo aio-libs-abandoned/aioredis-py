@@ -3,7 +3,7 @@ import weakref
 from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
 from aioredis.client import Redis
-from aioredis.connection import Connection, ConnectionPool, EncodableT, SSLConnection
+from aioredis.connection import ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
     ConnectionError,
     ReadOnlyError,
@@ -21,7 +21,16 @@ class SlaveNotFoundError(ConnectionError):
     pass
 
 
-class SentinelManagedConnection:
+class SentinelManagedConnection(SSLConnection):
+    def __init__(self, **kwargs):
+        self.connection_pool = kwargs.pop("connection_pool")
+        if not kwargs.pop("ssl", False):
+            # use constructor from Connection class
+            super(SSLConnection, self).__init__(**kwargs)
+        else:
+            # use constructor from SSLConnection class
+            super().__init__(**kwargs)
+
     def __repr__(self):
         pool = self.connection_pool
         s = f"{self.__class__.__name__}<service={pool.service_name}"
@@ -66,18 +75,6 @@ class SentinelManagedConnection:
             raise
 
 
-class SentinelManagedSSLConnection(SentinelManagedConnection, SSLConnection):
-    def __init__(self, **kwargs):
-        self.connection_pool = kwargs.pop("connection_pool")
-        super().__init__(**kwargs)
-
-
-class SentinelManagedPlaneConnection(SentinelManagedConnection, Connection):
-    def __init__(self, **kwargs):
-        self.connection_pool = kwargs.pop("connection_pool")
-        super().__init__(**kwargs)
-
-
 class SentinelConnectionPool(ConnectionPool):
     """
     Sentinel backed connection pool.
@@ -88,10 +85,7 @@ class SentinelConnectionPool(ConnectionPool):
 
     def __init__(self, service_name, sentinel_manager, **kwargs):
         kwargs["connection_class"] = kwargs.get(
-            "connection_class",
-            SentinelManagedPlaneConnection
-            if not kwargs.pop("ssl", False)
-            else SentinelManagedSSLConnection,
+            "connection_class", SentinelManagedConnection
         )
         self.is_master = kwargs.pop("is_master", True)
         self.check_connection = kwargs.pop("check_connection", False)
