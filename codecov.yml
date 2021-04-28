@@ -1,3 +1,2 @@
-fixes:
-  - "::aioredis/"
-  - "::tests/"
+codecov:
+  disable_default_path_fixes: yes
