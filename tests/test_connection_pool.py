@@ -40,7 +40,7 @@ class TestConnectionPool:
         pool = aioredis.ConnectionPool(
             connection_class=connection_class,
             max_connections=max_connections,
-            **connection_kwargs
+            **connection_kwargs,
         )
         return pool
 
@@ -112,7 +112,7 @@ class TestBlockingConnectionPool:
             connection_class=DummyConnection,
             max_connections=max_connections,
             timeout=timeout,
-            **connection_kwargs
+            **connection_kwargs,
         )
         return pool
 
