@@ -792,6 +792,12 @@ class Connection:
                 except BaseException as err2:
                     raise err2 from err
 
+    async def _send_packed_command(
+        self, command: Union[bytes, str, Iterable[Union[bytes, str]]]
+    ):
+        self._writer.writelines(command)
+        await self._writer.drain()
+
     async def send_packed_command(
         self,
         command: Union[bytes, str, Iterable[Union[bytes, str]]],
@@ -808,8 +814,11 @@ class Connection:
                 command = command.encode()
             if isinstance(command, bytes):
                 command = [command]
-            self._writer.writelines(command)
-            await self._writer.drain()
+            await asyncio.wait_for(
+                self._send_packed_command(command),
+                self.socket_timeout,
+                loop=self._loop or asyncio.get_event_loop(),
+            )
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError("Timeout writing to socket") from None
