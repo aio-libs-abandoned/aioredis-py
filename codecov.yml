@@ -1,2 +1,2 @@
-codecov:
-  disable_default_path_fixes: yes
+fixes:
+  - "home/runner/work/aioredis-py/aioredis-py/::"
