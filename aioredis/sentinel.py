@@ -3,7 +3,7 @@ import weakref
 from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
 from aioredis.client import Redis
-from aioredis.connection import Connection, ConnectionPool, EncodableT
+from aioredis.connection import ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
     ConnectionError,
     ReadOnlyError,
@@ -21,10 +21,15 @@ class SlaveNotFoundError(ConnectionError):
     pass
 
 
-class SentinelManagedConnection(Connection):
+class SentinelManagedConnection(SSLConnection):
     def __init__(self, **kwargs):
         self.connection_pool = kwargs.pop("connection_pool")
-        super().__init__(**kwargs)
+        if not kwargs.pop("ssl", False):
+            # use constructor from Connection class
+            super(SSLConnection, self).__init__(**kwargs)
+        else:
+            # use constructor from SSLConnection class
+            super().__init__(**kwargs)
 
     def __repr__(self):
         pool = self.connection_pool
