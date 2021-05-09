@@ -55,12 +55,12 @@ repos:
   - id: detect-private-key
     exclude: ^examples|(?:tests/ssl)/
 - repo: https://github.com/asottile/pyupgrade
-  rev: 'v2.14.0'
+  rev: 'v2.15.0'
   hooks:
   - id: pyupgrade
     args: ['--py36-plus', '--keep-mock']
 - repo: https://gitlab.com/pycqa/flake8
-  rev: '3.9.1'
+  rev: '3.9.2'
   hooks:
   - id: flake8
     exclude: "^docs/"
