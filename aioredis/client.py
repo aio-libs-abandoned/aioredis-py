@@ -4291,7 +4291,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 await self.connection.read_response()
             except ConnectionError:
                 # disconnect will also remove any previous WATCHes
-                await self.connection.disconnect()
+                if self.connection:
+                    await self.connection.disconnect()
         # clean up the other instance attributes
         self.watching = False
         self.explicit_transaction = False
