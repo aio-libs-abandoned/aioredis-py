@@ -3,7 +3,7 @@
 ## Installation
 
 ```shell
-pip install aioredis
+pip install 'aioredis>=2'
 ```
 
 This will install `aioredis`, `async-timeout`.
