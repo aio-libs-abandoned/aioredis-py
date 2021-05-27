@@ -695,9 +695,6 @@ class Connection:
                     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                     for k, v in self.socket_keepalive_options.items():
                         sock.setsockopt(socket.SOL_TCP, k, v)
-                # set the socket_timeout now that we're connected
-                if self.socket_timeout is not None:
-                    sock.settimeout(self.socket_timeout)
 
             except (OSError, TypeError):
                 # `socket_keepalive_options` might contain invalid options
