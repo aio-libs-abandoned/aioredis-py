@@ -1082,7 +1082,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         return pieces
 
     async def _connect(self):
-        async with async_timeout.timeout(self._connect_timeout):
+        async with async_timeout.timeout(self.socket_timeout):
             reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._reader = reader
         self._writer = writer
