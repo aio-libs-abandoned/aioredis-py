@@ -1065,6 +1065,8 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self.next_health_check = 0
         self.encoder = Encoder(encoding, encoding_errors, decode_responses)
         self._sock = None
+        self._reader = None
+        self._writer = None
         self._parser = parser_class(socket_read_size=socket_read_size)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
