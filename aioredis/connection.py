@@ -825,12 +825,12 @@ class Connection:
         except OSError as e:
             await self.disconnect()
             if len(e.args) == 1:
-                errno, errmsg = "UNKNOWN", e.args[0]
+                err_no, errmsg = "UNKNOWN", e.args[0]
             else:
-                errno = e.args[0]
+                err_no = e.args[0]
                 errmsg = e.args[1]
             raise ConnectionError(
-                f"Error {errno} while writing to socket. {errmsg}."
+                f"Error {err_no} while writing to socket. {errmsg}."
             ) from e
         except BaseException:
             await self.disconnect()
