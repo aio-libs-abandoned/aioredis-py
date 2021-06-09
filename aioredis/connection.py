@@ -682,7 +682,6 @@ class Connection:
                 host=self.host,
                 port=self.port,
                 ssl=self.ssl_context.get() if self.ssl_context else None,
-                loop=self._loop,
             )
         self._reader = reader
         self._writer = writer
@@ -817,7 +816,6 @@ class Connection:
             await asyncio.wait_for(
                 self._send_packed_command(command),
                 self.socket_timeout,
-                loop=self._loop or asyncio.get_event_loop(),
             )
         except asyncio.TimeoutError:
             await self.disconnect()
