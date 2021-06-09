@@ -560,7 +560,6 @@ class Connection:
         "_parser",
         "_connect_callbacks",
         "_buffer_cutoff",
-        "_loop",
         "__dict__",
     )
 
@@ -586,7 +585,6 @@ class Connection:
         client_name: str = None,
         username: str = None,
         encoder_class: Type[Encoder] = Encoder,
-        loop: asyncio.AbstractEventLoop = None,
     ):
         self.pid = os.getpid()
         self.host = host
@@ -612,7 +610,6 @@ class Connection:
         )
         self._connect_callbacks: List[ConnectCallbackT] = []
         self._buffer_cutoff = 6000
-        self._loop = loop
 
     def __repr__(self):
         repr_args = ",".join((f"{k}={v}" for k, v in self.repr_pieces()))
@@ -627,7 +624,7 @@ class Connection:
     def __del__(self):
         try:
             if self.is_connected:
-                loop = self._loop or asyncio.get_event_loop()
+                loop = asyncio.get_event_loop()
                 coro = self.disconnect()
                 if loop.is_running():
                     loop.create_task(coro)
@@ -1049,7 +1046,6 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         socket_read_size: int = 65536,
         health_check_interval: float = 0.0,
         client_name=None,
-        loop: asyncio.AbstractEventLoop = None,
     ):
         self.pid = os.getpid()
         self.path = path
@@ -1068,7 +1064,6 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._parser = parser_class(socket_read_size=socket_read_size)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
-        self._loop = loop
 
     def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
         pieces = [
@@ -1271,7 +1266,6 @@ class ConnectionPool:
         self._available_connections: List[Connection]
         self._in_use_connections: Set[Connection]
         self.reset()  # lgtm [py/init-calls-subclass]
-        self.loop = self.connection_kwargs.get("loop")
         self.encoder_class = self.connection_kwargs.get("encoder_class", Encoder)
 
     def __repr__(self):

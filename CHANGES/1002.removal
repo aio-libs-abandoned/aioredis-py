@@ -1,0 +1,2 @@
+Remove explicit loop arguments from connection classes.
+Add loop argument to PubSub.run_in_thread.
