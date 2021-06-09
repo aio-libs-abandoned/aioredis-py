@@ -4133,7 +4133,10 @@ class PubSub:
         return message
 
     def run_in_thread(
-        self, daemon: bool = False, exception_handler: Callable = None
+        self,
+        daemon: bool = False,
+        exception_handler: Callable = None,
+        loop: asyncio.AbstractEventLoop = None,
     ) -> "PubSubWorkerThread":
         for channel, handler in self.channels.items():
             if handler is None:
@@ -4143,7 +4146,7 @@ class PubSub:
                 raise PubSubError(f"Pattern: '{pattern}' has no handler registered")
 
         thread = PubSubWorkerThread(
-            self, daemon=daemon, exception_handler=exception_handler
+            self, daemon=daemon, exception_handler=exception_handler, loop=loop
         )
         thread.start()
         return thread
@@ -4171,6 +4174,7 @@ class PubSubWorkerThread(threading.Thread):
         daemon: bool = False,
         poll_timeout: float = 1.0,
         exception_handler: PSWorkerThreadExcHandlerT = None,
+        loop: asyncio.AbstractEventLoop = None,
     ):
         super().__init__()
         self.daemon = daemon
@@ -4179,9 +4183,9 @@ class PubSubWorkerThread(threading.Thread):
         self.exception_handler = exception_handler
         self._running = threading.Event()
         # Make sure we have the current thread loop before we
-        # fork into the new thread. If not loop has been set on the connection
-        # pool use the current default event loop.
-        self.loop = pubsub.connection_pool.loop or asyncio.get_event_loop()
+        # fork into the new thread. If no loop has been specified
+        # use the current default event loop.
+        self.loop = loop or asyncio.get_event_loop()
 
     async def _run(self):
         pubsub = self.pubsub
