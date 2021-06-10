@@ -3,7 +3,6 @@ import datetime
 import hashlib
 import inspect
 import re
-import threading
 import time
 import time as mod_time
 import warnings
@@ -311,7 +310,7 @@ def sort_return_tuples(response, **options):
     if not response or not options.get("groups"):
         return response
     n = options["groups"]
-    return list(zip(*[response[i::n] for i in range(n)]))
+    return list(zip(*(response[i::n] for i in range(n))))
 
 
 def int_or_none(response):
@@ -4132,12 +4131,25 @@ class PubSub:
 
         return message
 
-    def run_in_thread(
+    async def run(
         self,
-        daemon: bool = False,
-        exception_handler: Callable = None,
-        loop: asyncio.AbstractEventLoop = None,
-    ) -> "PubSubWorkerThread":
+        *,
+        exception_handler: "PSWorkerThreadExcHandlerT" = None,
+        poll_timeout: float = 1.0,
+    ) -> None:
+        """Process pub/sub messages using registered callbacks.
+
+        This is the equivalent of :py:meth:`redis.PubSub.run_in_thread` in
+        redis-py, but it is a coroutine. To launch it as a separate task, use
+        ``asyncio.create_task``:
+
+            >>> task = asyncio.create_task(pubsub.run())
+
+        To shut it down, use asyncio cancellation:
+
+            >>> task.cancel()
+            >>> await task
+        """
         for channel, handler in self.channels.items():
             if handler is None:
                 raise PubSubError(f"Channel: '{channel}' has no handler registered")
@@ -4145,75 +4157,37 @@ class PubSub:
             if handler is None:
                 raise PubSubError(f"Pattern: '{pattern}' has no handler registered")
 
-        thread = PubSubWorkerThread(
-            self, daemon=daemon, exception_handler=exception_handler, loop=loop
-        )
-        thread.start()
-        return thread
+        while True:
+            try:
+                await self.get_message(
+                    ignore_subscribe_messages=True, timeout=poll_timeout
+                )
+            except asyncio.CancelledError:
+                raise
+            except BaseException as e:
+                if exception_handler is None:
+                    raise
+                res = exception_handler(e, self)
+                if inspect.isawaitable(res):
+                    await res
+            # Ensure that other tasks on the event loop get a chance to run
+            # if we didn't have to block for I/O anywhere.
+            await asyncio.sleep(0)
 
 
 class PubsubWorkerExceptionHandler(Protocol):
-    def __call__(self, e: BaseException, pubsub: PubSub, t: "PubSubWorkerThread"):
+    def __call__(self, e: BaseException, pubsub: PubSub):
         ...
 
 
 class AsyncPubsubWorkerExceptionHandler(Protocol):
-    async def __call__(self, e: BaseException, pubsub: PubSub, t: "PubSubWorkerThread"):
+    async def __call__(self, e: BaseException, pubsub: PubSub):
         ...
 
 
 PSWorkerThreadExcHandlerT = Union[
     PubsubWorkerExceptionHandler, AsyncPubsubWorkerExceptionHandler
 ]
-
-
-class PubSubWorkerThread(threading.Thread):
-    def __init__(
-        self,
-        pubsub: PubSub,
-        daemon: bool = False,
-        poll_timeout: float = 1.0,
-        exception_handler: PSWorkerThreadExcHandlerT = None,
-        loop: asyncio.AbstractEventLoop = None,
-    ):
-        super().__init__()
-        self.daemon = daemon
-        self.pubsub = pubsub
-        self.poll_timeout = poll_timeout
-        self.exception_handler = exception_handler
-        self._running = threading.Event()
-        # Make sure we have the current thread loop before we
-        # fork into the new thread. If no loop has been specified
-        # use the current default event loop.
-        self.loop = loop or asyncio.get_event_loop()
-
-    async def _run(self):
-        pubsub = self.pubsub
-        while self._running.is_set():
-            try:
-                await pubsub.get_message(
-                    ignore_subscribe_messages=True, timeout=self.poll_timeout
-                )
-            except BaseException as e:
-                if self.exception_handler is None:
-                    raise
-                res = self.exception_handler(e, pubsub, self)
-                if inspect.isawaitable(res):
-                    await res
-        await pubsub.close()
-
-    def run(self):
-        if self._running.is_set():
-            return
-        self._running.set()
-        future = asyncio.run_coroutine_threadsafe(self._run(), self.loop)
-        return future.result()
-
-    def stop(self):
-        # trip the flag so the run loop exits. the run loop will
-        # close the pubsub connection, which disconnects the socket
-        # and returns the connection to the pool.
-        self._running.clear()
 
 
 CommandT = Tuple[Tuple[Union[str, bytes], ...], Mapping[str, Any]]
