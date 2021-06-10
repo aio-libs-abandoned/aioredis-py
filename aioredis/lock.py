@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import time as mod_time
 import uuid
@@ -187,6 +188,7 @@ class Lock:
         object with the default encoding. If a token isn't specified, a UUID
         will be generated.
         """
+        loop = asyncio.get_event_loop()
         sleep = self.sleep
         if token is None:
             token = uuid.uuid1().hex.encode()
@@ -199,14 +201,14 @@ class Lock:
             blocking_timeout = self.blocking_timeout
         stop_trying_at = None
         if blocking_timeout is not None:
-            stop_trying_at = mod_time.monotonic() + blocking_timeout
+            stop_trying_at = loop.time() + blocking_timeout
         while True:
             if await self.do_acquire(token):
                 self.local.token = token
                 return True
             if not blocking:
                 return False
-            next_try_at = mod_time.monotonic() + sleep
+            next_try_at = loop.time() + sleep
             if stop_trying_at is not None and next_try_at > stop_trying_at:
                 return False
             mod_time.sleep(sleep)
