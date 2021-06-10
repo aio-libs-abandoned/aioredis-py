@@ -311,7 +311,7 @@ def sort_return_tuples(response, **options):
     if not response or not options.get("groups"):
         return response
     n = options["groups"]
-    return list(zip(*[response[i::n] for i in range(n)]))
+    return list(zip(*(response[i::n] for i in range(n))))
 
 
 def int_or_none(response):
