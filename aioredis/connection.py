@@ -405,7 +405,7 @@ class PythonParser(BaseParser):
             length = int(response)
             if length == -1:
                 return None
-            response = [(await self.read_response()) for i in range(length)]
+            response = [(await self.read_response()) for _ in range(length)]
         if isinstance(response, bytes):
             response = self.encoder.decode(response)
         return response
@@ -561,7 +561,6 @@ class Connection:
         "_parser",
         "_connect_callbacks",
         "_buffer_cutoff",
-        "_loop",
         "__dict__",
     )
 
@@ -587,7 +586,6 @@ class Connection:
         client_name: str = None,
         username: str = None,
         encoder_class: Type[Encoder] = Encoder,
-        loop: asyncio.AbstractEventLoop = None,
     ):
         self.pid = os.getpid()
         self.host = host
@@ -613,7 +611,6 @@ class Connection:
         )
         self._connect_callbacks: List[ConnectCallbackT] = []
         self._buffer_cutoff = 6000
-        self._loop = loop
 
     def __repr__(self):
         repr_args = ",".join((f"{k}={v}" for k, v in self.repr_pieces()))
@@ -628,7 +625,7 @@ class Connection:
     def __del__(self):
         try:
             if self.is_connected:
-                loop = self._loop or asyncio.get_event_loop()
+                loop = asyncio.get_event_loop()
                 coro = self.disconnect()
                 if loop.is_running():
                     loop.create_task(coro)
@@ -685,7 +682,10 @@ class Connection:
             loop_kwargs = {}
         async with async_timeout.timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_connection(
-                host=self.host, port=self.port, ssl=self.ssl_context, **loop_kwargs
+                host=self.host,
+                port=self.port,
+                ssl=self.ssl_context.get() if self.ssl_context else None,
+                **loop_kwargs
             )
         self._reader = reader
         self._writer = writer
@@ -698,9 +698,6 @@ class Connection:
                     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                     for k, v in self.socket_keepalive_options.items():
                         sock.setsockopt(socket.SOL_TCP, k, v)
-                # set the socket_timeout now that we're connected
-                if self.socket_timeout is not None:
-                    sock.settimeout(self.socket_timeout)
 
             except (OSError, TypeError):
                 # `socket_keepalive_options` might contain invalid options
@@ -749,7 +746,7 @@ class Connection:
         # if a client_name is given, set it
         if self.client_name:
             await self.send_command("CLIENT", "SETNAME", self.client_name)
-            if str_if_bytes(self.read_response()) != "OK":
+            if str_if_bytes(await self.read_response()) != "OK":
                 raise ConnectionError("Error setting client name")
 
         # if a database is specified, switch to it
@@ -798,6 +795,12 @@ class Connection:
                 except BaseException as err2:
                     raise err2 from err
 
+    async def _send_packed_command(
+        self, command: Union[bytes, str, Iterable[Union[bytes, str]]]
+    ):
+        self._writer.writelines(command)
+        await self._writer.drain()
+
     async def send_packed_command(
         self,
         command: Union[bytes, str, Iterable[Union[bytes, str]]],
@@ -814,20 +817,22 @@ class Connection:
                 command = command.encode()
             if isinstance(command, bytes):
                 command = [command]
-            self._writer.writelines(command)
-            await self._writer.drain()
+            await asyncio.wait_for(
+                self._send_packed_command(command),
+                self.socket_timeout,
+            )
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError("Timeout writing to socket") from None
         except OSError as e:
             await self.disconnect()
             if len(e.args) == 1:
-                errno, errmsg = "UNKNOWN", e.args[0]
+                err_no, errmsg = "UNKNOWN", e.args[0]
             else:
-                errno = e.args[0]
+                err_no = e.args[0]
                 errmsg = e.args[1]
             raise ConnectionError(
-                f"Error {errno} while writing to socket. {errmsg}."
+                f"Error {err_no} while writing to socket. {errmsg}."
             ) from e
         except BaseException:
             await self.disconnect()
@@ -1011,7 +1016,7 @@ class RedisSSLContext:
             }
             if cert_reqs not in CERT_REQS:
                 raise RedisError(
-                    "Invalid SSL Certificate Requirements Flag: %s" % cert_reqs
+                    f"Invalid SSL Certificate Requirements Flag: {cert_reqs}"
                 )
             self.cert_reqs = CERT_REQS[cert_reqs]
         self.ca_certs = ca_certs
@@ -1048,7 +1053,6 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         socket_read_size: int = 65536,
         health_check_interval: float = 0.0,
         client_name=None,
-        loop: asyncio.AbstractEventLoop = None,
     ):
         self.pid = os.getpid()
         self.path = path
@@ -1062,10 +1066,11 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self.next_health_check = 0
         self.encoder = Encoder(encoding, encoding_errors, decode_responses)
         self._sock = None
+        self._reader = None
+        self._writer = None
         self._parser = parser_class(socket_read_size=socket_read_size)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
-        self._loop = loop
 
     def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
         pieces = [
@@ -1077,7 +1082,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         return pieces
 
     async def _connect(self):
-        async with async_timeout.timeout(self._connect_timeout):
+        async with async_timeout.timeout(self.socket_timeout):
             reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._reader = reader
         self._writer = writer
@@ -1139,7 +1144,7 @@ def parse_url(url: str) -> ConnectKwargs:
                 try:
                     kwargs[name] = parser(value)
                 except (TypeError, ValueError):
-                    raise ValueError("Invalid value for `%s` in connection URL." % name)
+                    raise ValueError(f"Invalid value for `{name}` in connection URL.")
             else:
                 kwargs[name] = value
 
@@ -1173,8 +1178,7 @@ def parse_url(url: str) -> ConnectKwargs:
     else:
         valid_schemes = "redis://, rediss://, unix://"
         raise ValueError(
-            "Redis URL must specify one of the following "
-            "schemes (%s)" % valid_schemes
+            f"Redis URL must specify one of the following schemes ({valid_schemes})"
         )
 
     return kwargs
@@ -1269,7 +1273,6 @@ class ConnectionPool:
         self._available_connections: List[Connection]
         self._in_use_connections: Set[Connection]
         self.reset()  # lgtm [py/init-calls-subclass]
-        self.loop = self.connection_kwargs.get("loop")
         self.encoder_class = self.connection_kwargs.get("encoder_class", Encoder)
 
     def __repr__(self):

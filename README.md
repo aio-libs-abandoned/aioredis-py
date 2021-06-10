@@ -44,14 +44,14 @@ Benchmarks can be found here:
 ## Contribute
 
 -   Issue Tracker: <https://github.com/aio-libs/aioredis/issues>
--   Google Group: <https://groups.google.com/forum/>\#!forum/aio-libs
+-   Google Group: <https://groups.google.com/g/aio-libs>
 -   Gitter: <https://gitter.im/aio-libs/Lobby>
 -   Source Code: <https://github.com/aio-libs/aioredis>
--   Contributor's guide: devel
+-   Contributor's guide: [devel](docs/devel.md)
 
 Feel free to file an issue or make pull request if you find any bugs or
 have some suggestions for library improvement.
 
 ## License
 
-The aioredis is offered under a [MIT License](license.md).
+The aioredis is offered under a [MIT License](LICENSE).

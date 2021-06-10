@@ -29,6 +29,7 @@ Hugo <hugovk>
 Ihor Gorobets
 Ihor Liubymov
 Ilya Samartsev
+Ivan Antonyuck
 James Hilliard
 Jan Špaček
 Jeff Moser
@@ -52,6 +53,7 @@ Samuel Dion-Girardeau
 Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
+Stanislau Arkhipenka
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris

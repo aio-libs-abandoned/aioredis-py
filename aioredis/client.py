@@ -311,7 +311,7 @@ def sort_return_tuples(response, **options):
     if not response or not options.get("groups"):
         return response
     n = options["groups"]
-    return list(zip(*[response[i::n] for i in range(n)]))
+    return list(zip(*(response[i::n] for i in range(n))))
 
 
 def int_or_none(response):
@@ -796,8 +796,8 @@ class Redis:
         password: str = None,
         socket_timeout: float = None,
         socket_connect_timeout: float = None,
-        socket_keepalive: float = None,
-        socket_keepalive_options: float = None,
+        socket_keepalive: bool = None,
+        socket_keepalive_options: Dict[str, Any] = None,
         connection_pool: ConnectionPool = None,
         unix_socket_path: str = None,
         encoding: str = "utf-8",
@@ -1278,16 +1278,16 @@ class Redis:
                     pieces.append(b"-@%s" % category[1:])
                 else:
                     raise DataError(
-                        'Category "%s" must be prefixed with '
-                        '"+" or "-"' % encoder.decode(category, force=True)
+                        f'Category "{encoder.decode(category, force=True)}" must be '
+                        'prefixed with "+" or "-"'
                     )
         if commands:
             for cmd in commands:
                 cmd = encoder.encode(cmd)
                 if not cmd.startswith(b"+") and not cmd.startswith(b"-"):
                     raise DataError(
-                        'Command "%s" must be prefixed with '
-                        '"+" or "-"' % encoder.decode(cmd, force=True)
+                        f'Command "{encoder.decode(cmd, force=True)}" must be '
+                        'prefixed with "+" or "-"'
                     )
                 pieces.append(cmd)
 
@@ -3413,8 +3413,8 @@ class Redis:
         key and value from the ``mapping`` dict.
         """
         warnings.warn(
-            "%s.hmset() is deprecated. Use %s.hset() instead."
-            % (self.__class__.__name__, self.__class__.__name__),
+            f"{self.__class__.__name__}.hmset() is deprecated. "
+            f"Use {self.__class__.__name__}.hset() instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -3761,7 +3761,7 @@ class Monitor:
         # check that monitor returns 'OK', but don't return it to user
         response = await self.connection.read_response()
         if not bool_ok(response):
-            raise RedisError("MONITOR failed: %s" % response)
+            raise RedisError(f"MONITOR failed: {response}")
         return self
 
     async def __aexit__(self, *args):
@@ -4133,17 +4133,20 @@ class PubSub:
         return message
 
     def run_in_thread(
-        self, daemon: bool = False, exception_handler: Callable = None
+        self,
+        daemon: bool = False,
+        exception_handler: Callable = None,
+        loop: asyncio.AbstractEventLoop = None,
     ) -> "PubSubWorkerThread":
         for channel, handler in self.channels.items():
             if handler is None:
-                raise PubSubError("Channel: '%s' has no handler registered" % channel)
+                raise PubSubError(f"Channel: '{channel}' has no handler registered")
         for pattern, handler in self.patterns.items():
             if handler is None:
-                raise PubSubError("Pattern: '%s' has no handler registered" % pattern)
+                raise PubSubError(f"Pattern: '{pattern}' has no handler registered")
 
         thread = PubSubWorkerThread(
-            self, daemon=daemon, exception_handler=exception_handler
+            self, daemon=daemon, exception_handler=exception_handler, loop=loop
         )
         thread.start()
         return thread
@@ -4171,6 +4174,7 @@ class PubSubWorkerThread(threading.Thread):
         daemon: bool = False,
         poll_timeout: float = 1.0,
         exception_handler: PSWorkerThreadExcHandlerT = None,
+        loop: asyncio.AbstractEventLoop = None,
     ):
         super().__init__()
         self.daemon = daemon
@@ -4179,9 +4183,9 @@ class PubSubWorkerThread(threading.Thread):
         self.exception_handler = exception_handler
         self._running = threading.Event()
         # Make sure we have the current thread loop before we
-        # fork into the new thread. If not loop has been set on the connection
-        # pool use the current default event loop.
-        self.loop = pubsub.connection_pool.loop or asyncio.get_event_loop()
+        # fork into the new thread. If no loop has been specified
+        # use the current default event loop.
+        self.loop = loop or asyncio.get_event_loop()
 
     async def _run(self):
         pubsub = self.pubsub
