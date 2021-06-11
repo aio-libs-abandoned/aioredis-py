@@ -3129,7 +3129,7 @@ class Redis:
         return self.execute_command(*pieces, **options)
 
     def zrangebylex(
-        self, name: str, min: int, max: int, start: int = None, num: int = None
+        self, name: str, min: str, max: str, start: int = None, num: int = None
     ) -> Awaitable:
         """
         Return the lexicographical range of values from sorted set ``name``
@@ -3146,7 +3146,7 @@ class Redis:
         return self.execute_command(*pieces)
 
     def zrevrangebylex(
-        self, name: str, max: int, min: int, start: int = None, num: int = None
+        self, name: str, max: str, min: str, start: int = None, num: int = None
     ) -> Awaitable:
         """
         Return the reversed lexicographical range of values from sorted set
@@ -3205,7 +3205,7 @@ class Redis:
         """Remove member ``values`` from sorted set ``name``"""
         return self.execute_command("ZREM", name, *values)
 
-    def zremrangebylex(self, name: str, min: int, max: int) -> Awaitable:
+    def zremrangebylex(self, name: str, min: str, max: str) -> Awaitable:
         """
         Remove all elements in the sorted set ``name`` between the
         lexicographical range specified by ``min`` and ``max``.
