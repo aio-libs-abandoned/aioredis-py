@@ -1,0 +1,1 @@
+Use a generator instead of a list comprehension as input to zip() to fix our pyupgrade pre-commit action.
