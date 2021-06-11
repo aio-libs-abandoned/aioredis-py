@@ -14,7 +14,6 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    Collection,
     Dict,
     Iterable,
     List,
@@ -51,11 +50,20 @@ from aioredis.exceptions import (
 from aioredis.lock import Lock
 from aioredis.utils import safe_str, str_if_bytes
 
+AbsExpiryT = Union[int, datetime.datetime]
+ExpiryT = Union[int, datetime.timedelta]
+ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
+BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
+KeyT = Union[bytes, str]
+KeysT = Union[KeyT, Iterable[KeyT]]
+ChannelT = Union[bytes, str]
+StreamIdT = Union[int, str]
+
 SYM_EMPTY = b""
 EMPTY_RESPONSE = "EMPTY_RESPONSE"
 
 
-def list_or_args(keys, args):
+def list_or_args(keys: KeysT, args: Optional[KeysT]) -> KeysT:
     # returns a single new list combining keys and args
     try:
         iter(keys)
@@ -899,7 +907,7 @@ class Redis:
     async def transaction(
         self,
         func: Callable[["Pipeline"], Union[Any, Awaitable[Any]]],
-        *watches: str,
+        *watches: KeyT,
         shard_hint: str = None,
         value_from_callable: bool = False,
         watch_delay: float = None,
@@ -927,7 +935,7 @@ class Redis:
 
     def lock(
         self,
-        name: str,
+        name: KeyT,
         timeout: float = None,
         sleep: float = 0.1,
         blocking_timeout: float = None,
@@ -1139,11 +1147,11 @@ class Redis:
         username: str,
         enabled: bool = False,
         nopass: bool = False,
-        passwords: Iterable[str] = None,
-        hashed_passwords: Iterable[str] = None,
+        passwords: Union[str, Iterable[str]] = None,
+        hashed_passwords: Union[str, Iterable[str]] = None,
         categories: Iterable[str] = None,
         commands: Iterable[str] = None,
-        keys: Collection[str] = None,
+        keys: Iterable[KeyT] = None,
         reset: bool = False,
         reset_keys: bool = False,
         reset_passwords: bool = False,
@@ -1434,7 +1442,7 @@ class Redis:
         """Returns the number of keys in the current database"""
         return self.execute_command("DBSIZE")
 
-    def debug_object(self, key: str) -> Awaitable:
+    def debug_object(self, key: KeyT) -> Awaitable:
         """Returns version specific meta information about a given key"""
         return self.execute_command("DEBUG OBJECT", key)
 
@@ -1496,7 +1504,7 @@ class Redis:
         self,
         host: str,
         port: int,
-        keys: Collection[str],
+        keys: KeysT,
         destination_db: int,
         timeout: int,
         copy: bool = False,
@@ -1537,7 +1545,7 @@ class Redis:
             "MIGRATE", host, port, "", destination_db, timeout, *pieces
         )
 
-    def object(self, infotype: str, key: str) -> Awaitable:
+    def object(self, infotype: str, key: KeyT) -> Awaitable:
         """Return the encoding, idletime, or refcount about the key"""
         return self.execute_command("OBJECT", infotype, key, infotype=infotype)
 
@@ -1545,7 +1553,7 @@ class Redis:
         """Return a dictionary of memory stats"""
         return self.execute_command("MEMORY STATS")
 
-    def memory_usage(self, key: str, samples: int = None) -> Awaitable:
+    def memory_usage(self, key: KeyT, samples: int = None) -> Awaitable:
         """
         Return the total memory usage for key, its value and associated
         administrative overheads.
@@ -1675,7 +1683,7 @@ class Redis:
         return self.execute_command("WAIT", num_replicas, timeout)
 
     # BASIC KEY COMMANDS
-    def append(self, key: str, value: EncodableT) -> Awaitable:
+    def append(self, key: KeyT, value: EncodableT) -> Awaitable:
         """
         Appends the string ``value`` to the value at ``key``. If ``key``
         doesn't already exist, create it with a value of ``value``.
@@ -1683,7 +1691,7 @@ class Redis:
         """
         return self.execute_command("APPEND", key, value)
 
-    def bitcount(self, key: str, start: int = None, end: int = None) -> Awaitable:
+    def bitcount(self, key: KeyT, start: int = None, end: int = None) -> Awaitable:
         """
         Returns the count of set bits in the value of ``key``.  Optional
         ``start`` and ``end`` paramaters indicate which bytes to consider
@@ -1696,14 +1704,14 @@ class Redis:
             raise DataError("Both start and end must be specified")
         return self.execute_command("BITCOUNT", *params)
 
-    def bitfield(self, key: str, default_overflow: str = None) -> "BitFieldOperation":
+    def bitfield(self, key: KeyT, default_overflow: str = None) -> "BitFieldOperation":
         """
         Return a BitFieldOperation instance to conveniently construct one or
         more bitfield operations on ``key``.
         """
         return BitFieldOperation(self, key, default_overflow=default_overflow)
 
-    def bitop(self, operation: str, dest: str, *keys: str) -> Awaitable:
+    def bitop(self, operation: str, dest: str, *keys: KeyT) -> Awaitable:
         """
         Perform a bitwise operation using ``operation`` between ``keys`` and
         store the result in ``dest``.
@@ -1711,7 +1719,7 @@ class Redis:
         return self.execute_command("BITOP", operation, dest, *keys)
 
     def bitpos(
-        self, key: str, bit: int, start: int = None, end: int = None
+        self, key: KeyT, bit: int, start: int = None, end: int = None
     ) -> Awaitable:
         """
         Return the position of the first bit set to 1 or 0 in a string.
@@ -1731,7 +1739,7 @@ class Redis:
             raise DataError("start argument is not set, " "when end is specified")
         return self.execute_command("BITPOS", *params)
 
-    def decr(self, name: str, amount: int = 1) -> Awaitable:
+    def decr(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Decrements the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as 0 - ``amount``
@@ -1740,29 +1748,29 @@ class Redis:
         # as DECRBY redis command.
         return self.decrby(name, amount)
 
-    def decrby(self, name: str, amount: int = 1) -> Awaitable:
+    def decrby(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Decrements the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as 0 - ``amount``
         """
         return self.execute_command("DECRBY", name, amount)
 
-    def delete(self, *names: str) -> Awaitable:
+    def delete(self, *names: KeyT) -> Awaitable:
         """Delete one or more keys specified by ``names``"""
         return self.execute_command("DEL", *names)
 
-    def dump(self, name: str) -> Awaitable:
+    def dump(self, name: KeyT) -> Awaitable:
         """
         Return a serialized version of the value stored at the specified key.
         If key does not exist a nil bulk reply is returned.
         """
         return self.execute_command("DUMP", name)
 
-    def exists(self, *names: str) -> Awaitable:
+    def exists(self, *names: KeyT) -> Awaitable:
         """Returns the number of ``names`` that exist"""
         return self.execute_command("EXISTS", *names)
 
-    def expire(self, name: str, time: Union[int, datetime.timedelta]) -> Awaitable:
+    def expire(self, name: KeyT, time: ExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name`` for ``time`` seconds. ``time``
         can be represented by an integer or a Python timedelta object.
@@ -1771,7 +1779,7 @@ class Redis:
             time = int(time.total_seconds())
         return self.execute_command("EXPIRE", name, time)
 
-    def expireat(self, name: str, when: Union[float, datetime.datetime]) -> Awaitable:
+    def expireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name``. ``when`` can be represented
         as an integer indicating unix time or a Python datetime object.
@@ -1780,38 +1788,38 @@ class Redis:
             when = int(mod_time.mktime(when.timetuple()))
         return self.execute_command("EXPIREAT", name, when)
 
-    def get(self, name: str) -> Awaitable:
+    def get(self, name: KeyT) -> Awaitable:
         """
         Return the value at key ``name``, or None if the key doesn't exist
         """
         return self.execute_command("GET", name)
 
-    def getbit(self, name: str, offset: int) -> Awaitable:
+    def getbit(self, name: KeyT, offset: int) -> Awaitable:
         """Returns a boolean indicating the value of ``offset`` in ``name``"""
         return self.execute_command("GETBIT", name, offset)
 
-    def getrange(self, key: str, start: int, end: int) -> Awaitable:
+    def getrange(self, key: KeyT, start: int, end: int) -> Awaitable:
         """
         Returns the substring of the string value stored at ``key``,
         determined by the offsets ``start`` and ``end`` (both are inclusive)
         """
         return self.execute_command("GETRANGE", key, start, end)
 
-    def getset(self, name: str, value: EncodableT) -> Awaitable:
+    def getset(self, name: KeyT, value: EncodableT) -> Awaitable:
         """
         Sets the value at key ``name`` to ``value``
         and returns the old value at key ``name`` atomically.
         """
         return self.execute_command("GETSET", name, value)
 
-    def incr(self, name: str, amount: int = 1) -> Awaitable:
+    def incr(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Increments the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as ``amount``
         """
         return self.incrby(name, amount)
 
-    def incrby(self, name: str, amount: int = 1) -> Awaitable:
+    def incrby(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Increments the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as ``amount``
@@ -1820,18 +1828,18 @@ class Redis:
         # as INCRBY redis command.
         return self.execute_command("INCRBY", name, amount)
 
-    def incrbyfloat(self, name: str, amount: float = 1.0) -> Awaitable:
+    def incrbyfloat(self, name: KeyT, amount: float = 1.0) -> Awaitable:
         """
         Increments the value at key ``name`` by floating ``amount``.
         If no key exists, the value will be initialized as ``amount``
         """
         return self.execute_command("INCRBYFLOAT", name, amount)
 
-    def keys(self, pattern: str = "*") -> Awaitable:
+    def keys(self, pattern: KeyT = "*") -> Awaitable:
         """Returns a list of keys matching ``pattern``"""
         return self.execute_command("KEYS", pattern)
 
-    def mget(self, keys: str, *args: EncodableT) -> Awaitable:
+    def mget(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Returns a list of values ordered identically to ``keys``
         """
@@ -1864,15 +1872,15 @@ class Redis:
             items.extend(pair)
         return self.execute_command("MSETNX", *items)
 
-    def move(self, name: str, db: int) -> Awaitable:
+    def move(self, name: KeyT, db: int) -> Awaitable:
         """Moves the key ``name`` to a different Redis database ``db``"""
         return self.execute_command("MOVE", name, db)
 
-    def persist(self, name: str) -> Awaitable:
+    def persist(self, name: KeyT) -> Awaitable:
         """Removes an expiration on ``name``"""
         return self.execute_command("PERSIST", name)
 
-    def pexpire(self, name: str, time: Union[int, datetime.timedelta]) -> Awaitable:
+    def pexpire(self, name: KeyT, time: ExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name`` for ``time`` milliseconds.
         ``time`` can be represented by an integer or a Python timedelta
@@ -1882,7 +1890,7 @@ class Redis:
             time = int(time.total_seconds() * 1000)
         return self.execute_command("PEXPIRE", name, time)
 
-    def pexpireat(self, name: str, when: Union[float, datetime.datetime]) -> Awaitable:
+    def pexpireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name``. ``when`` can be represented
         as an integer representing unix time in milliseconds (unix time * 1000)
@@ -1893,9 +1901,7 @@ class Redis:
             when = int(mod_time.mktime(when.timetuple())) * 1000 + ms
         return self.execute_command("PEXPIREAT", name, when)
 
-    def psetex(
-        self, name: str, time_ms: Union[int, datetime.timedelta], value: EncodableT
-    ) -> Awaitable:
+    def psetex(self, name: KeyT, time_ms: ExpiryT, value: EncodableT) -> Awaitable:
         """
         Set the value of key ``name`` to ``value`` that expires in ``time_ms``
         milliseconds. ``time_ms`` can be represented by an integer or a Python
@@ -1905,7 +1911,7 @@ class Redis:
             time_ms = int(time_ms.total_seconds() * 1000)
         return self.execute_command("PSETEX", name, time_ms, value)
 
-    def pttl(self, name: str) -> Awaitable:
+    def pttl(self, name: KeyT) -> Awaitable:
         """Returns the number of milliseconds until the key ``name`` will expire"""
         return self.execute_command("PTTL", name)
 
@@ -1913,19 +1919,19 @@ class Redis:
         """Returns the name of a random key"""
         return self.execute_command("RANDOMKEY")
 
-    def rename(self, src: str, dst: str) -> Awaitable:
+    def rename(self, src: KeyT, dst: KeyT) -> Awaitable:
         """
         Rename key ``src`` to ``dst``
         """
         return self.execute_command("RENAME", src, dst)
 
-    def renamenx(self, src: str, dst: str) -> Awaitable:
+    def renamenx(self, src: KeyT, dst: KeyT) -> Awaitable:
         """Rename key ``src`` to ``dst`` if ``dst`` doesn't already exist"""
         return self.execute_command("RENAMENX", src, dst)
 
     def restore(
         self,
-        name: str,
+        name: KeyT,
         ttl: float,
         value: EncodableT,
         replace: bool = False,
@@ -1951,10 +1957,10 @@ class Redis:
 
     def set(
         self,
-        name: str,
+        name: KeyT,
         value: EncodableT,
-        ex: int = None,
-        px: int = None,
+        ex: ExpiryT = None,
+        px: ExpiryT = None,
         nx: bool = False,
         xx: bool = False,
         keepttl: bool = False,
@@ -1997,7 +2003,7 @@ class Redis:
 
         return self.execute_command("SET", *pieces)
 
-    def setbit(self, name: str, offset: int, value: int) -> Awaitable:
+    def setbit(self, name: KeyT, offset: int, value: int) -> Awaitable:
         """
         Flag the ``offset`` in ``name`` as ``value``. Returns a boolean
         indicating the previous value of ``offset``.
@@ -2006,7 +2012,7 @@ class Redis:
         return self.execute_command("SETBIT", name, offset, value)
 
     def setex(
-        self, name: str, time: Union[int, datetime.timedelta], value: EncodableT
+        self, name: KeyT, time: Union[int, datetime.timedelta], value: EncodableT
     ) -> Awaitable:
         """
         Set the value of key ``name`` to ``value`` that expires in ``time``
@@ -2017,11 +2023,11 @@ class Redis:
             time = int(time.total_seconds())
         return self.execute_command("SETEX", name, time, value)
 
-    def setnx(self, name: str, value: EncodableT) -> Awaitable:
+    def setnx(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Set the value of key ``name`` to ``value`` if key doesn't exist"""
         return self.execute_command("SETNX", name, value)
 
-    def setrange(self, name: str, offset: int, value: EncodableT) -> Awaitable:
+    def setrange(self, name: KeyT, offset: int, value: EncodableT) -> Awaitable:
         """
         Overwrite bytes in the value of ``name`` starting at ``offset`` with
         ``value``. If ``offset`` plus the length of ``value`` exceeds the
@@ -2034,38 +2040,38 @@ class Redis:
         """
         return self.execute_command("SETRANGE", name, offset, value)
 
-    def strlen(self, name: str) -> Awaitable:
+    def strlen(self, name: KeyT) -> Awaitable:
         """Return the number of bytes stored in the value of ``name``"""
         return self.execute_command("STRLEN", name)
 
-    def substr(self, name: str, start: int, end: int = -1) -> Awaitable:
+    def substr(self, name: KeyT, start: int, end: int = -1) -> Awaitable:
         """
         Return a substring of the string at key ``name``. ``start`` and ``end``
         are 0-based integers specifying the portion of the string to return.
         """
         return self.execute_command("SUBSTR", name, start, end)
 
-    def touch(self, *args: str) -> Awaitable:
+    def touch(self, *args: KeyT) -> Awaitable:
         """
         Alters the last access time of a key(s) ``*args``. A key is ignored
         if it does not exist.
         """
         return self.execute_command("TOUCH", *args)
 
-    def ttl(self, name: str) -> Awaitable:
+    def ttl(self, name: KeyT) -> Awaitable:
         """Returns the number of seconds until the key ``name`` will expire"""
         return self.execute_command("TTL", name)
 
-    def type(self, name: str) -> Awaitable:
+    def type(self, name: KeyT) -> Awaitable:
         """Returns the type of key ``name``"""
         return self.execute_command("TYPE", name)
 
-    def unlink(self, *names: str) -> Awaitable:
+    def unlink(self, *names: KeyT) -> Awaitable:
         """Unlink one or more keys specified by ``names``"""
         return self.execute_command("UNLINK", *names)
 
     # LIST COMMANDS
-    def blpop(self, keys: str, timeout: int = 0) -> Awaitable:
+    def blpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         LPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -2082,7 +2088,7 @@ class Redis:
         keys.append(timeout)
         return self.execute_command("BLPOP", *keys)
 
-    def brpop(self, keys: str, timeout: int = 0) -> Awaitable:
+    def brpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         RPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -2099,7 +2105,7 @@ class Redis:
         keys.append(timeout)
         return self.execute_command("BRPOP", *keys)
 
-    def brpoplpush(self, src: str, dst: str, timeout: int = 0) -> Awaitable:
+    def brpoplpush(self, src: KeyT, dst: KeyT, timeout: int = 0) -> Awaitable:
         """
         Pop a value off the tail of ``src``, push it on the head of ``dst``
         and then return it.
@@ -2112,7 +2118,7 @@ class Redis:
             timeout = 0
         return self.execute_command("BRPOPLPUSH", src, dst, timeout)
 
-    def lindex(self, name: str, index: int) -> Awaitable:
+    def lindex(self, name: KeyT, index: int) -> Awaitable:
         """
         Return the item from list ``name`` at position ``index``
 
@@ -2122,7 +2128,7 @@ class Redis:
         return self.execute_command("LINDEX", name, index)
 
     def linsert(
-        self, name: str, where: str, refvalue: EncodableT, value: EncodableT
+        self, name: KeyT, where: str, refvalue: EncodableT, value: EncodableT
     ) -> Awaitable:
         """
         Insert ``value`` in list ``name`` either immediately before or after
@@ -2133,23 +2139,23 @@ class Redis:
         """
         return self.execute_command("LINSERT", name, where, refvalue, value)
 
-    def llen(self, name: str) -> Awaitable:
+    def llen(self, name: KeyT) -> Awaitable:
         """Return the length of the list ``name``"""
         return self.execute_command("LLEN", name)
 
-    def lpop(self, name: str) -> Awaitable:
+    def lpop(self, name: KeyT) -> Awaitable:
         """Remove and return the first item of the list ``name``"""
         return self.execute_command("LPOP", name)
 
-    def lpush(self, name: str, *values: EncodableT) -> Awaitable:
+    def lpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``values`` onto the head of the list ``name``"""
         return self.execute_command("LPUSH", name, *values)
 
-    def lpushx(self, name: str, value: str) -> Awaitable:
+    def lpushx(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Push ``value`` onto the head of the list ``name`` if ``name`` exists"""
         return self.execute_command("LPUSHX", name, value)
 
-    def lrange(self, name: str, start: int, end: int) -> Awaitable:
+    def lrange(self, name: KeyT, start: int, end: int) -> Awaitable:
         """
         Return a slice of the list ``name`` between
         position ``start`` and ``end``
@@ -2159,7 +2165,7 @@ class Redis:
         """
         return self.execute_command("LRANGE", name, start, end)
 
-    def lrem(self, name: str, count: int, value: EncodableT) -> Awaitable:
+    def lrem(self, name: KeyT, count: int, value: EncodableT) -> Awaitable:
         """
         Remove the first ``count`` occurrences of elements equal to ``value``
         from the list stored at ``name``.
@@ -2171,11 +2177,11 @@ class Redis:
         """
         return self.execute_command("LREM", name, count, value)
 
-    def lset(self, name: str, index: int, value: EncodableT) -> Awaitable:
+    def lset(self, name: KeyT, index: int, value: EncodableT) -> Awaitable:
         """Set ``position`` of list ``name`` to ``value``"""
         return self.execute_command("LSET", name, index, value)
 
-    def ltrim(self, name: str, start: int, end: int) -> Awaitable:
+    def ltrim(self, name: KeyT, start: int, end: int) -> Awaitable:
         """
         Trim the list ``name``, removing all values not within the slice
         between ``start`` and ``end``
@@ -2185,28 +2191,28 @@ class Redis:
         """
         return self.execute_command("LTRIM", name, start, end)
 
-    def rpop(self, name: str) -> Awaitable:
+    def rpop(self, name: KeyT) -> Awaitable:
         """Remove and return the last item of the list ``name``"""
         return self.execute_command("RPOP", name)
 
-    def rpoplpush(self, src: str, dst: str) -> Awaitable:
+    def rpoplpush(self, src: KeyT, dst: KeyT) -> Awaitable:
         """
         RPOP a value off of the ``src`` list and atomically LPUSH it
         on to the ``dst`` list.  Returns the value.
         """
         return self.execute_command("RPOPLPUSH", src, dst)
 
-    def rpush(self, name: str, *values: EncodableT) -> Awaitable:
+    def rpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``values`` onto the tail of the list ``name``"""
         return self.execute_command("RPUSH", name, *values)
 
-    def rpushx(self, name: str, value: EncodableT) -> Awaitable:
+    def rpushx(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Push ``value`` onto the tail of the list ``name`` if ``name`` exists"""
         return self.execute_command("RPUSHX", name, value)
 
     def lpos(
         self,
-        name: str,
+        name: KeyT,
         value: EncodableT,
         rank: int = None,
         count: int = None,
@@ -2249,14 +2255,14 @@ class Redis:
 
     def sort(
         self,
-        name: str,
+        name: KeyT,
         start: int = None,
         num: int = None,
-        by: str = None,
-        get: Collection[str] = None,
+        by: KeyT = None,
+        get: KeysT = None,
         desc: bool = False,
         alpha: bool = False,
-        store: str = None,
+        store: KeyT = None,
         groups: bool = False,
     ) -> Awaitable:
         """
@@ -2327,7 +2333,7 @@ class Redis:
 
     # SCAN COMMANDS
     def scan(
-        self, cursor: int = 0, match: str = None, count: int = None, _type: str = None
+        self, cursor: int = 0, match: KeyT = None, count: int = None, _type: str = None
     ) -> Awaitable:
         """
         Incrementally return lists of key names. Also return a cursor
@@ -2353,7 +2359,7 @@ class Redis:
         return self.execute_command("SCAN", *pieces)
 
     async def scan_iter(
-        self, match: str = None, count: int = None, _type: str = None
+        self, match: KeyT = None, count: int = None, _type: str = None
     ) -> AsyncIterator:
         """
         Make an iterator using the SCAN command so that the client doesn't
@@ -2378,7 +2384,7 @@ class Redis:
                 yield d
 
     def sscan(
-        self, name: str, cursor: int = 0, match: str = None, count: int = None
+        self, name: KeyT, cursor: int = 0, match: str = None, count: int = None
     ) -> Awaitable:
         """
         Incrementally return lists of elements in a set. Also return a cursor
@@ -2413,7 +2419,7 @@ class Redis:
                 yield d
 
     def hscan(
-        self, name: str, cursor: int = 0, match: str = None, count: int = None
+        self, name: KeyT, cursor: int = 0, match: str = None, count: int = None
     ) -> Awaitable:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
@@ -2451,7 +2457,7 @@ class Redis:
 
     def zscan(
         self,
-        name: str,
+        name: KeyT,
         cursor: int = 0,
         match: str = None,
         count: int = None,
@@ -2477,7 +2483,7 @@ class Redis:
 
     async def zscan_iter(
         self,
-        name: str,
+        name: KeyT,
         match: str = None,
         count: int = None,
         score_cast_func: Union[Type, Callable] = float,
@@ -2505,22 +2511,20 @@ class Redis:
                 yield d
 
     # SET COMMANDS
-    def sadd(self, name: str, *values: EncodableT) -> Awaitable:
+    def sadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Add ``value(s)`` to set ``name``"""
         return self.execute_command("SADD", name, *values)
 
-    def scard(self, name: str) -> Awaitable:
+    def scard(self, name: KeyT) -> Awaitable:
         """Return the number of elements in set ``name``"""
         return self.execute_command("SCARD", name)
 
-    def sdiff(self, keys: str, *args: EncodableT) -> Awaitable:
+    def sdiff(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the difference of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SDIFF", *args)
 
-    def sdiffstore(
-        self, dest: str, keys: Collection[str], *args: EncodableT
-    ) -> Awaitable:
+    def sdiffstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the difference of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
@@ -2528,14 +2532,12 @@ class Redis:
         args = list_or_args(keys, args)
         return self.execute_command("SDIFFSTORE", dest, *args)
 
-    def sinter(self, keys: str, *args: EncodableT) -> Awaitable:
+    def sinter(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the intersection of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SINTER", *args)
 
-    def sinterstore(
-        self, dest: str, keys: Collection[str], *args: EncodableT
-    ) -> Awaitable:
+    def sinterstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the intersection of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
@@ -2543,24 +2545,24 @@ class Redis:
         args = list_or_args(keys, args)
         return self.execute_command("SINTERSTORE", dest, *args)
 
-    def sismember(self, name: str, value: EncodableT) -> Awaitable:
+    def sismember(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Return a boolean indicating if ``value`` is a member of set ``name``"""
         return self.execute_command("SISMEMBER", name, value)
 
-    def smembers(self, name: str) -> Awaitable:
+    def smembers(self, name: KeyT) -> Awaitable:
         """Return all members of the set ``name``"""
         return self.execute_command("SMEMBERS", name)
 
-    def smove(self, src: str, dst: str, value: EncodableT) -> Awaitable:
+    def smove(self, src: KeyT, dst: KeyT, value: EncodableT) -> Awaitable:
         """Move ``value`` from set ``src`` to set ``dst`` atomically"""
         return self.execute_command("SMOVE", src, dst, value)
 
-    def spop(self, name: str, count: int = None) -> Awaitable:
+    def spop(self, name: KeyT, count: int = None) -> Awaitable:
         """Remove and return a random member of set ``name``"""
         args = (count is not None) and [count] or []
         return self.execute_command("SPOP", name, *args)
 
-    def srandmember(self, name: str, number: int = None) -> Awaitable:
+    def srandmember(self, name: KeyT, number: int = None) -> Awaitable:
         """
         If ``number`` is None, returns a random member of set ``name``.
 
@@ -2571,18 +2573,16 @@ class Redis:
         args = (number is not None) and [number] or []
         return self.execute_command("SRANDMEMBER", name, *args)
 
-    def srem(self, name: str, *values: EncodableT) -> Awaitable:
+    def srem(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Remove ``values`` from set ``name``"""
         return self.execute_command("SREM", name, *values)
 
-    def sunion(self, keys: Collection[str], *args: EncodableT) -> Awaitable:
+    def sunion(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the union of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SUNION", *args)
 
-    def sunionstore(
-        self, dest: str, keys: Collection[str], *args: EncodableT
-    ) -> Awaitable:
+    def sunionstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the union of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
@@ -2591,7 +2591,7 @@ class Redis:
         return self.execute_command("SUNIONSTORE", dest, *args)
 
     # STREAMS COMMANDS
-    def xack(self, name: str, groupname: str, *ids: str) -> Awaitable:
+    def xack(self, name: KeyT, groupname: str, *ids: StreamIdT) -> Awaitable:
         """
         Acknowledges the successful processing of one or more messages.
         name: name of the stream.
@@ -2602,9 +2602,9 @@ class Redis:
 
     def xadd(
         self,
-        name: str,
+        name: KeyT,
         fields: Dict[str, EncodableT],
-        id: str = "*",
+        id: StreamIdT = "*",
         maxlen: int = None,
         approximate: bool = True,
     ) -> Awaitable:
@@ -2634,11 +2634,11 @@ class Redis:
 
     def xclaim(
         self,
-        name: str,
+        name: KeyT,
         groupname: str,
         consumername: str,
         min_idle_time: int,
-        message_ids: Sequence[str],
+        message_ids: Union[List[StreamIdT], Tuple[StreamIdT]],
         idle: int = None,
         time: int = None,
         retrycount: int = None,
@@ -2703,7 +2703,7 @@ class Redis:
             kwargs["parse_justid"] = True
         return self.execute_command("XCLAIM", *pieces, **kwargs)
 
-    def xdel(self, name: str, *ids: str) -> Awaitable:
+    def xdel(self, name: KeyT, *ids: StreamIdT) -> Awaitable:
         """
         Deletes one or more messages from a stream.
         name: name of the stream.
@@ -2712,7 +2712,7 @@ class Redis:
         return self.execute_command("XDEL", name, *ids)
 
     def xgroup_create(
-        self, name: str, groupname: str, id: str = "$", mkstream: bool = False
+        self, name: KeyT, groupname: str, id: StreamIdT = "$", mkstream: bool = False
     ) -> Awaitable:
         """
         Create a new consumer group associated with a stream.
@@ -2726,7 +2726,7 @@ class Redis:
         return self.execute_command(*pieces)
 
     def xgroup_delconsumer(
-        self, name: str, groupname: str, consumername: str
+        self, name: KeyT, groupname: str, consumername: str
     ) -> Awaitable:
         """
         Remove a specific consumer from a consumer group.
@@ -2738,7 +2738,7 @@ class Redis:
         """
         return self.execute_command("XGROUP DELCONSUMER", name, groupname, consumername)
 
-    def xgroup_destroy(self, name: str, groupname: str) -> Awaitable:
+    def xgroup_destroy(self, name: KeyT, groupname: str) -> Awaitable:
         """
         Destroy a consumer group.
         name: name of the stream.
@@ -2746,7 +2746,7 @@ class Redis:
         """
         return self.execute_command("XGROUP DESTROY", name, groupname)
 
-    def xgroup_setid(self, name: str, groupname: str, id: str) -> Awaitable:
+    def xgroup_setid(self, name: KeyT, groupname: str, id: StreamIdT) -> Awaitable:
         """
         Set the consumer group last delivered ID to something else.
         name: name of the stream.
@@ -2755,7 +2755,7 @@ class Redis:
         """
         return self.execute_command("XGROUP SETID", name, groupname, id)
 
-    def xinfo_consumers(self, name: str, groupname: str) -> Awaitable:
+    def xinfo_consumers(self, name: KeyT, groupname: str) -> Awaitable:
         """
         Returns general information about the consumers in the group.
         name: name of the stream.
@@ -2763,27 +2763,27 @@ class Redis:
         """
         return self.execute_command("XINFO CONSUMERS", name, groupname)
 
-    def xinfo_groups(self, name: str) -> Awaitable:
+    def xinfo_groups(self, name: KeyT) -> Awaitable:
         """
         Returns general information about the consumer groups of the stream.
         name: name of the stream.
         """
         return self.execute_command("XINFO GROUPS", name)
 
-    def xinfo_stream(self, name: str) -> Awaitable:
+    def xinfo_stream(self, name: KeyT) -> Awaitable:
         """
         Returns general information about the stream.
         name: name of the stream.
         """
         return self.execute_command("XINFO STREAM", name)
 
-    def xlen(self, name: str) -> Awaitable:
+    def xlen(self, name: KeyT) -> Awaitable:
         """
         Returns the number of elements in a given stream.
         """
         return self.execute_command("XLEN", name)
 
-    def xpending(self, name: str, groupname: str) -> Awaitable:
+    def xpending(self, name: KeyT, groupname: str) -> Awaitable:
         """
         Returns information about pending messages of a group.
         name: name of the stream.
@@ -2793,10 +2793,10 @@ class Redis:
 
     def xpending_range(
         self,
-        name: str,
+        name: KeyT,
         groupname: str,
-        min: int,
-        max: int,
+        min: StreamIdT,
+        max: StreamIdT,
         count: int,
         consumername: str = None,
     ) -> Awaitable:
@@ -2830,7 +2830,7 @@ class Redis:
         return self.execute_command("XPENDING", *pieces, parse_detail=True)
 
     def xrange(
-        self, name: str, min: str = "-", max: str = "+", count: int = None
+        self, name: KeyT, min: StreamIdT = "-", max: StreamIdT = "+", count: int = None
     ) -> Awaitable:
         """
         Read stream values within an interval.
@@ -2852,7 +2852,7 @@ class Redis:
         return self.execute_command("XRANGE", name, *pieces)
 
     def xread(
-        self, streams: Dict[str, str], count: int = None, block: int = None
+        self, streams: Dict[KeyT, StreamIdT], count: int = None, block: int = None
     ) -> Awaitable:
         """
         Block and monitor multiple streams for new data.
@@ -2885,7 +2885,7 @@ class Redis:
         self,
         groupname: str,
         consumername: str,
-        streams: Dict[str, str],
+        streams: Dict[KeyT, StreamIdT],
         count: int = None,
         block: int = None,
         noack: bool = False,
@@ -2922,7 +2922,7 @@ class Redis:
         return self.execute_command("XREADGROUP", *pieces)
 
     def xrevrange(
-        self, name: str, max: str = "+", min: str = "-", count: int = None
+        self, name: KeyT, max: StreamIdT = "+", min: StreamIdT = "-", count: int = None
     ) -> Awaitable:
         """
         Read stream values within an interval, in reverse order.
@@ -2943,7 +2943,7 @@ class Redis:
 
         return self.execute_command("XREVRANGE", name, *pieces)
 
-    def xtrim(self, name: str, maxlen: int, approximate: bool = True) -> Awaitable:
+    def xtrim(self, name: KeyT, maxlen: int, approximate: bool = True) -> Awaitable:
         """
         Trims old messages from a stream.
         name: name of the stream.
@@ -2959,7 +2959,7 @@ class Redis:
     # SORTED SET COMMANDS
     def zadd(
         self,
-        name: str,
+        name: KeyT,
         mapping: Mapping[str, EncodableT],
         nx: bool = False,
         xx: bool = False,
@@ -3014,24 +3014,22 @@ class Redis:
             pieces.append(pair[0])
         return self.execute_command("ZADD", name, *pieces, **options)
 
-    def zcard(self, name: str) -> Awaitable:
+    def zcard(self, name: KeyT) -> Awaitable:
         """Return the number of elements in the sorted set ``name``"""
         return self.execute_command("ZCARD", name)
 
-    def zcount(self, name: str, min: int, max: int) -> Awaitable:
+    def zcount(self, name: KeyT, min: ZScoreBoundT, max: ZScoreBoundT) -> Awaitable:
         """
         Returns the number of elements in the sorted set at key ``name`` with
         a score between ``min`` and ``max``.
         """
         return self.execute_command("ZCOUNT", name, min, max)
 
-    def zincrby(self, name: str, amount: float, value: EncodableT) -> Awaitable:
+    def zincrby(self, name: KeyT, amount: float, value: EncodableT) -> Awaitable:
         """Increment the score of ``value`` in sorted set ``name`` by ``amount``"""
         return self.execute_command("ZINCRBY", name, amount, value)
 
-    def zinterstore(
-        self, dest: str, keys: Collection[str], aggregate: str = None
-    ) -> Awaitable:
+    def zinterstore(self, dest: KeyT, keys: KeysT, aggregate: str = None) -> Awaitable:
         """
         Intersect multiple sorted sets specified by ``keys`` into
         a new sorted set, ``dest``. Scores in the destination will be
@@ -3039,14 +3037,14 @@ class Redis:
         """
         return self._zaggregate("ZINTERSTORE", dest, keys, aggregate)
 
-    def zlexcount(self, name: str, min: str, max: str) -> Awaitable:
+    def zlexcount(self, name: KeyT, min: str, max: str) -> Awaitable:
         """
         Return the number of items in the sorted set ``name`` between the
         lexicographical range ``min`` and ``max``.
         """
         return self.execute_command("ZLEXCOUNT", name, min, max)
 
-    def zpopmax(self, name: str, count: int = None) -> Awaitable:
+    def zpopmax(self, name: KeyT, count: int = None) -> Awaitable:
         """
         Remove and return up to ``count`` members with the highest scores
         from the sorted set ``name``.
@@ -3055,7 +3053,7 @@ class Redis:
         options = {"withscores": True}
         return self.execute_command("ZPOPMAX", name, *args, **options)
 
-    def zpopmin(self, name: str, count: int = None) -> Awaitable:
+    def zpopmin(self, name: KeyT, count: int = None) -> Awaitable:
         """
         Remove and return up to ``count`` members with the lowest scores
         from the sorted set ``name``.
@@ -3064,7 +3062,7 @@ class Redis:
         options = {"withscores": True}
         return self.execute_command("ZPOPMIN", name, *args, **options)
 
-    def bzpopmax(self, keys: Collection[str], timeout: int = 0) -> Awaitable:
+    def bzpopmax(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         ZPOPMAX a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -3081,7 +3079,7 @@ class Redis:
         keys.append(timeout)
         return self.execute_command("BZPOPMAX", *keys)
 
-    def bzpopmin(self, keys: Collection[str], timeout: int = 0) -> Awaitable:
+    def bzpopmin(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         ZPOPMIN a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -3100,7 +3098,7 @@ class Redis:
 
     def zrange(
         self,
-        name: str,
+        name: KeyT,
         start: int,
         end: int,
         desc: bool = False,
@@ -3129,7 +3127,7 @@ class Redis:
         return self.execute_command(*pieces, **options)
 
     def zrangebylex(
-        self, name: str, min: str, max: str, start: int = None, num: int = None
+        self, name: KeyT, min: str, max: str, start: int = None, num: int = None
     ) -> Awaitable:
         """
         Return the lexicographical range of values from sorted set ``name``
@@ -3146,7 +3144,7 @@ class Redis:
         return self.execute_command(*pieces)
 
     def zrevrangebylex(
-        self, name: str, max: str, min: str, start: int = None, num: int = None
+        self, name: KeyT, max: str, min: str, start: int = None, num: int = None
     ) -> Awaitable:
         """
         Return the reversed lexicographical range of values from sorted set
@@ -3164,9 +3162,9 @@ class Redis:
 
     def zrangebyscore(
         self,
-        name: str,
-        min: int,
-        max: int,
+        name: KeyT,
+        min: ZScoreBoundT,
+        max: ZScoreBoundT,
         start: int = None,
         num: int = None,
         withscores: bool = False,
@@ -3194,18 +3192,18 @@ class Redis:
         options = {"withscores": withscores, "score_cast_func": score_cast_func}
         return self.execute_command(*pieces, **options)
 
-    def zrank(self, name: str, value: EncodableT) -> Awaitable:
+    def zrank(self, name: KeyT, value: EncodableT) -> Awaitable:
         """
         Returns a 0-based value indicating the rank of ``value`` in sorted set
         ``name``
         """
         return self.execute_command("ZRANK", name, value)
 
-    def zrem(self, name: str, *values: EncodableT) -> Awaitable:
+    def zrem(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Remove member ``values`` from sorted set ``name``"""
         return self.execute_command("ZREM", name, *values)
 
-    def zremrangebylex(self, name: str, min: str, max: str) -> Awaitable:
+    def zremrangebylex(self, name: KeyT, min: str, max: str) -> Awaitable:
         """
         Remove all elements in the sorted set ``name`` between the
         lexicographical range specified by ``min`` and ``max``.
@@ -3214,7 +3212,7 @@ class Redis:
         """
         return self.execute_command("ZREMRANGEBYLEX", name, min, max)
 
-    def zremrangebyrank(self, name: str, min: int, max: int) -> Awaitable:
+    def zremrangebyrank(self, name: KeyT, min: int, max: int) -> Awaitable:
         """
         Remove all elements in the sorted set ``name`` with ranks between
         ``min`` and ``max``. Values are 0-based, ordered from smallest score
@@ -3223,7 +3221,9 @@ class Redis:
         """
         return self.execute_command("ZREMRANGEBYRANK", name, min, max)
 
-    def zremrangebyscore(self, name: str, min: int, max: int) -> Awaitable:
+    def zremrangebyscore(
+        self, name: KeyT, min: ZScoreBoundT, max: ZScoreBoundT
+    ) -> Awaitable:
         """
         Remove all elements in the sorted set ``name`` with scores
         between ``min`` and ``max``. Returns the number of elements removed.
@@ -3232,7 +3232,7 @@ class Redis:
 
     def zrevrange(
         self,
-        name: str,
+        name: KeyT,
         start: int,
         end: int,
         withscores: bool = False,
@@ -3257,9 +3257,9 @@ class Redis:
 
     def zrevrangebyscore(
         self,
-        name: str,
-        min: int,
-        max: int,
+        name: KeyT,
+        min: ZScoreBoundT,
+        max: ZScoreBoundT,
         start: int = None,
         num: int = None,
         withscores: bool = False,
@@ -3287,7 +3287,7 @@ class Redis:
         options = {"withscores": withscores, "score_cast_func": score_cast_func}
         return self.execute_command(*pieces, **options)
 
-    def zrevrank(self, name: str, value: EncodableT) -> Awaitable:
+    def zrevrank(self, name: KeyT, value: EncodableT) -> Awaitable:
         """
         Returns a 0-based value indicating the descending rank of
         ``value`` in sorted set ``name``
@@ -3298,9 +3298,7 @@ class Redis:
         """Return the score of element ``value`` in sorted set ``name``"""
         return self.execute_command("ZSCORE", name, value)
 
-    def zunionstore(
-        self, dest: str, keys: Collection[str], aggregate: str = None
-    ) -> Awaitable:
+    def zunionstore(self, dest: KeyT, keys: KeysT, aggregate: str = None) -> Awaitable:
         """
         Union multiple sorted sets specified by ``keys`` into
         a new sorted set, ``dest``. Scores in the destination will be
@@ -3309,7 +3307,7 @@ class Redis:
         return self._zaggregate("ZUNIONSTORE", dest, keys, aggregate)
 
     def _zaggregate(
-        self, command: str, dest: str, keys: Collection[str], aggregate: str = None
+        self, command: str, dest: KeyT, keys: KeysT, aggregate: str = None
     ) -> Awaitable:
         pieces: List[EncodableT] = [command, dest, len(keys)]
         if isinstance(keys, dict):
@@ -3326,59 +3324,59 @@ class Redis:
         return self.execute_command(*pieces)
 
     # HYPERLOGLOG COMMANDS
-    def pfadd(self, name: str, *values: EncodableT) -> Awaitable:
+    def pfadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Adds the specified elements to the specified HyperLogLog."""
         return self.execute_command("PFADD", name, *values)
 
-    def pfcount(self, *sources: str) -> Awaitable:
+    def pfcount(self, *sources: KeyT) -> Awaitable:
         """
         Return the approximated cardinality of
         the set observed by the HyperLogLog at key(s).
         """
         return self.execute_command("PFCOUNT", *sources)
 
-    def pfmerge(self, dest: str, *sources: str) -> Awaitable:
+    def pfmerge(self, dest: KeyT, *sources: KeyT) -> Awaitable:
         """Merge N different HyperLogLogs into a single one."""
         return self.execute_command("PFMERGE", dest, *sources)
 
     # HASH COMMANDS
-    def hdel(self, name: str, *keys: str) -> Awaitable:
+    def hdel(self, name: KeyT, *keys: str) -> Awaitable:
         """Delete ``keys`` from hash ``name``"""
         return self.execute_command("HDEL", name, *keys)
 
-    def hexists(self, name: str, key: str) -> Awaitable:
+    def hexists(self, name: KeyT, key: str) -> Awaitable:
         """Returns a boolean indicating if ``key`` exists within hash ``name``"""
         return self.execute_command("HEXISTS", name, key)
 
-    def hget(self, name: str, key: str) -> Awaitable:
+    def hget(self, name: KeyT, key: str) -> Awaitable:
         """Return the value of ``key`` within the hash ``name``"""
         return self.execute_command("HGET", name, key)
 
-    def hgetall(self, name: str) -> Awaitable:
+    def hgetall(self, name: KeyT) -> Awaitable:
         """Return a Python dict of the hash's name/value pairs"""
         return self.execute_command("HGETALL", name)
 
-    def hincrby(self, name: str, key: str, amount: int = 1) -> Awaitable:
+    def hincrby(self, name: KeyT, key: str, amount: int = 1) -> Awaitable:
         """Increment the value of ``key`` in hash ``name`` by ``amount``"""
         return self.execute_command("HINCRBY", name, key, amount)
 
-    def hincrbyfloat(self, name: str, key: str, amount: float = 1.0) -> Awaitable:
+    def hincrbyfloat(self, name: KeyT, key: str, amount: float = 1.0) -> Awaitable:
         """
         Increment the value of ``key`` in hash ``name`` by floating ``amount``
         """
         return self.execute_command("HINCRBYFLOAT", name, key, amount)
 
-    def hkeys(self, name: str) -> Awaitable:
+    def hkeys(self, name: KeyT) -> Awaitable:
         """Return the list of keys within hash ``name``"""
         return self.execute_command("HKEYS", name)
 
-    def hlen(self, name: str) -> Awaitable:
+    def hlen(self, name: KeyT) -> Awaitable:
         """Return the number of elements in hash ``name``"""
         return self.execute_command("HLEN", name)
 
     def hset(
         self,
-        name: str,
+        name: KeyT,
         key: str = None,
         value: EncodableT = None,
         mapping: Mapping[str, EncodableT] = None,
@@ -3400,14 +3398,14 @@ class Redis:
 
         return self.execute_command("HSET", name, *items)
 
-    def hsetnx(self, name: str, key: str, value: EncodableT) -> Awaitable:
+    def hsetnx(self, name: KeyT, key: str, value: EncodableT) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
         exist.  Returns 1 if HSETNX created a field, otherwise 0.
         """
         return self.execute_command("HSETNX", name, key, value)
 
-    def hmset(self, name: str, mapping: Mapping[str, EncodableT]) -> Awaitable:
+    def hmset(self, name: KeyT, mapping: Mapping[str, EncodableT]) -> Awaitable:
         """
         Set key to value within hash ``name`` for each corresponding
         key and value from the ``mapping`` dict.
@@ -3425,30 +3423,30 @@ class Redis:
             items.extend(pair)
         return self.execute_command("HMSET", name, *items)
 
-    def hmget(self, name: str, keys: Sequence[str], *args: str) -> Awaitable:
+    def hmget(self, name: KeyT, keys: Sequence[str], *args: str) -> Awaitable:
         """Returns a list of values ordered identically to ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *args)
 
-    def hvals(self, name: str) -> Awaitable:
+    def hvals(self, name: KeyT) -> Awaitable:
         """Return the list of values within hash ``name``"""
         return self.execute_command("HVALS", name)
 
-    def hstrlen(self, name: str, key: str) -> Awaitable:
+    def hstrlen(self, name: KeyT, key: str) -> Awaitable:
         """
         Return the number of bytes stored in the value of ``key``
         within hash ``name``
         """
         return self.execute_command("HSTRLEN", name, key)
 
-    def publish(self, channel: str, message: EncodableT) -> Awaitable:
+    def publish(self, channel: ChannelT, message: EncodableT) -> Awaitable:
         """
         Publish ``message`` on ``channel``.
         Returns the number of subscribers the message was delivered to.
         """
         return self.execute_command("PUBLISH", channel, message)
 
-    def pubsub_channels(self, pattern: str = "*") -> Awaitable:
+    def pubsub_channels(self, pattern: ChannelT = "*") -> Awaitable:
         """
         Return a list of channels that have at least one subscriber
         """
@@ -3460,7 +3458,7 @@ class Redis:
         """
         return self.execute_command("PUBSUB NUMPAT")
 
-    def pubsub_numsub(self, *args) -> Awaitable:
+    def pubsub_numsub(self, *args: ChannelT) -> Awaitable:
         """
         Return a list of (channel, number of subscribers) tuples
         for each channel given in ``*args``
@@ -3523,7 +3521,7 @@ class Redis:
         return Script(self, script)
 
     # GEO COMMANDS
-    def geoadd(self, name: str, *values: EncodableT) -> Awaitable:
+    def geoadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """
         Add the specified geospatial items to the specified key identified
         by the ``name`` argument. The Geospatial items are given as ordered
@@ -3535,7 +3533,7 @@ class Redis:
         return self.execute_command("GEOADD", name, *values)
 
     def geodist(
-        self, name: str, place1: str, place2: str, unit: str = None
+        self, name: KeyT, place1: str, place2: str, unit: str = None
     ) -> Awaitable:
         """
         Return the distance between ``place1`` and ``place2`` members of the
@@ -3550,14 +3548,14 @@ class Redis:
             pieces.append(unit)
         return self.execute_command("GEODIST", *pieces)
 
-    def geohash(self, name: str, *values: EncodableT) -> Awaitable:
+    def geohash(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """
         Return the geo hash string for each item of ``values`` members of
         the specified key identified by the ``name`` argument.
         """
         return self.execute_command("GEOHASH", name, *values)
 
-    def geopos(self, name: str, *values: EncodableT) -> Awaitable:
+    def geopos(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """
         Return the positions of each item of ``values`` as members of
         the specified key identified by the ``name`` argument. Each position
@@ -3567,7 +3565,7 @@ class Redis:
 
     def georadius(
         self,
-        name: str,
+        name: KeyT,
         longitude: float,
         latitude: float,
         radius: float,
@@ -3575,10 +3573,10 @@ class Redis:
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: bool = None,
+        count: int = None,
         sort: str = None,
-        store: str = None,
-        store_dist: str = None,
+        store: KeyT = None,
+        store_dist: KeyT = None,
     ) -> Awaitable:
         """
         Return the members of the specified key identified by the
@@ -3626,17 +3624,17 @@ class Redis:
 
     def georadiusbymember(
         self,
-        name: str,
+        name: KeyT,
         member: str,
         radius: float,
         unit: str = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: bool = None,
+        count: int = None,
         sort: str = None,
-        store: str = None,
-        store_dist: str = None,
+        store: KeyT = None,
+        store_dist: KeyT = None,
     ) -> Awaitable:
         """
         This command is exactly like ``georadius`` with the sole difference
@@ -3976,7 +3974,7 @@ class PubSub:
         decode = self.encoder.decode
         return {decode(encode(k)): v for k, v in data.items()}
 
-    async def psubscribe(self, *args: Union[str, bytes], **kwargs: EncodableT):
+    async def psubscribe(self, *args: ChannelT, **kwargs: Callable):
         """
         Subscribe to channel patterns. Patterns supplied as keyword arguments
         expect a pattern name as the key and a callable as the value. A
@@ -3986,7 +3984,7 @@ class PubSub:
         """
         if args:
             args = list_or_args(args[0], args[1:])
-        new_patterns: Dict[Union[str, bytes], EncodableT] = dict.fromkeys(args)
+        new_patterns: Dict[ChannelT, Optional[Callable]] = dict.fromkeys(args)
         new_patterns.update(kwargs)
         ret_val = await self.execute_command("PSUBSCRIBE", *new_patterns.keys())
         # update the patterns dict AFTER we send the command. we don't want to
@@ -4010,7 +4008,7 @@ class PubSub:
         self.pending_unsubscribe_patterns.update(patterns)
         return self.execute_command("PUNSUBSCRIBE", *args)
 
-    async def subscribe(self, *args, **kwargs):
+    async def subscribe(self, *args: ChannelT, **kwargs: Callable):
         """
         Subscribe to channels. Channels supplied as keyword arguments expect
         a channel name as the key and a callable as the value. A channel's
@@ -4586,7 +4584,7 @@ class Script:
 
     async def __call__(
         self,
-        keys: Collection[str] = None,
+        keys: Iterable[KeyT] = None,
         args: Iterable[str] = None,
         client: Redis = None,
     ):
@@ -4645,7 +4643,9 @@ class BitFieldOperation:
             self.operations.append(("OVERFLOW", overflow))
         return self
 
-    def incrby(self, fmt: str, offset: str, increment: int, overflow: str = None):
+    def incrby(
+        self, fmt: str, offset: BitfieldOffsetT, increment: int, overflow: str = None
+    ):
         """
         Increment a bitfield by a given amount.
         :param fmt: format-string for the bitfield being updated, e.g. 'u8'
@@ -4665,7 +4665,7 @@ class BitFieldOperation:
         self.operations.append(("INCRBY", fmt, offset, increment))
         return self
 
-    def get(self, fmt: str, offset: EncodableT):
+    def get(self, fmt: str, offset: BitfieldOffsetT):
         """
         Get the value of a given bitfield.
         :param fmt: format-string for the bitfield being read, e.g. 'u8' for
@@ -4678,7 +4678,7 @@ class BitFieldOperation:
         self.operations.append(("GET", fmt, offset))
         return self
 
-    def set(self, fmt: str, offset: EncodableT, value: int):
+    def set(self, fmt: str, offset: BitfieldOffsetT, value: int):
         """
         Set the value of a given bitfield.
         :param fmt: format-string for the bitfield being read, e.g. 'u8' for

@@ -404,11 +404,11 @@ class TestRedisCommands:
 
         # invalid skipme
         with pytest.raises(exceptions.DataError):
-            await r.client_kill_filter(skipme="yeah")
+            await r.client_kill_filter(skipme="yeah")  # type: ignore
 
         # invalid type
         with pytest.raises(exceptions.DataError):
-            await r.client_kill_filter(_type="caster")
+            await r.client_kill_filter(_type="caster")  # type: ignore
 
     @skip_if_server_version_lt("2.8.12")
     async def test_client_kill_filter_by_id(self, r: aioredis.Redis, r2):
