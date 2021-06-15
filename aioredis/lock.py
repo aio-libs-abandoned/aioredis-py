@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import time as mod_time
 import uuid
@@ -209,7 +210,7 @@ class Lock:
             next_try_at = mod_time.monotonic() + sleep
             if stop_trying_at is not None and next_try_at > stop_trying_at:
                 return False
-            mod_time.sleep(sleep)
+            await asyncio.sleep(sleep)
 
     async def do_acquire(self, token: Union[str, bytes]) -> bool:
         if self.timeout:
