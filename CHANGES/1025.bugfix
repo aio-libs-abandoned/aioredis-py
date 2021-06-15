@@ -1,0 +1,1 @@
+Initialize single_connection_client property for a Pipeline to prevent AttributeError

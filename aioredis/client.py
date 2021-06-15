@@ -4257,6 +4257,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.command_stack = []
         self.scripts = set()
         self.explicit_transaction = False
+        self.single_connection_client = False
 
     async def __aenter__(self) -> "Pipeline":
         return self
