@@ -4260,6 +4260,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.reset()
 
+    def __await__(self):
+        return self.async_self().__await__()
+
     def __del__(self):
         try:
             loop = asyncio.get_event_loop()
@@ -4277,6 +4280,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __bool__(self):
         """Pipeline instances should always evaluate to True"""
         return True
+
+    async def async_self(self):
+        return self
 
     async def reset(self):
         self.command_stack = []
