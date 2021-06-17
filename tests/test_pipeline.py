@@ -360,3 +360,10 @@ class TestPipeline:
 
             assert pipe == pipe2
             assert response == [True, [0, 0, 15, 15, 14], b"1"]
+
+
+    async def test_pipeline_get(self, r):
+        await r.set("a", "a1")
+        async with r.pipeline() as pipe:
+            await pipe.get("a")
+            assert await pipe.execute() == [b"a1"]
