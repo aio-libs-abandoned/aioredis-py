@@ -4261,7 +4261,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         await self.reset()
 
     def __await__(self):
-        return self.async_self().__await__()
+        return self._async_self().__await__()
 
     def __del__(self):
         try:
@@ -4281,7 +4281,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         """Pipeline instances should always evaluate to True"""
         return True
 
-    async def async_self(self):
+    async def _async_self(self):
         return self
 
     async def reset(self):
