@@ -100,11 +100,11 @@ class TestCommandsAreNotEncoded:
 class TestInvalidUserInput:
     async def test_boolean_fails(self, r: aioredis.Redis):
         with pytest.raises(aioredis.DataError):
-            await r.set("a", True)
+            await r.set("a", True)  # type: ignore
 
     async def test_none_fails(self, r: aioredis.Redis):
         with pytest.raises(aioredis.DataError):
-            await r.set("a", None)
+            await r.set("a", None)  # type: ignore
 
     async def test_user_type_fails(self, r: aioredis.Redis):
         class Foo:
@@ -112,4 +112,4 @@ class TestInvalidUserInput:
                 return "Foo"
 
         with pytest.raises(aioredis.DataError):
-            await r.set("a", Foo())
+            await r.set("a", Foo())  # type: ignore

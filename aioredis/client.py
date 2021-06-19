@@ -10,7 +10,6 @@ import warnings
 from itertools import chain
 from typing import (
     Any,
-    AnyStr,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -21,6 +20,7 @@ from typing import (
     NoReturn,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -54,10 +54,16 @@ AbsExpiryT = Union[int, datetime.datetime]
 ExpiryT = Union[int, datetime.timedelta]
 ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
 BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
-KeyT = Union[bytes, str]
+_StringLikeT = Union[bytes, str, memoryview]
+KeyT = _StringLikeT  # Main redis key space
+PatternT = _StringLikeT  # Patterns matched against keys, fields etc
+FieldT = EncodableT  # Fields within hash tables, streams and geo commands
 KeysT = Union[KeyT, Iterable[KeyT]]
-ChannelT = Union[bytes, str]
-StreamIdT = Union[int, str]
+ChannelT = _StringLikeT
+GroupT = _StringLikeT  # Consumer group
+ConsumerT = _StringLikeT  # Consumer name
+StreamIdT = Union[int, _StringLikeT]
+ScriptTextT = _StringLikeT
 
 SYM_EMPTY = b""
 EMPTY_RESPONSE = "EMPTY_RESPONSE"
@@ -1711,7 +1717,7 @@ class Redis:
         """
         return BitFieldOperation(self, key, default_overflow=default_overflow)
 
-    def bitop(self, operation: str, dest: str, *keys: KeyT) -> Awaitable:
+    def bitop(self, operation: str, dest: KeyT, *keys: KeyT) -> Awaitable:
         """
         Perform a bitwise operation using ``operation`` between ``keys`` and
         store the result in ``dest``.
@@ -1835,7 +1841,7 @@ class Redis:
         """
         return self.execute_command("INCRBYFLOAT", name, amount)
 
-    def keys(self, pattern: KeyT = "*") -> Awaitable:
+    def keys(self, pattern: PatternT = "*") -> Awaitable:
         """Returns a list of keys matching ``pattern``"""
         return self.execute_command("KEYS", pattern)
 
@@ -2333,7 +2339,11 @@ class Redis:
 
     # SCAN COMMANDS
     def scan(
-        self, cursor: int = 0, match: KeyT = None, count: int = None, _type: str = None
+        self,
+        cursor: int = 0,
+        match: PatternT = None,
+        count: int = None,
+        _type: str = None,
     ) -> Awaitable:
         """
         Incrementally return lists of key names. Also return a cursor
@@ -2359,7 +2369,7 @@ class Redis:
         return self.execute_command("SCAN", *pieces)
 
     async def scan_iter(
-        self, match: KeyT = None, count: int = None, _type: str = None
+        self, match: PatternT = None, count: int = None, _type: str = None
     ) -> AsyncIterator:
         """
         Make an iterator using the SCAN command so that the client doesn't
@@ -2384,7 +2394,7 @@ class Redis:
                 yield d
 
     def sscan(
-        self, name: KeyT, cursor: int = 0, match: str = None, count: int = None
+        self, name: KeyT, cursor: int = 0, match: PatternT = None, count: int = None
     ) -> Awaitable:
         """
         Incrementally return lists of elements in a set. Also return a cursor
@@ -2401,7 +2411,9 @@ class Redis:
             pieces.extend([b"COUNT", count])
         return self.execute_command("SSCAN", *pieces)
 
-    async def sscan_iter(self, name, match=None, count=None) -> AsyncIterator:
+    async def sscan_iter(
+        self, name: KeyT, match: PatternT = None, count: int = None
+    ) -> AsyncIterator:
         """
         Make an iterator using the SSCAN command so that the client doesn't
         need to remember the cursor position.
@@ -2419,7 +2431,7 @@ class Redis:
                 yield d
 
     def hscan(
-        self, name: KeyT, cursor: int = 0, match: str = None, count: int = None
+        self, name: KeyT, cursor: int = 0, match: PatternT = None, count: int = None
     ) -> Awaitable:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
@@ -2437,7 +2449,7 @@ class Redis:
         return self.execute_command("HSCAN", *pieces)
 
     async def hscan_iter(
-        self, name: str, match: str = None, count: int = None
+        self, name: str, match: PatternT = None, count: int = None
     ) -> AsyncIterator:
         """
         Make an iterator using the HSCAN command so that the client doesn't
@@ -2459,7 +2471,7 @@ class Redis:
         self,
         name: KeyT,
         cursor: int = 0,
-        match: str = None,
+        match: PatternT = None,
         count: int = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
@@ -2484,7 +2496,7 @@ class Redis:
     async def zscan_iter(
         self,
         name: KeyT,
-        match: str = None,
+        match: PatternT = None,
         count: int = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> AsyncIterator:
@@ -2591,7 +2603,7 @@ class Redis:
         return self.execute_command("SUNIONSTORE", dest, *args)
 
     # STREAMS COMMANDS
-    def xack(self, name: KeyT, groupname: str, *ids: StreamIdT) -> Awaitable:
+    def xack(self, name: KeyT, groupname: GroupT, *ids: StreamIdT) -> Awaitable:
         """
         Acknowledges the successful processing of one or more messages.
         name: name of the stream.
@@ -2603,7 +2615,7 @@ class Redis:
     def xadd(
         self,
         name: KeyT,
-        fields: Dict[str, EncodableT],
+        fields: Dict[FieldT, EncodableT],
         id: StreamIdT = "*",
         maxlen: int = None,
         approximate: bool = True,
@@ -2635,8 +2647,8 @@ class Redis:
     def xclaim(
         self,
         name: KeyT,
-        groupname: str,
-        consumername: str,
+        groupname: GroupT,
+        consumername: ConsumerT,
         min_idle_time: int,
         message_ids: Union[List[StreamIdT], Tuple[StreamIdT]],
         idle: int = None,
@@ -2712,7 +2724,7 @@ class Redis:
         return self.execute_command("XDEL", name, *ids)
 
     def xgroup_create(
-        self, name: KeyT, groupname: str, id: StreamIdT = "$", mkstream: bool = False
+        self, name: KeyT, groupname: GroupT, id: StreamIdT = "$", mkstream: bool = False
     ) -> Awaitable:
         """
         Create a new consumer group associated with a stream.
@@ -2726,7 +2738,7 @@ class Redis:
         return self.execute_command(*pieces)
 
     def xgroup_delconsumer(
-        self, name: KeyT, groupname: str, consumername: str
+        self, name: KeyT, groupname: GroupT, consumername: ConsumerT
     ) -> Awaitable:
         """
         Remove a specific consumer from a consumer group.
@@ -2738,7 +2750,7 @@ class Redis:
         """
         return self.execute_command("XGROUP DELCONSUMER", name, groupname, consumername)
 
-    def xgroup_destroy(self, name: KeyT, groupname: str) -> Awaitable:
+    def xgroup_destroy(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Destroy a consumer group.
         name: name of the stream.
@@ -2746,7 +2758,7 @@ class Redis:
         """
         return self.execute_command("XGROUP DESTROY", name, groupname)
 
-    def xgroup_setid(self, name: KeyT, groupname: str, id: StreamIdT) -> Awaitable:
+    def xgroup_setid(self, name: KeyT, groupname: GroupT, id: StreamIdT) -> Awaitable:
         """
         Set the consumer group last delivered ID to something else.
         name: name of the stream.
@@ -2755,7 +2767,7 @@ class Redis:
         """
         return self.execute_command("XGROUP SETID", name, groupname, id)
 
-    def xinfo_consumers(self, name: KeyT, groupname: str) -> Awaitable:
+    def xinfo_consumers(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Returns general information about the consumers in the group.
         name: name of the stream.
@@ -2783,7 +2795,7 @@ class Redis:
         """
         return self.execute_command("XLEN", name)
 
-    def xpending(self, name: KeyT, groupname: str) -> Awaitable:
+    def xpending(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Returns information about pending messages of a group.
         name: name of the stream.
@@ -2794,11 +2806,11 @@ class Redis:
     def xpending_range(
         self,
         name: KeyT,
-        groupname: str,
+        groupname: GroupT,
         min: StreamIdT,
         max: StreamIdT,
         count: int,
-        consumername: str = None,
+        consumername: ConsumerT = None,
     ) -> Awaitable:
         """
         Returns information about pending messages, in a range.
@@ -3029,7 +3041,12 @@ class Redis:
         """Increment the score of ``value`` in sorted set ``name`` by ``amount``"""
         return self.execute_command("ZINCRBY", name, amount, value)
 
-    def zinterstore(self, dest: KeyT, keys: KeysT, aggregate: str = None) -> Awaitable:
+    def zinterstore(
+        self,
+        dest: KeyT,
+        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        aggregate: str = None,
+    ) -> Awaitable:
         """
         Intersect multiple sorted sets specified by ``keys`` into
         a new sorted set, ``dest``. Scores in the destination will be
@@ -3037,7 +3054,7 @@ class Redis:
         """
         return self._zaggregate("ZINTERSTORE", dest, keys, aggregate)
 
-    def zlexcount(self, name: KeyT, min: str, max: str) -> Awaitable:
+    def zlexcount(self, name: KeyT, min: EncodableT, max: EncodableT) -> Awaitable:
         """
         Return the number of items in the sorted set ``name`` between the
         lexicographical range ``min`` and ``max``.
@@ -3127,7 +3144,12 @@ class Redis:
         return self.execute_command(*pieces, **options)
 
     def zrangebylex(
-        self, name: KeyT, min: str, max: str, start: int = None, num: int = None
+        self,
+        name: KeyT,
+        min: EncodableT,
+        max: EncodableT,
+        start: int = None,
+        num: int = None,
     ) -> Awaitable:
         """
         Return the lexicographical range of values from sorted set ``name``
@@ -3144,7 +3166,12 @@ class Redis:
         return self.execute_command(*pieces)
 
     def zrevrangebylex(
-        self, name: KeyT, max: str, min: str, start: int = None, num: int = None
+        self,
+        name: KeyT,
+        max: EncodableT,
+        min: EncodableT,
+        start: int = None,
+        num: int = None,
     ) -> Awaitable:
         """
         Return the reversed lexicographical range of values from sorted set
@@ -3203,7 +3230,7 @@ class Redis:
         """Remove member ``values`` from sorted set ``name``"""
         return self.execute_command("ZREM", name, *values)
 
-    def zremrangebylex(self, name: KeyT, min: str, max: str) -> Awaitable:
+    def zremrangebylex(self, name: KeyT, min: EncodableT, max: EncodableT) -> Awaitable:
         """
         Remove all elements in the sorted set ``name`` between the
         lexicographical range specified by ``min`` and ``max``.
@@ -3298,7 +3325,12 @@ class Redis:
         """Return the score of element ``value`` in sorted set ``name``"""
         return self.execute_command("ZSCORE", name, value)
 
-    def zunionstore(self, dest: KeyT, keys: KeysT, aggregate: str = None) -> Awaitable:
+    def zunionstore(
+        self,
+        dest: KeyT,
+        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        aggregate: str = None,
+    ) -> Awaitable:
         """
         Union multiple sorted sets specified by ``keys`` into
         a new sorted set, ``dest``. Scores in the destination will be
@@ -3307,7 +3339,11 @@ class Redis:
         return self._zaggregate("ZUNIONSTORE", dest, keys, aggregate)
 
     def _zaggregate(
-        self, command: str, dest: KeyT, keys: KeysT, aggregate: str = None
+        self,
+        command: str,
+        dest: KeyT,
+        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        aggregate: str = None,
     ) -> Awaitable:
         pieces: List[EncodableT] = [command, dest, len(keys)]
         if isinstance(keys, dict):
@@ -3340,15 +3376,15 @@ class Redis:
         return self.execute_command("PFMERGE", dest, *sources)
 
     # HASH COMMANDS
-    def hdel(self, name: KeyT, *keys: str) -> Awaitable:
+    def hdel(self, name: KeyT, *keys: FieldT) -> Awaitable:
         """Delete ``keys`` from hash ``name``"""
         return self.execute_command("HDEL", name, *keys)
 
-    def hexists(self, name: KeyT, key: str) -> Awaitable:
+    def hexists(self, name: KeyT, key: FieldT) -> Awaitable:
         """Returns a boolean indicating if ``key`` exists within hash ``name``"""
         return self.execute_command("HEXISTS", name, key)
 
-    def hget(self, name: KeyT, key: str) -> Awaitable:
+    def hget(self, name: KeyT, key: FieldT) -> Awaitable:
         """Return the value of ``key`` within the hash ``name``"""
         return self.execute_command("HGET", name, key)
 
@@ -3356,11 +3392,11 @@ class Redis:
         """Return a Python dict of the hash's name/value pairs"""
         return self.execute_command("HGETALL", name)
 
-    def hincrby(self, name: KeyT, key: str, amount: int = 1) -> Awaitable:
+    def hincrby(self, name: KeyT, key: FieldT, amount: int = 1) -> Awaitable:
         """Increment the value of ``key`` in hash ``name`` by ``amount``"""
         return self.execute_command("HINCRBY", name, key, amount)
 
-    def hincrbyfloat(self, name: KeyT, key: str, amount: float = 1.0) -> Awaitable:
+    def hincrbyfloat(self, name: KeyT, key: FieldT, amount: float = 1.0) -> Awaitable:
         """
         Increment the value of ``key`` in hash ``name`` by floating ``amount``
         """
@@ -3377,9 +3413,9 @@ class Redis:
     def hset(
         self,
         name: KeyT,
-        key: str = None,
+        key: FieldT = None,
         value: EncodableT = None,
-        mapping: Mapping[str, EncodableT] = None,
+        mapping: Mapping[FieldT, EncodableT] = None,
     ) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name``,
@@ -3398,14 +3434,14 @@ class Redis:
 
         return self.execute_command("HSET", name, *items)
 
-    def hsetnx(self, name: KeyT, key: str, value: EncodableT) -> Awaitable:
+    def hsetnx(self, name: KeyT, key: FieldT, value: EncodableT) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
         exist.  Returns 1 if HSETNX created a field, otherwise 0.
         """
         return self.execute_command("HSETNX", name, key, value)
 
-    def hmset(self, name: KeyT, mapping: Mapping[str, EncodableT]) -> Awaitable:
+    def hmset(self, name: KeyT, mapping: Mapping[FieldT, EncodableT]) -> Awaitable:
         """
         Set key to value within hash ``name`` for each corresponding
         key and value from the ``mapping`` dict.
@@ -3423,7 +3459,7 @@ class Redis:
             items.extend(pair)
         return self.execute_command("HMSET", name, *items)
 
-    def hmget(self, name: KeyT, keys: Sequence[str], *args: str) -> Awaitable:
+    def hmget(self, name: KeyT, keys: Sequence[FieldT], *args: FieldT) -> Awaitable:
         """Returns a list of values ordered identically to ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *args)
@@ -3432,7 +3468,7 @@ class Redis:
         """Return the list of values within hash ``name``"""
         return self.execute_command("HVALS", name)
 
-    def hstrlen(self, name: KeyT, key: str) -> Awaitable:
+    def hstrlen(self, name: KeyT, key: FieldT) -> Awaitable:
         """
         Return the number of bytes stored in the value of ``key``
         within hash ``name``
@@ -3446,7 +3482,7 @@ class Redis:
         """
         return self.execute_command("PUBLISH", channel, message)
 
-    def pubsub_channels(self, pattern: ChannelT = "*") -> Awaitable:
+    def pubsub_channels(self, pattern: PatternT = "*") -> Awaitable:
         """
         Return a list of channels that have at least one subscriber
         """
@@ -3468,7 +3504,9 @@ class Redis:
     def cluster(self, cluster_arg: str, *args: str) -> Awaitable:
         return self.execute_command(f"CLUSTER {cluster_arg.upper()}", *args)
 
-    def eval(self, script: str, numkeys: int, *keys_and_args: str) -> Awaitable:
+    def eval(
+        self, script: ScriptTextT, numkeys: int, *keys_and_args: EncodableT
+    ) -> Awaitable:
         """
         Execute the Lua ``script``, specifying the ``numkeys`` the script
         will touch and the key names and argument values in ``keys_and_args``.
@@ -3507,11 +3545,11 @@ class Redis:
         """Kill the currently executing Lua script"""
         return self.execute_command("SCRIPT KILL")
 
-    def script_load(self, script: str) -> Awaitable:
+    def script_load(self, script: ScriptTextT) -> Awaitable:
         """Load a Lua ``script`` into the script cache. Returns the SHA."""
         return self.execute_command("SCRIPT LOAD", script)
 
-    def register_script(self, script: str) -> "Script":
+    def register_script(self, script: ScriptTextT) -> "Script":
         """
         Register a Lua ``script`` specifying the ``keys`` it will touch.
         Returns a Script object that is callable and hides the complexity of
@@ -3533,7 +3571,7 @@ class Redis:
         return self.execute_command("GEOADD", name, *values)
 
     def geodist(
-        self, name: KeyT, place1: str, place2: str, unit: str = None
+        self, name: KeyT, place1: FieldT, place2: FieldT, unit: str = None
     ) -> Awaitable:
         """
         Return the distance between ``place1`` and ``place2`` members of the
@@ -3548,14 +3586,14 @@ class Redis:
             pieces.append(unit)
         return self.execute_command("GEODIST", *pieces)
 
-    def geohash(self, name: KeyT, *values: EncodableT) -> Awaitable:
+    def geohash(self, name: KeyT, *values: FieldT) -> Awaitable:
         """
         Return the geo hash string for each item of ``values`` members of
         the specified key identified by the ``name`` argument.
         """
         return self.execute_command("GEOHASH", name, *values)
 
-    def geopos(self, name: KeyT, *values: EncodableT) -> Awaitable:
+    def geopos(self, name: KeyT, *values: FieldT) -> Awaitable:
         """
         Return the positions of each item of ``values`` as members of
         the specified key identified by the ``name`` argument. Each position
@@ -3625,7 +3663,7 @@ class Redis:
     def georadiusbymember(
         self,
         name: KeyT,
-        member: str,
+        member: FieldT,
         radius: float,
         unit: str = None,
         withdist: bool = False,
@@ -3658,7 +3696,7 @@ class Redis:
         )
 
     def _georadiusgeneric(
-        self, command: str, *args: EncodableT, **kwargs: EncodableT
+        self, command: str, *args: EncodableT, **kwargs: Optional[EncodableT]
     ) -> Awaitable:
         pieces: List[EncodableT] = list(args)
         if kwargs["unit"] and kwargs["unit"] not in ("m", "km", "mi", "ft"):
@@ -3898,7 +3936,7 @@ class PubSub:
         """Indicates if there are subscriptions to any channels or patterns"""
         return bool(self.channels or self.patterns)
 
-    async def execute_command(self, *args: str):
+    async def execute_command(self, *args: EncodableT):
         """Execute a publish/subscribe command"""
 
         # NOTE: don't parse the response in this function -- it could pull a
@@ -3931,7 +3969,7 @@ class PubSub:
             # previously listening to
             return await command(*args, **kwargs)
 
-    async def parse_response(self, block: bool = True, timeout: int = 0):
+    async def parse_response(self, block: bool = True, timeout: float = 0):
         """Parse the response from a publish/subscribe command"""
         conn = self.connection
         if conn is None:
@@ -3964,7 +4002,7 @@ class PubSub:
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
 
-    def _normalize_keys(self, data: Mapping[EncodableT, EncodableT]):
+    def _normalize_keys(self, data: Mapping[ChannelT, EncodableT]):
         """
         normalize channel/pattern names to be either bytes or strings
         based on whether responses are automatically decoded. this saves us
@@ -4252,8 +4290,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.transaction = transaction
         self.shard_hint = shard_hint
         self.watching = False
-        self.command_stack = []
-        self.scripts = set()
+        self.command_stack: CommandStackT = []
+        self.scripts: Set[Script] = set()
         self.explicit_transaction = False
 
     async def __aenter__(self) -> "Pipeline":
@@ -4556,7 +4594,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         finally:
             await self.reset()
 
-    async def watch(self, *names: str):
+    async def watch(self, *names: KeyT):
         """Watches the values at keys ``names``"""
         if self.explicit_transaction:
             raise RedisError("Cannot issue a WATCH after a MULTI")
@@ -4570,9 +4608,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
 class Script:
     """An executable Lua script object returned by ``register_script``"""
 
-    def __init__(self, registered_client: Redis, script: AnyStr):
+    def __init__(self, registered_client: Redis, script: ScriptTextT):
         self.registered_client = registered_client
-        self.script: AnyStr = script
+        self.script = script
         # Precalculate and store the SHA1 hex digest of the script.
 
         if isinstance(script, str):
@@ -4584,8 +4622,8 @@ class Script:
 
     async def __call__(
         self,
-        keys: Iterable[KeyT] = None,
-        args: Iterable[str] = None,
+        keys: Sequence[KeyT] = None,
+        args: Iterable[EncodableT] = None,
         client: Redis = None,
     ):
         """Execute the script, passing any required ``args``"""
