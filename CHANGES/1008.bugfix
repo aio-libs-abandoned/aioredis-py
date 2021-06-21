@@ -1,1 +1,2 @@
-Fix type annotations for zrangebylex and similar functions.
+Fix a number of type annotations. The majority of the changes are to allow keys
+to be specified as `bytes`, but other errors have been corrected too.

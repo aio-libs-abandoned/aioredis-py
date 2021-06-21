@@ -91,7 +91,7 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
 
 EncodedT = Union[bytes, memoryview]
 DecodedT = Union[str, int, float]
-EncodableT = Union[EncodedT, DecodedT, None]
+EncodableT = Union[EncodedT, DecodedT]
 
 
 class Encoder:
