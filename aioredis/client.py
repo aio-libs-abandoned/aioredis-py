@@ -452,8 +452,10 @@ def parse_slowlog_get(response, **options):
             # the complexity info (i.e. the value N in case the command has
             # an O(N) complexity) instead of the command.
             "command": (
-                space.join(item[3]) if isinstance(item[3], list) else space.join(item[4])
-            )
+                space.join(item[3])
+                if isinstance(item[3], list)
+                else space.join(item[4])
+            ),
         }
         for item in response
     ]
