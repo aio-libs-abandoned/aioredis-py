@@ -1,5 +1,5 @@
 include LICENSE
-include CHANGES.txt
+include CHANGELOG.md
 include CONTRIBUTORS.txt
 include README.rst
 graft aioredis
