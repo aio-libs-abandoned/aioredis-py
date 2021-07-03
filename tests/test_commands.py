@@ -229,7 +229,7 @@ class TestRedisCommands:
 
         assert await r.acl_setuser(username, enabled=False, reset=True)
         users = await r.acl_list()
-        assert "user %s off -@all" % username in users
+        assert "user %s off sanitize-payload &* -@all" % username in users
 
     @skip_if_server_version_lt(REDIS_6_VERSION)
     async def test_acl_log(self, r: aioredis.Redis, request, event_loop, create_redis):
