@@ -59,7 +59,7 @@ jobs:
         os: [ubuntu-latest]
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
         uvloop: [uvloop, no-uvloop]
-        redis: [5.0.10, 6.0.10]
+        redis: [5.0.10, 6.2.4]
         exclude:
         - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
         - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.0.10 }
