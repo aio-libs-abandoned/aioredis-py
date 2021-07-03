@@ -63,6 +63,14 @@ GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
 StreamIdT = Union[int, _StringLikeT]
 ScriptTextT = _StringLikeT
+# Mapping is not covariant in the key type, which prevents
+# Mapping[_StringLikeT, X from accepting arguments of type Dict[str, X]. Using
+# a TypeVar instead of a Union allows mappings with any of the permitted types
+# to be passed. Care is needed if there is more than one such mapping in a
+# type signature because they will all be required to be the same key type.
+AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
+AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
+AnyChannelT = TypeVar("AnyChannelT", bytes, str, memoryview)
 
 SYM_EMPTY = b""
 EMPTY_RESPONSE = "EMPTY_RESPONSE"
@@ -1854,7 +1862,7 @@ class Redis:
             options[EMPTY_RESPONSE] = []
         return self.execute_command("MGET", *args, **options)
 
-    def mset(self, mapping: Mapping[str, EncodableT]) -> Awaitable:
+    def mset(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
         """
         Sets key/values based on a mapping. Mapping is a dictionary of
         key/value pairs. Both keys and values should be strings or types that
@@ -1865,7 +1873,7 @@ class Redis:
             items.extend(pair)
         return self.execute_command("MSET", *items)
 
-    def msetnx(self, mapping: Mapping[str, EncodableT]) -> Awaitable:
+    def msetnx(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
         """
         Sets key/values based on a mapping if none of the keys are already set.
         Mapping is a dictionary of key/value pairs. Both keys and values
@@ -2971,7 +2979,7 @@ class Redis:
     def zadd(
         self,
         name: KeyT,
-        mapping: Mapping[str, EncodableT],
+        mapping: Mapping[AnyKeyT, EncodableT],
         nx: bool = False,
         xx: bool = False,
         ch: bool = False,
@@ -3043,7 +3051,7 @@ class Redis:
     def zinterstore(
         self,
         dest: KeyT,
-        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: str = None,
     ) -> Awaitable:
         """
@@ -3327,7 +3335,7 @@ class Redis:
     def zunionstore(
         self,
         dest: KeyT,
-        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: str = None,
     ) -> Awaitable:
         """
@@ -3341,7 +3349,7 @@ class Redis:
         self,
         command: str,
         dest: KeyT,
-        keys: Union[Sequence[KeyT], Mapping[KeyT, float]],
+        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: str = None,
     ) -> Awaitable:
         pieces: List[EncodableT] = [command, dest, len(keys)]
@@ -3414,7 +3422,7 @@ class Redis:
         name: KeyT,
         key: FieldT = None,
         value: EncodableT = None,
-        mapping: Mapping[FieldT, EncodableT] = None,
+        mapping: Mapping[AnyFieldT, EncodableT] = None,
     ) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name``,
@@ -3440,7 +3448,7 @@ class Redis:
         """
         return self.execute_command("HSETNX", name, key, value)
 
-    def hmset(self, name: KeyT, mapping: Mapping[FieldT, EncodableT]) -> Awaitable:
+    def hmset(self, name: KeyT, mapping: Mapping[AnyFieldT, EncodableT]) -> Awaitable:
         """
         Set key to value within hash ``name`` for each corresponding
         key and value from the ``mapping`` dict.
@@ -4001,7 +4009,7 @@ class PubSub:
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
 
-    def _normalize_keys(self, data: Mapping[ChannelT, EncodableT]):
+    def _normalize_keys(self, data: Mapping[AnyChannelT, EncodableT]):
         """
         normalize channel/pattern names to be either bytes or strings
         based on whether responses are automatically decoded. this saves us
