@@ -17,7 +17,7 @@ async def blocking_commands():
         # using it. This object is a context manager and the
         # connection will be released back to the pool at the end of
         # the with block."
-        with await redis as r:
+        async with redis as r:
             return await r.brpop("my-key")
 
     future = asyncio.create_task(get_message())
