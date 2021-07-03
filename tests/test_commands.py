@@ -120,9 +120,9 @@ class TestRedisCommands:
         assert await r.acl_setuser(username, enabled=False, reset=True)
         assert await r.acl_getuser(username) == {
             "categories": ["-@all"],
-            "commands": [],
+            "commands": [b'*'],
             "enabled": False,
-            "flags": ["off"],
+            "flags": ["off", "allchannels", "sanitize-payload"],
             "keys": [],
             "passwords": [],
         }
