@@ -154,7 +154,8 @@ class TestRedisCommands:
         assert set(acl["categories"]) == {"-@all", "+@set", "+@hash"}
         assert set(acl["commands"]) == {"+get", "+mget", "-hset"}
         assert acl["enabled"] is True
-        assert acl["flags"] == ["on"]
+        assert acl["channels"] == [b"*"]
+        assert acl["flags"] == ["on", "allchannels", "sanitize-payload"]
         assert set(acl["keys"]) == {b"cache:*", b"objects:*"}
         assert len(acl["passwords"]) == 2
 
@@ -180,7 +181,8 @@ class TestRedisCommands:
         assert set(acl["categories"]) == {"-@all", "+@set", "+@hash"}
         assert set(acl["commands"]) == {"+get", "+mget"}
         assert acl["enabled"] is True
-        assert acl["flags"] == ["on"]
+        assert acl["channels"] == [b"*"]
+        assert acl["flags"] == ["on", "allchannels", "sanitize-payload"]
         assert set(acl["keys"]) == {b"cache:*", b"objects:*"}
         assert len(acl["passwords"]) == 2
 
