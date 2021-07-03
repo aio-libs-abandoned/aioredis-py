@@ -133,8 +133,9 @@ class TestRedisCommands:
         assert await r.acl_getuser(username) == {
             "categories": ["-@all"],
             "commands": [],
+            "channels": [b"*"],
             "enabled": True,
-            "flags": ["on", "nopass"],
+            "flags": ["on", "allchannels", "nopass", "sanitize-payload"],
             "keys": [],
             "passwords": [],
         }
