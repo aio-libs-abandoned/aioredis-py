@@ -5,13 +5,13 @@ on:
     branches:
       - master
       - '[0-9].[0-9]+'  # matches to backport branches, e.g. 3.6
-      - update/pre-commit-autoupdate
+      - 'update/pre-commit-autoupdate'
     tags: [ 'v*' ]
   pull_request:
     branches:
       - master
       - '[0-9].[0-9]+'
-      - update/pre-commit-autoupdate
+      - 'update/pre-commit-autoupdate'
   schedule:
     - cron:  '0 6 * * *'  # Daily 6AM UTC build
 
