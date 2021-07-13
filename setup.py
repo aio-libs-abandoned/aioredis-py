@@ -54,6 +54,7 @@ setup(
     extras_require={
         "hiredis": 'hiredis>=1.0; implementation_name=="cpython"',
     },
+    package_data={"aioredis": ["py.typed"]},
     python_requires=">=3.6",
     include_package_data=True,
 )
