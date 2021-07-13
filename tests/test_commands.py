@@ -121,8 +121,9 @@ class TestRedisCommands:
         assert await r.acl_getuser(username) == {
             "categories": ["-@all"],
             "commands": [],
+            "channels": [b"*"],
             "enabled": False,
-            "flags": ["off"],
+            "flags": ["off", "allchannels", "sanitize-payload"],
             "keys": [],
             "passwords": [],
         }
@@ -132,8 +133,9 @@ class TestRedisCommands:
         assert await r.acl_getuser(username) == {
             "categories": ["-@all"],
             "commands": [],
+            "channels": [b"*"],
             "enabled": True,
-            "flags": ["on", "nopass"],
+            "flags": ["on", "allchannels", "nopass", "sanitize-payload"],
             "keys": [],
             "passwords": [],
         }
@@ -152,7 +154,8 @@ class TestRedisCommands:
         assert set(acl["categories"]) == {"-@all", "+@set", "+@hash"}
         assert set(acl["commands"]) == {"+get", "+mget", "-hset"}
         assert acl["enabled"] is True
-        assert acl["flags"] == ["on"]
+        assert acl["channels"] == [b"*"]
+        assert acl["flags"] == ["on", "allchannels", "sanitize-payload"]
         assert set(acl["keys"]) == {b"cache:*", b"objects:*"}
         assert len(acl["passwords"]) == 2
 
@@ -178,7 +181,8 @@ class TestRedisCommands:
         assert set(acl["categories"]) == {"-@all", "+@set", "+@hash"}
         assert set(acl["commands"]) == {"+get", "+mget"}
         assert acl["enabled"] is True
-        assert acl["flags"] == ["on"]
+        assert acl["channels"] == [b"*"]
+        assert acl["flags"] == ["on", "allchannels", "sanitize-payload"]
         assert set(acl["keys"]) == {b"cache:*", b"objects:*"}
         assert len(acl["passwords"]) == 2
 
@@ -229,7 +233,7 @@ class TestRedisCommands:
 
         assert await r.acl_setuser(username, enabled=False, reset=True)
         users = await r.acl_list()
-        assert "user %s off -@all" % username in users
+        assert "user %s off sanitize-payload &* -@all" % username in users
 
     @skip_if_server_version_lt(REDIS_6_VERSION)
     async def test_acl_log(self, r: aioredis.Redis, request, event_loop, create_redis):
