@@ -62,9 +62,9 @@ jobs:
         redis: [5.0.10, 6.2.4]
         exclude:
         - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.0.10 }
+        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
         - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.0.10 }
+        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
       fail-fast: false
     services:
       redis:
