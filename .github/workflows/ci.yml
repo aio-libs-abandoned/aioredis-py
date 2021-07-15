@@ -5,13 +5,13 @@ on:
     branches:
       - master
       - '[0-9].[0-9]+'  # matches to backport branches, e.g. 3.6
-      - update/pre-commit-autoupdate
+      - 'update/pre-commit-autoupdate'
     tags: [ 'v*' ]
   pull_request:
     branches:
       - master
       - '[0-9].[0-9]+'
-      - update/pre-commit-autoupdate
+      - 'update/pre-commit-autoupdate'
   schedule:
     - cron:  '0 6 * * *'  # Daily 6AM UTC build
 
@@ -59,12 +59,12 @@ jobs:
         os: [ubuntu-latest]
         pyver: [3.6, 3.7, 3.8, 3.9, pypy3]
         uvloop: [uvloop, no-uvloop]
-        redis: [5.0.10, 6.0.10]
+        redis: [5.0.10, 6.2.4]
         exclude:
         - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.0.10 }
+        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
         - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.0.10 }
+        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
       fail-fast: false
     services:
       redis:
@@ -117,7 +117,7 @@ jobs:
         make ci-test
         python -m coverage xml
     - name: Upload coverage
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         file: ./coverage.xml
         flags: unit

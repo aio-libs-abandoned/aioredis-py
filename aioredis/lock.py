@@ -1,6 +1,5 @@
 import asyncio
 import threading
-import time as mod_time
 import uuid
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, NoReturn, Union
@@ -79,7 +78,7 @@ class Lock:
     def __init__(
         self,
         redis: "Redis",
-        name: str,
+        name: Union[str, bytes, memoryview],
         timeout: float = None,
         sleep: float = 0.1,
         blocking: bool = True,
@@ -158,9 +157,7 @@ class Lock:
             cls.lua_reacquire = client.register_script(cls.LUA_REACQUIRE_SCRIPT)
 
     async def __aenter__(self):
-        # force blocking, as otherwise the user would have to check whether
-        # the lock was actually acquired or not.
-        if await self.acquire(blocking=True):
+        if await self.acquire():
             return self
         raise LockError("Unable to acquire lock within the time specified")
 
@@ -211,7 +208,7 @@ class Lock:
             next_try_at = loop.time() + sleep
             if stop_trying_at is not None and next_try_at > stop_trying_at:
                 return False
-            mod_time.sleep(sleep)
+            await asyncio.sleep(sleep)
 
     async def do_acquire(self, token: Union[str, bytes]) -> bool:
         if self.timeout:

@@ -554,22 +554,58 @@ class TestPubSubTimeouts:
         assert await p.get_message(timeout=0.01) is None
 
 
-@pytest.mark.skip(
-    "TODO: This is pretty broken " "and if run causes the test session to never end..."
-)
-class TestPubSubWorkerThread:
-    async def test_pubsub_worker_thread_exception_handler(self, r):
-        event = threading.Event()
+class TestPubSubRun:
+    async def _subscribe(self, p, *args, **kwargs):
+        await p.subscribe(*args, **kwargs)
+        # Wait for the server to act on the subscription, to be sure that
+        # a subsequent publish on another connection will reach the pubsub.
+        while True:
+            message = await p.get_message(timeout=1)
+            if (
+                message is not None
+                and message["type"] == "subscribe"
+                and message["channel"] == b"foo"
+            ):
+                return
 
-        def exception_handler(ex, pubsub, thread):
-            thread.stop()
-            event.set()
+    async def test_callbacks(self, r):
+        def callback(message):
+            messages.put_nowait(message)
 
+        messages = asyncio.Queue()
         p = r.pubsub()
-        await p.subscribe(**{"foo": lambda m: m})
+        await self._subscribe(p, foo=callback)
+        task = asyncio.get_event_loop().create_task(p.run())
+        await r.publish("foo", "bar")
+        message = await messages.get()
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        assert message == {
+            "channel": b"foo",
+            "data": b"bar",
+            "pattern": None,
+            "type": "message",
+        }
+
+    async def test_exception_handler(self, r):
+        def exception_handler_callback(e, pubsub) -> None:
+            assert pubsub == p
+            exceptions.put_nowait(e)
+
+        exceptions = asyncio.Queue()
+        p = r.pubsub()
+        await self._subscribe(p, foo=lambda x: None)
         with mock.patch.object(p, "get_message", side_effect=Exception("error")):
-            pubsub_thread = p.run_in_thread(exception_handler=exception_handler)
-            assert event.wait(timeout=1.0)
-            pubsub_thread.join()
-            assert not pubsub_thread.is_alive()
-            assert event.is_set()
+            task = asyncio.get_event_loop().create_task(
+                p.run(exception_handler=exception_handler_callback)
+            )
+            e = await exceptions.get()
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        assert str(e) == "error"

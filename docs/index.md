@@ -29,7 +29,7 @@ based on asyncio.
 
 The easiest way to install aioredis is by using the package on PyPi:
 
-    pip install aioredis
+    pip install --pre aioredis
 
 ## Requirements
 
