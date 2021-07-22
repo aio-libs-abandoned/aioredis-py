@@ -1042,6 +1042,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         username: str = None,
         password: str = None,
         socket_timeout: float = None,
+        socket_connect_timeout: float = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
@@ -1058,6 +1059,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self.client_name = client_name
         self.password = password
         self.socket_timeout = socket_timeout
+        self.socket_connect_timeout = socket_connect_timeout or socket_timeout or None
         self.retry_on_timeout = retry_on_timeout
         self.health_check_interval = health_check_interval
         self.next_health_check = -1

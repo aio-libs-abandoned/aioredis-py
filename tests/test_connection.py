@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 
+from aioredis.connection import UnixDomainSocketConnection
 from aioredis.exceptions import InvalidResponse
 from aioredis.utils import HIREDIS_AVAILABLE
 
@@ -19,3 +20,10 @@ async def test_invalid_response(r):
         with pytest.raises(InvalidResponse) as cm:
             await parser.read_response()
     assert str(cm.value) == "Protocol Error: %r" % raw
+
+
+@pytest.mark.asyncio
+async def test_socket_param_regression(r):
+    """A regression test for issue #1060"""
+    conn = UnixDomainSocketConnection()
+    await conn.disconnect() == True
