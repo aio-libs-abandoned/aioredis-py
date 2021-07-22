@@ -14,7 +14,7 @@ pytestmark = pytest.mark.asyncio(forbid_global_loop=True)
 
 
 async def wait_for_message(pubsub, timeout=0.1, ignore_subscribe_messages=False):
-    now = time.time()
+    now = asyncio.get_event_loop().time()
     timeout = now + timeout
     while now < timeout:
         message = await pubsub.get_message(
@@ -23,7 +23,7 @@ async def wait_for_message(pubsub, timeout=0.1, ignore_subscribe_messages=False)
         if message is not None:
             return message
         await asyncio.sleep(0.01)
-        now = time.time()
+        now = asyncio.get_event_loop().time()
     return None
 
 

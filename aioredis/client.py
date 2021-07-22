@@ -3,7 +3,6 @@ import datetime
 import hashlib
 import inspect
 import re
-import time
 import time as mod_time
 import warnings
 from itertools import chain
@@ -4011,7 +4010,10 @@ class PubSub:
                 "did you forget to call subscribe() or psubscribe()?"
             )
 
-        if conn.health_check_interval and time.time() > conn.next_health_check:
+        if (
+            conn.health_check_interval
+            and asyncio.get_event_loop().time() > conn.next_health_check
+        ):
             await conn.send_command(
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )

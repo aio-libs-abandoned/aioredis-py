@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import time
 
 import pytest
 
@@ -138,11 +137,11 @@ class TestBlockingConnectionPool:
         )
         await pool.get_connection("_")
 
-        start = time.time()
+        start = asyncio.get_event_loop().time()
         with pytest.raises(aioredis.ConnectionError):
             await pool.get_connection("_")
         # we should have waited at least 0.1 seconds
-        assert time.time() - start >= 0.1
+        assert asyncio.get_event_loop().time() - start >= 0.1
 
     async def test_connection_pool_blocks_until_conn_available(self, master_host):
         """
@@ -159,9 +158,9 @@ class TestBlockingConnectionPool:
             await asyncio.sleep(0.1)
             await pool.release(c1)
 
-        start = time.time()
+        start = asyncio.get_event_loop().time()
         await asyncio.gather(target(), pool.get_connection("_"))
-        assert time.time() - start >= 0.1
+        assert asyncio.get_event_loop().time() - start >= 0.1
 
     async def test_reuse_previously_released_connection(self, master_host):
         connection_kwargs = {"host": master_host}
@@ -595,12 +594,12 @@ class TestHealthCheck:
         await redis.flushall()
 
     def assert_interval_advanced(self, connection):
-        diff = connection.next_health_check - time.time()
+        diff = connection.next_health_check - asyncio.get_event_loop().time()
         assert self.interval > diff > (self.interval - 1)
 
     async def test_health_check_runs(self, r):
         if r.connection:
-            r.connection.next_health_check = time.time() - 1
+            r.connection.next_health_check = asyncio.get_event_loop().time() - 1
             await r.connection.check_health()
             self.assert_interval_advanced(r.connection)
 
@@ -608,7 +607,7 @@ class TestHealthCheck:
         # invoke a command to make sure the connection is entirely setup
         if r.connection:
             await r.get("foo")
-            r.connection.next_health_check = time.time()
+            r.connection.next_health_check = asyncio.get_event_loop().time()
             with mock.patch.object(
                 r.connection, "send_command", wraps=r.connection.send_command
             ) as m:
