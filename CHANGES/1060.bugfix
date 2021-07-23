@@ -1,1 +1,1 @@
-St socket_connect_timeout in UnixDomainSocketConnection.
+Set socket_connect_timeout in UnixDomainSocketConnection.
