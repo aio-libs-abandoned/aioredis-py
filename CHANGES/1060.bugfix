@@ -1,1 +1,1 @@
-Set socket_connect_timeout in UnixDomainSocketConnection.
+Set socket_connect_timeout in UnixDomainSocketConnection. Change `_connect` in UnixDomainSocketConnection to use socket_connect_timeout instead of socket_timeout.
