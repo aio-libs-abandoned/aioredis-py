@@ -3877,6 +3877,7 @@ class PubSub:
         connection_pool: ConnectionPool,
         shard_hint: str = None,
         ignore_subscribe_messages: bool = False,
+        subscribe_timeout=1,
     ):
         self.connection_pool = connection_pool
         self.shard_hint = shard_hint
@@ -3900,6 +3901,8 @@ class PubSub:
         self.patterns = {}
         self.pending_unsubscribe_patterns = set()
         self._lock = asyncio.Lock()
+        self._subscribe_timeout = subscribe_timeout
+        self._subscribed = asyncio.Event()
 
     async def __aenter__(self):
         return self
@@ -3944,9 +3947,16 @@ class PubSub:
                 patterns[self.encoder.decode(k, force=True)] = v
             await self.psubscribe(**patterns)
 
-    @property
-    def subscribed(self):
+    async def wait_for_subscription(self):
+        try:
+            if not self._subscribed.is_set():
+                await asyncio.wait_for(self._subscribed.wait(), self._subscribe_timeout)
+        except asyncio.TimeoutError:
+            pass
+
+    async def subscribed(self):
         """Indicates if there are subscriptions to any channels or patterns"""
+        await self.wait_for_subscription()
         return bool(self.channels or self.patterns)
 
     async def execute_command(self, *args: EncodableT):
@@ -3964,7 +3974,7 @@ class PubSub:
             # were listening to when we were disconnected
             self.connection.register_connect_callback(self.on_connect)
         connection = self.connection
-        kwargs = {"check_health": not self.subscribed}
+        kwargs = {"check_health": not await self.subscribed()}
         await self._execute(connection, connection.send_command, *args, **kwargs)
 
     async def _execute(self, connection, command, *args, **kwargs):
@@ -3984,6 +3994,7 @@ class PubSub:
 
     async def parse_response(self, block: bool = True, timeout: float = 0):
         """Parse the response from a publish/subscribe command"""
+        await self.wait_for_subscription()
         conn = self.connection
         if conn is None:
             raise RuntimeError(
@@ -4036,31 +4047,34 @@ class PubSub:
         received on that pattern rather than producing a message via
         ``listen()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_patterns: Dict[ChannelT, Optional[Callable]] = dict.fromkeys(args)
-        new_patterns.update(kwargs)
-        ret_val = await self.execute_command("PSUBSCRIBE", *new_patterns.keys())
-        # update the patterns dict AFTER we send the command. we don't want to
-        # subscribe twice to these patterns, once for the command and again
-        # for the reconnection.
-        new_patterns = self._normalize_keys(new_patterns)
-        self.patterns.update(new_patterns)
-        self.pending_unsubscribe_patterns.difference_update(new_patterns)
-        return ret_val
+        async with self._lock:
+            if args:
+                args = list_or_args(args[0], args[1:])
+            new_patterns: Dict[ChannelT, Optional[Callable]] = dict.fromkeys(args)
+            new_patterns.update(kwargs)
+            ret_val = await self.execute_command("PSUBSCRIBE", *new_patterns.keys())
+            # update the patterns dict AFTER we send the command. we don't want to
+            # subscribe twice to these patterns, once for the command and again
+            # for the reconnection.
+            new_patterns = self._normalize_keys(new_patterns)
+            self.patterns.update(new_patterns)
+            self.pending_unsubscribe_patterns.difference_update(new_patterns)
+            self._subscribed.set()
+            return ret_val
 
-    def punsubscribe(self, *args: EncodableT) -> Awaitable:
+    async def punsubscribe(self, *args: EncodableT):
         """
         Unsubscribe from the supplied patterns. If empty, unsubscribe from
         all patterns.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-            patterns = self._normalize_keys(dict.fromkeys(args))
-        else:
-            patterns = self.patterns
-        self.pending_unsubscribe_patterns.update(patterns)
-        return self.execute_command("PUNSUBSCRIBE", *args)
+        async with self._lock:
+            if args:
+                args = list_or_args(args[0], args[1:])
+                patterns = self._normalize_keys(dict.fromkeys(args))
+            else:
+                patterns = self.patterns
+            self.pending_unsubscribe_patterns.update(patterns)
+            return await self.execute_command("PUNSUBSCRIBE", *args)
 
     async def subscribe(self, *args: ChannelT, **kwargs: Callable):
         """
@@ -4070,38 +4084,43 @@ class PubSub:
         that channel rather than producing a message via ``listen()`` or
         ``get_message()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_channels = dict.fromkeys(args)
-        new_channels.update(kwargs)
-        ret_val = await self.execute_command("SUBSCRIBE", *new_channels.keys())
-        # update the channels dict AFTER we send the command. we don't want to
-        # subscribe twice to these channels, once for the command and again
-        # for the reconnection.
-        new_channels = self._normalize_keys(new_channels)
-        self.channels.update(new_channels)
-        self.pending_unsubscribe_channels.difference_update(new_channels)
-        return ret_val
+        async with self._lock:
+            if args:
+                args = list_or_args(args[0], args[1:])
+            new_channels = dict.fromkeys(args)
+            new_channels.update(kwargs)
+            ret_val = await self.execute_command("SUBSCRIBE", *new_channels.keys())
+            # update the channels dict AFTER we send the command. we don't want to
+            # subscribe twice to these channels, once for the command and again
+            # for the reconnection.
+            new_channels = self._normalize_keys(new_channels)
+            self.channels.update(new_channels)
+            self.pending_unsubscribe_channels.difference_update(new_channels)
+            self._subscribed.set()
+            return ret_val
 
-    def unsubscribe(self, *args) -> Awaitable:
+    async def unsubscribe(self, *args):
         """
         Unsubscribe from the supplied channels. If empty, unsubscribe from
         all channels
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-            channels = self._normalize_keys(dict.fromkeys(args))
-        else:
-            channels = self.channels
-        self.pending_unsubscribe_channels.update(channels)
-        return self.execute_command("UNSUBSCRIBE", *args)
+        async with self._lock:
+            if args:
+                args = list_or_args(args[0], args[1:])
+                channels = self._normalize_keys(dict.fromkeys(args))
+            else:
+                channels = self.channels
+            self.pending_unsubscribe_channels.update(channels)
+            return await self.execute_command("UNSUBSCRIBE", *args)
 
     async def listen(self) -> AsyncIterator:
         """Listen for messages on channels this client has been subscribed to"""
-        while self.subscribed:
+        while True:
             response = self.handle_message(await self.parse_response(block=True))
             if response is not None:
                 yield response
+            if not await self.subscribed():
+                break
 
     async def get_message(
         self, ignore_subscribe_messages: bool = False, timeout: float = 0.0
@@ -4118,12 +4137,12 @@ class PubSub:
             return self.handle_message(response, ignore_subscribe_messages)
         return None
 
-    def ping(self, message=None) -> Awaitable:
+    async def ping(self, message=None):
         """
         Ping the Redis server
         """
         message = "" if message is None else message
-        return self.execute_command("PING", message)
+        return await self.execute_command("PING", message)
 
     def handle_message(self, response, ignore_subscribe_messages=False):
         """

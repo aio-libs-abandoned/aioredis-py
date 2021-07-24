@@ -46,7 +46,8 @@ devel: aioredis.egg-info init-hooks
 		-r tests/requirements.txt \
 		-r docs/requirements.txt \
 		bumpversion \
-		wheel
+		wheel \
+		mypy
 
 aioredis.egg-info:
 	pip install -Ue .

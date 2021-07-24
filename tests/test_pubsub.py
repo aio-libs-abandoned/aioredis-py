@@ -132,48 +132,48 @@ class TestPubSubSubscribeUnsubscribe:
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
 
-        assert p.subscribed is False
+        assert await p.subscribed() is False
         await sub_func(keys[0])
         # we're now subscribed even though we haven't processed the
         # reply from the server just yet
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(sub_type, keys[0], 1)
         # we're still subscribed
-        assert p.subscribed is True
+        assert await p.subscribed() is True
 
         # unsubscribe from all channels
         await unsub_func()
         # we're still technically subscribed until we process the
         # response messages from the server
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(unsub_type, keys[0], 0)
         # now we're no longer subscribed as no more messages can be delivered
         # to any channels we were listening to
-        assert p.subscribed is False
+        assert await p.subscribed() is False
 
         # subscribing again flips the flag back
         await sub_func(keys[0])
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(sub_type, keys[0], 1)
 
         # unsubscribe again
         await unsub_func()
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         # subscribe to another channel before reading the unsubscribe response
         await sub_func(keys[1])
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         # read the unsubscribe for key1
         assert await wait_for_message(p) == make_message(unsub_type, keys[0], 0)
         # we're still subscribed to key2, so subscribed should still be True
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         # read the key2 subscribe message
         assert await wait_for_message(p) == make_message(sub_type, keys[1], 1)
         await unsub_func()
         # haven't read the message yet, so we're still subscribed
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(unsub_type, keys[1], 0)
         # now we're finally unsubscribed
-        assert p.subscribed is False
+        assert await p.subscribed() is False
 
     async def test_subscribe_property_with_channels(self, r):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
@@ -193,12 +193,12 @@ class TestPubSubSubscribeUnsubscribe:
             (p.punsubscribe, "f*"),
         )
 
-        assert p.subscribed is False
+        assert await p.subscribed() is False
         for func, channel in checks:
             assert await func(channel) is None
-            assert p.subscribed is True
+            assert await p.subscribed() is True
             assert await wait_for_message(p) is None
-        assert p.subscribed is False
+        assert await p.subscribed() is False
 
     async def test_ignore_individual_subscribe_messages(self, r):
         p = r.pubsub()
@@ -210,13 +210,13 @@ class TestPubSubSubscribeUnsubscribe:
             (p.punsubscribe, "f*"),
         )
 
-        assert p.subscribed is False
+        assert await p.subscribed() is False
         for func, channel in checks:
             assert await func(channel) is None
-            assert p.subscribed is True
+            assert await p.subscribed() is True
             message = await wait_for_message(p, ignore_subscribe_messages=True)
             assert message is None
-        assert p.subscribed is False
+        assert await p.subscribed() is False
 
     async def test_sub_unsub_resub_channels(self, r):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
@@ -234,11 +234,11 @@ class TestPubSubSubscribeUnsubscribe:
         await sub_func(key)
         await unsub_func(key)
         await sub_func(key)
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(sub_type, key, 1)
         assert await wait_for_message(p) == make_message(unsub_type, key, 0)
         assert await wait_for_message(p) == make_message(sub_type, key, 1)
-        assert p.subscribed is True
+        assert await p.subscribed() is True
 
     async def test_sub_unsub_all_resub_channels(self, r):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
@@ -256,11 +256,11 @@ class TestPubSubSubscribeUnsubscribe:
         await sub_func(key)
         await unsub_func()
         await sub_func(key)
-        assert p.subscribed is True
+        assert await p.subscribed() is True
         assert await wait_for_message(p) == make_message(sub_type, key, 1)
         assert await wait_for_message(p) == make_message(unsub_type, key, 0)
         assert await wait_for_message(p) == make_message(sub_type, key, 1)
-        assert p.subscribed is True
+        assert await p.subscribed() is True
 
 
 class TestPubSubMessages:
