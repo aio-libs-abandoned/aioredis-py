@@ -615,6 +615,11 @@ class TestPubSubTasks:
     async def test_subscribe_with_tasks_succeeds(self, r):
         p = r.pubsub()
         asyncio.create_task(p.subscribe("foo"))
-        assert await wait_for_message(p, timeout=2) == make_message(
-            "subscribe", "foo", 1
+        asyncio.create_task(p.subscribe("bar"))
+        messages = list(
+            filter(
+                lambda d: d is not None,
+                [await wait_for_message(p, timeout=3) for _ in range(2)],
+            )
         )
+        assert sorted(m["channel"] for m in messages) == [b"bar", b"foo"]
