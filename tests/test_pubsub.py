@@ -609,3 +609,11 @@ class TestPubSubRun:
             except asyncio.CancelledError:
                 pass
         assert str(e) == "error"
+
+
+class TestPubSubTasks:
+    async def test_subscribe_with_tasks_succeeds(self, r):
+        p = r.pubsub()
+        await p.subscribe("foo")
+        asyncio.create_task(p.subscribe("foo"))
+        assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
