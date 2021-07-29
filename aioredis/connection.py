@@ -1267,7 +1267,7 @@ class ConnectionPool:
         # will notice the first thread already did the work and simply
         # release the lock.
         self._fork_lock = threading.Lock()
-        self._lock: asyncio.Lock
+        self._lock = asyncio.Lock()
         self._created_connections: int
         self._available_connections: List[Connection]
         self._in_use_connections: Set[Connection]
