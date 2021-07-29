@@ -3870,7 +3870,7 @@ class PubSub:
 
     PUBLISH_MESSAGE_TYPES = ("message", "pmessage")
     UNSUBSCRIBE_MESSAGE_TYPES = ("unsubscribe", "punsubscribe")
-    HEALTH_CHECK_MESSAGE = "redis-py-health-check"
+    HEALTH_CHECK_MESSAGE = "aioredis-py-health-check"
 
     def __init__(
         self,
