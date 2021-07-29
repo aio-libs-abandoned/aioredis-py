@@ -8,6 +8,7 @@ Aider Ibragimov
 Alan Christianson
 Alexander Shorin
 Aliaksei Urbanski
+Andrew Brookins
 Andrew Chen Wang
 Andrew Svetlov
 Anton Ilyushenkov <driverx>
