@@ -24,6 +24,9 @@ class DummyConnection(Connection):
     async def connect(self):
         pass
 
+    async def disconnect(self):
+        pass
+
     async def can_read(self, timeout: float = 0):
         return False
 
@@ -121,6 +124,13 @@ class TestBlockingConnectionPool:
         connection = await pool.get_connection("_")
         assert isinstance(connection, DummyConnection)
         assert connection.kwargs == connection_kwargs
+
+    async def test_disconnect(self, master_host):
+        """A regression test for #1047"""
+        connection_kwargs = {"foo": "bar", "biz": "baz", "host": master_host}
+        pool = self.get_pool(connection_kwargs=connection_kwargs)
+        await pool.get_connection("_")
+        await pool.disconnect()
 
     async def test_multiple_connections(self, master_host):
         connection_kwargs = {"host": master_host}
