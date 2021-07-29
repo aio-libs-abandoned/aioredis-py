@@ -1,13 +1,30 @@
 import asyncio
-import threading
+import contextvars
 import uuid
-from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, NoReturn, Union
 
 from aioredis.exceptions import LockError, LockNotOwnedError
 
 if TYPE_CHECKING:
     from aioredis import Redis
+
+
+class SimpleToken:
+    """
+    Simple storage for a Lock that isn't using task-local storage.
+
+    This class allows us to share the same interface as the ContextVar
+    that a Lock uses for task-local storage.
+    """
+
+    def __init__(self):
+        self.token = ""
+
+    def get(self):
+        return self.token
+
+    def set(self, token: str):
+        self.token = token
 
 
 class Lock:
@@ -83,57 +100,51 @@ class Lock:
         sleep: float = 0.1,
         blocking: bool = True,
         blocking_timeout: float = None,
-        thread_local: bool = True,
+        task_local: bool = True,
     ):
         """
-        Create a new Lock instance named ``name`` using the Redis client
-        supplied by ``redis``.
+        Return a new Lock object using key ``name`` that mimics
+        the behavior of threading.Lock.
 
-        ``timeout`` indicates a maximum life for the lock.
+        If specified, ``timeout`` indicates a maximum life for the lock.
         By default, it will remain locked until release() is called.
-        ``timeout`` can be specified as a float or integer, both representing
-        the number of seconds to wait.
 
         ``sleep`` indicates the amount of time to sleep per loop iteration
         when the lock is in blocking mode and another client is currently
         holding the lock.
-
-        ``blocking`` indicates whether calling ``acquire`` should block until
-        the lock has been acquired or to fail immediately, causing ``acquire``
-        to return False and the lock not being acquired. Defaults to True.
-        Note this value can be overridden by passing a ``blocking``
-        argument to ``acquire``.
 
         ``blocking_timeout`` indicates the maximum amount of time in seconds to
         spend trying to acquire the lock. A value of ``None`` indicates
         continue trying forever. ``blocking_timeout`` can be specified as a
         float or integer, both representing the number of seconds to wait.
 
-        ``thread_local`` indicates whether the lock token is placed in
-        thread-local storage. By default, the token is placed in thread local
-        storage so that a thread only sees its token, not a token set by
-        another thread. Consider the following timeline:
+        ``lock_class`` forces the specified lock implementation.
 
-            time: 0, thread-1 acquires `my-lock`, with a timeout of 5 seconds.
-                     thread-1 sets the token to "abc"
-            time: 1, thread-2 blocks trying to acquire `my-lock` using the
+        ``task_local`` indicates whether the lock token is placed in task-local
+        storage. By default, the token is placed in a contextvar so that a Task
+        only sees its token, not a token set by another Task. Consider the
+        following timeline:
+
+            time: 0, task-1 acquires `my-lock`, with a timeout of 5 seconds.
+                     task-1 sets the token to "abc"
+            time: 1, task-2 blocks trying to acquire `my-lock` using the
                      Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
+            time: 5, task-1 has not yet completed. redis expires the lock
                      key.
-            time: 5, thread-2 acquired `my-lock` now that it's available.
-                     thread-2 sets the token to "xyz"
-            time: 6, thread-1 finishes its work and calls release(). if the
-                     token is *not* stored in thread local storage, then
-                     thread-1 would see the token value as "xyz" and would be
-                     able to successfully release the thread-2's lock.
+            time: 5, task-2 acquired `my-lock` now that it's available.
+                     task-2 sets the token to "xyz"
+            time: 6, task-1 finishes its work and calls release(). if the
+                     token is *not* stored in a contextvar, then task-1 would
+                     see the token value as "xyz" and would be able to
+                     successfully release the task-2's lock.
 
-        In some use cases it's necessary to disable thread local storage. For
-        example, if you have code where one thread acquires a lock and passes
-        that lock instance to a worker thread to release later. If thread
-        local storage isn't disabled in this case, the worker thread won't see
-        the token set by the thread that acquired the lock. Our assumption
+        In some use cases it's necessary to disable task-local storage. For
+        example, if you have code where one Task acquires a lock and passes
+        that lock instance to a another Task to release later. If task-local
+        storage isn't disabled in this case, the other Task won't see
+        the token set by the Task that acquired the lock. Our assumption
         is that these cases aren't common and as such default to using
-        thread local storage.
+        task-local storage.
         """
         self.redis = redis
         self.name = name
@@ -141,9 +152,11 @@ class Lock:
         self.sleep = sleep
         self.blocking = blocking
         self.blocking_timeout = blocking_timeout
-        self.thread_local = bool(thread_local)
-        self.local = threading.local() if self.thread_local else SimpleNamespace()
-        self.local.token = None
+        self.task_local = bool(task_local)
+        self.local_token = (
+            contextvars.ContextVar("lock") if self.task_local else SimpleToken()
+        )
+        self.local_token.set(None)
         self.register_scripts()
 
     def register_scripts(self):
@@ -201,7 +214,7 @@ class Lock:
             stop_trying_at = loop.time() + blocking_timeout
         while True:
             if await self.do_acquire(token):
-                self.local.token = token
+                self.local_token.set(token)
                 return True
             if not blocking:
                 return False
@@ -236,14 +249,15 @@ class Lock:
         if stored_token and not isinstance(stored_token, bytes):
             encoder = self.redis.connection_pool.get_encoder()
             stored_token = encoder.encode(stored_token)
-        return self.local.token is not None and stored_token == self.local.token
+        our_token = self.local_token.get()
+        return our_token is not None and stored_token == our_token
 
     def release(self) -> Awaitable[NoReturn]:
         """Releases the already acquired lock"""
-        expected_token = self.local.token
+        expected_token = self.local_token.get()
         if expected_token is None:
             raise LockError("Cannot release an unlocked lock")
-        self.local.token = None
+        self.local_token.set(None)
         return self.do_release(expected_token)
 
     async def do_release(self, expected_token: bytes):
@@ -267,7 +281,7 @@ class Lock:
         the lock's existing ttl. If True, replace the lock's ttl with
         `additional_time`.
         """
-        if self.local.token is None:
+        if self.local_token.get() is None:
             raise LockError("Cannot extend an unlocked lock")
         if self.timeout is None:
             raise LockError("Cannot extend a lock with no timeout")
@@ -275,10 +289,11 @@ class Lock:
 
     async def do_extend(self, additional_time, replace_ttl) -> bool:
         additional_time = int(additional_time * 1000)
+        token = self.local_token.get()
         if not bool(
             await self.lua_extend(
                 keys=[self.name],
-                args=[self.local.token, additional_time, replace_ttl and "1" or "0"],
+                args=[token, additional_time, replace_ttl and "1" or "0"],
                 client=self.redis,
             )
         ):
@@ -289,7 +304,7 @@ class Lock:
         """
         Resets a TTL of an already acquired lock back to a timeout value.
         """
-        if self.local.token is None:
+        if self.local_token.get() is None:
             raise LockError("Cannot reacquire an unlocked lock")
         if self.timeout is None:
             raise LockError("Cannot reacquire a lock with no timeout")
@@ -297,9 +312,10 @@ class Lock:
 
     async def do_reacquire(self) -> bool:
         timeout = int(self.timeout * 1000)
+        token = self.local_token.get()
         if not bool(
             await self.lua_reacquire(
-                keys=[self.name], args=[self.local.token, timeout], client=self.redis
+                keys=[self.name], args=[token, timeout], client=self.redis
             )
         ):
             raise LockNotOwnedError("Cannot reacquire a lock that's" " no longer owned")

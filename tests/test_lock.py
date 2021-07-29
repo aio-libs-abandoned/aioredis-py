@@ -22,7 +22,7 @@ class TestLock:
     async def test_lock(self, r):
         lock = self.get_lock(r, "foo")
         assert await lock.acquire(blocking=False)
-        assert await r.get("foo") == lock.local.token
+        assert await r.get("foo") == lock.local_token.get()
         assert await r.ttl("foo") == -1
         await lock.release()
         assert await r.get("foo") is None
@@ -32,17 +32,17 @@ class TestLock:
         await self._test_lock_token(r, lock)
 
     async def test_lock_token_thread_local_false(self, r):
-        lock = self.get_lock(r, "foo", thread_local=False)
+        lock = self.get_lock(r, "foo", task_local=False)
         await self._test_lock_token(r, lock)
 
     async def _test_lock_token(self, r, lock):
         assert await lock.acquire(blocking=False, token="test")
         assert await r.get("foo") == b"test"
-        assert lock.local.token == b"test"
+        assert lock.local_token.get() == b"test"
         assert await r.ttl("foo") == -1
         await lock.release()
         assert await r.get("foo") is None
-        assert lock.local.token is None
+        assert lock.local_token.get() is None
 
     async def test_locked(self, r):
         lock = self.get_lock(r, "foo")
@@ -114,7 +114,7 @@ class TestLock:
         # blocking_timeout prevents a deadlock if the lock can't be acquired
         # for some reason
         async with self.get_lock(r, "foo", blocking_timeout=0.2) as lock:
-            assert await r.get("foo") == lock.local.token
+            assert await r.get("foo") == lock.local_token.get()
         assert await r.get("foo") is None
 
     async def test_context_manager_raises_when_locked_not_acquired(self, r):
@@ -149,7 +149,7 @@ class TestLock:
         with pytest.raises(LockNotOwnedError):
             await lock.release()
         # even though we errored, the token is still cleared
-        assert lock.local.token is None
+        assert lock.local_token.get() is None
 
     async def test_extend_lock(self, r):
         lock = self.get_lock(r, "foo", timeout=10)

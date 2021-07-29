@@ -959,7 +959,7 @@ class Redis:
         sleep: float = 0.1,
         blocking_timeout: float = None,
         lock_class: Type[Lock] = None,
-        thread_local=True,
+        task_local: bool = True,
     ) -> Lock:
         """
         Return a new Lock object using key ``name`` that mimics
@@ -979,31 +979,31 @@ class Redis:
 
         ``lock_class`` forces the specified lock implementation.
 
-        ``thread_local`` indicates whether the lock token is placed in
-        thread-local storage. By default, the token is placed in thread local
-        storage so that a thread only sees its token, not a token set by
-        another thread. Consider the following timeline:
+        ``task_local`` indicates whether the lock token is placed in task-local
+        storage. By default, the token is placed in a contextvar so that a Task
+        only sees its token, not a token set by another Task. Consider the
+        following timeline:
 
-            time: 0, thread-1 acquires `my-lock`, with a timeout of 5 seconds.
-                     thread-1 sets the token to "abc"
-            time: 1, thread-2 blocks trying to acquire `my-lock` using the
+            time: 0, task-1 acquires `my-lock`, with a timeout of 5 seconds.
+                     task-1 sets the token to "abc"
+            time: 1, task-2 blocks trying to acquire `my-lock` using the
                      Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
+            time: 5, task-1 has not yet completed. redis expires the lock
                      key.
-            time: 5, thread-2 acquired `my-lock` now that it's available.
-                     thread-2 sets the token to "xyz"
-            time: 6, thread-1 finishes its work and calls release(). if the
-                     token is *not* stored in thread local storage, then
-                     thread-1 would see the token value as "xyz" and would be
-                     able to successfully release the thread-2's lock.
+            time: 5, task-2 acquired `my-lock` now that it's available.
+                     task-2 sets the token to "xyz"
+            time: 6, task-1 finishes its work and calls release(). if the
+                     token is *not* stored in a contextvar, then task-1 would
+                     see the token value as "xyz" and would be able to
+                     successfully release the task-2's lock.
 
-        In some use cases it's necessary to disable thread local storage. For
-        example, if you have code where one thread acquires a lock and passes
-        that lock instance to a worker thread to release later. If thread
-        local storage isn't disabled in this case, the worker thread won't see
-        the token set by the thread that acquired the lock. Our assumption
+        In some use cases it's necessary to disable task-local storage. For
+        example, if you have code where one Task acquires a lock and passes
+        that lock instance to a another Task to release later. If task-local
+        storage isn't disabled in this case, the other Task won't see
+        the token set by the Task that acquired the lock. Our assumption
         is that these cases aren't common and as such default to using
-        thread local storage."""
+        task-local storage."""
         if lock_class is None:
             lock_class = Lock
         return lock_class(
@@ -1012,7 +1012,7 @@ class Redis:
             timeout=timeout,
             sleep=sleep,
             blocking_timeout=blocking_timeout,
-            thread_local=thread_local,
+            task_local=task_local,
         )
 
     def pubsub(self, **kwargs) -> "PubSub":
