@@ -820,28 +820,28 @@ class Redis:
         host: str = "localhost",
         port: int = 6379,
         db: Union[str, int] = 0,
-        password: str = None,
-        socket_timeout: float = None,
-        socket_connect_timeout: float = None,
-        socket_keepalive: bool = None,
-        socket_keepalive_options: Dict[str, Any] = None,
-        connection_pool: ConnectionPool = None,
-        unix_socket_path: str = None,
+        password: Optional[str] = None,
+        socket_timeout: Optional[float] = None,
+        socket_connect_timeout: Optional[float] = None,
+        socket_keepalive: Optional[bool] = None,
+        socket_keepalive_options: Optional[Dict[str, Any]] = None,
+        connection_pool: Optional[ConnectionPool] = None,
+        unix_socket_path: Optional[str] = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
         retry_on_timeout: bool = False,
         ssl: bool = False,
-        ssl_keyfile: str = None,
-        ssl_certfile: str = None,
+        ssl_keyfile: Optional[str] = None,
+        ssl_certfile: Optional[str] = None,
         ssl_cert_reqs: str = "required",
-        ssl_ca_certs: str = None,
+        ssl_ca_certs: Optional[str] = None,
         ssl_check_hostname: bool = False,
-        max_connections: int = None,
+        max_connections: Optional[int] = None,
         single_connection_client: bool = False,
         health_check_interval: int = 0,
-        client_name: str = None,
-        username: str = None,
+        client_name: Optional[str] = None,
+        username: Optional[str] = None,
     ):
         kwargs: Dict[str, Any]
         if not connection_pool:
@@ -911,7 +911,9 @@ class Redis:
         """Set a custom Response Callback"""
         self.response_callbacks[command] = callback
 
-    def pipeline(self, transaction: bool = True, shard_hint: str = None) -> "Pipeline":
+    def pipeline(
+        self, transaction: bool = True, shard_hint: Optional[str] = None
+    ) -> "Pipeline":
         """
         Return a new pipeline object that can queue multiple commands for
         later execution. ``transaction`` indicates whether all commands
@@ -927,9 +929,9 @@ class Redis:
         self,
         func: Callable[["Pipeline"], Union[Any, Awaitable[Any]]],
         *watches: KeyT,
-        shard_hint: str = None,
+        shard_hint: Optional[str] = None,
         value_from_callable: bool = False,
-        watch_delay: float = None,
+        watch_delay: Optional[float] = None,
     ):
         """
         Convenience method for executing the callable `func` as a transaction
@@ -955,10 +957,10 @@ class Redis:
     def lock(
         self,
         name: KeyT,
-        timeout: float = None,
+        timeout: Optional[float] = None,
         sleep: float = 0.1,
-        blocking_timeout: float = None,
-        lock_class: Type[Lock] = None,
+        blocking_timeout: Optional[float] = None,
+        lock_class: Optional[Type[Lock]] = None,
         thread_local=True,
     ) -> Lock:
         """
@@ -1090,7 +1092,7 @@ class Redis:
     # SERVER INFORMATION
 
     # ACL methods
-    def acl_cat(self, category: str = None) -> Awaitable:
+    def acl_cat(self, category: Optional[str] = None) -> Awaitable:
         """
         Returns a list of categories or commands within a category.
 
@@ -1121,7 +1123,7 @@ class Redis:
         """Return a list of all ACLs on the server"""
         return self.execute_command("ACL LIST")
 
-    def acl_log(self, count: int = None) -> Awaitable:
+    def acl_log(self, count: Optional[int] = None) -> Awaitable:
         """
         Get ACL logs as a list.
         :param int count: Get logs[0:count].
@@ -1166,11 +1168,11 @@ class Redis:
         username: str,
         enabled: bool = False,
         nopass: bool = False,
-        passwords: Union[str, Iterable[str]] = None,
-        hashed_passwords: Union[str, Iterable[str]] = None,
-        categories: Iterable[str] = None,
-        commands: Iterable[str] = None,
-        keys: Iterable[KeyT] = None,
+        passwords: Optional[Union[str, Iterable[str]]] = None,
+        hashed_passwords: Optional[Union[str, Iterable[str]]] = None,
+        categories: Optional[Iterable[str]] = None,
+        commands: Optional[Iterable[str]] = None,
+        keys: Optional[Iterable[KeyT]] = None,
         reset: bool = False,
         reset_keys: bool = False,
         reset_passwords: bool = False,
@@ -1349,7 +1351,11 @@ class Redis:
         return self.execute_command("CLIENT KILL", address)
 
     def client_kill_filter(
-        self, _id: str = None, _type: str = None, addr: str = None, skipme: bool = None
+        self,
+        _id: Optional[str] = None,
+        _type: Optional[str] = None,
+        addr: Optional[str] = None,
+        skipme: Optional[bool] = None,
     ) -> Awaitable:
         """
         Disconnects client(s) using a variety of filter options
@@ -1385,7 +1391,7 @@ class Redis:
             )
         return self.execute_command("CLIENT KILL", *args)
 
-    def client_list(self, _type: str = None) -> Awaitable:
+    def client_list(self, _type: Optional[str] = None) -> Awaitable:
         """
         Returns a list of currently connected clients.
         If type of client specified, only that type will be returned.
@@ -1497,7 +1503,7 @@ class Redis:
         """Swap two databases"""
         return self.execute_command("SWAPDB", first, second)
 
-    def info(self, section: str = None) -> Awaitable:
+    def info(self, section: Optional[str] = None) -> Awaitable:
         """
         Returns a dictionary containing information about the Redis server
 
@@ -1528,7 +1534,7 @@ class Redis:
         timeout: int,
         copy: bool = False,
         replace: bool = False,
-        auth: str = None,
+        auth: Optional[str] = None,
     ) -> Awaitable:
         """
         Migrate 1 or more keys from the current Redis server to a different
@@ -1572,7 +1578,7 @@ class Redis:
         """Return a dictionary of memory stats"""
         return self.execute_command("MEMORY STATS")
 
-    def memory_usage(self, key: KeyT, samples: int = None) -> Awaitable:
+    def memory_usage(self, key: KeyT, samples: Optional[int] = None) -> Awaitable:
         """
         Return the total memory usage for key, its value and associated
         administrative overheads.
@@ -1654,7 +1660,9 @@ class Redis:
             return
         raise RedisError("SHUTDOWN seems to have failed.")
 
-    def slaveof(self, host: str = None, port: int = None) -> Awaitable:
+    def slaveof(
+        self, host: Optional[str] = None, port: Optional[int] = None
+    ) -> Awaitable:
         """
         Set the server to be a replicated slave of the instance identified
         by the ``host`` and ``port``. If called without arguments, the
@@ -1664,7 +1672,7 @@ class Redis:
             return self.execute_command("SLAVEOF", b"NO", b"ONE")
         return self.execute_command("SLAVEOF", host, port)
 
-    def slowlog_get(self, num: int = None) -> Awaitable:
+    def slowlog_get(self, num: Optional[int] = None) -> Awaitable:
         """
         Get the entries from the slowlog. If ``num`` is specified, get the
         most recent ``num`` items.
@@ -1710,7 +1718,9 @@ class Redis:
         """
         return self.execute_command("APPEND", key, value)
 
-    def bitcount(self, key: KeyT, start: int = None, end: int = None) -> Awaitable:
+    def bitcount(
+        self, key: KeyT, start: Optional[int] = None, end: Optional[int] = None
+    ) -> Awaitable:
         """
         Returns the count of set bits in the value of ``key``.  Optional
         ``start`` and ``end`` paramaters indicate which bytes to consider
@@ -1723,7 +1733,9 @@ class Redis:
             raise DataError("Both start and end must be specified")
         return self.execute_command("BITCOUNT", *params)
 
-    def bitfield(self, key: KeyT, default_overflow: str = None) -> "BitFieldOperation":
+    def bitfield(
+        self, key: KeyT, default_overflow: Optional[str] = None
+    ) -> "BitFieldOperation":
         """
         Return a BitFieldOperation instance to conveniently construct one or
         more bitfield operations on ``key``.
@@ -1738,7 +1750,11 @@ class Redis:
         return self.execute_command("BITOP", operation, dest, *keys)
 
     def bitpos(
-        self, key: KeyT, bit: int, start: int = None, end: int = None
+        self,
+        key: KeyT,
+        bit: int,
+        start: Optional[int] = None,
+        end: Optional[int] = None,
     ) -> Awaitable:
         """
         Return the position of the first bit set to 1 or 0 in a string.
@@ -1978,8 +1994,8 @@ class Redis:
         self,
         name: KeyT,
         value: EncodableT,
-        ex: ExpiryT = None,
-        px: ExpiryT = None,
+        ex: Optional[ExpiryT] = None,
+        px: Optional[ExpiryT] = None,
         nx: bool = False,
         xx: bool = False,
         keepttl: bool = False,
@@ -2233,9 +2249,9 @@ class Redis:
         self,
         name: KeyT,
         value: EncodableT,
-        rank: int = None,
-        count: int = None,
-        maxlen: int = None,
+        rank: Optional[int] = None,
+        count: Optional[int] = None,
+        maxlen: Optional[int] = None,
     ) -> Awaitable:
         """
         Get position of ``value`` within the list ``name``
@@ -2275,13 +2291,13 @@ class Redis:
     def sort(
         self,
         name: KeyT,
-        start: int = None,
-        num: int = None,
-        by: KeyT = None,
-        get: KeysT = None,
+        start: Optional[int] = None,
+        num: Optional[int] = None,
+        by: Optional[KeyT] = None,
+        get: Optional[KeysT] = None,
         desc: bool = False,
         alpha: bool = False,
-        store: KeyT = None,
+        store: Optional[KeyT] = None,
         groups: bool = False,
     ) -> Awaitable:
         """
@@ -2354,9 +2370,9 @@ class Redis:
     def scan(
         self,
         cursor: int = 0,
-        match: PatternT = None,
-        count: int = None,
-        _type: str = None,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
+        _type: Optional[str] = None,
     ) -> Awaitable:
         """
         Incrementally return lists of key names. Also return a cursor
@@ -2382,7 +2398,10 @@ class Redis:
         return self.execute_command("SCAN", *pieces)
 
     async def scan_iter(
-        self, match: PatternT = None, count: int = None, _type: str = None
+        self,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
+        _type: Optional[str] = None,
     ) -> AsyncIterator:
         """
         Make an iterator using the SCAN command so that the client doesn't
@@ -2407,7 +2426,11 @@ class Redis:
                 yield d
 
     def sscan(
-        self, name: KeyT, cursor: int = 0, match: PatternT = None, count: int = None
+        self,
+        name: KeyT,
+        cursor: int = 0,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
     ) -> Awaitable:
         """
         Incrementally return lists of elements in a set. Also return a cursor
@@ -2425,7 +2448,7 @@ class Redis:
         return self.execute_command("SSCAN", *pieces)
 
     async def sscan_iter(
-        self, name: KeyT, match: PatternT = None, count: int = None
+        self, name: KeyT, match: Optional[PatternT] = None, count: Optional[int] = None
     ) -> AsyncIterator:
         """
         Make an iterator using the SSCAN command so that the client doesn't
@@ -2444,7 +2467,11 @@ class Redis:
                 yield d
 
     def hscan(
-        self, name: KeyT, cursor: int = 0, match: PatternT = None, count: int = None
+        self,
+        name: KeyT,
+        cursor: int = 0,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
     ) -> Awaitable:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
@@ -2462,7 +2489,7 @@ class Redis:
         return self.execute_command("HSCAN", *pieces)
 
     async def hscan_iter(
-        self, name: str, match: PatternT = None, count: int = None
+        self, name: str, match: Optional[PatternT] = None, count: Optional[int] = None
     ) -> AsyncIterator:
         """
         Make an iterator using the HSCAN command so that the client doesn't
@@ -2484,8 +2511,8 @@ class Redis:
         self,
         name: KeyT,
         cursor: int = 0,
-        match: PatternT = None,
-        count: int = None,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
         """
@@ -2509,8 +2536,8 @@ class Redis:
     async def zscan_iter(
         self,
         name: KeyT,
-        match: PatternT = None,
-        count: int = None,
+        match: Optional[PatternT] = None,
+        count: Optional[int] = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> AsyncIterator:
         """
@@ -2582,12 +2609,12 @@ class Redis:
         """Move ``value`` from set ``src`` to set ``dst`` atomically"""
         return self.execute_command("SMOVE", src, dst, value)
 
-    def spop(self, name: KeyT, count: int = None) -> Awaitable:
+    def spop(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
         """Remove and return a random member of set ``name``"""
         args = (count is not None) and [count] or []
         return self.execute_command("SPOP", name, *args)
 
-    def srandmember(self, name: KeyT, number: int = None) -> Awaitable:
+    def srandmember(self, name: KeyT, number: Optional[int] = None) -> Awaitable:
         """
         If ``number`` is None, returns a random member of set ``name``.
 
@@ -2630,7 +2657,7 @@ class Redis:
         name: KeyT,
         fields: Dict[FieldT, EncodableT],
         id: StreamIdT = "*",
-        maxlen: int = None,
+        maxlen: Optional[int] = None,
         approximate: bool = True,
     ) -> Awaitable:
         """
@@ -2664,9 +2691,9 @@ class Redis:
         consumername: ConsumerT,
         min_idle_time: int,
         message_ids: Union[List[StreamIdT], Tuple[StreamIdT]],
-        idle: int = None,
-        time: int = None,
-        retrycount: int = None,
+        idle: Optional[int] = None,
+        time: Optional[int] = None,
+        retrycount: Optional[int] = None,
         force: bool = False,
         justid: bool = False,
     ) -> Awaitable:
@@ -2823,7 +2850,7 @@ class Redis:
         min: StreamIdT,
         max: StreamIdT,
         count: int,
-        consumername: ConsumerT = None,
+        consumername: Optional[ConsumerT] = None,
     ) -> Awaitable:
         """
         Returns information about pending messages, in a range.
@@ -2855,7 +2882,11 @@ class Redis:
         return self.execute_command("XPENDING", *pieces, parse_detail=True)
 
     def xrange(
-        self, name: KeyT, min: StreamIdT = "-", max: StreamIdT = "+", count: int = None
+        self,
+        name: KeyT,
+        min: StreamIdT = "-",
+        max: StreamIdT = "+",
+        count: Optional[int] = None,
     ) -> Awaitable:
         """
         Read stream values within an interval.
@@ -2877,7 +2908,10 @@ class Redis:
         return self.execute_command("XRANGE", name, *pieces)
 
     def xread(
-        self, streams: Dict[KeyT, StreamIdT], count: int = None, block: int = None
+        self,
+        streams: Dict[KeyT, StreamIdT],
+        count: Optional[int] = None,
+        block: Optional[int] = None,
     ) -> Awaitable:
         """
         Block and monitor multiple streams for new data.
@@ -2911,8 +2945,8 @@ class Redis:
         groupname: str,
         consumername: str,
         streams: Dict[KeyT, StreamIdT],
-        count: int = None,
-        block: int = None,
+        count: Optional[int] = None,
+        block: Optional[int] = None,
         noack: bool = False,
     ) -> Awaitable:
         """
@@ -2947,7 +2981,11 @@ class Redis:
         return self.execute_command("XREADGROUP", *pieces)
 
     def xrevrange(
-        self, name: KeyT, max: StreamIdT = "+", min: StreamIdT = "-", count: int = None
+        self,
+        name: KeyT,
+        max: StreamIdT = "+",
+        min: StreamIdT = "-",
+        count: Optional[int] = None,
     ) -> Awaitable:
         """
         Read stream values within an interval, in reverse order.
@@ -3058,7 +3096,7 @@ class Redis:
         self,
         dest: KeyT,
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: str = None,
+        aggregate: Optional[str] = None,
     ) -> Awaitable:
         """
         Intersect multiple sorted sets specified by ``keys`` into
@@ -3074,7 +3112,7 @@ class Redis:
         """
         return self.execute_command("ZLEXCOUNT", name, min, max)
 
-    def zpopmax(self, name: KeyT, count: int = None) -> Awaitable:
+    def zpopmax(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
         """
         Remove and return up to ``count`` members with the highest scores
         from the sorted set ``name``.
@@ -3083,7 +3121,7 @@ class Redis:
         options = {"withscores": True}
         return self.execute_command("ZPOPMAX", name, *args, **options)
 
-    def zpopmin(self, name: KeyT, count: int = None) -> Awaitable:
+    def zpopmin(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
         """
         Remove and return up to ``count`` members with the lowest scores
         from the sorted set ``name``.
@@ -3161,8 +3199,8 @@ class Redis:
         name: KeyT,
         min: EncodableT,
         max: EncodableT,
-        start: int = None,
-        num: int = None,
+        start: Optional[int] = None,
+        num: Optional[int] = None,
     ) -> Awaitable:
         """
         Return the lexicographical range of values from sorted set ``name``
@@ -3183,8 +3221,8 @@ class Redis:
         name: KeyT,
         max: EncodableT,
         min: EncodableT,
-        start: int = None,
-        num: int = None,
+        start: Optional[int] = None,
+        num: Optional[int] = None,
     ) -> Awaitable:
         """
         Return the reversed lexicographical range of values from sorted set
@@ -3205,8 +3243,8 @@ class Redis:
         name: KeyT,
         min: ZScoreBoundT,
         max: ZScoreBoundT,
-        start: int = None,
-        num: int = None,
+        start: Optional[int] = None,
+        num: Optional[int] = None,
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
@@ -3300,8 +3338,8 @@ class Redis:
         name: KeyT,
         min: ZScoreBoundT,
         max: ZScoreBoundT,
-        start: int = None,
-        num: int = None,
+        start: Optional[int] = None,
+        num: Optional[int] = None,
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
@@ -3342,7 +3380,7 @@ class Redis:
         self,
         dest: KeyT,
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: str = None,
+        aggregate: Optional[str] = None,
     ) -> Awaitable:
         """
         Union multiple sorted sets specified by ``keys`` into
@@ -3356,7 +3394,7 @@ class Redis:
         command: str,
         dest: KeyT,
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: str = None,
+        aggregate: Optional[str] = None,
     ) -> Awaitable:
         pieces: List[EncodableT] = [command, dest, len(keys)]
         if isinstance(keys, dict):
@@ -3426,9 +3464,9 @@ class Redis:
     def hset(
         self,
         name: KeyT,
-        key: FieldT = None,
-        value: EncodableT = None,
-        mapping: Mapping[AnyFieldT, EncodableT] = None,
+        key: Optional[FieldT] = None,
+        value: Optional[EncodableT] = None,
+        mapping: Optional[Mapping[AnyFieldT, EncodableT]] = None,
     ) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name``,
@@ -3584,7 +3622,7 @@ class Redis:
         return self.execute_command("GEOADD", name, *values)
 
     def geodist(
-        self, name: KeyT, place1: FieldT, place2: FieldT, unit: str = None
+        self, name: KeyT, place1: FieldT, place2: FieldT, unit: Optional[str] = None
     ) -> Awaitable:
         """
         Return the distance between ``place1`` and ``place2`` members of the
@@ -3620,14 +3658,14 @@ class Redis:
         longitude: float,
         latitude: float,
         radius: float,
-        unit: str = None,
+        unit: Optional[str] = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: int = None,
-        sort: str = None,
-        store: KeyT = None,
-        store_dist: KeyT = None,
+        count: Optional[int] = None,
+        sort: Optional[str] = None,
+        store: Optional[KeyT] = None,
+        store_dist: Optional[KeyT] = None,
     ) -> Awaitable:
         """
         Return the members of the specified key identified by the
@@ -3678,14 +3716,14 @@ class Redis:
         name: KeyT,
         member: FieldT,
         radius: float,
-        unit: str = None,
+        unit: Optional[str] = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: int = None,
-        sort: str = None,
-        store: KeyT = None,
-        store_dist: KeyT = None,
+        count: Optional[int] = None,
+        sort: Optional[str] = None,
+        store: Optional[KeyT] = None,
+        store_dist: Optional[KeyT] = None,
     ) -> Awaitable:
         """
         This command is exactly like ``georadius`` with the sole difference
@@ -3875,7 +3913,7 @@ class PubSub:
     def __init__(
         self,
         connection_pool: ConnectionPool,
-        shard_hint: str = None,
+        shard_hint: Optional[str] = None,
         ignore_subscribe_messages: bool = False,
     ):
         self.connection_pool = connection_pool
@@ -4613,9 +4651,9 @@ class Script:
 
     async def __call__(
         self,
-        keys: Sequence[KeyT] = None,
-        args: Iterable[EncodableT] = None,
-        client: Redis = None,
+        keys: Optional[Sequence[KeyT]] = None,
+        args: Optional[Iterable[EncodableT]] = None,
+        client: Optional[Redis] = None,
     ):
         """Execute the script, passing any required ``args``"""
         keys = keys or []
@@ -4643,7 +4681,7 @@ class BitFieldOperation:
     Command builder for BITFIELD commands.
     """
 
-    def __init__(self, client: Redis, key: str, default_overflow: str = None):
+    def __init__(self, client: Redis, key: str, default_overflow: Optional[str] = None):
         self.client = client
         self.key = key
         self._default_overflow = default_overflow
@@ -4673,7 +4711,11 @@ class BitFieldOperation:
         return self
 
     def incrby(
-        self, fmt: str, offset: BitfieldOffsetT, increment: int, overflow: str = None
+        self,
+        fmt: str,
+        offset: BitfieldOffsetT,
+        increment: int,
+        overflow: Optional[str] = None,
     ):
         """
         Increment a bitfield by a given amount.

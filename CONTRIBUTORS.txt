@@ -42,6 +42,7 @@ Martin <the-panda>
 Maxim Dodonchuk
 Michael Käufl
 Nickolai Novik
+Oleg Abramov
 Oleg Butuzov
 Oleksandr Tykhonruk
 Pat Buxton

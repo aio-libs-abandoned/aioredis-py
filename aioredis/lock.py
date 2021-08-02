@@ -2,7 +2,7 @@ import asyncio
 import threading
 import uuid
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Awaitable, NoReturn, Union
+from typing import TYPE_CHECKING, Awaitable, NoReturn, Optional, Union
 
 from aioredis.exceptions import LockError, LockNotOwnedError
 
@@ -79,10 +79,10 @@ class Lock:
         self,
         redis: "Redis",
         name: Union[str, bytes, memoryview],
-        timeout: float = None,
+        timeout: Optional[float] = None,
         sleep: float = 0.1,
         blocking: bool = True,
-        blocking_timeout: float = None,
+        blocking_timeout: Optional[float] = None,
         thread_local: bool = True,
     ):
         """
@@ -166,9 +166,9 @@ class Lock:
 
     async def acquire(
         self,
-        blocking: bool = None,
-        blocking_timeout: float = None,
-        token: Union[str, bytes] = None,
+        blocking: Optional[bool] = None,
+        blocking_timeout: Optional[float] = None,
+        token: Optional[Union[str, bytes]] = None,
     ):
         """
         Use Redis to hold a shared, distributed lock named ``name``.
