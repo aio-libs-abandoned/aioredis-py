@@ -232,7 +232,7 @@ class SocketBuffer:
 
     async def _read_from_socket(
         self,
-        length: int = None,
+        length: Optional[int] = None,
         timeout: Optional[float] = SENTINEL,  # type: ignore
         raise_on_timeout: bool = True,
     ) -> bool:
@@ -568,11 +568,11 @@ class Connection:
         host: str = "localhost",
         port: Union[str, int] = 6379,
         db: Union[str, int] = 0,
-        password: str = None,
-        socket_timeout: float = None,
-        socket_connect_timeout: float = None,
+        password: Optional[str] = None,
+        socket_timeout: Optional[float] = None,
+        socket_connect_timeout: Optional[float] = None,
         socket_keepalive: bool = False,
-        socket_keepalive_options: dict = None,
+        socket_keepalive_options: Optional[dict] = None,
         socket_type: int = 0,
         retry_on_timeout: bool = False,
         encoding: str = "utf-8",
@@ -581,8 +581,8 @@ class Connection:
         parser_class: Type[BaseParser] = DefaultParser,
         socket_read_size: int = 65536,
         health_check_interval: int = 0,
-        client_name: str = None,
-        username: str = None,
+        client_name: Optional[str] = None,
+        username: Optional[str] = None,
         encoder_class: Type[Encoder] = Encoder,
     ):
         self.pid = os.getpid()
@@ -946,10 +946,10 @@ class Connection:
 class SSLConnection(Connection):
     def __init__(
         self,
-        ssl_keyfile: str = None,
-        ssl_certfile: str = None,
+        ssl_keyfile: Optional[str] = None,
+        ssl_certfile: Optional[str] = None,
         ssl_cert_reqs: str = "required",
-        ssl_ca_certs: str = None,
+        ssl_ca_certs: Optional[str] = None,
         ssl_check_hostname: bool = False,
         **kwargs,
     ):
@@ -995,10 +995,10 @@ class RedisSSLContext:
 
     def __init__(
         self,
-        keyfile: str = None,
-        certfile: str = None,
-        cert_reqs: str = None,
-        ca_certs: str = None,
+        keyfile: Optional[str] = None,
+        certfile: Optional[str] = None,
+        cert_reqs: Optional[str] = None,
+        ca_certs: Optional[str] = None,
         check_hostname: bool = False,
     ):
         self.keyfile = keyfile
@@ -1039,10 +1039,10 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         *,
         path: str = "",
         db: Union[str, int] = 0,
-        username: str = None,
-        password: str = None,
-        socket_timeout: float = None,
-        socket_connect_timeout: float = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        socket_timeout: Optional[float] = None,
+        socket_connect_timeout: Optional[float] = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
@@ -1247,7 +1247,7 @@ class ConnectionPool:
     def __init__(
         self,
         connection_class: Type[Connection] = Connection,
-        max_connections: int = None,
+        max_connections: Optional[int] = None,
         **connection_kwargs,
     ):
         max_connections = max_connections or 2 ** 31
