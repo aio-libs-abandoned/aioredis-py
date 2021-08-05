@@ -30,6 +30,8 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         branch: update/pre-commit-autoupdate
         title: Auto-update pre-commit hooks
+        committer: GitHub <noreply@github.com>
+        author: GitHub <noreply@github.com>
         commit-message: Auto-update pre-commit hooks
         body: Update versions of tools in pre-commit configs to latest version
         labels: update
