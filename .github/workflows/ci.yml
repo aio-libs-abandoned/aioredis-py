@@ -49,6 +49,10 @@ jobs:
     - name: Run twine checker
       run: |
         twine check dist/*
+    - name: Run mypy
+      run: |
+        pip install tests/requirements-mypy.txt
+        mypy aioredis --ignore-missing-imports
 
   test-unix:
     name: Test Unix
