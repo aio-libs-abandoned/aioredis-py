@@ -52,7 +52,7 @@ jobs:
     - name: Run mypy
       run: |
         pip install -r tests/requirements-mypy.txt
-        mypy aioredis
+        mypy aioredis docs/examples
 
   test-unix:
     name: Test Unix
