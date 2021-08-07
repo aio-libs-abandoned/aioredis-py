@@ -1,0 +1,37 @@
+name: Docs build test
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - "docs/**"
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - "docs/**"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Cache PyPI
+      uses: actions/cache@v2.1.6
+      with:
+        key: pip-docs-${{ hashFiles('docs/requirements.txt') }}
+        path: ~/.docs-cache/pip
+        restore-keys: |
+            pip-docs
+    - name: Install dependencies
+      run: |
+        python -m pip install -U pip wheel setuptools
+        python -m pip install -r docs/requirements.txt
+    - name: Run doc build
+      run: |
+        make doc
