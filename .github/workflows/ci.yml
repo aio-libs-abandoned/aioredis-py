@@ -51,7 +51,7 @@ jobs:
         twine check dist/*
     - name: Run mypy
       run: |
-        pip install tests/requirements-mypy.txt
+        pip install -r tests/requirements-mypy.txt
         mypy aioredis --ignore-missing-imports
 
   test-unix:
