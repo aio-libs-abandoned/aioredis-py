@@ -17,12 +17,10 @@ from typing import (
     Iterable,
     List,
     Mapping,
-    NewType,
     Optional,
     Set,
     Tuple,
     Type,
-    TypedDict,
     TypeVar,
     Union,
 )
