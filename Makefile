@@ -38,7 +38,7 @@ init-hooks:
 	pre-commit install-hooks
 
 lint: init-hooks
-	pre-commit run --all-files
+	pre-commit run --all-files --show-diff-on-failure
 
 devel: aioredis.egg-info init-hooks
 	pip install -U pip
