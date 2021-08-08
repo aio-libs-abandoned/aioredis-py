@@ -17,7 +17,7 @@ spelling:
 	$(MAKE) -C docs spelling
 
 mypy:
-	$(MYPY) aioredis --ignore-missing-imports
+	$(MYPY)
 
 test:
 	$(PYTEST)

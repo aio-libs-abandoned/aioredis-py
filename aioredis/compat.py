@@ -1,5 +1,12 @@
-# flake8: noqa
-try:
-    from typing import Protocol, TypedDict  # lgtm [py/unused-import]
-except ImportError:
-    from typing_extensions import Protocol, TypedDict  # lgtm [py/unused-import]
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import (
+        Protocol as Protocol,
+        TypedDict as TypedDict,
+    )
+else:
+    from typing_extensions import (
+        Protocol as Protocol,
+        TypedDict as TypedDict,
+    )

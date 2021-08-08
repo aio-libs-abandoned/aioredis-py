@@ -3,7 +3,7 @@ import weakref
 from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
 from aioredis.client import Redis
-from aioredis.connection import ConnectionPool, EncodableT, SSLConnection
+from aioredis.connection import Connection, ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
     ConnectionError,
     ReadOnlyError,
@@ -107,7 +107,7 @@ class SentinelConnectionPool(ConnectionPool):
         self.master_address = None
         self.slave_rr_counter = None
 
-    def owns_connection(self, connection: SentinelManagedConnection):
+    def owns_connection(self, connection: Connection):
         check = not self.is_master or (
             self.is_master and self.master_address == (connection.host, connection.port)
         )
