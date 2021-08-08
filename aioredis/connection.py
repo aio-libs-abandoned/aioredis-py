@@ -483,7 +483,9 @@ class HiredisParser(BaseParser):
         return True
 
     async def read_from_socket(
-        self, timeout: Union[float, None, Sentinel] = SENTINEL, raise_on_timeout: bool = True
+        self,
+        timeout: Union[float, None, Sentinel] = SENTINEL,
+        raise_on_timeout: bool = True,
     ):
         if self._stream is None or self._reader is None:
             raise RedisError("Parser already closed.")
@@ -1139,16 +1141,18 @@ def to_bool(value) -> Optional[bool]:
     return bool(value)
 
 
-URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyType({
-    "db": int,
-    "socket_timeout": float,
-    "socket_connect_timeout": float,
-    "socket_keepalive": to_bool,
-    "retry_on_timeout": to_bool,
-    "max_connections": int,
-    "health_check_interval": int,
-    "ssl_check_hostname": to_bool,
-})
+URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyType(
+    {
+        "db": int,
+        "socket_timeout": float,
+        "socket_connect_timeout": float,
+        "socket_keepalive": to_bool,
+        "retry_on_timeout": to_bool,
+        "max_connections": int,
+        "health_check_interval": int,
+        "ssl_check_hostname": to_bool,
+    }
+)
 
 
 class ConnectKwargs(TypedDict, total=False):
