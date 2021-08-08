@@ -537,6 +537,12 @@ class HiredisParser(BaseParser):
         # happened
         if isinstance(response, ConnectionError):
             raise response
+        elif (
+            isinstance(response, list)  # type: ignore[unreachable]
+            and response
+            and isinstance(response[0], ConnectionError)
+        ):
+            raise response[0]
         return response
 
 
