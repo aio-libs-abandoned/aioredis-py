@@ -215,7 +215,9 @@ class BaseParser:
     async def can_read(self, timeout: float) -> bool:
         raise NotImplementedError()
 
-    async def read_response(self) -> Union[EncodableT, ResponseError, None, List[EncodableT]]:
+    async def read_response(
+        self,
+    ) -> Union[EncodableT, ResponseError, None, List[EncodableT]]:
         raise NotImplementedError()
 
 
@@ -522,7 +524,9 @@ class HiredisParser(BaseParser):
             self.on_disconnect()
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from None
 
-        response: Union[EncodableT, ConnectionError, List[Union[EncodableT, ConnectionError]]]
+        response: Union[
+            EncodableT, ConnectionError, List[Union[EncodableT, ConnectionError]]
+        ]
         # _next_response might be cached from a can_read() call
         if self._next_response is not False:
             response = self._next_response
