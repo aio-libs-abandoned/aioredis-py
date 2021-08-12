@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -27,3 +28,9 @@ async def test_socket_param_regression(r):
     """A regression test for issue #1060"""
     conn = UnixDomainSocketConnection()
     await conn.disconnect() == True
+
+
+@pytest.mark.asyncio
+async def test_can_run_concurrent_commands(r):
+    assert await r.ping() is True
+    assert all(await asyncio.gather(*(r.ping() for _ in range(10))))
