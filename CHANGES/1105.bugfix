@@ -1,1 +1,1 @@
-Allow concurrent coroutines sending commands over a single connection
+Synchronized reading the responses from a connection

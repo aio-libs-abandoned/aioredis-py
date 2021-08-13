@@ -559,6 +559,7 @@ class Connection:
         "_parser",
         "_connect_callbacks",
         "_buffer_cutoff",
+        "_lock",
         "__dict__",
     )
 
