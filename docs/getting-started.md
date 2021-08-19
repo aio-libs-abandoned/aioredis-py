@@ -38,7 +38,7 @@ commands.
 
 There are two ways to specify a database index to set your connection pool to:
 
-1. Pass the index in as a keyward argument when initializing the client
+1. Pass the index in as a keyword argument when initializing the client
    ```python
    import aioredis
 
