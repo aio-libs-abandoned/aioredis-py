@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 if TYPE_CHECKING:
     from aioredis import Redis
