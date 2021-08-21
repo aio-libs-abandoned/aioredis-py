@@ -5,7 +5,6 @@ import inspect
 import re
 import time as mod_time
 import warnings
-from itertools import chain
 from typing import (
     AbstractSet,
     Any,
@@ -4480,9 +4479,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     async def _execute_transaction(
         self, connection: Connection, commands: CommandStackT, raise_on_error
     ):
-        cmds: Iterable[CommandT] = chain(
-            [(("MULTI",), {})], commands, [(("EXEC",), {})]
-        )
+        pre: CommandT = (("MULTI",), {})
+        post: CommandT = (("EXEC",), {})
+        cmds = (pre, *commands, post)
         all_cmds = connection.pack_commands(
             [args for args, options in cmds if EMPTY_RESPONSE not in options]
         )
