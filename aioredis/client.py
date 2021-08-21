@@ -4476,7 +4476,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.command_stack.append((args, options))
         return self
 
-    async def _execute_transaction(
+    async def _execute_transaction(  # noqa: C901
         self, connection: Connection, commands: CommandStackT, raise_on_error
     ):
         pre: CommandT = (("MULTI",), {})
