@@ -4146,6 +4146,7 @@ class PubSub:
             parsed_args = list_or_args(args[0], args[1:])
             channels = self._normalize_keys(dict.fromkeys(parsed_args))
         else:
+            parsed_args = []
             channels = self.channels
         self.pending_unsubscribe_channels.update(channels)
         return self.execute_command("UNSUBSCRIBE", *parsed_args)
