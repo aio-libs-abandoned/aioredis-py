@@ -85,7 +85,9 @@ _RedisT = TypeVar("_RedisT", bound="Redis")
 _NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
 
 
-def list_or_args(keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]) -> List[Union[_KeyT, _ArgT]]:
+def list_or_args(
+    keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]
+) -> List[Union[_KeyT, _ArgT]]:
     # returns a single new list combining keys and args
     key_list: List[Union[_KeyT, _ArgT]]
     try:
@@ -782,6 +784,8 @@ class Redis:
         "ZSCAN": parse_zscan,
     }
 
+    response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT]
+
     @classmethod
     def from_url(cls, url: str, **kwargs):
         """
@@ -906,7 +910,7 @@ class Redis:
         self.single_connection_client = single_connection_client
         self.connection: Optional[Connection] = None
 
-        self.response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT] = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
+        self.response_callbacks = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
 
     def __repr__(self):
         return f"{self.__class__.__name__}<{self.connection_pool!r}>"
@@ -4103,9 +4107,10 @@ class PubSub:
         Unsubscribe from the supplied patterns. If empty, unsubscribe from
         all patterns.
         """
+        patterns: Iterable[ChannelT]
         if args:
             parsed_args = list_or_args((args[0],), args[1:])
-            patterns: Iterable[ChannelT] = self._normalize_keys(dict.fromkeys(parsed_args)).keys()
+            patterns = self._normalize_keys(dict.fromkeys(parsed_args)).keys()
         else:
             parsed_args = []
             patterns = self.patterns
@@ -4475,7 +4480,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     async def _execute_transaction(
         self, connection: Connection, commands: CommandStackT, raise_on_error
     ):
-        cmds: Iterable[CommandT] = chain([(("MULTI",), {})], commands, [(("EXEC",), {})])
+        cmds: Iterable[CommandT] = chain(
+            [(("MULTI",), {})], commands, [(("EXEC",), {})]
+        )
         all_cmds = connection.pack_commands(
             [args for args, options in cmds if EMPTY_RESPONSE not in options]
         )
@@ -4570,7 +4577,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 self.annotate_exception(r, i + 1, commands[i][0])
                 raise r
 
-    def annotate_exception(self, exception: Exception, number: int, command: Iterable[object]):
+    def annotate_exception(
+        self, exception: Exception, number: int, command: Iterable[object]
+    ) -> None:
         cmd = " ".join(map(safe_str, command))
         msg = f"Command # {number} ({cmd}) of pipeline caused error: {exception.args}"
         exception.args = (msg,) + exception.args[1:]
@@ -4698,7 +4707,9 @@ class BitFieldOperation:
     Command builder for BITFIELD commands.
     """
 
-    def __init__(self, client: Redis, key: KeyT, default_overflow: Optional[str] = None):
+    def __init__(
+        self, client: Redis, key: KeyT, default_overflow: Optional[str] = None
+    ):
         self.client = client
         self.key = key
         self._default_overflow = default_overflow
