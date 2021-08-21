@@ -7,6 +7,7 @@ import time as mod_time
 import warnings
 from itertools import chain
 from typing import (
+    AbstractSet,
     Any,
     AsyncIterator,
     Awaitable,
@@ -15,6 +16,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     NoReturn,
     Optional,
     Sequence,
@@ -23,6 +25,8 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    ValuesView,
+    cast,
 )
 
 from aioredis.compat import Protocol, TypedDict
@@ -56,7 +60,7 @@ _StringLikeT = Union[bytes, str, memoryview]
 KeyT = _StringLikeT  # Main redis key space
 PatternT = _StringLikeT  # Patterns matched against keys, fields etc
 FieldT = EncodableT  # Fields within hash tables, streams and geo commands
-KeysT = Union[KeyT, Iterable[KeyT]]
+KeysT = Union[KeyT, Sequence[KeyT]]
 ChannelT = _StringLikeT
 GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
@@ -69,27 +73,35 @@ ScriptTextT = _StringLikeT
 # type signature because they will all be required to be the same key type.
 AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
 AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
-AnyChannelT = TypeVar("AnyChannelT", bytes, str, memoryview)
+AnyChannelT = ChannelT
+PubSubHandler = Callable[[Dict[str, str]], None]
 
 SYM_EMPTY = b""
 EMPTY_RESPONSE = "EMPTY_RESPONSE"
 
+_KeyT = TypeVar("_KeyT", bound=KeyT)
+_ArgT = TypeVar("_ArgT", KeyT, EncodableT)
+_RedisT = TypeVar("_RedisT", bound="Redis")
+_NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[EncodableT, object])
 
-def list_or_args(keys: KeysT, args: Optional[KeysT]) -> KeysT:
+
+def list_or_args(keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]) -> List[Union[_KeyT, _ArgT]]:
     # returns a single new list combining keys and args
+    key_list: List[Union[_KeyT, _ArgT]]
     try:
-        iter(keys)
+        iter(keys)  # type: ignore[arg-type]
+        keys = cast(Iterable[_KeyT], keys)
         # a string or bytes instance can be iterated, but indicates
         # keys wasn't passed as a list
         if isinstance(keys, (bytes, str)):
-            keys = [keys]
+            key_list = [keys]
         else:
-            keys = list(keys)
+            key_list = list(keys)
     except TypeError:
-        keys = [keys]
+        key_list = [cast(memoryview, keys)]
     if args:
-        keys.extend(args)
-    return keys
+        key_list.extend(args)
+    return key_list
 
 
 def timestamp_to_datetime(response):
@@ -161,7 +173,7 @@ def parse_object(response, infotype):
 
 def parse_info(response):
     """Parse the result of Redis's INFO command into a Python dict"""
-    info = {}
+    info: Dict[str, Any] = {}
     response = str_if_bytes(response)
 
     def get_value(value):
@@ -449,7 +461,7 @@ def parse_zscan(response, **options):
 
 
 def parse_slowlog_get(response, **options):
-    space = " " if options.get("decode_responses", False) else b" "
+    space: Union[str, bytes] = " " if options.get("decode_responses", False) else b" "
     return [
         {
             "id": item[0],
@@ -510,7 +522,7 @@ def parse_georadius_generic(response, **options):
         # just a bunch of places
         return response_list
 
-    cast = {
+    cast: Dict[str, Callable] = {
         "withdist": float,
         "withcoord": lambda ll: (float(ll[0]), float(ll[1])),
         "withhash": int,
@@ -892,9 +904,9 @@ class Redis:
             connection_pool = ConnectionPool(**kwargs)
         self.connection_pool = connection_pool
         self.single_connection_client = single_connection_client
-        self.connection = None
+        self.connection: Optional[Connection] = None
 
-        self.response_callbacks = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
+        self.response_callbacks: MutableMapping[str, ResponseCallbackT] = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
 
     def __repr__(self):
         return f"{self.__class__.__name__}<{self.connection_pool!r}>"
@@ -902,7 +914,7 @@ class Redis:
     def __await__(self):
         return self.initialize().__await__()
 
-    async def initialize(self):
+    async def initialize(self: _RedisT) -> _RedisT:
         if self.single_connection_client and self.connection is None:
             self.connection = await self.connection_pool.get_connection("_")
         return self
@@ -1033,7 +1045,8 @@ class Redis:
             connection_pool=self.connection_pool, single_connection_client=True
         )
 
-    __aenter__ = initialize
+    async def __aenter__(self: _RedisT) -> _RedisT:
+        return await self.initialize()
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.close()
@@ -1085,6 +1098,8 @@ class Redis:
                 return options[EMPTY_RESPONSE]
             raise
         if command_name in self.response_callbacks:
+            # Mypy bug: https://github.com/python/mypy/issues/10977
+            command_name = cast(str, command_name)
             retval = self.response_callbacks[command_name](response, **options)
             return await retval if inspect.isawaitable(retval) else retval
         return response
@@ -1261,9 +1276,9 @@ class Redis:
         if passwords:
             # as most users will have only one password, allow remove_passwords
             # to be specified as a simple string or a list
-            passwords = list_or_args(passwords, [])
-            for i, password in enumerate(passwords):
-                password = encoder.encode(password)
+            converted_passwords = list_or_args(passwords, [])
+            for i, raw_password in enumerate(converted_passwords):
+                password = encoder.encode(raw_password)
                 if password.startswith(b"+"):
                     pieces.append(b">%s" % password[1:])
                 elif password.startswith(b"-"):
@@ -1277,9 +1292,9 @@ class Redis:
         if hashed_passwords:
             # as most users will have only one password, allow remove_passwords
             # to be specified as a simple string or a list
-            hashed_passwords = list_or_args(hashed_passwords, [])
-            for i, hashed_password in enumerate(hashed_passwords):
-                hashed_password = encoder.encode(hashed_password)
+            parsed_hashed_passwords = list_or_args(hashed_passwords, [])
+            for i, raw_hashed_password in enumerate(parsed_hashed_passwords):
+                hashed_password = encoder.encode(raw_hashed_password)
                 if hashed_password.startswith(b"+"):
                     pieces.append(b"#%s" % hashed_password[1:])
                 elif hashed_password.startswith(b"-"):
@@ -1294,8 +1309,8 @@ class Redis:
             pieces.append(b"nopass")
 
         if categories:
-            for category in categories:
-                category = encoder.encode(category)
+            for raw_category in categories:
+                category = encoder.encode(raw_category)
                 # categories can be prefixed with one of (+@, +, -@, -)
                 if category.startswith(b"+@"):
                     pieces.append(category)
@@ -1311,8 +1326,8 @@ class Redis:
                         'prefixed with "+" or "-"'
                     )
         if commands:
-            for cmd in commands:
-                cmd = encoder.encode(cmd)
+            for raw_cmd in commands:
+                cmd = encoder.encode(raw_cmd)
                 if not cmd.startswith(b"+") and not cmd.startswith(b"-"):
                     raise DataError(
                         f'Command "{encoder.decode(cmd, force=True)}" must be '
@@ -1321,8 +1336,8 @@ class Redis:
                 pieces.append(cmd)
 
         if keys:
-            for key in keys:
-                key = encoder.encode(key)
+            for raw_key in keys:
+                key = encoder.encode(raw_key)
                 pieces.append(b"~%s" % key)
 
         return self.execute_command("ACL SETUSER", *pieces)
@@ -1367,7 +1382,7 @@ class Redis:
         will not get killed even if it is identified by one of the filter
         options. If skipme is not provided, the server defaults to skipme=True
         """
-        args = []
+        args: List[Union[bytes, str]] = []
         if _type is not None:
             client_types = ("normal", "master", "slave", "pubsub")
             if str(_type).lower() not in client_types:
@@ -1639,7 +1654,7 @@ class Redis:
         """Returns a list of slaves for ``service_name``"""
         return self.execute_command("SENTINEL SLAVES", service_name)
 
-    def shutdown(self, save: bool = False, nosave: bool = False) -> Awaitable:
+    def shutdown(self, save: bool = False, nosave: bool = False) -> None:
         """Shutdown the Redis server.  If Redis has persistence configured,
         data will be flushed before shutdown.  If the "save" option is set,
         a data flush will be attempted even if there is no persistence
@@ -1766,12 +1781,12 @@ class Redis:
             raise DataError("bit must be 0 or 1")
         params = [key, bit]
 
-        start is not None and params.append(start)
-
-        if start is not None and end is not None:
-            params.append(end)
-        elif start is None and end is not None:
-            raise DataError("start argument is not set, " "when end is specified")
+        if start is not None:
+            params.append(start)
+            if end is not None:
+                params.append(end)
+        elif end is not None:
+            raise DataError("start argument is not set, when end is specified")
         return self.execute_command("BITPOS", *params)
 
     def decr(self, name: KeyT, amount: int = 1) -> Awaitable:
@@ -1878,11 +1893,11 @@ class Redis:
         """
         Returns a list of values ordered identically to ``keys``
         """
-        args = list_or_args(keys, args)
+        encoded_args = list_or_args(keys, args)
         options: Dict[str, Union[EncodableT, Iterable[EncodableT]]] = {}
-        if not args:
+        if not encoded_args:
             options[EMPTY_RESPONSE] = []
-        return self.execute_command("MGET", *args, **options)
+        return self.execute_command("MGET", *encoded_args, **options)
 
     def mset(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
         """
@@ -2117,11 +2132,7 @@ class Redis:
 
         If timeout is 0, then block indefinitely.
         """
-        if timeout is None:
-            timeout = 0
-        keys = list_or_args(keys, None)
-        keys.append(timeout)
-        return self.execute_command("BLPOP", *keys)
+        return self.execute_command("BLPOP", *list_or_args(keys, (timeout,)))
 
     def brpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
@@ -2134,11 +2145,7 @@ class Redis:
 
         If timeout is 0, then block indefinitely.
         """
-        if timeout is None:
-            timeout = 0
-        keys = list_or_args(keys, None)
-        keys.append(timeout)
-        return self.execute_command("BRPOP", *keys)
+        return self.execute_command("BRPOP", *list_or_args(keys, (timeout,)))
 
     def brpoplpush(self, src: KeyT, dst: KeyT, timeout: int = 0) -> Awaitable:
         """
@@ -2149,8 +2156,6 @@ class Redis:
         seconds elapse, whichever is first. A ``timeout`` value of 0 blocks
         forever.
         """
-        if timeout is None:
-            timeout = 0
         return self.execute_command("BRPOPLPUSH", src, dst, timeout)
 
     def lindex(self, name: KeyT, index: int) -> Awaitable:
@@ -2362,8 +2367,10 @@ class Redis:
                     "must be specified and contain at least "
                     "two keys"
                 )
+            options: Dict[str, Optional[int]] = {"groups": len(get)}
+        else:
+            options = {"groups": None}
 
-        options = {"groups": len(get) if groups else None}
         return self.execute_command("SORT", *pieces, **options)
 
     # SCAN COMMANDS
@@ -2417,10 +2424,10 @@ class Redis:
             HASH, LIST, SET, STREAM, STRING, ZSET
             Additionally, Redis modules can expose other types as well.
         """
-        cursor = "0"
+        cursor = None
         while cursor != 0:
             cursor, data = await self.scan(
-                cursor=cursor, match=match, count=count, _type=_type
+                cursor=cursor or 0, match=match, count=count, _type=_type
             )
             for d in data:
                 yield d
@@ -2458,10 +2465,10 @@ class Redis:
 
         ``count`` allows for hint the minimum number of returns
         """
-        cursor = "0"
+        cursor = None
         while cursor != 0:
             cursor, data = await self.sscan(
-                name, cursor=cursor, match=match, count=count
+                name, cursor=cursor or 0, match=match, count=count
             )
             for d in data:
                 yield d
@@ -2499,10 +2506,10 @@ class Redis:
 
         ``count`` allows for hint the minimum number of returns
         """
-        cursor = "0"
+        cursor = None
         while cursor != 0:
             cursor, data = await self.hscan(
-                name, cursor=cursor, match=match, count=count
+                name, cursor=cursor or 0, match=match, count=count
             )
             for it in data.items():
                 yield it
@@ -2550,11 +2557,11 @@ class Redis:
 
         ``score_cast_func`` a callable used to cast the score return value
         """
-        cursor = "0"
+        cursor = None
         while cursor != 0:
             cursor, data = await self.zscan(
                 name,
-                cursor=cursor,
+                cursor=cursor or 0,
                 match=match,
                 count=count,
                 score_cast_func=score_cast_func,
@@ -2573,29 +2580,29 @@ class Redis:
 
     def sdiff(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the difference of sets specified by ``keys``"""
-        args = list_or_args(keys, args)
-        return self.execute_command("SDIFF", *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SDIFF", *parsed_args)
 
     def sdiffstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the difference of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SDIFFSTORE", dest, *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SDIFFSTORE", dest, *parsed_args)
 
     def sinter(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the intersection of sets specified by ``keys``"""
-        args = list_or_args(keys, args)
-        return self.execute_command("SINTER", *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SINTER", *parsed_args)
 
     def sinterstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the intersection of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SINTERSTORE", dest, *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SINTERSTORE", dest, *parsed_args)
 
     def sismember(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Return a boolean indicating if ``value`` is a member of set ``name``"""
@@ -2631,16 +2638,16 @@ class Redis:
 
     def sunion(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the union of sets specified by ``keys``"""
-        args = list_or_args(keys, args)
-        return self.execute_command("SUNION", *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SUNION", *parsed_args)
 
     def sunionstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Store the union of sets specified by ``keys`` into a new
         set named ``dest``.  Returns the number of keys in the new set.
         """
-        args = list_or_args(keys, args)
-        return self.execute_command("SUNIONSTORE", dest, *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("SUNIONSTORE", dest, *parsed_args)
 
     # STREAMS COMMANDS
     def xack(self, name: KeyT, groupname: GroupT, *ids: StreamIdT) -> Awaitable:
@@ -2847,9 +2854,9 @@ class Redis:
         self,
         name: KeyT,
         groupname: GroupT,
-        min: StreamIdT,
-        max: StreamIdT,
-        count: int,
+        min: Optional[StreamIdT],
+        max: Optional[StreamIdT],
+        count: Optional[int],
         consumername: Optional[ConsumerT] = None,
     ) -> Awaitable:
         """
@@ -3141,11 +3148,8 @@ class Redis:
 
         If timeout is 0, then block indefinitely.
         """
-        if timeout is None:
-            timeout = 0
-        keys = list_or_args(keys, None)
-        keys.append(timeout)
-        return self.execute_command("BZPOPMAX", *keys)
+        parsed_keys = list_or_args(keys, (timeout,))
+        return self.execute_command("BZPOPMAX", *parsed_keys)
 
     def bzpopmin(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
@@ -3158,8 +3162,6 @@ class Redis:
 
         If timeout is 0, then block indefinitely.
         """
-        if timeout is None:
-            timeout = 0
         klist: List[EncodableT] = list_or_args(keys, None)
         klist.append(timeout)
         return self.execute_command("BZPOPMIN", *klist)
@@ -3397,11 +3399,14 @@ class Redis:
         aggregate: Optional[str] = None,
     ) -> Awaitable:
         pieces: List[EncodableT] = [command, dest, len(keys)]
-        if isinstance(keys, dict):
-            keys, weights = keys.keys(), keys.values()
+        key_names: Union[Sequence[KeyT], AbstractSet[AnyKeyT]]
+        weights: Optional[ValuesView[float]]
+        if isinstance(keys, Mapping):
+            key_names, weights = keys.keys(), keys.values()
         else:
+            key_names = keys
             weights = None
-        pieces.extend(keys)
+        pieces.extend(key_names)
         if weights:
             pieces.append(b"WEIGHTS")
             pieces.extend(weights)
@@ -3476,7 +3481,7 @@ class Redis:
         """
         if key is None and not mapping:
             raise DataError("'hset' with no key value pairs")
-        items: List[EncodableT] = []
+        items: List[Union[FieldT, Optional[EncodableT]]] = []
         if key is not None:
             items.extend((key, value))
         if mapping:
@@ -3505,15 +3510,15 @@ class Redis:
         )
         if not mapping:
             raise DataError("'hmset' with 'mapping' of length 0")
-        items = []
+        items: List[Union[AnyFieldT, EncodableT]] = []
         for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("HMSET", name, *items)
 
-    def hmget(self, name: KeyT, keys: Sequence[FieldT], *args: FieldT) -> Awaitable:
+    def hmget(self, name: KeyT, keys: Sequence[KeyT], *args: FieldT) -> Awaitable:
         """Returns a list of values ordered identically to ``keys``"""
-        args = list_or_args(keys, args)
-        return self.execute_command("HMGET", name, *args)
+        parsed_args = list_or_args(keys, args)
+        return self.execute_command("HMGET", name, *parsed_args)
 
     def hvals(self, name: KeyT) -> Awaitable:
         """Return the list of values within hash ``name``"""
@@ -3749,7 +3754,7 @@ class Redis:
     def _georadiusgeneric(
         self, command: str, *args: EncodableT, **kwargs: Optional[EncodableT]
     ) -> Awaitable:
-        pieces: List[EncodableT] = list(args)
+        pieces: List[Optional[EncodableT]] = list(args)
         if kwargs["unit"] and kwargs["unit"] not in ("m", "km", "mi", "ft"):
             raise DataError("GEORADIUS invalid unit")
         elif kwargs["unit"]:
@@ -3844,6 +3849,7 @@ class Monitor:
 
     async def __aenter__(self):
         await self.connect()
+        self.connection = cast(Connection, self.connection)  # Connected above.
         await self.connection.send_command("MONITOR")
         # check that monitor returns 'OK', but don't return it to user
         response = await self.connection.read_response()
@@ -3852,17 +3858,22 @@ class Monitor:
         return self
 
     async def __aexit__(self, *args):
+        assert self.connection is not None
         await self.connection.disconnect()
         await self.connection_pool.release(self.connection)
 
     async def next_command(self) -> MonitorCommandInfo:
         """Parse the response from a monitor command"""
+        if self.connection is None:
+            raise RedisError("Connection already closed.")
         await self.connect()
         response = await self.connection.read_response()
         if isinstance(response, bytes):
             response = self.connection.encoder.decode(response, force=True)
         command_time, command_data = response.split(" ", 1)
         m = self.monitor_re.match(command_data)
+        if m is None:
+            raise RedisError("Invalid command received.")
         db_id, client_info, command = m.groups()
         command = " ".join(self.command_re.findall(command))
         # Redis escapes double quotes because each piece of the command
@@ -3919,7 +3930,7 @@ class PubSub:
         self.connection_pool = connection_pool
         self.shard_hint = shard_hint
         self.ignore_subscribe_messages = ignore_subscribe_messages
-        self.connection = None
+        self.connection: Optional[Connection] = None
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
         self.encoder = self.connection_pool.get_encoder()
@@ -3933,10 +3944,10 @@ class PubSub:
                 b"pong",
                 self.encoder.encode(self.HEALTH_CHECK_MESSAGE),
             ]
-        self.channels = {}
-        self.pending_unsubscribe_channels = set()
-        self.patterns = {}
-        self.pending_unsubscribe_patterns = set()
+        self.channels: Dict[ChannelT, PubSubHandler] = {}
+        self.pending_unsubscribe_channels: Set[ChannelT] = set()
+        self.patterns: Dict[ChannelT, PubSubHandler] = {}
+        self.pending_unsubscribe_patterns: Set[ChannelT] = set()
         self._lock = asyncio.Lock()
 
     async def __aenter__(self):
@@ -4056,7 +4067,7 @@ class PubSub:
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
 
-    def _normalize_keys(self, data: Mapping[AnyChannelT, EncodableT]):
+    def _normalize_keys(self, data: _NormalizeKeysT) -> _NormalizeKeysT:
         """
         normalize channel/pattern names to be either bytes or strings
         based on whether responses are automatically decoded. this saves us
@@ -4064,9 +4075,9 @@ class PubSub:
         """
         encode = self.encoder.encode
         decode = self.encoder.decode
-        return {decode(encode(k)): v for k, v in data.items()}
+        return {decode(encode(k)): v for k, v in data.items()}  # type: ignore[return-value]
 
-    async def psubscribe(self, *args: ChannelT, **kwargs: Callable):
+    async def psubscribe(self, *args: ChannelT, **kwargs: PubSubHandler):
         """
         Subscribe to channel patterns. Patterns supplied as keyword arguments
         expect a pattern name as the key and a callable as the value. A
@@ -4074,15 +4085,17 @@ class PubSub:
         received on that pattern rather than producing a message via
         ``listen()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_patterns: Dict[ChannelT, Optional[Callable]] = dict.fromkeys(args)
-        new_patterns.update(kwargs)
+        # Mixed types..
+        parsed_args = list_or_args(args[0], args[1:]) if args else args  # type: ignore[arg-type]
+        new_patterns: Dict[ChannelT, PubSubHandler] = dict.fromkeys(parsed_args)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_patterns.update(kwargs)  # type: ignore[arg-type]
         ret_val = await self.execute_command("PSUBSCRIBE", *new_patterns.keys())
         # update the patterns dict AFTER we send the command. we don't want to
         # subscribe twice to these patterns, once for the command and again
         # for the reconnection.
-        new_patterns = self._normalize_keys(new_patterns)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_patterns = self._normalize_keys(new_patterns)  # type: ignore[type-var]
         self.patterns.update(new_patterns)
         self.pending_unsubscribe_patterns.difference_update(new_patterns)
         return ret_val
@@ -4093,12 +4106,15 @@ class PubSub:
         all patterns.
         """
         if args:
-            args = list_or_args(args[0], args[1:])
-            patterns = self._normalize_keys(dict.fromkeys(args))
+            # Mixed types...
+            parsed_args: Sequence[EncodableT] = list_or_args(args[0], args[1:])
+            patterns: Mapping[EncodableT, Optional[PubSubHandler]] = self._normalize_keys(dict.fromkeys(parsed_args))
         else:
-            patterns = self.patterns
+            parsed_args = args
+            # Mypy bug: https://github.com/python/mypy/issues/10970
+            patterns = self.patterns  # type: ignore[assignment]
         self.pending_unsubscribe_patterns.update(patterns)
-        return self.execute_command("PUNSUBSCRIBE", *args)
+        return self.execute_command("PUNSUBSCRIBE", *parsed_args)
 
     async def subscribe(self, *args: ChannelT, **kwargs: Callable):
         """
@@ -4108,15 +4124,16 @@ class PubSub:
         that channel rather than producing a message via ``listen()`` or
         ``get_message()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_channels = dict.fromkeys(args)
-        new_channels.update(kwargs)
+        parsed_args = list_or_args(args[0], args[1:]) if args else ()
+        new_channels = dict.fromkeys(parsed_args)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_channels.update(kwargs)  # type: ignore[arg-type]
         ret_val = await self.execute_command("SUBSCRIBE", *new_channels.keys())
         # update the channels dict AFTER we send the command. we don't want to
         # subscribe twice to these channels, once for the command and again
         # for the reconnection.
-        new_channels = self._normalize_keys(new_channels)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_channels = self._normalize_keys(new_channels)  # type: ignore[type-var]
         self.channels.update(new_channels)
         self.pending_unsubscribe_channels.difference_update(new_channels)
         return ret_val
@@ -4127,12 +4144,12 @@ class PubSub:
         all channels
         """
         if args:
-            args = list_or_args(args[0], args[1:])
-            channels = self._normalize_keys(dict.fromkeys(args))
+            parsed_args = list_or_args(args[0], args[1:])
+            channels = self._normalize_keys(dict.fromkeys(parsed_args))
         else:
             channels = self.channels
         self.pending_unsubscribe_channels.update(channels)
-        return self.execute_command("UNSUBSCRIBE", *args)
+        return self.execute_command("UNSUBSCRIBE", *parsed_args)
 
     async def listen(self) -> AsyncIterator:
         """Listen for messages on channels this client has been subscribed to"""
@@ -4225,7 +4242,7 @@ class PubSub:
     async def run(
         self,
         *,
-        exception_handler: "PSWorkerThreadExcHandlerT" = None,
+        exception_handler: Optional["PSWorkerThreadExcHandlerT"] = None,
         poll_timeout: float = 1.0,
     ) -> None:
         """Process pub/sub messages using registered callbacks.
@@ -4309,21 +4326,21 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __init__(
         self,
         connection_pool: ConnectionPool,
-        response_callbacks: Mapping[str, ResponseCallbackT],
+        response_callbacks: MutableMapping[str, ResponseCallbackT],
         transaction: bool,
         shard_hint: Optional[str],
     ):
         self.connection_pool = connection_pool
         self.connection = None
         self.response_callbacks = response_callbacks
-        self.transaction = transaction
+        self.is_transaction = transaction
         self.shard_hint = shard_hint
         self.watching = False
         self.command_stack: CommandStackT = []
         self.scripts: Set[Script] = set()
         self.explicit_transaction = False
 
-    async def __aenter__(self) -> "Pipeline":
+    async def __aenter__(self: _RedisT) -> _RedisT:
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -4412,6 +4429,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 command_name, self.shard_hint
             )
             self.connection = conn
+        conn = cast(Connection, conn)
         try:
             await conn.send_command(*args)
             return await self.parse_response(conn, command_name, **options)
@@ -4462,7 +4480,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     async def _execute_transaction(
         self, connection: Connection, commands: CommandStackT, raise_on_error
     ):
-        cmds = chain([(("MULTI",), {})], commands, [(("EXEC",), {})])
+        cmds: Iterable[CommandT] = chain([(("MULTI",), {})], commands, [(("EXEC",), {})])
         all_cmds = connection.pack_commands(
             [args for args, options in cmds if EMPTY_RESPONSE not in options]
         )
@@ -4508,7 +4526,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             response.insert(i, e)
 
         if len(response) != len(commands):
-            await self.connection.disconnect()
+            if self.connection:
+                await self.connection.disconnect()
             raise ResponseError(
                 "Wrong number of response items from pipeline execution"
             ) from None
@@ -4591,7 +4610,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             return []
         if self.scripts:
             await self.load_scripts()
-        if self.transaction or self.explicit_transaction:
+        if self.is_transaction or self.explicit_transaction:
             execute = self._execute_transaction
         else:
             execute = self._execute_pipeline
@@ -4602,6 +4621,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             # assign to self.connection so reset() releases the connection
             # back to the pool after we're done
             self.connection = conn
+        conn = cast(Connection, conn)
 
         try:
             return await execute(conn, stack, raise_on_error)
@@ -4646,8 +4666,10 @@ class Script:
             # We need the encoding from the client in order to generate an
             # accurate byte representation of the script
             encoder = registered_client.connection_pool.get_encoder()
-            script = encoder.encode(script)
-        self.sha = hashlib.sha1(script).hexdigest()
+            script_bytes = encoder.encode(script)
+        else:
+            script_bytes = script
+        self.sha = hashlib.sha1(script_bytes).hexdigest()
 
     async def __call__(
         self,
@@ -4681,7 +4703,7 @@ class BitFieldOperation:
     Command builder for BITFIELD commands.
     """
 
-    def __init__(self, client: Redis, key: str, default_overflow: Optional[str] = None):
+    def __init__(self, client: Redis, key: KeyT, default_overflow: Optional[str] = None):
         self.client = client
         self.key = key
         self._default_overflow = default_overflow
@@ -4765,7 +4787,7 @@ class BitFieldOperation:
 
     @property
     def command(self):
-        cmd = ["BITFIELD", self.key]
+        cmd: List[EncodableT] = ["BITFIELD", self.key]
         for ops in self.operations:
             cmd.extend(ops)
         return cmd
