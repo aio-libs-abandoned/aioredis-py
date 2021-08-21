@@ -110,6 +110,12 @@ We no longer ship with a `Channel` abstraction over PubSub. This implementation 
 buggy and not well understood. Additionally, there is no such abstraction in our source
 implementation (redis-py).
 
+API level encoding support, like `.get(encoding="utf-8")`, is dropped. Whether decode
+or not could only be set globally on connection pool level during initialization
+with param `encoding`, `decode_responses`.
+
+Public API `.eval()` is changed from `.eval(script, keys=[], args=[])` to
+`.eval(script, len(keys), *(keys + args))`. The same thing happens on `.evalsha()`.
 
 ## Next Steps
 
