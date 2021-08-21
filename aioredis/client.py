@@ -82,7 +82,7 @@ EMPTY_RESPONSE = "EMPTY_RESPONSE"
 _KeyT = TypeVar("_KeyT", bound=KeyT)
 _ArgT = TypeVar("_ArgT", KeyT, EncodableT)
 _RedisT = TypeVar("_RedisT", bound="Redis")
-_NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[EncodableT, object])
+_NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
 
 
 def list_or_args(keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]) -> List[Union[_KeyT, _ArgT]]:
@@ -906,7 +906,7 @@ class Redis:
         self.single_connection_client = single_connection_client
         self.connection: Optional[Connection] = None
 
-        self.response_callbacks: MutableMapping[str, ResponseCallbackT] = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
+        self.response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT] = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
 
     def __repr__(self):
         return f"{self.__class__.__name__}<{self.connection_pool!r}>"
@@ -4085,8 +4085,7 @@ class PubSub:
         received on that pattern rather than producing a message via
         ``listen()``.
         """
-        # Mixed types..
-        parsed_args = list_or_args(args[0], args[1:]) if args else args  # type: ignore[arg-type]
+        parsed_args = list_or_args((args[0],), args[1:]) if args else args
         new_patterns: Dict[ChannelT, PubSubHandler] = dict.fromkeys(parsed_args)
         # Mypy bug: https://github.com/python/mypy/issues/10970
         new_patterns.update(kwargs)  # type: ignore[arg-type]
@@ -4094,25 +4093,22 @@ class PubSub:
         # update the patterns dict AFTER we send the command. we don't want to
         # subscribe twice to these patterns, once for the command and again
         # for the reconnection.
-        # Mypy bug: https://github.com/python/mypy/issues/10970
-        new_patterns = self._normalize_keys(new_patterns)  # type: ignore[type-var]
+        new_patterns = self._normalize_keys(new_patterns)
         self.patterns.update(new_patterns)
         self.pending_unsubscribe_patterns.difference_update(new_patterns)
         return ret_val
 
-    def punsubscribe(self, *args: EncodableT) -> Awaitable:
+    def punsubscribe(self, *args: ChannelT) -> Awaitable:
         """
         Unsubscribe from the supplied patterns. If empty, unsubscribe from
         all patterns.
         """
         if args:
-            # Mixed types...
-            parsed_args: Sequence[EncodableT] = list_or_args(args[0], args[1:])
-            patterns: Mapping[EncodableT, Optional[PubSubHandler]] = self._normalize_keys(dict.fromkeys(parsed_args))
+            parsed_args = list_or_args((args[0],), args[1:])
+            patterns: Iterable[ChannelT] = self._normalize_keys(dict.fromkeys(parsed_args)).keys()
         else:
-            parsed_args = args
-            # Mypy bug: https://github.com/python/mypy/issues/10970
-            patterns = self.patterns  # type: ignore[assignment]
+            parsed_args = []
+            patterns = self.patterns
         self.pending_unsubscribe_patterns.update(patterns)
         return self.execute_command("PUNSUBSCRIBE", *parsed_args)
 
@@ -4124,7 +4120,7 @@ class PubSub:
         that channel rather than producing a message via ``listen()`` or
         ``get_message()``.
         """
-        parsed_args = list_or_args(args[0], args[1:]) if args else ()
+        parsed_args = list_or_args((args[0],), args[1:]) if args else ()
         new_channels = dict.fromkeys(parsed_args)
         # Mypy bug: https://github.com/python/mypy/issues/10970
         new_channels.update(kwargs)  # type: ignore[arg-type]
@@ -4132,8 +4128,7 @@ class PubSub:
         # update the channels dict AFTER we send the command. we don't want to
         # subscribe twice to these channels, once for the command and again
         # for the reconnection.
-        # Mypy bug: https://github.com/python/mypy/issues/10970
-        new_channels = self._normalize_keys(new_channels)  # type: ignore[type-var]
+        new_channels = self._normalize_keys(new_channels)
         self.channels.update(new_channels)
         self.pending_unsubscribe_channels.difference_update(new_channels)
         return ret_val
@@ -4326,7 +4321,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __init__(
         self,
         connection_pool: ConnectionPool,
-        response_callbacks: MutableMapping[str, ResponseCallbackT],
+        response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT],
         transaction: bool,
         shard_hint: Optional[str],
     ):
@@ -4575,7 +4570,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 self.annotate_exception(r, i + 1, commands[i][0])
                 raise r
 
-    def annotate_exception(self, exception: Exception, number: int, command: str):
+    def annotate_exception(self, exception: Exception, number: int, command: Iterable[object]):
         cmd = " ".join(map(safe_str, command))
         msg = f"Command # {number} ({cmd}) of pipeline caused error: {exception.args}"
         exception.args = (msg,) + exception.args[1:]

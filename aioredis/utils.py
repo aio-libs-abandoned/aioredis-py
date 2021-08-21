@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, TypeVar, overload
 
 if TYPE_CHECKING:
     from aioredis import Redis
@@ -11,6 +11,9 @@ try:
     HIREDIS_AVAILABLE = True
 except ImportError:
     HIREDIS_AVAILABLE = False
+
+
+_T = TypeVar("_T")
 
 
 def from_url(url, **kwargs):
@@ -37,11 +40,18 @@ class pipeline:
         del self.p
 
 
-def str_if_bytes(value):
+# Mypy bug: https://github.com/python/mypy/issues/11005
+@overload
+def str_if_bytes(value: bytes) -> str:  # type: ignore[misc]
+    ...
+@overload
+def str_if_bytes(value: _T) -> _T:
+    ...
+def str_if_bytes(value: object) -> object:
     return (
         value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
     )
 
 
-def safe_str(value):
+def safe_str(value: object) -> str:
     return str(str_if_bytes(value))
