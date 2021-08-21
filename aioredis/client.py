@@ -4483,7 +4483,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         post: CommandT = (("EXEC",), {})
         cmds = (pre, *commands, post)
         all_cmds = connection.pack_commands(
-            [args for args, options in cmds if EMPTY_RESPONSE not in options]
+            args for args, options in cmds if EMPTY_RESPONSE not in options
         )
         await connection.send_packed_command(all_cmds)
         errors = []
