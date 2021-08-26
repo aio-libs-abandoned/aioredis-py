@@ -559,6 +559,7 @@ class Connection:
         "_parser",
         "_connect_callbacks",
         "_buffer_cutoff",
+        "_lock",
         "__dict__",
     )
 
@@ -609,6 +610,7 @@ class Connection:
         )
         self._connect_callbacks: List[ConnectCallbackT] = []
         self._buffer_cutoff = 6000
+        self._lock = asyncio.Lock()
 
     def __repr__(self):
         repr_args = ",".join((f"{k}={v}" for k, v in self.repr_pieces()))
@@ -850,8 +852,9 @@ class Connection:
     async def read_response(self):
         """Read the response from a previously sent command"""
         try:
-            async with async_timeout.timeout(self.socket_timeout):
-                response = await self._parser.read_response()
+            async with self._lock:
+                async with async_timeout.timeout(self.socket_timeout):
+                    response = await self._parser.read_response()
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError(f"Timeout reading from {self.host}:{self.port}")

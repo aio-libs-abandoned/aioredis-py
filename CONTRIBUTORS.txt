@@ -25,6 +25,7 @@ Dima Kit
 Dima Kruk
 Dmitry Vasilishin <dmvass>
 Evgenii Morozov <emorozov>
+Federico Jaite <fedej>
 Hugo <hugovk>
 Ihor Gorobets
 Ihor Liubymov
