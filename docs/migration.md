@@ -1,6 +1,6 @@
 # Migrating to v2.0
 
-## TL;DR
+## Summary
 
 aioredis v2.0 is now a completely compliant asyncio-native implementation of redis-py.
 The entire core and public API has been re-written to follow redis-py's implementation
