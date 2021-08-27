@@ -110,6 +110,20 @@ We no longer ship with a `Channel` abstraction over PubSub. This implementation 
 buggy and not well understood. Additionally, there is no such abstraction in our source
 implementation (redis-py).
 
+We have dropped factory functions `create_redis()`, `create_redis_pool()`,
+`create_pool()` and etc, after making the project compliant with redis-py.
+Commonly you don't need to touch underlying connection pool and connections directly.
+The `Redis` client manages a connection pool and acquire connection automatically
+when executing redis commands. From aioredis 2.x, you could configure
+the connection pool during `Redis.__init__()`.
+
+Talking about the connection pool, we have the dropped the pre-filling design
+and switch to redis-py's lazy-filling degisn. In aioredis 1.x, factory `create_pool()`
+initializes a connection pool and pre-fill the pool with some connections.
+The number is controlled by parameter `minsize`. While in aioredis 2.x, the
+connection pool is lazy-filled: connection is only created when client `Redis`
+tries to acquire a connection and there's no available connection in the pool.
+
 We have dropped command-level encoding support, like `.get(encoding="utf-8")`. You now
 set the encoding globally on connetions and connection pools during initialization
 with the `encoding` parameter. You can also use the `decode_responses` parameter to
