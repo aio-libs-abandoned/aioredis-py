@@ -60,6 +60,7 @@ Stanislau Arkhipenka
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris
+Theron Luhn <luhn>
 Thomas Steinacher
 Volodymyr Hotsyk
 Youngmin Koo <youngminz>
