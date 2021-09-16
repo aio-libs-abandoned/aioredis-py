@@ -1,0 +1,1 @@
+Fix issue with auto-reconnect in `PubSub.get_message`.
