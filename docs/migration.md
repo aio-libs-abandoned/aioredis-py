@@ -32,7 +32,7 @@ Instead, the default mode of initialization is the same as redis-py:
 As you can see, the `from_url(...)` methods are not coroutine functions. This is because
 connections are created lazily rather than pre-filled, in keeping with the pattern
 established in redis-py. If you have a need to establish a connection immediately, you
-can use `aioredis.Reds.ping` to fetch a connection and ping your redis instance.
+can use `aioredis.Redis.ping` to fetch a connection and ping your redis instance.
 
 ## Pipelines and Transactions (Multi/Exec)
 
