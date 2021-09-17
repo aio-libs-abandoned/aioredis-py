@@ -46,7 +46,7 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=classifiers,
     platforms=["POSIX"],
-    url="https://github.com/aio-libs/aioredis",
+    url="https://github.com/aio-libs/aioredis-py",
     license="MIT",
     packages=find_packages(exclude=["tests"]),
     install_requires=[
