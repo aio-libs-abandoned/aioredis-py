@@ -83,11 +83,11 @@ SYM_EMPTY = b""
 SERVER_CLOSED_CONNECTION_ERROR = "Connection closed by server."
 
 
-class Sentinel(enum.Enum):
+class _Sentinel(enum.Enum):
     sentinel = object()
 
 
-SENTINEL = Sentinel.sentinel
+SENTINEL = _Sentinel.sentinel
 MODULE_LOAD_ERROR = "Error loading the extension. Please check the server logs."
 NO_SUCH_MODULE_ERROR = "Error unloading module: no such module with that name"
 MODULE_UNLOAD_NOT_POSSIBLE_ERROR = "Error unloading module: operation not possible."
@@ -251,7 +251,7 @@ class SocketBuffer:
     async def _read_from_socket(
         self,
         length: Optional[int] = None,
-        timeout: Union[float, None, Sentinel] = SENTINEL,
+        timeout: Union[float, None, _Sentinel] = SENTINEL,
         raise_on_timeout: bool = True,
     ) -> bool:
         buf = self._buffer
@@ -487,7 +487,7 @@ class HiredisParser(BaseParser):
 
     async def read_from_socket(
         self,
-        timeout: Union[float, None, Sentinel] = SENTINEL,
+        timeout: Union[float, None, _Sentinel] = SENTINEL,
         raise_on_timeout: bool = True,
     ):
         if self._stream is None or self._reader is None:
