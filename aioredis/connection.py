@@ -394,7 +394,7 @@ class PythonParser(BaseParser):
         return self._buffer and bool(await self._buffer.can_read(timeout))
 
     async def read_response(self) -> Union[EncodableT, ResponseError, None]:
-        if not self._buffer:
+        if not self._buffer or not self.encoder:
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
         raw = await self._buffer.readline()
         if not raw:
@@ -437,7 +437,6 @@ class PythonParser(BaseParser):
                 return None
             response = [(await self.read_response()) for _ in range(length)]
         if isinstance(response, bytes):
-            assert self.encoder is not None
             response = self.encoder.decode(response)
         return response
 
