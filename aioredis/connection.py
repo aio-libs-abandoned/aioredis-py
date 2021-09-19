@@ -754,8 +754,9 @@ class Connection:
 
         # if username and/or password are set, authenticate
         if self.username or self.password:
+            auth_args: Union[Tuple[str], Tuple[str, str]]
             if self.username:
-                auth_args: Tuple[str, ...] = (self.username, self.password or "")
+                auth_args = (self.username, self.password or "")
             else:
                 # Mypy bug: https://github.com/python/mypy/issues/10944
                 auth_args = (self.password or "",)
