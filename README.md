@@ -31,10 +31,14 @@ The easiest way to install aioredis is by using the package on PyPi:
 
     pip install aioredis
 
+It is **highly recommend** you also install hiredis:
+
+    pip install hiredis
+
 ## Requirements
 
 -   Python 3.6+
--   hiredis
+-   Optional (recommended): hiredis
 
 ## Benchmarks
 
