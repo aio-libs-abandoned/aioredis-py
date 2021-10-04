@@ -806,6 +806,21 @@ class TestRedisCommands:
         assert await r.get("integer") == str(integer).encode()
         assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_getex(self, r: aioredis.Redis):
+        await r.set("a", 1)
+        assert await r.getex("a") == b"1"
+        assert await r.ttl("a") == -1
+        assert await r.getex("a", ex=60) == b"1"
+        assert await r.ttl("a") == 60
+        assert await r.getex("a", px=6000) == b"1"
+        assert await r.ttl("a") == 6
+        expire_at = await redis_server_time(r) + datetime.timedelta(minutes=1)
+        assert await r.getex("a", pxat=expire_at) == b"1"
+        assert await r.ttl("a") <= 60
+        assert await r.getex("a", persist=True) == b"1"
+        assert await r.ttl("a") == -1
+
     async def test_get_set_bit(self, r: aioredis.Redis):
         # no value
         assert not await r.getbit("a", 5)
