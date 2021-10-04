@@ -1359,6 +1359,7 @@ class Redis:
         _type: Optional[str] = None,
         addr: Optional[str] = None,
         skipme: Optional[bool] = None,
+        laddr: Optional[bool] = None,
     ) -> Awaitable:
         """
         Disconnects client(s) using a variety of filter options
@@ -1369,6 +1370,7 @@ class Redis:
         :param skipme: If True, then the client calling the command
         will not get killed even if it is identified by one of the filter
         options. If skipme is not provided, the server defaults to skipme=True
+        :param laddr: Kills a client by its 'local (bind)  address:port'
         """
         args = []
         if _type is not None:
@@ -1387,6 +1389,8 @@ class Redis:
             args.extend((b"ID", _id))
         if addr is not None:
             args.extend((b"ADDR", addr))
+        if laddr is not None:
+            args.extend((b"LADDR", laddr))
         if not args:
             raise DataError(
                 "CLIENT KILL <filter> <value> ... ... <filter> "
