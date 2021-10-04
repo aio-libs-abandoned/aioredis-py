@@ -963,7 +963,7 @@ class TestRedisCommands:
         assert await r.pttl("a") == -2
 
     @skip_if_server_version_lt("6.2.0")
-    def test_hrandfield(self, r):
+    async def test_hrandfield(self, r: aioredis.Redis):
         assert await r.hrandfield("key") is None
         await r.hset("key", mapping={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
         assert await r.hrandfield("key") is not None
@@ -2456,6 +2456,16 @@ class TestRedisCommands:
         # with maxlen, the list evicts the first message
         await r.xadd(stream, {"foo": "bar"}, maxlen=2, approximate=False)
         assert await r.xlen(stream) == 2
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_xadd_nomkstream(self, r: aioredis.Redis):
+        # nomkstream option
+        stream = "stream"
+        await r.xadd(stream, {"foo": "bar"})
+        await r.xadd(stream, {"some": "other"}, nomkstream=False)
+        assert await r.xlen(stream) == 2
+        await r.xadd(stream, {"some": "other"}, nomkstream=True)
+        assert await r.xlen(stream) == 3
 
     @skip_if_server_version_lt("5.0.0")
     async def test_xclaim(self, r: aioredis.Redis):

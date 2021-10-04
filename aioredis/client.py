@@ -2772,6 +2772,7 @@ class Redis:
         id: StreamIdT = "*",
         maxlen: Optional[int] = None,
         approximate: bool = True,
+        nomkstream: bool = False,
     ) -> Awaitable:
         """
         Add to a stream.
@@ -2780,7 +2781,7 @@ class Redis:
         id: Location to insert this record. By default it is appended.
         maxlen: truncate old stream members beyond this size
         approximate: actual stream length may be slightly more than maxlen
-
+        nomkstream: When set to true, do not make a stream
         """
         pieces: List[EncodableT] = []
         if maxlen is not None:
@@ -2790,6 +2791,8 @@ class Redis:
             if approximate:
                 pieces.append(b"~")
             pieces.append(str(maxlen))
+        if nomkstream:
+            pieces.append(b"NOMKSTREAM")
         pieces.append(id)
         if not isinstance(fields, dict) or len(fields) == 0:
             raise DataError("XADD fields must be a non-empty dict")
