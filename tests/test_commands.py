@@ -345,6 +345,12 @@ class TestRedisCommands:
         assert isinstance(clients[0], dict)
         assert "addr" in clients[0]
 
+    @skip_if_server_version_lt("6.2.0")
+    def test_client_info(self, r: aioredis.Redis):
+        info = r.client_info()
+        assert isinstance(info, dict)
+        assert "addr" in info
+
     @skip_if_server_version_lt("5.0.0")
     async def test_client_list_type(self, r: aioredis.Redis):
         with pytest.raises(exceptions.RedisError):
