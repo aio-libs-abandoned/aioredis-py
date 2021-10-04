@@ -1539,6 +1539,23 @@ class TestRedisCommands:
         # redis-py
         assert await r.zadd("a", {"a1": 1}, xx=True, incr=True) is None
 
+    @skip_if_server_version_lt("6.2.0")
+    def test_zadd_gt_lt(self, r: aioredis.Redis):
+
+        for i in range(1, 20):
+            await r.zadd("a", {"a%s" % i: i})
+        assert await r.zadd("a", {"a20": 5}, gt=3) == 1
+
+        for i in range(1, 20):
+            await r.zadd("a", {"a%s" % i: i})
+        assert await r.zadd("a", {"a2": 5}, lt=1) == 0
+
+        # cannot use both nx and xx options
+        with pytest.raises(exceptions.DataError):
+            await r.zadd("a", {"a15": 155}, nx=True, lt=True)
+            await r.zadd("a", {"a15": 155}, nx=True, gt=True)
+            await r.zadd("a", {"a15": 155}, lt=True, gt=True)
+
     async def test_zcard(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zcard("a") == 3

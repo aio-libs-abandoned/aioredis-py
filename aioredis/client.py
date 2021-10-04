@@ -3163,6 +3163,8 @@ class Redis:
         xx: bool = False,
         ch: bool = False,
         incr: bool = False,
+        gt: bool = None,
+        lt: bool = None,
     ) -> Awaitable:
         """
         Set any number of element-name, score pairs to the key ``name``. Pairs
@@ -3196,6 +3198,8 @@ class Redis:
                 "ZADD option 'incr' only works when passing a "
                 "single element/score pair"
             )
+        if nx is True and (gt is not None or lt is not None):
+            raise DataError("Only one of 'nx', 'lt', or 'gr' may be defined.")
         pieces: List[EncodableT] = []
         options = {}
         if nx:
@@ -3207,6 +3211,10 @@ class Redis:
         if incr:
             pieces.append(b"INCR")
             options["as_score"] = True
+        if gt:
+            pieces.append(b"GT")
+        if lt:
+            pieces.append(b"LT")
         for pair in mapping.items():
             pieces.append(pair[1])
             pieces.append(pair[0])
