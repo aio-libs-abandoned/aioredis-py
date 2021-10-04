@@ -1873,7 +1873,7 @@ class Redis:
         """
         return self.execute_command("GET", name)
 
-    def getdel(self, name: KeyT):
+    def getdel(self, name: KeyT) -> Awaitable:
         """
         Get the value at key ``name`` and delete the key. This command
         is similar to GET, except for the fact that it also deletes
@@ -3264,6 +3264,30 @@ class Redis:
         args = (count is not None) and [count] or []
         options = {"withscores": True}
         return self.execute_command("ZPOPMIN", name, *args, **options)
+
+    def zrandmember(
+        self, key: KeyT, count: int = None, withscores: bool = False
+    ) -> Awaitable:
+        """
+        Return a random element from the sorted set value stored at key.
+
+        ``count`` if the argument is positive, return an array of distinct
+        fields. If called with a negative count, the behavior changes and
+        the command is allowed to return the same field multiple times.
+        In this case, the number of returned fields is the absolute value
+        of the specified count.
+
+        ``withscores`` The optional WITHSCORES modifier changes the reply so it
+        includes the respective scores of the randomly selected elements from
+        the sorted set.
+        """
+        params = []
+        if count is not None:
+            params.append(count)
+        if withscores:
+            params.append("WITHSCORES")
+
+        return self.execute_command("ZRANDMEMBER", key, *params)
 
     def bzpopmax(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """

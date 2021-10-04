@@ -1608,6 +1608,18 @@ class TestRedisCommands:
         # with count
         assert await r.zpopmin("a", count=2) == [(b"a2", 2), (b"a3", 3)]
 
+    @skip_if_server_version_lt("6.2.0")
+    def test_zrandemember(self, r):
+        await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
+        assert await r.zrandmember("a") is not None
+        assert len(await r.zrandmember("a", 2)) == 2
+        # with scores
+        assert len(await r.zrandmember("a", 2, True)) == 4
+        # without duplications
+        assert len(await r.zrandmember("a", 10)) == 5
+        # with duplications
+        assert len(await r.zrandmember("a", -10)) == 10
+
     @skip_if_server_version_lt("4.9.0")
     async def test_bzpopmax(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2})
