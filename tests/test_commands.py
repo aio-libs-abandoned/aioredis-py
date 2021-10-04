@@ -657,6 +657,29 @@ class TestRedisCommands:
         with pytest.raises(exceptions.RedisError):
             await r.bitpos(key, 7) == 12
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_copy(self, r: aioredis.Redis):
+        assert await r.copy("a", "b") == 0
+        await r.set("a", "foo")
+        assert await r.copy("a", "b") == 1
+        assert await r.get("a") == b"foo"
+        assert await r.get("b") == b"foo"
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_copy_and_replace(self, r: aioredis.Redis):
+        await r.set("a", "foo1")
+        await r.set("b", "foo2")
+        assert await r.copy("a", "b") == 0
+        assert await r.copy("a", "b", replace=True) == 1
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_copy_to_another_database(self, create_redis):
+        r0 = await create_redis(db=0)
+        r1 = await create_redis(db=1)
+        await r0.set("a", "foo")
+        assert await r0.copy("a", "b", destination_db=1) == 1
+        assert await r1.get("b") == b"foo"
+
     async def test_decr(self, r: aioredis.Redis):
         assert await r.decr("a") == -1
         assert await r.get("a") == b"-1"
