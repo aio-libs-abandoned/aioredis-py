@@ -3,4 +3,4 @@ mkdocs-autorefs==0.2.1
 mkdocs-awesome-pages-plugin==2.5.0
 mkdocs-material==7.3.0
 mkdocs-material-extensions==1.0.1
-mkdocstrings==0.16.1
+mkdocstrings==0.16.2
