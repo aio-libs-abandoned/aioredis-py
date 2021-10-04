@@ -481,6 +481,10 @@ class TestRedisCommands:
         with pytest.raises(exceptions.RedisError):
             await r.client_pause(timeout="not an integer")
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_client_unpause(self, r: aioredis.Redis):
+        assert await r.client_unpause() == b"OK"
+
     async def test_config_get(self, r: aioredis.Redis):
         data = await r.config_get()
         assert "maxmemory" in data
