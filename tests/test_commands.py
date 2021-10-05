@@ -3160,6 +3160,47 @@ class TestRedisCommands:
         # 1 message is trimmed
         assert await r.xtrim(stream, 3, approximate=False) == 1
 
+    @skip_if_server_version_lt('6.2.4')
+    async def test_xtrim_minlen_and_length_args(self, r: aioredis.Redis):
+        stream = 'stream'
+
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+
+        # Future self: No limits without approximate, according to the api
+        with pytest.raises(aioredis.ResponseError):
+            assert await r.xtrim(stream, 3, approximate=False, limit=2)
+
+        # maxlen with a limit
+        assert await r.xtrim(stream, 3, approximate=True, limit=2) == 0
+        await r.delete(stream)
+
+        with pytest.raises(aioredis.DataError):
+            assert await r.xtrim(stream, maxlen=3, minid="sometestvalue")
+
+        # minid with a limit
+        m1 = await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xtrim(stream, None, approximate=True, minid=m1, limit=3) == 0
+
+        # pure minid
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        m4 = await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xtrim(stream, None, approximate=False, minid=m4) == 7
+
+        # minid approximate
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        m3 = await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xtrim(stream, None, approximate=True, minid=m3) == 0
+
     async def test_bitfield_operations(self, r: aioredis.Redis):
         # comments show affected bits
         await r.execute_command("SELECT", 10)

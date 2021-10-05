@@ -3296,7 +3296,14 @@ class Redis:
 
         return self.execute_command("XREVRANGE", name, *pieces)
 
-    def xtrim(self, name: KeyT, maxlen: int, approximate: bool = True) -> Awaitable:
+    def xtrim(
+        self,
+        name: KeyT,
+        maxlen: int,
+        approximate: bool = True,
+        minid: Optional[StreamIdT] = None,
+        limit: Optional[int] = None,
+    ) -> Awaitable:
         """
         Trims old messages from a stream.
         name: name of the stream.
@@ -3304,9 +3311,22 @@ class Redis:
         approximate: actual stream length may be slightly more than maxlen
         """
         pieces: List[EncodableT] = [b"MAXLEN"]
+        if maxlen is not None and minid is not None:
+            raise DataError("Only one of ``maxlen`` or ``minid`` may be specified")
+
+        if maxlen is not None:
+            pieces.append(b'MAXLEN')
+        if minid is not None:
+            pieces.append(b'MINID')
         if approximate:
             pieces.append(b"~")
-        pieces.append(maxlen)
+        if maxlen is not None:
+            pieces.append(maxlen)
+        if minid is not None:
+            pieces.append(minid)
+        if limit is not None:
+            pieces.append(b"LIMIT")
+            pieces.append(limit)
         return self.execute_command("XTRIM", name, *pieces)
 
     # SORTED SET COMMANDS
