@@ -2585,13 +2585,59 @@ class TestRedisCommands:
         await r.xadd(stream, {"some": "other"}, nomkstream=True)
         assert await r.xlen(stream) == 3
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_xautoclaim(self, r: aioredis.Redis):
+        stream = 'stream'
+        group = 'group'
+        consumer1 = 'consumer1'
+        consumer2 = 'consumer2'
+
+        message_id1 = await r.xadd(stream, {'john': 'wick'})
+        message_id2 = await r.xadd(stream, {'johny': 'deff'})
+        message = await get_stream_message(r, stream, message_id1)
+        await r.xgroup_create(stream, group, 0)
+
+        # trying to claim a message that isn't already pending doesn't
+        # do anything
+        response = await r.xautoclaim(stream, group, consumer2, min_idle_time=0)
+        assert response == []
+
+        # read the group as consumer1 to initially claim the messages
+        await r.xreadgroup(group, consumer1, streams={stream: '>'})
+
+        # claim one message as consumer2
+        response = await r.xautoclaim(stream, group, consumer2,
+                                min_idle_time=0, count=1)
+        assert response == [message]
+
+        # reclaim the messages as consumer1, but use the justid argument
+        # which only returns message ids
+        assert await r.xautoclaim(stream, group, consumer1, min_idle_time=0,
+                            start_id=0, justid=True) == \
+               [message_id1, message_id2]
+        assert await r.xautoclaim(stream, group, consumer1, min_idle_time=0,
+                            start_id=message_id2, justid=True) == \
+               [message_id2]
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_xautoclaim_negative(self, r: aioredis.Redis):
+        stream = 'stream'
+        group = 'group'
+        consumer = 'consumer'
+        with pytest.raises(aioredis.DataError):
+            await r.xautoclaim(stream, group, consumer, min_idle_time=-1)
+        with pytest.raises(ValueError):
+            await r.xautoclaim(stream, group, consumer, min_idle_time="wrong")
+        with pytest.raises(aioredis.DataError):
+            await r.xautoclaim(stream, group, consumer, min_idle_time=0,
+                         count=-1)
+
     @skip_if_server_version_lt("5.0.0")
     async def test_xclaim(self, r: aioredis.Redis):
         stream = "stream"
         group = "group"
         consumer1 = "consumer1"
         consumer2 = "consumer2"
-
         message_id = await r.xadd(stream, {"john": "wick"})
         message = await get_stream_message(r, stream, message_id)
         await r.xgroup_create(stream, group, 0)
@@ -2879,7 +2925,7 @@ class TestRedisCommands:
         assert len(response) == 0
 
     @skip_if_server_version_lt('6.2.0')
-    def test_xpending_range_negative(self, r: aioredis.Redis):
+    async def test_xpending_range_negative(self, r: aioredis.Redis):
         stream = 'stream'
         group = 'group'
         with pytest.raises(aioredis.DataError):
