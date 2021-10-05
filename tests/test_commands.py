@@ -1568,6 +1568,21 @@ class TestRedisCommands:
         assert await r.zcount("a", 1, "(" + str(2)) == 1
         assert await r.zcount("a", 10, 20) == 0
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_zdiff(self, r: aioredis.Redis):
+        await r.zadd('a', {'a1': 1, 'a2': 2, 'a3': 3})
+        await r.zadd('b', {'a1': 1, 'a2': 2})
+        assert await r.zdiff(['a', 'b']) == [b'a3']
+        assert await r.zdiff(['a', 'b'], withscores=True) == [b'a3', b'3']
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_zdiffstore(self, r: aioredis.Redis):
+        await r.zadd('a', {'a1': 1, 'a2': 2, 'a3': 3})
+        await r.zadd('b', {'a1': 1, 'a2': 2})
+        assert await r.zdiffstore("out", ['a', 'b'])
+        assert await r.zrange("out", 0, -1) == [b'a3']
+        assert await r.zrange("out", 0, -1, withscores=True) == [(b'a3', 3.0)]
+
     async def test_zincrby(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zincrby("a", 1, "a2") == 3.0
