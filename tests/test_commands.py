@@ -2857,6 +2857,53 @@ class TestRedisCommands:
         assert response[1]["message_id"] == m2
         assert response[1]["consumer"] == consumer2.encode()
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_xpending_range_idle(self, r: aioredis.Redis):
+        stream = 'stream'
+        group = 'group'
+        consumer1 = 'consumer1'
+        consumer2 = 'consumer2'
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xgroup_create(stream, group, 0)
+
+        # read 1 message from the group with each consumer
+        await r.xreadgroup(group, consumer1, streams={stream: '>'}, count=1)
+        await r.xreadgroup(group, consumer2, streams={stream: '>'}, count=1)
+
+        response = await r.xpending_range(stream, group,
+                                    min='-', max='+', count=5)
+        assert len(response) == 2
+        response = await r.xpending_range(stream, group,
+                                    min='-', max='+', count=5, idle=1000)
+        assert len(response) == 0
+
+    @skip_if_server_version_lt('6.2.0')
+    def test_xpending_range_negative(self, r: aioredis.Redis):
+        stream = 'stream'
+        group = 'group'
+        with pytest.raises(aioredis.DataError):
+            await r.xpending_range(stream, group, min='-', max='+', count=None)
+        with pytest.raises(ValueError):
+            await r.xpending_range(stream, group, min='-', max='+', count="one")
+        with pytest.raises(aioredis.DataError):
+            await r.xpending_range(stream, group, min='-', max='+', count=-1)
+        with pytest.raises(ValueError):
+            await r.xpending_range(stream, group, min='-', max='+', count=5,
+                             idle="one")
+        with pytest.raises(aioredis.exceptions.ResponseError):
+            await r.xpending_range(stream, group, min='-', max='+', count=5,
+                             idle=1.5)
+        with pytest.raises(aioredis.DataError):
+            await r.xpending_range(stream, group, min='-', max='+', count=5,
+                             idle=-1)
+        with pytest.raises(aioredis.DataError):
+            await r.xpending_range(stream, group, min=None, max=None, count=None,
+                             idle=0)
+        with pytest.raises(aioredis.DataError):
+            await r.xpending_range(stream, group, min=None, max=None, count=None,
+                             consumername=0)
+
     @skip_if_server_version_lt("5.0.0")
     async def test_xrange(self, r: aioredis.Redis):
         stream = "stream"
