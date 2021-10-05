@@ -2318,9 +2318,18 @@ class Redis:
         """Return the length of the list ``name``"""
         return self.execute_command("LLEN", name)
 
-    def lpop(self, name: KeyT) -> Awaitable:
-        """Remove and return the first item of the list ``name``"""
-        return self.execute_command("LPOP", name)
+    def lpop(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
+        """
+        Removes and returns the first elements of the list ``name``.
+
+        By default, the command pops a single element from the beginning of
+        the list. When provided with the optional ``count`` argument, the reply
+        will consist of up to count elements, depending on the list's length.
+        """
+        if count is not None:
+            return self.execute_command("LPOP", name, count)
+        else:
+            return self.execute_command("LPOP", name)
 
     def lpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``values`` onto the head of the list ``name``"""
@@ -2366,9 +2375,18 @@ class Redis:
         """
         return self.execute_command("LTRIM", name, start, end)
 
-    def rpop(self, name: KeyT) -> Awaitable:
-        """Remove and return the last item of the list ``name``"""
-        return self.execute_command("RPOP", name)
+    def rpop(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
+        """
+        Removes and returns the last elements of the list ``name``.
+
+        By default, the command pops a single element from the end of the list.
+        When provided with the optional ``count`` argument, the reply will
+        consist of up to count elements, depending on the list's length.
+        """
+        if count is not None:
+            return self.execute_command("RPOP", name, count)
+        else:
+            return self.execute_command("RPOP", name)
 
     def rpoplpush(self, src: KeyT, dst: KeyT) -> Awaitable:
         """
