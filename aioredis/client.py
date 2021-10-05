@@ -1884,7 +1884,7 @@ class Redis:
 
     def getex(
         self,
-        name: str,
+        name: KeyT,
         ex: Union[int, datetime.timedelta] = None,
         px: Union[int, datetime.timedelta] = None,
         exat: Union[int, datetime.datetime] = None,
@@ -1908,6 +1908,13 @@ class Redis:
 
         ``persist`` remove the time to live associated with ``name``.
         """
+
+        opset = {ex, px, exat, pxat}
+        if len(opset) > 2 or len(opset) > 1 and persist:
+            raise DataError(
+                "``ex``, ``px``, ``exat``, ``pxat``, "
+                "and ``persist`` are mutually exclusive."
+            )
 
         pieces = []
         # similar to set command
