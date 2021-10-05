@@ -1075,6 +1075,14 @@ class TestRedisCommands:
         assert await r.get("a") == b"2"
         assert 0 < await r.ttl("a") <= 10
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_set_get(self, r: aioredis.Redis):
+        assert await r.set('a', 'True', get=True) is None
+        assert await r.set('a', 'True', get=True) == b'True'
+        assert await r.set('a', 'foo') is True
+        assert await r.set('a', 'bar', get=True) == b'foo'
+        assert await r.get('a') == b'bar'
+
     async def test_setex(self, r: aioredis.Redis):
         assert await r.setex("a", 60, "1")
         assert await r.get("a") == b"1"

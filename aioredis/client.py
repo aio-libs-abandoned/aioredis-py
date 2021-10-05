@@ -619,6 +619,20 @@ def parse_module_result(response):
     return True
 
 
+def parse_set_result(response, **options):
+    """
+    Handle SET result since GET argument is available since Redis 6.2.
+    Parsing SET result into:
+    - BOOL
+    - String when GET argument is used
+    """
+    if options.get("get"):
+        # Redis will return a getCommand result.
+        # See `setGenericCommand` in t_string.c
+        return response
+    return response and str_if_bytes(response) == "OK"
+
+
 class ResponseCallbackProtocol(Protocol):
     def __call__(self, response: Any, **kwargs):
         ...
@@ -761,7 +775,7 @@ class Redis:
         "SENTINEL SENTINELS": parse_sentinel_slaves_and_sentinels,
         "SENTINEL SET": bool_ok,
         "SENTINEL SLAVES": parse_sentinel_slaves_and_sentinels,
-        "SET": lambda r: r and str_if_bytes(r) == "OK",
+        "SET": parse_set_result,
         "SLOWLOG GET": parse_slowlog_get,
         "SLOWLOG LEN": int,
         "SLOWLOG RESET": bool_ok,
@@ -1969,6 +1983,9 @@ class Redis:
         """
         Sets the value at key ``name`` to ``value``
         and returns the old value at key ``name`` atomically.
+
+        As per Redis 6.2, GETSET is considered deprecated.
+        Please use SET with GET parameter in new code.
         """
         return self.execute_command("GETSET", name, value)
 
@@ -2146,6 +2163,7 @@ class Redis:
         nx: bool = False,
         xx: bool = False,
         keepttl: bool = False,
+        get: bool = False,
     ) -> Awaitable:
         """
         Set the value at key ``name`` to ``value``
@@ -2162,8 +2180,13 @@ class Redis:
 
         ``keepttl`` if True, retain the time to live associated with the key.
             (Available since Redis 6.0)
+
+        ``get`` if True, set the value at key ``name`` to ``value`` and return
+            the old value stored at key, or None if key did not exist.
+            (Available since Redis 6.2)
         """
         pieces: List[EncodableT] = [name, value]
+        options = {}
         if ex is not None:
             pieces.append("EX")
             if isinstance(ex, datetime.timedelta):
@@ -2183,7 +2206,11 @@ class Redis:
         if keepttl:
             pieces.append("KEEPTTL")
 
-        return self.execute_command("SET", *pieces)
+        if get:
+            pieces.append("GET")
+            options["get"] = True
+
+        return self.execute_command("SET", *pieces, **options)
 
     def setbit(self, name: KeyT, offset: int, value: int) -> Awaitable:
         """
