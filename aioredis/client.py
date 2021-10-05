@@ -25,7 +25,7 @@ from typing import (
     Union,
 )
 
-from aioredis.compat import Protocol, TypedDict
+from aioredis.compat import Literal, Protocol, TypedDict
 from aioredis.connection import (
     Connection,
     ConnectionPool,
@@ -662,8 +662,8 @@ class Redis:
 
     RESPONSE_CALLBACKS = {
         **string_keys_to_dict(
-            "AUTH COPY EXPIRE EXPIREAT HEXISTS HMSET MOVE MSETNX PERSIST "
-            "PSETEX RENAMENX SISMEMBER SMOVE SETEX SETNX",
+            "AUTH COPY EXPIRE EXPIREAT HEXISTS HMSET LMOVE BLMOVE MOVE "
+            "MSETNX PERSIST PSETEX RENAMENX SISMEMBER SMOVE SETEX SETNX",
             bool,
         ),
         **string_keys_to_dict(
@@ -2015,6 +2015,37 @@ class Redis:
     def keys(self, pattern: PatternT = "*") -> Awaitable:
         """Returns a list of keys matching ``pattern``"""
         return self.execute_command("KEYS", pattern)
+
+    def lmove(
+        self,
+        first_list: str,
+        second_list: str,
+        src: str = "LEFT",
+        dest: str = "RIGHT",
+    ) -> Awaitable:
+        """
+        Atomically returns and removes the first/last element of a list,
+        pushing it as the first/last element on the destination list.
+        Returns the element being popped and pushed.
+
+        ``src`` and ``dest`` can be right/left or left/right in any casing.
+        """
+        params = [first_list, second_list, src, dest]
+        return self.execute_command("LMOVE", *params)
+
+    def blmove(
+        self,
+        first_list: str,
+        second_list: str,
+        timeout: int,
+        src: str = "LEFT",
+        dest: str = "RIGHT",
+    ) -> Awaitable:
+        """
+        Blocking version of lmove.
+        """
+        params = [first_list, second_list, src, dest, timeout]
+        return self.execute_command("BLMOVE", *params)
 
     def mget(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """

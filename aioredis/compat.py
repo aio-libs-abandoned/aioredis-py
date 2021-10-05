@@ -1,5 +1,5 @@
 # flake8: noqa
 try:
-    from typing import Protocol, TypedDict  # lgtm [py/unused-import]
+    from typing import Literal, Protocol, TypedDict  # lgtm [py/unused-import]
 except ImportError:
-    from typing_extensions import Protocol, TypedDict  # lgtm [py/unused-import]
+    from typing_extensions import Literal, Protocol, TypedDict  # lgtm [py/unused-import]

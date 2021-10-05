@@ -918,6 +918,18 @@ class TestRedisCommands:
         await r.set("c", "3")
         assert await r.mget("a", "other", "b", "c") == [b"1", None, b"2", b"3"]
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_lmove(self, r: aioredis.Redis):
+        await r.rpush('a', 'one', 'two', 'three', 'four')
+        assert await r.lmove('a', 'b')
+        assert await r.lmove('a', 'b', 'right', 'left')
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_blmove(self, r: aioredis.Redis):
+        await r.rpush('a', 'one', 'two', 'three', 'four')
+        assert await r.blmove('a', 'b', 5)
+        assert await r.blmove('a', 'b', 1, 'RIGHT', 'LEFT')
+
     async def test_mset(self, r: aioredis.Redis):
         d = {"a": b"1", "b": b"2", "c": b"3"}
         assert await r.mset(d)
