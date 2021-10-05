@@ -1427,20 +1427,28 @@ class Redis:
         """
         return self.execute_command("CLIENT INFO")
 
-    def client_list(self, _type: Optional[str] = None) -> Awaitable:
+    def client_list(
+        self, _type: Optional[str] = None, client_id: Optional[int] = None
+    ) -> Awaitable:
         """
         Returns a list of currently connected clients.
         If type of client specified, only that type will be returned.
         :param _type: optional. one of the client types (normal, master,
          replica, pubsub)
+        :param client_id: optional. the client id
         """
         "Returns a list of currently connected clients"
+        args = []
         if _type is not None:
             client_types = ("normal", "master", "replica", "pubsub")
             if str(_type).lower() not in client_types:
                 raise DataError(f"CLIENT LIST _type must be one of {client_types!r}")
-            return self.execute_command("CLIENT LIST", b"TYPE", _type)
-        return self.execute_command("CLIENT LIST")
+            args.append(b'TYPE')
+            args.append(_type)
+        if client_id is not None:
+            args.append(b"ID")
+            args.append(client_id)
+        return self.execute_command("CLIENT LIST", *args)
 
     def client_getname(self) -> Awaitable:
         """Returns the current connection name"""
@@ -3383,8 +3391,6 @@ class Redis:
                 "single element/score pair"
             )
         if nx is True and (gt is not None or lt is not None):
-            raise DataError("Only one of 'nx', 'lt', or 'gr' may be defined.")
-        if gt is not None and lt is not None:
             raise DataError("Only one of 'gt' or 'lt' can be set.")
 
         pieces: List[EncodableT] = []

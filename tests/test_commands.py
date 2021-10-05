@@ -359,6 +359,14 @@ class TestRedisCommands:
             clients = await r.client_list(_type=client_type)
             assert isinstance(clients, list)
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_client_list_client_id(self, r: aioredis.Redis):
+        clients = await r.client_list()
+        client_id = clients[0]['id']
+        clients = await r.client_list(client_id=client_id)
+        assert len(clients) == 1
+        assert 'addr' in clients[0]
+
     @skip_if_server_version_lt("5.0.0")
     async def test_client_id(self, r: aioredis.Redis):
         assert await r.client_id() > 0
