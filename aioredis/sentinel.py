@@ -268,7 +268,7 @@ class Sentinel:
         Returns a redis client instance for the ``service_name`` master.
 
         A :py:class:`~redis.sentinel.SentinelConnectionPool` class is
-        used to retrive the master's address before establishing a new
+        used to retrieve the master's address before establishing a new
         connection.
 
         NOTE: If the master's address has changed, any cached connections to
@@ -305,7 +305,7 @@ class Sentinel:
         """
         Returns redis client instance for the ``service_name`` slave(s).
 
-        A SentinelConnectionPool class is used to retrive the slave's
+        A SentinelConnectionPool class is used to retrieve the slave's
         address before establishing a new connection.
 
         By default clients will be a :py:class:`~redis.Redis` instance.
