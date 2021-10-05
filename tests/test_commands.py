@@ -859,7 +859,7 @@ class TestRedisCommands:
         assert await r.ttl("a") == 6
         expire_at = await redis_server_time(r) + datetime.timedelta(minutes=1)
         assert await r.getex("a", pxat=expire_at) == b"1"
-        assert await r.ttl("a") <= 60
+        assert await r.ttl("a") <= 61
         assert await r.getex("a", persist=True) == b"1"
         assert await r.ttl("a") == -1
 
