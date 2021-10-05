@@ -1682,6 +1682,15 @@ class TestRedisCommands:
             (b"a2", 2),
         ]
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_zrangestore(self, r: aioredis.Redis):
+        await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
+        assert await r.zrangestore("b", "a", 0, 1)
+        assert await r.zrange("b", 0, -1) == [b"a1", b"a2"]
+        assert await r.zrangestore("b", "a", 1, 2)
+        assert await r.zrange("b", 0, -1) == [b"a2", b"a3"]
+        assert await r.zrange("b", 0, -1, withscores=True) == [(b"a2", 2), (b"a3", 3)]
+
     @skip_if_server_version_lt("2.8.9")
     async def test_zrangebylex(self, r: aioredis.Redis):
         await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
