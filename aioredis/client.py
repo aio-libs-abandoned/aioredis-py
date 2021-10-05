@@ -672,7 +672,8 @@ class Redis:
             "SDIFF SINTER SMEMBERS SUNION", lambda r: r and set(r) or set()
         ),
         **string_keys_to_dict(
-            "ZPOPMAX ZPOPMIN ZDIFF ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE",
+            "ZPOPMAX ZPOPMIN ZINTER ZDIFF ZRANGE ZRANGEBYSCORE ZREVRANGE "
+            "ZREVRANGEBYSCORE",
             zset_score_pairs,
         ),
         **string_keys_to_dict(
@@ -3260,6 +3261,25 @@ class Redis:
         """Increment the score of ``value`` in sorted set ``name`` by ``amount``"""
         return self.execute_command("ZINCRBY", name, amount, value)
 
+    def zinter(
+        self,
+        keys: KeysT,
+        aggregate: Optional[str] = None,
+        withscores: bool = False
+    ) -> Awaitable:
+        """
+        Return the intersect of multiple sorted sets specified by ``keys``.
+        With the ``aggregate`` option, it is possible to specify how the
+        results of the union are aggregated. This option defaults to SUM,
+        where the score of an element is summed across the inputs where it
+        exists. When this option is set to either MIN or MAX, the resulting
+        set will contain the minimum or maximum score of an element across
+        the inputs where it exists.
+        """
+        return self._zaggregate(
+            "ZINTER", None, keys, aggregate, withscores=withscores
+        )
+
     def zinterstore(
         self,
         dest: KeyT,
@@ -3267,9 +3287,13 @@ class Redis:
         aggregate: Optional[str] = None,
     ) -> Awaitable:
         """
-        Intersect multiple sorted sets specified by ``keys`` into
-        a new sorted set, ``dest``. Scores in the destination will be
-        aggregated based on the ``aggregate``, or SUM if none is provided.
+        Intersect multiple sorted sets specified by ``keys`` into a new
+        sorted set, ``dest``. Scores in the destination will be aggregated
+        based on the ``aggregate``. This option defaults to SUM, where the
+        score of an element is summed across the inputs where it exists.
+        When this option is set to either MIN or MAX, the resulting set will
+        contain the minimum or maximum score of an element across the inputs
+        where it exists.
         """
         return self._zaggregate("ZINTERSTORE", dest, keys, aggregate)
 
@@ -3593,11 +3617,15 @@ class Redis:
     def _zaggregate(
         self,
         command: str,
-        dest: KeyT,
+        dest: Optional[KeyT],
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: Optional[str] = None,
+        **options,
     ) -> Awaitable:
-        pieces: List[EncodableT] = [command, dest, len(keys)]
+        pieces: List[EncodableT] = [command]
+        if dest is not None:
+            pieces.append(dest)
+        pieces.append(len(keys))
         if isinstance(keys, dict):
             keys, weights = keys.keys(), keys.values()
         else:
@@ -3607,8 +3635,13 @@ class Redis:
             pieces.append(b"WEIGHTS")
             pieces.extend(weights)
         if aggregate:
-            pieces.append(b"AGGREGATE")
-            pieces.append(aggregate)
+            if aggregate.upper() in ["SUM", "MIN", "MAX"]:
+                pieces.append(b'AGGREGATE')
+                pieces.append(aggregate)
+            else:
+                raise DataError("aggregate can be sum, min, or max")
+        if options.get("withscores", False):
+            pieces.append(b'WITHSCORES')
         return self.execute_command(*pieces)
 
     # HYPERLOGLOG COMMANDS
