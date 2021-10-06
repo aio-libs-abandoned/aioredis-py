@@ -4564,7 +4564,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def parse_response(
         self, connection: Connection, command_name: Union[str, bytes], **options
     ):
-        result = Redis.parse_response(self, connection, command_name, **options)
+        result = super().parse_response(connection, command_name, **options)
         if command_name in self.UNWATCH_COMMANDS:
             self.watching = False
         elif command_name == "WATCH":

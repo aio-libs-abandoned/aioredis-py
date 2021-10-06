@@ -2,7 +2,9 @@
 
 # Changelog
 
-## 2.0.0a1 - (2021-06-18)### Bugfixes
+## 2.0.0a1 - (2021-06-18)
+
+### Bugfixes
 
 - add __await__ method to Pipeline class to prevent AttributeError
   (see #1029)
