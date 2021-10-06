@@ -3336,8 +3336,8 @@ class Redis:
     def zrevrangebyscore(
         self,
         name: KeyT,
-        min: ZScoreBoundT,
         max: ZScoreBoundT,
+        min: ZScoreBoundT,
         start: Optional[int] = None,
         num: Optional[int] = None,
         withscores: bool = False,
@@ -3357,7 +3357,7 @@ class Redis:
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
-        pieces: List[EncodableT] = ["ZREVRANGEBYSCORE", name, min, max]
+        pieces: List[EncodableT] = ["ZREVRANGEBYSCORE", name, max, min]
         if start is not None and num is not None:
             pieces.extend([b"LIMIT", start, num])
         if withscores:

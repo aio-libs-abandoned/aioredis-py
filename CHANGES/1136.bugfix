@@ -1,0 +1,1 @@
+Fix zrevrangebyscore(): pass correct order of MAX and MIN parameters to Redis. Also, change the order of the parameters in zrevrangebyscore() to match the order expected by Redis (max followed by min).
