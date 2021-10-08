@@ -1158,9 +1158,9 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt('6.2.0')
     async def test_set_pxat_timedelta(self, r: aioredis.Redis):
-        expire_at = await redis_server_time(r) + datetime.timedelta(seconds=10)
+        expire_at = await redis_server_time(r) + datetime.timedelta(seconds=50)
         assert await r.set('a', '1', pxat=expire_at)
-        assert 0 < await r.ttl('a') <= 10
+        assert 0 < await r.ttl('a') <= 100
 
     @skip_if_server_version_lt("2.6.0")
     async def test_set_multipleoptions(self, r: aioredis.Redis):
