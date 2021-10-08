@@ -380,6 +380,12 @@ class TestRedisCommands:
     async def test_client_id(self, r: aioredis.Redis):
         assert await r.client_id() > 0
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_client_trackinginfo(self, r: aioredis.Redis):
+        res = await r.client_trackinginfo()
+        assert len(res) > 2
+        assert 'prefixes' in res
+
     @skip_if_server_version_lt("5.0.0")
     async def test_client_unblock(self, r: aioredis.Redis):
         myid = await r.client_id()
