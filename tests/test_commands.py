@@ -1,3 +1,4 @@
+import asyncio
 import binascii
 import datetime
 import re
@@ -628,6 +629,11 @@ class TestRedisCommands:
         assert len(t) == 2
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
+
+    async def test_bgsave(self, r: aioredis):
+        assert await r.bgsave()
+        await asyncio.sleep(0.3)
+        assert await r.bgsave()
 
     # BASIC KEY COMMANDS
     async def test_append(self, r: aioredis.Redis):
