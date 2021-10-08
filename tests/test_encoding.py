@@ -102,6 +102,7 @@ class TestMemoryviewsAreNotPacked:
         assert cmds[1] is arg
         assert cmds[3] is arg
 
+
 class TestBytearraysAreNotPacked:
     async def test_memoryviews_are_not_packed(self, r):
         arg = bytearray(b"some_arg")

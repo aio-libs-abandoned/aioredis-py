@@ -936,7 +936,9 @@ class Connection:
                     buffer_length = 0
                     pieces = []
 
-                if chunklen > buffer_cutoff or isinstance(chunk, (bytearray, memoryview)):
+                if chunklen > buffer_cutoff or isinstance(
+                    chunk, (bytearray, memoryview)
+                ):
                     output.append(chunk)
                 else:
                     pieces.append(chunk)
