@@ -598,7 +598,9 @@ class Commands:
         """
         return self.execute_command("LASTSAVE")
 
-    def lolwut(self: _SELF_ANNOTATION, *version_numbers: Union[str, float]) -> Awaitable:
+    def lolwut(
+        self: _SELF_ANNOTATION, *version_numbers: Union[str, float]
+    ) -> Awaitable:
         """Get the Redis version and a piece of generative computer art
         See: https://redis.io/commands/lolwut
         """
