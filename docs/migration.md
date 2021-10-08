@@ -44,7 +44,7 @@ its own task.
 This had a few surprising side-effects:
 
 
-1. aioredis Pipelines where much slower that redis-py Pipelines.
+1. aioredis Pipelines were much slower than redis-py Pipelines.
 2. An exception in one command didn't necessarily halt execution of the Pipeline.
 3. We weren't taking full advantage of Redis's Multi/Bulk protocol.
 4. We could potentially overload Redis with too many individual commands at once.
