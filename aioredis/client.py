@@ -670,7 +670,7 @@ class Redis:
             "SDIFF SINTER SMEMBERS SUNION", lambda r: r and set(r) or set()
         ),
         **string_keys_to_dict(
-            "ZPOPMAX ZPOPMIN ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE",
+            "ZPOPMAX ZPOPMIN ZRANDMEMBER ZRANGE ZRANGEBYSCORE ZREVRANGE ZREVRANGEBYSCORE",
             zset_score_pairs,
         ),
         **string_keys_to_dict(
@@ -3163,6 +3163,36 @@ class Redis:
         klist: List[EncodableT] = list_or_args(keys, None)
         klist.append(timeout)
         return self.execute_command("BZPOPMIN", *klist)
+
+    def zrandmember(
+        self,
+        name: KeyT,
+        count: int = None,
+        withscores: bool = False,
+        score_cast_func: Union[Type, Callable] = float,
+    ) -> Awaitable:
+        """
+        Return a random element from the sorted set value stored at ``name``.
+        
+        ``count`` if None returns 1 random member,
+        if positive returns array of distinct values.
+        if negative, command can return same element multiple times.
+
+        ``withscores`` indicates to return the scores along with the values.
+        The return type is a list of (value, score) pairs
+        or only value if ``count`` is None.
+
+        ``score_cast_func`` a callable used to cast the score return value
+        """
+        pieces: List[EncodableT] = ["ZRANDMEMBER", name]
+        if count:
+            pieces.append(count)
+            if withscores:
+                pieces.append(b"WITHSCORES")
+        elif withscores:
+            raise DataError("``withscores`` requires ``count`` to be specified")
+        options = {"withscores": withscores, "score_cast_func": score_cast_func}
+        return self.execute_command(*pieces, **options)
 
     def zrange(
         self,

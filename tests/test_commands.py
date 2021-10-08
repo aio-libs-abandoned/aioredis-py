@@ -1542,6 +1542,29 @@ class TestRedisCommands:
         await r.zadd("c", {"c1": 100})
         assert await r.bzpopmin("c", timeout=1) == (b"c", b"c1", 100)
 
+    @skip_if_server_version_lt("6.2.0")
+    async def test_zrandmember(self, r: aioredis.Redis):
+        z = {"a1": 1, "a2": 2, "a3": 3}
+        await r.zadd("a", z)
+        assert await r.zrandmember("a") in {b"a1", b"a2", b"a3"}
+        assert set(await r.zrandmember("a", 2)).issubset({b"a1", b"a2", b"a3"})
+
+        zset = set((k.encode(), v) for k, v in z.items())
+        # withscores
+        with pytest.raises(exceptions.DataError):
+            # without count
+            await r.zrandmember("a", withscores=True)
+        res = await r.zrandmember("a", 2, withscores=True)
+        assert len(res) == 2
+        assert set(res).issubset(zset)
+        assert type(res[0][1]) == float
+        assert type(res[1][1]) == float
+
+        # custom score function
+        res = await r.zrandmember("a", 1, withscores=True, score_cast_func=int)
+        assert set(res).issubset(zset)
+        assert type(res[0][1]) == int
+
     async def test_zrange(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrange("a", 0, 1) == [b"a1", b"a2"]
