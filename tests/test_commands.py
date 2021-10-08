@@ -2725,15 +2725,18 @@ class TestRedisCommands:
                 (2.19093829393386841, 41.43379028184083523),
             ]
         ]
-        assert await r.geosearch(
-            "barcelona",
-            longitude=2.191,
-            latitude=41.433,
-            radius=1,
-            unit="km",
-            withdist=True,
-            withcoord=True,
-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
+        assert (
+            await r.geosearch(
+                "barcelona",
+                longitude=2.191,
+                latitude=41.433,
+                radius=1,
+                unit="km",
+                withdist=True,
+                withcoord=True,
+            )
+            == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
+        )
         assert await r.geosearch(
             "barcelona",
             longitude=2.191,
