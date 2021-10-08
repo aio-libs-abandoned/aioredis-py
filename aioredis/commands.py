@@ -3703,12 +3703,12 @@ class Commands:
         return self.execute_command(command, *pieces, **kwargs)
 
     # MODULE COMMANDS
-    def module_load(self: _SELF_ANNOTATION, path: str) -> Awaitable:
+    def module_load(self: _SELF_ANNOTATION, path: str, *args: EncodableT) -> Awaitable:
         """
         Loads the module from ``path``.
         Raises ``ModuleError`` if a module is not found at ``path``.
         """
-        return self.execute_command("MODULE LOAD", path)
+        return self.execute_command("MODULE LOAD", path, *args)
 
     def module_unload(self: _SELF_ANNOTATION, name: str) -> Awaitable:
         """
