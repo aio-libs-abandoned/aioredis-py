@@ -1342,7 +1342,7 @@ class PubSub:
 
         await self.check_health()
 
-        if not block and not await conn.can_read(timeout=timeout):
+        if not block and not await self._execute(conn, conn.can_read, timeout=timeout):
             return None
         response = await self._execute(conn, conn.read_response)
 
