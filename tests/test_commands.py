@@ -616,6 +616,14 @@ class TestRedisCommands:
     async def test_lastsave(self, r: aioredis.Redis):
         assert isinstance(await r.lastsave(), datetime.datetime)
 
+    @skip_if_server_version_lt('5.0.0')
+    async def test_lolwut(self, r: aioredis.Redis):
+        lolwut = (await r.lolwut()).decode('utf-8')
+        assert 'Redis ver.' in lolwut
+
+        lolwut = (await r.lolwut(5, 6, 7, 8)).decode('utf-8')
+        assert 'Redis ver.' in lolwut
+
     async def test_object(self, r: aioredis.Redis):
         await r.set("a", "foo")
         assert isinstance(await r.object("refcount", "a"), int)
