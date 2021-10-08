@@ -11,7 +11,6 @@ from distutils.version import StrictVersion
 from itertools import chain
 from typing import (
     Any,
-    ByteString,
     Iterable,
     List,
     Mapping,
