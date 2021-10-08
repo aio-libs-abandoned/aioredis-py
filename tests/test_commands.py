@@ -1549,7 +1549,7 @@ class TestRedisCommands:
         assert await r.zrandmember("a") in {b"a1", b"a2", b"a3"}
         assert set(await r.zrandmember("a", 2)).issubset({b"a1", b"a2", b"a3"})
 
-        zset = set((k.encode(), v) for k, v in z.items())
+        zset = {(k.encode(), v) for k, v in z.items()}
         # withscores
         with pytest.raises(exceptions.DataError):
             # without count

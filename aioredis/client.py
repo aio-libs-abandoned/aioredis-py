@@ -3173,7 +3173,7 @@ class Redis:
     ) -> Awaitable:
         """
         Return a random element from the sorted set value stored at ``name``.
-        
+
         ``count`` if None returns 1 random member,
         if positive returns array of distinct values.
         if negative, command can return same element multiple times.
