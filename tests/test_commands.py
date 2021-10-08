@@ -3737,6 +3737,47 @@ class TestRedisCommands:
             await r.module_load('/some/fake/path', 'arg1', 'arg2', 'arg3', 'arg4')
             assert "Error loading the extension." in str(excinfo.value)
 
+    @skip_if_server_version_lt('2.6.0')
+    async def test_restore(self, r: aioredis.Redis):
+        # standard restore
+        key = 'foo'
+        await r.set(key, 'bar')
+        dumpdata = await r.dump(key)
+        await r.delete(key)
+        assert await r.restore(key, 0, dumpdata)
+        assert await r.get(key) == b'bar'
+
+        # overwrite restore
+        with pytest.raises(aioredis.exceptions.ResponseError):
+            assert await r.restore(key, 0, dumpdata)
+        await r.set(key, 'a new value!')
+        assert await r.restore(key, 0, dumpdata, replace=True)
+        assert await r.get(key) == b'bar'
+
+        # ttl check
+        key2 = 'another'
+        await r.set(key2, 'blee!')
+        dumpdata = await r.dump(key2)
+        await r.delete(key2)
+        assert await r.restore(key2, 0, dumpdata)
+        assert await r.ttl(key2) == -1
+
+        # idletime
+        key = 'yayakey'
+        await r.set(key, 'blee!')
+        dumpdata = await r.dump(key)
+        await r.delete(key)
+        assert await r.restore(key, 0, dumpdata, idletime=5)
+        assert await r.get(key) == b'blee!'
+
+        # frequency
+        key = 'yayakey'
+        await r.set(key, 'blee!')
+        dumpdata = await r.dump(key)
+        await r.delete(key)
+        assert await r.restore(key, 0, dumpdata, frequency=5)
+        assert await r.get(key) == b'blee!'
+
 
 class TestBinarySave:
     async def test_binary_get_set(self, r: aioredis.Redis):

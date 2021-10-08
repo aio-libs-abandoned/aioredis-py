@@ -1181,6 +1181,8 @@ class Commands:
         value: EncodableT,
         replace: bool = False,
         absttl: bool = False,
+        idletime: Optional[int] = None,
+        frequency: Optional[int] = None,
     ) -> Awaitable:
         """
         Create a key using the provided serialized value, previously obtained
@@ -1192,12 +1194,31 @@ class Commands:
         ``absttl`` if True, specified ``ttl`` should represent an absolute Unix
         timestamp in milliseconds in which the key will expire. (Redis 5.0 or
         greater).
+
+        ``idletime`` Used for eviction, this is the number of seconds the
+        key must be idle, prior to execution.
+
+        ``frequency`` Used for eviction, this is the frequency counter of
+        the object stored at the key, prior to execution.
         """
         params = [name, ttl, value]
         if replace:
             params.append("REPLACE")
         if absttl:
             params.append("ABSTTL")
+        if idletime is not None:
+            params.append('IDLETIME')
+            try:
+                params.append(int(idletime))
+            except ValueError:
+                raise DataError("idletimemust be an integer")
+
+        if frequency is not None:
+            params.append("FREQ")
+            try:
+                params.append(int(frequency))
+            except ValueError:
+                raise DataError("frequency must be an integer")
         return self.execute_command("RESTORE", *params)
 
     def set(
@@ -3706,6 +3727,7 @@ class Commands:
     def module_load(self: _SELF_ANNOTATION, path: str, *args: EncodableT) -> Awaitable:
         """
         Loads the module from ``path``.
+        Passes all ``*args`` to the module, during loading.
         Raises ``ModuleError`` if a module is not found at ``path``.
         """
         return self.execute_command("MODULE LOAD", path, *args)
