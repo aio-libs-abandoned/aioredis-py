@@ -417,7 +417,7 @@ class Commands:
     def client_list(
         self: _SELF_ANNOTATION,
         _type: Optional[str] = None,
-        client_id: List[EncodableT] = [],
+        client_id: Optional[List[EncodableT]] = None,
     ) -> Awaitable:
         """
         Returns a list of currently connected clients.
@@ -434,6 +434,8 @@ class Commands:
                 raise DataError(f"CLIENT LIST _type must be one of {client_types!r}")
             args.append(b"TYPE")
             args.append(_type)
+        if client_id is None:
+            client_id = []
         if not isinstance(client_id, list):
             raise DataError("client_id must be a list")
         if client_id:
@@ -596,7 +598,7 @@ class Commands:
         """
         return self.execute_command("LASTSAVE")
 
-    def lolwut(self, *version_numbers: Union[str, float]) -> Awaitable:
+    def lolwut(self: _SELF_ANNOTATION, *version_numbers: Union[str, float]) -> Awaitable:
         """Get the Redis version and a piece of generative computer art
         See: https://redis.io/commands/lolwut
         """
@@ -684,7 +686,7 @@ class Commands:
         """Ping the Redis server"""
         return self.execute_command("PING")
 
-    async def quit(self: _SELF_ANNOTATION) -> Awaitable:
+    def quit(self: _SELF_ANNOTATION) -> Awaitable:
         """Ask the server to close the connection.
         https://redis.io/commands/quit
         """

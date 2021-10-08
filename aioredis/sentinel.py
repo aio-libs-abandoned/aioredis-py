@@ -2,6 +2,7 @@ import random
 import weakref
 from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
+from aioredis.commands import SentinelCommands
 from aioredis.client import Redis
 from aioredis.connection import ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
@@ -141,7 +142,7 @@ class SentinelConnectionPool(ConnectionPool):
         raise SlaveNotFoundError(f"No slave found for {self.service_name!r}")
 
 
-class Sentinel:
+class Sentinel(SentinelCommands):
     """
     Redis Sentinel cluster client
 
