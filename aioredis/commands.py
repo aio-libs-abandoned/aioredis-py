@@ -364,6 +364,7 @@ class Commands:
         addr: Optional[str] = None,
         skipme: Optional[bool] = None,
         laddr: Optional[bool] = None,
+        user: str = None,
     ) -> Awaitable:
         """
         Disconnects client(s) using a variety of filter options
@@ -375,6 +376,7 @@ class Commands:
         will not get killed even if it is identified by one of the filter
         options. If skipme is not provided, the server defaults to skipme=True
         :param laddr: Kills a client by its 'local (bind)  address:port'
+        :param user: Kills a client for a specific user name
         """
         args = []
         if _type is not None:
@@ -395,6 +397,8 @@ class Commands:
             args.extend((b"ADDR", addr))
         if laddr is not None:
             args.extend((b"LADDR", laddr))
+        if user is not None:
+            args.extend((b"USER", user))
         if not args:
             raise DataError(
                 "CLIENT KILL <filter> <value> ... ... <filter> "
@@ -412,7 +416,7 @@ class Commands:
     def client_list(
         self: _SELF_ANNOTATION,
         _type: Optional[str] = None,
-        client_id: Optional[int] = None,
+        client_id: List[EncodableT] = [],
     ) -> Awaitable:
         """
         Returns a list of currently connected clients.
@@ -429,9 +433,11 @@ class Commands:
                 raise DataError(f"CLIENT LIST _type must be one of {client_types!r}")
             args.append(b"TYPE")
             args.append(_type)
-        if client_id is not None:
+        if not isinstance(client_id, list):
+            raise DataError("client_id must be a list")
+        if client_id:
             args.append(b"ID")
-            args.append(client_id)
+            args.append(" ".join(client_id))
         return self.execute_command("CLIENT LIST", *args)
 
     def client_getname(self: _SELF_ANNOTATION) -> Awaitable:

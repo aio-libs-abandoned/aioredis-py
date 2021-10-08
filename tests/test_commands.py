@@ -386,12 +386,20 @@ class TestRedisCommands:
             assert isinstance(clients, list)
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_client_list_client_id(self, r: aioredis.Redis):
+    async def test_client_list_client_id(
+        self, r: aioredis.Redis, request, create_redis
+    ):
         clients = await r.client_list()
-        client_id = clients[0]["id"]
-        clients = await r.client_list(client_id=client_id)
+        clients = r.client_list(client_id=[clients[0]["id"]])
         assert len(clients) == 1
         assert "addr" in clients[0]
+
+        # testing multiple client ids
+        await create_redis(flushdb=True)
+        await create_redis(flushdb=True)
+        await create_redis(flushdb=True)
+        clients_listed = r.client_list(client_id=clients[:-1])
+        assert len(clients_listed) > 1
 
     @skip_if_server_version_lt("5.0.0")
     async def test_client_id(self, r: aioredis.Redis):
@@ -529,6 +537,19 @@ class TestRedisCommands:
 
         client_2_addr = clients_by_name["redis-py-c2"].get("laddr")
         assert await r.client_kill_filter(laddr=client_2_addr)
+
+    @skip_if_server_version_lt('2.8.12')
+    async def test_client_kill_filter_by_user(self, r: aioredis.Redis, request, create_redis):
+        killuser = 'user_to_kill'
+        await r.acl_setuser(killuser, enabled=True, reset=True,
+                      commands=['+get', '+set', '+select'],
+                      keys=['cache:*'], nopass=True)
+        create_redis(username=killuser, flushdb=False)
+        await r.client_kill_filter(user=killuser)
+        clients = await r.client_list()
+        for c in clients:
+            assert c['user'] != killuser
+        await r.acl_deluser(killuser)
 
     @skip_if_server_version_lt("2.9.50")
     async def test_client_pause(self, r: aioredis.Redis):
