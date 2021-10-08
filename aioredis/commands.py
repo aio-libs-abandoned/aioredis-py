@@ -444,6 +444,27 @@ class Commands:
         """Returns the current connection name"""
         return self.execute_command("CLIENT GETNAME")
 
+    def client_reply(
+        self: _SELF_ANNOTATION,
+        reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]]
+    ) -> Awaitable:
+        """Enable and disable redis server replies.
+        ``reply`` Must be ON OFF or SKIP,
+            ON - The default most with server replies to commands
+            OFF - Disable server responses to commands
+            SKIP - Skip the response of the immediately following command.
+        Note: When setting OFF or SKIP replies, you will need a client object
+        with a timeout specified in seconds, and will need to catch the
+        TimeoutError.
+              The test_client_reply unit test illustrates this, and
+              conftest.py has a client with a timeout.
+        See https://redis.io/commands/client-reply
+        """
+        replies = ['ON', 'OFF', 'SKIP']
+        if reply not in replies:
+            raise DataError('CLIENT REPLY must be one of %r' % replies)
+        return self.execute_command("CLIENT REPLY", reply)
+
     def client_id(self: _SELF_ANNOTATION) -> Awaitable:
         """Returns the current connection id"""
         return self.execute_command("CLIENT ID")

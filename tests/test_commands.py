@@ -562,6 +562,20 @@ class TestRedisCommands:
     async def test_client_unpause(self, r: aioredis.Redis):
         assert await r.client_unpause() == b"OK"
 
+    @skip_if_server_version_lt('3.2.0')
+    async def test_client_reply(self, create_redis):
+        r = create_redis(socket_timeout=1)
+        assert await r.client_reply('ON') == b'OK'
+        with pytest.raises(exceptions.TimeoutError):
+            await r.client_reply('OFF')
+
+            await r.client_reply('SKIP')
+
+        assert await r.set('foo', 'bar')
+
+        # validate it was set
+        assert r.get('foo') == b'bar'
+
     async def test_config_get(self, r: aioredis.Redis):
         data = await r.config_get()
         assert "maxmemory" in data
