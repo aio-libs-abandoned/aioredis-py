@@ -523,7 +523,9 @@ class TestRedisCommands:
         assert "redis_py_test" in [c["name"] for c in clients]
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_client_kill_filter_by_laddr(self, r: aioredis.Redis, r2: aioredis.Redis):
+    async def test_client_kill_filter_by_laddr(
+        self, r: aioredis.Redis, r2: aioredis.Redis
+    ):
         await r.client_setname("redis-py-c1")
         await r2.client_setname("redis-py-c2")
         clients = [
