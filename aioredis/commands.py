@@ -867,10 +867,10 @@ class Commands:
     def getex(
         self: _SELF_ANNOTATION,
         name: KeyT,
-        ex: Union[int, datetime.timedelta] = None,
-        px: Union[int, datetime.timedelta] = None,
-        exat: Union[int, datetime.datetime] = None,
-        pxat: Union[int, datetime.datetime] = None,
+        ex: Optional[ExpiryT] = None,
+        px: Optional[ExpiryT] = None,
+        exat: Optional[AbsExpiryT] = None,
+        pxat: Optional[AbsExpiryT] = None,
         persist: bool = False,
     ):
         """
@@ -1169,6 +1169,8 @@ class Commands:
         xx: bool = False,
         keepttl: bool = False,
         get: bool = False,
+        exat: Optional[AbsExpiryT] = None,
+        pxat: Optional[AbsExpiryT] = None,
     ) -> Awaitable:
         """
         Set the value at key ``name`` to ``value``
@@ -1189,6 +1191,12 @@ class Commands:
         ``get`` if True, set the value at key ``name`` to ``value`` and return
             the old value stored at key, or None if key did not exist.
             (Available since Redis 6.2)
+
+        ``exat`` sets an expire flag on key ``name`` for ``ex`` seconds,
+            specified in unix time.
+
+        ``pxat`` sets an expire flag on key ``name`` for ``ex`` milliseconds,
+            specified in unix time.
         """
         pieces: List[EncodableT] = [name, value]
         options = {}
@@ -1202,14 +1210,25 @@ class Commands:
             if isinstance(px, datetime.timedelta):
                 px = int(px.total_seconds() * 1000)
             pieces.append(px)
+        if exat is not None:
+            pieces.append("EXAT")
+            if isinstance(exat, datetime.datetime):
+                s = int(exat.microsecond / 1000000)
+                exat = int(mod_time.mktime(exat.timetuple())) + s
+            pieces.append(exat)
+        if pxat is not None:
+            pieces.append("PXAT")
+            if isinstance(pxat, datetime.datetime):
+                ms = int(pxat.microsecond / 1000)
+                pxat = int(mod_time.mktime(pxat.timetuple())) * 1000 + ms
+            pieces.append(pxat)
+        if keepttl:
+            pieces.append("KEEPTTL")
 
         if nx:
             pieces.append("NX")
         if xx:
             pieces.append("XX")
-
-        if keepttl:
-            pieces.append("KEEPTTL")
 
         if get:
             pieces.append("GET")
@@ -1230,7 +1249,7 @@ class Commands:
     def setex(
         self: _SELF_ANNOTATION,
         name: KeyT,
-        time: Union[int, datetime.timedelta],
+        time: ExpiryT,
         value: EncodableT,
     ) -> Awaitable:
         """
