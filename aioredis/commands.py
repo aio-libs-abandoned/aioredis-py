@@ -88,8 +88,8 @@ class Commands:
         pieces: List[EncodableT] = [category] if category else []
         return self.execute_command("ACL CAT", *pieces)
 
-    def acl_deluser(self: _SELF_ANNOTATION, username: str) -> Awaitable:
-        """Delete the ACL for the specified ``username``"""
+    def acl_deluser(self: _SELF_ANNOTATION, *username: str) -> Awaitable:
+        """Delete the ACL for the specified ``username``s"""
         return self.execute_command("ACL DELUSER", username)
 
     def acl_genpass(self: _SELF_ANNOTATION, bits: Optional[int] = None) -> Awaitable:
@@ -116,6 +116,12 @@ class Commands:
         If ``username`` does not exist, return None
         """
         return self.execute_command("ACL GETUSER", username)
+
+    def acl_help(self: _SELF_ANNOTATION) -> Awaitable:
+        """The ACL HELP command returns helpful text describing
+        the different subcommands.
+        """
+        return self.execute_command("ACL HELP")
 
     def acl_list(self: _SELF_ANNOTATION) -> Awaitable:
         """Return a list of all ACLs on the server"""
