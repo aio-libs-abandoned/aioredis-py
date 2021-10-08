@@ -1935,17 +1935,25 @@ class Commands:
         maxlen: Optional[int] = None,
         approximate: bool = True,
         nomkstream: bool = False,
+        minid: Optional[StreamIdT] = None,
+        limit: Optional[int] = None,
     ) -> Awaitable:
         """
         Add to a stream.
         name: name of the stream
         fields: dict of field/value pairs to insert into the stream
         id: Location to insert this record. By default it is appended.
-        maxlen: truncate old stream members beyond this size
+        maxlen: truncate old stream members beyond this size.
+        Can't be specify with minid.
+        minid: the minimum id in the stream to query.
+        Can't be specify with maxlen.
         approximate: actual stream length may be slightly more than maxlen
         nomkstream: When set to true, do not make a stream
+        limit: specifies the maximum number of entries to retrieve
         """
         pieces: List[EncodableT] = []
+        if maxlen is not None and minid is not None:
+            raise DataError("Only one of ```maxlen``` or ```minid``` may be specified")
         if maxlen is not None:
             if not isinstance(maxlen, int) or maxlen < 1:
                 raise DataError("XADD maxlen must be a positive integer")
@@ -1953,6 +1961,14 @@ class Commands:
             if approximate:
                 pieces.append(b"~")
             pieces.append(str(maxlen))
+        if minid is not None:
+            pieces.append(b'MINID')
+            if approximate:
+                pieces.append(b'~')
+            pieces.append(minid)
+        if limit is not None:
+            pieces.append(b"LIMIT")
+            pieces.append(limit)
         if nomkstream:
             pieces.append(b"NOMKSTREAM")
         pieces.append(id)
@@ -2375,8 +2391,12 @@ class Commands:
         """
         Trims old messages from a stream.
         name: name of the stream.
-        maxlen: truncate old stream messages beyond this size
+        maxlen: truncate old stream members beyond this size.
+        Can't be specified with minid.
+        minid: the minimum id in the stream to query.
+        Can't be specified with maxlen.
         approximate: actual stream length may be slightly more than maxlen
+        limit: specifies the maximum number of entries to retrieve
         """
         pieces: List[EncodableT] = [b"MAXLEN"]
         if maxlen is not None and minid is not None:

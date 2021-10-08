@@ -2656,6 +2656,56 @@ class TestRedisCommands:
         await r.xadd(stream, {"some": "other"}, nomkstream=True)
         assert await r.xlen(stream) == 3
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_xadd_minlen_and_limit(self, r: aioredis.Redis):
+        stream = 'stream'
+
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+
+        # Future self: No limits without approximate, according to the api
+        with pytest.raises(aioredis.ResponseError):
+            assert await r.xadd(stream, {'foo': 'bar'}, maxlen=3,
+                          approximate=False, limit=2)
+
+        # limit can not be provided without maxlen or minid
+        with pytest.raises(aioredis.ResponseError):
+            assert await r.xadd(stream, {'foo': 'bar'}, limit=2)
+
+        # maxlen with a limit
+        assert await r.xadd(stream, {'foo': 'bar'}, maxlen=3,
+                      approximate=True, limit=2)
+        await r.delete(stream)
+
+        # maxlen and minid can not be provided together
+        with pytest.raises(aioredis.DataError):
+            assert await r.xadd(stream, {'foo': 'bar'}, maxlen=3,
+                          minid="sometestvalue")
+
+        # minid with a limit
+        m1 = await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xadd(stream, {'foo': 'bar'}, approximate=True,
+                      minid=m1, limit=3)
+
+        # pure minid
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        m4 = await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xadd(stream, {'foo': 'bar'}, approximate=False, minid=m4)
+
+        # minid approximate
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        m3 = await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        assert await r.xadd(stream, {'foo': 'bar'}, approximate=True, minid=m3)
+
     @skip_if_server_version_lt("6.2.0")
     async def test_xautoclaim(self, r: aioredis.Redis):
         stream = "stream"
