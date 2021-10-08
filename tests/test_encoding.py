@@ -49,6 +49,23 @@ class TestEncoding:
         assert isinstance(cached_val, str)
         assert unicode_string == cached_val
 
+    async def test_bytearray_encoding(self, r_no_decode: aioredis.Redis):
+        unicode_string = chr(3456) + "abcd" + chr(3421)
+        unicode_string_view = bytearray(unicode_string.encode("utf-8"))
+        await r_no_decode.set("unicode-string-bytearray", unicode_string_view)
+        cached_val = await r_no_decode.get("unicode-string-bytearray")
+        # The cached value won't be a bytearray because it's a copy from Redis
+        assert isinstance(cached_val, bytes)
+        assert unicode_string == cached_val.decode("utf-8")
+
+    async def test_bytearray_encoding_and_decoding(self, r: aioredis.Redis):
+        unicode_string = chr(3456) + "abcd" + chr(3421)
+        unicode_string_view = bytearray(unicode_string.encode("utf-8"))
+        await r.set("unicode-string-bytearray", unicode_string_view)
+        cached_val = await r.get("unicode-string-bytearray")
+        assert isinstance(cached_val, str)
+        assert unicode_string == cached_val
+
     async def test_list_encoding(self, r: aioredis.Redis):
         unicode_string = chr(3456) + "abcd" + chr(3421)
         result = [unicode_string, unicode_string, unicode_string]
@@ -77,6 +94,17 @@ class TestEncodingErrors:
 class TestMemoryviewsAreNotPacked:
     async def test_memoryviews_are_not_packed(self, r):
         arg = memoryview(b"some_arg")
+        arg_list = ["SOME_COMMAND", arg]
+        c = r.connection or await r.connection_pool.get_connection("_")
+        cmd = c.pack_command(*arg_list)
+        assert cmd[1] is arg
+        cmds = c.pack_commands([arg_list, arg_list])
+        assert cmds[1] is arg
+        assert cmds[3] is arg
+
+class TestBytearraysAreNotPacked:
+    async def test_memoryviews_are_not_packed(self, r):
+        arg = bytearray(b"some_arg")
         arg_list = ["SOME_COMMAND", arg]
         c = r.connection or await r.connection_pool.get_connection("_")
         cmd = c.pack_command(*arg_list)

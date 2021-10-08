@@ -78,7 +78,7 @@ class Lock:
     def __init__(
         self,
         redis: "Redis",
-        name: Union[str, bytes, memoryview],
+        name: Union[str, bytes, bytearray, memoryview],
         timeout: Optional[float] = None,
         sleep: float = 0.1,
         blocking: bool = True,
