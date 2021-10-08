@@ -2980,6 +2980,22 @@ class TestRedisCommands:
         # deleting the consumer should return 2 pending messages
         assert await r.xgroup_delconsumer(stream, group, consumer) == 2
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_xgroup_createconsumer(self, r: aioredis.Redis):
+        stream = 'stream'
+        group = 'group'
+        consumer = 'consumer'
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xadd(stream, {'foo': 'bar'})
+        await r.xgroup_create(stream, group, 0)
+        assert await r.xgroup_createconsumer(stream, group, consumer) == 1
+
+        # read all messages from the group
+        await r.xreadgroup(group, consumer, streams={stream: '>'})
+
+        # deleting the consumer should return 2 pending messages
+        assert await r.xgroup_delconsumer(stream, group, consumer) == 2
+
     @skip_if_server_version_lt("5.0.0")
     async def test_xgroup_destroy(self, r: aioredis.Redis):
         stream = "stream"

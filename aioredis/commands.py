@@ -2205,6 +2205,21 @@ class Commands:
         """
         return self.execute_command("XGROUP DESTROY", name, groupname)
 
+    def xgroup_createconsumer(
+        self: _SELF_ANNOTATION, name: KeyT, groupname: GroupT, consumername: ConsumerT
+    ) -> Awaitable:
+        """
+        Consumers in a consumer group are auto-created every time a new
+        consumer name is mentioned by some command.
+        They can be explicitly created by using this command.
+        name: name of the stream.
+        groupname: name of the consumer group.
+        consumername: name of consumer to create.
+        """
+        return self.execute_command(
+            "XGROUP CREATECONSUMER", name, groupname, consumername
+        )
+
     def xgroup_setid(
         self: _SELF_ANNOTATION,
         name: KeyT,
