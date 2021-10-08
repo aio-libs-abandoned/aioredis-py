@@ -105,9 +105,10 @@ class Commands:
                 if b < 0 or b > 4096:
                     raise ValueError
             except ValueError:
-                raise DataError('genpass optionally accepts a bits argument, '
-                                'between 0 and 4096.')
-        return self.execute_command('ACL GENPASS', *pieces)
+                raise DataError(
+                    "genpass optionally accepts a bits argument, " "between 0 and 4096."
+                )
+        return self.execute_command("ACL GENPASS", *pieces)
 
     def acl_getuser(self: _SELF_ANNOTATION, username: str) -> Awaitable:
         """
@@ -446,7 +447,7 @@ class Commands:
 
     def client_reply(
         self: _SELF_ANNOTATION,
-        reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]]
+        reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]],
     ) -> Awaitable:
         """Enable and disable redis server replies.
         ``reply`` Must be ON OFF or SKIP,
@@ -460,9 +461,9 @@ class Commands:
               conftest.py has a client with a timeout.
         See https://redis.io/commands/client-reply
         """
-        replies = ['ON', 'OFF', 'SKIP']
+        replies = ["ON", "OFF", "SKIP"]
         if reply not in replies:
-            raise DataError('CLIENT REPLY must be one of %r' % replies)
+            raise DataError("CLIENT REPLY must be one of %r" % replies)
         return self.execute_command("CLIENT REPLY", reply)
 
     def client_id(self: _SELF_ANNOTATION) -> Awaitable:
@@ -600,9 +601,9 @@ class Commands:
         See: https://redis.io/commands/lolwut
         """
         if version_numbers:
-            return self.execute_command('LOLWUT VERSION', *version_numbers)
+            return self.execute_command("LOLWUT VERSION", *version_numbers)
         else:
-            return self.execute_command('LOLWUT')
+            return self.execute_command("LOLWUT")
 
     def migrate(
         self: _SELF_ANNOTATION,
@@ -687,7 +688,7 @@ class Commands:
         """Ask the server to close the connection.
         https://redis.io/commands/quit
         """
-        return self.execute_command('QUIT')
+        return self.execute_command("QUIT")
 
     def save(self: _SELF_ANNOTATION) -> Awaitable:
         """
@@ -1237,7 +1238,7 @@ class Commands:
         if absttl:
             params.append("ABSTTL")
         if idletime is not None:
-            params.append('IDLETIME')
+            params.append("IDLETIME")
             try:
                 params.append(int(idletime))
             except ValueError:
@@ -1380,11 +1381,11 @@ class Commands:
         algo: Literal["LCS"],
         value1: KeyT,
         value2: KeyT,
-        specific_argument: Union[Literal["strings"], Literal["keys"]] = 'strings',
+        specific_argument: Union[Literal["strings"], Literal["keys"]] = "strings",
         len: bool = False,
         idx: bool = False,
         minmatchlen: Optional[int] = None,
-        withmatchlen: bool = False
+        withmatchlen: bool = False,
     ) -> Awaitable:
         """
         Implements complex algorithms that operate on strings.
@@ -1403,32 +1404,37 @@ class Commands:
         Can be provided only when ``idx`` set to True.
         """
         # check validity
-        supported_algo = ['LCS']
+        supported_algo = ["LCS"]
         if algo not in supported_algo:
-            raise DataError("The supported algorithms are: %s"
-                            % (', '.join(supported_algo)))
-        if specific_argument not in ['keys', 'strings']:
-            raise DataError("specific_argument can be only"
-                            " keys or strings")
+            raise DataError(
+                "The supported algorithms are: %s" % (", ".join(supported_algo))
+            )
+        if specific_argument not in ["keys", "strings"]:
+            raise DataError("specific_argument can be only" " keys or strings")
         if len and idx:
             raise DataError("len and idx cannot be provided together.")
 
         pieces = [algo, specific_argument.upper(), value1, value2]
         if len:
-            pieces.append(b'LEN')
+            pieces.append(b"LEN")
         if idx:
-            pieces.append(b'IDX')
+            pieces.append(b"IDX")
         try:
             int(minmatchlen)
-            pieces.extend([b'MINMATCHLEN', minmatchlen])
+            pieces.extend([b"MINMATCHLEN", minmatchlen])
         except TypeError:
             pass
         if withmatchlen:
-            pieces.append(b'WITHMATCHLEN')
+            pieces.append(b"WITHMATCHLEN")
 
-        return self.execute_command('STRALGO', *pieces, len=len, idx=idx,
-                                    minmatchlen=minmatchlen,
-                                    withmatchlen=withmatchlen)
+        return self.execute_command(
+            "STRALGO",
+            *pieces,
+            len=len,
+            idx=idx,
+            minmatchlen=minmatchlen,
+            withmatchlen=withmatchlen,
+        )
 
     def strlen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
         """Return the number of bytes stored in the value of ``name``"""
@@ -2128,9 +2134,9 @@ class Commands:
                 pieces.append(b"~")
             pieces.append(str(maxlen))
         if minid is not None:
-            pieces.append(b'MINID')
+            pieces.append(b"MINID")
             if approximate:
-                pieces.append(b'~')
+                pieces.append(b"~")
             pieces.append(minid)
         if limit is not None:
             pieces.append(b"LIMIT")
@@ -3384,10 +3390,9 @@ class Commands:
         See: https://redis.io/commands/script-flush
         """
         if sync_type not in ["SYNC", "ASYNC"]:
-            raise DataError("SCRIPT FLUSH defaults to SYNC or "
-                            "accepts SYNC/ASYNC")
+            raise DataError("SCRIPT FLUSH defaults to SYNC or " "accepts SYNC/ASYNC")
         pieces = [sync_type]
-        return self.execute_command('SCRIPT FLUSH', *pieces)
+        return self.execute_command("SCRIPT FLUSH", *pieces)
 
     def script_kill(self: _SELF_ANNOTATION) -> Awaitable:
         """Kill the currently executing Lua script"""
@@ -3643,14 +3648,25 @@ class Commands:
         ``withhash`` indicates to return the geohash string of each place.
         """
 
-        return self._geosearchgeneric('GEOSEARCH',
-                                      name, member=member, longitude=longitude,
-                                      latitude=latitude, unit=unit,
-                                      radius=radius, width=width,
-                                      height=height, sort=sort, count=count,
-                                      any=any, withcoord=withcoord,
-                                      withdist=withdist, withhash=withhash,
-                                      store=None, store_dist=None)
+        return self._geosearchgeneric(
+            "GEOSEARCH",
+            name,
+            member=member,
+            longitude=longitude,
+            latitude=latitude,
+            unit=unit,
+            radius=radius,
+            width=width,
+            height=height,
+            sort=sort,
+            count=count,
+            any=any,
+            withcoord=withcoord,
+            withdist=withdist,
+            withhash=withhash,
+            store=None,
+            store_dist=None,
+        )
 
     def geosearchstore(
         self: _SELF_ANNOTATION,
@@ -3666,7 +3682,7 @@ class Commands:
         sort: Optional[str] = None,
         count: Optional[int] = None,
         any: bool = False,
-        storedist: bool = False
+        storedist: bool = False,
     ) -> Awaitable:
         """
         This command is like GEOSEARCH, but stores the result in
@@ -3676,16 +3692,28 @@ class Commands:
         items in a sorted set populated with their distance from the
         center of the circle or box, as a floating-point number.
         """
-        return self._geosearchgeneric('GEOSEARCHSTORE',
-                                      dest, name, member=member,
-                                      longitude=longitude, latitude=latitude,
-                                      unit=unit, radius=radius, width=width,
-                                      height=height, sort=sort, count=count,
-                                      any=any, withcoord=None,
-                                      withdist=None, withhash=None,
-                                      store=None, store_dist=storedist)
+        return self._geosearchgeneric(
+            "GEOSEARCHSTORE",
+            dest,
+            name,
+            member=member,
+            longitude=longitude,
+            latitude=latitude,
+            unit=unit,
+            radius=radius,
+            width=width,
+            height=height,
+            sort=sort,
+            count=count,
+            any=any,
+            withcoord=None,
+            withdist=None,
+            withhash=None,
+            store=None,
+            store_dist=storedist,
+        )
 
-    def _geosearchgeneric(
+    def _geosearchgeneric(  # noqa C901
         self: _SELF_ANNOTATION,
         command: str,
         *args: EncodableT,
@@ -3694,60 +3722,59 @@ class Commands:
         pieces = list(args)
 
         # FROMMEMBER or FROMLONLAT
-        if kwargs['member'] is None:
-            if kwargs['longitude'] is None or kwargs['latitude'] is None:
-                raise DataError("GEOSEARCH must have member or"
-                                " longitude and latitude")
-        if kwargs['member']:
-            if kwargs['longitude'] or kwargs['latitude']:
-                raise DataError("GEOSEARCH member and longitude or latitude"
-                                " cant be set together")
-            pieces.extend([b'FROMMEMBER', kwargs['member']])
-        if kwargs['longitude'] and kwargs['latitude']:
-            pieces.extend([b'FROMLONLAT',
-                           kwargs['longitude'], kwargs['latitude']])
+        if kwargs["member"] is None:
+            if kwargs["longitude"] is None or kwargs["latitude"] is None:
+                raise DataError("GEOSEARCH must have member or longitude and latitude")
+        if kwargs["member"]:
+            if kwargs["longitude"] or kwargs["latitude"]:
+                raise DataError(
+                    "GEOSEARCH member and longitude or latitude cant be set together"
+                )
+            pieces.extend([b"FROMMEMBER", kwargs["member"]])
+        if kwargs["longitude"] and kwargs["latitude"]:
+            pieces.extend([b"FROMLONLAT", kwargs["longitude"], kwargs["latitude"]])
 
         # BYRADIUS or BYBOX
-        if kwargs['radius'] is None:
-            if kwargs['width'] is None or kwargs['height'] is None:
-                raise DataError("GEOSEARCH must have radius or"
-                                " width and height")
-        if kwargs['unit'] is None:
+        if kwargs["radius"] is None:
+            if kwargs["width"] is None or kwargs["height"] is None:
+                raise DataError("GEOSEARCH must have radius or width and height")
+        if kwargs["unit"] is None:
             raise DataError("GEOSEARCH must have unit")
-        if kwargs['unit'].lower() not in ('m', 'km', 'mi', 'ft'):
+        if kwargs["unit"].lower() not in ("m", "km", "mi", "ft"):
             raise DataError("GEOSEARCH invalid unit")
-        if kwargs['radius']:
-            if kwargs['width'] or kwargs['height']:
-                raise DataError("GEOSEARCH radius and width or height"
-                                " cant be set together")
-            pieces.extend([b'BYRADIUS', kwargs['radius'], kwargs['unit']])
-        if kwargs['width'] and kwargs['height']:
-            pieces.extend([b'BYBOX',
-                           kwargs['width'], kwargs['height'], kwargs['unit']])
+        if kwargs["radius"]:
+            if kwargs["width"] or kwargs["height"]:
+                raise DataError(
+                    "GEOSEARCH radius and width or height" " cant be set together"
+                )
+            pieces.extend([b"BYRADIUS", kwargs["radius"], kwargs["unit"]])
+        if kwargs["width"] and kwargs["height"]:
+            pieces.extend([b"BYBOX", kwargs["width"], kwargs["height"], kwargs["unit"]])
 
         # sort
-        if kwargs['sort']:
-            if kwargs['sort'].upper() == 'ASC':
-                pieces.append(b'ASC')
-            elif kwargs['sort'].upper() == 'DESC':
-                pieces.append(b'DESC')
+        if kwargs["sort"]:
+            if kwargs["sort"].upper() == "ASC":
+                pieces.append(b"ASC")
+            elif kwargs["sort"].upper() == "DESC":
+                pieces.append(b"DESC")
             else:
                 raise DataError("GEOSEARCH invalid sort")
 
         # count any
-        if kwargs['count']:
-            pieces.extend([b'COUNT', kwargs['count']])
-            if kwargs['any']:
-                pieces.append(b'ANY')
-        elif kwargs['any']:
+        if kwargs["count"]:
+            pieces.extend([b"COUNT", kwargs["count"]])
+            if kwargs["any"]:
+                pieces.append(b"ANY")
+        elif kwargs["any"]:
             raise DataError("GEOSEARCH any can't be provided without count")
 
         # other properties
         for arg_name, byte_repr in (
-            ('withdist', b'WITHDIST'),
-            ('withcoord', b'WITHCOORD'),
-            ('withhash', b'WITHHASH'),
-            ('store_dist', b'STOREDIST')):
+            ("withdist", b"WITHDIST"),
+            ("withcoord", b"WITHCOORD"),
+            ("withhash", b"WITHHASH"),
+            ("store_dist", b"STOREDIST"),
+        ):
             if kwargs[arg_name]:
                 pieces.append(byte_repr)
 

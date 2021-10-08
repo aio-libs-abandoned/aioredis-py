@@ -420,18 +420,18 @@ def parse_slowlog_get(response, **options):
 
     def parse_item(item):
         result = {
-            'id': item[0],
-            'start_time': int(item[1]),
-            'duration': int(item[2]),
+            "id": item[0],
+            "start_time": int(item[1]),
+            "duration": int(item[2]),
         }
         # Redis Enterprise injects another entry at index [3], which has
         # the complexity info (i.e. the value N in case the command has
         # an O(N) complexity) instead of the command.
         if isinstance(item[3], list):
-            result['command'] = space.join(item[3])
+            result["command"] = space.join(item[3])
         else:
-            result['complexity'] = item[3]
-            result['command'] = space.join(item[4])
+            result["complexity"] = item[3]
+            result["command"] = space.join(item[4])
         return result
 
     return [parse_item(item) for item in response]
@@ -449,18 +449,19 @@ def parse_stralgo(response, **options):
     When WITHMATCHLEN is given, each array representing a match will
     also have the length of the match at the beginning of the array.
     """
-    if options.get('len', False):
+    if options.get("len", False):
         return int(response)
-    if options.get('idx', False):
-        if options.get('withmatchlen', False):
-            matches = [[(int(match[-1]))] + list(map(tuple, match[:-1]))
-                       for match in response[1]]
+    if options.get("idx", False):
+        if options.get("withmatchlen", False):
+            matches = [
+                [(int(match[-1]))] + list(map(tuple, match[:-1]))
+                for match in response[1]
+            ]
         else:
-            matches = [list(map(tuple, match))
-                       for match in response[1]]
+            matches = [list(map(tuple, match)) for match in response[1]]
         return {
             str_if_bytes(response[0]): matches,
-            str_if_bytes(response[2]): int(response[3])
+            str_if_bytes(response[2]): int(response[3]),
         }
     return str_if_bytes(response)
 

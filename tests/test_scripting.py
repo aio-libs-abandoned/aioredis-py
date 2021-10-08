@@ -35,20 +35,20 @@ class TestScripting:
 
     @pytest.mark.asyncio(forbid_global_loop=True)
     async def test_script_flush(self, r):
-        await r.set('a', 2)
+        await r.set("a", 2)
         await r.script_load(multiply_script)
-        await r.script_flush('ASYNC')
+        await r.script_flush("ASYNC")
 
-        await r.set('a', 2)
+        await r.set("a", 2)
         await r.script_load(multiply_script)
-        await r.script_flush('SYNC')
+        await r.script_flush("SYNC")
 
-        await r.set('a', 2)
+        await r.set("a", 2)
         await r.script_load(multiply_script)
         await r.script_flush()
 
         with pytest.raises(exceptions.DataError):
-            await r.set('a', 2)
+            await r.set("a", 2)
             await r.script_load(multiply_script)
             await r.script_flush("NOTREAL")
 
