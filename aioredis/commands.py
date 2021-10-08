@@ -3543,26 +3543,24 @@ class BitFieldOperation:
 
 
 class SentinelCommands:
+    _SELF_ANNOTATION = Union[CommandsProtocol, "SentinelCommands"]
+
     def sentinel_get_master_addr_by_name(
-        self: Union[CommandsProtocol, "SentinelCommands"], service_name: str
+        self: _SELF_ANNOTATION, service_name: str
     ) -> Awaitable:
         """Returns a (host, port) pair for the given ``service_name``"""
         return self.execute_command("SENTINEL GET-MASTER-ADDR-BY-NAME", service_name)
 
-    def sentinel_master(
-        self: Union[CommandsProtocol, "SentinelCommands"], service_name: str
-    ) -> Awaitable:
+    def sentinel_master(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
         """Returns a dictionary containing the specified masters state."""
         return self.execute_command("SENTINEL MASTER", service_name)
 
-    def sentinel_masters(
-        self: Union[CommandsProtocol, "SentinelCommands"]
-    ) -> Awaitable:
+    def sentinel_masters(self: _SELF_ANNOTATION) -> Awaitable:
         """Returns a list of dictionaries containing each master's state."""
         return self.execute_command("SENTINEL MASTERS")
 
     def sentinel_monitor(
-        self: Union[CommandsProtocol, "SentinelCommands"],
+        self: _SELF_ANNOTATION,
         name: str,
         ip: str,
         port: int,
@@ -3571,20 +3569,16 @@ class SentinelCommands:
         """Add a new master to Sentinel to be monitored"""
         return self.execute_command("SENTINEL MONITOR", name, ip, port, quorum)
 
-    def sentinel_remove(
-        self: Union[CommandsProtocol, "SentinelCommands"], name: str
-    ) -> Awaitable:
+    def sentinel_remove(self: _SELF_ANNOTATION, name: str) -> Awaitable:
         """Remove a master from Sentinel's monitoring"""
         return self.execute_command("SENTINEL REMOVE", name)
 
-    def sentinel_sentinels(
-        self: Union[CommandsProtocol, "SentinelCommands"], service_name: str
-    ) -> Awaitable:
+    def sentinel_sentinels(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
         """Returns a list of sentinels for ``service_name``"""
         return self.execute_command("SENTINEL SENTINELS", service_name)
 
     def sentinel_set(
-        self: Union[CommandsProtocol, "SentinelCommands"],
+        self: _SELF_ANNOTATION,
         name: str,
         option: str,
         value: EncodableT,
@@ -3592,8 +3586,51 @@ class SentinelCommands:
         """Set Sentinel monitoring parameters for a given master"""
         return self.execute_command("SENTINEL SET", name, option, value)
 
-    def sentinel_slaves(
-        self: Union[CommandsProtocol, "SentinelCommands"], service_name: str
-    ) -> Awaitable:
+    def sentinel_slaves(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
         """Returns a list of slaves for ``service_name``"""
         return self.execute_command("SENTINEL SLAVES", service_name)
+
+    def sentinel_reset(self: _SELF_ANNOTATION, pattern: PatternT) -> Awaitable:
+        """
+        This command will reset all the masters with matching name.
+        The pattern argument is a glob-style pattern.
+        The reset process clears any previous state in a master (including a
+        failover in progress), and removes every slave and sentinel already
+        discovered and associated with the master.
+        """
+        return self.execute_command("SENTINEL RESET", pattern, once=True)
+
+    def sentinel_failover(self: _SELF_ANNOTATION, new_master_name: str) -> Awaitable:
+        """
+        Force a failover as if the master was not reachable, and without
+        asking for agreement to other Sentinels (however a new version of the
+        configuration will be published so that the other Sentinels will
+        update their configurations).
+        """
+        return self.execute_command("SENTINEL FAILOVER", new_master_name)
+
+    def sentinel_ckquorum(self: _SELF_ANNOTATION, new_master_name: str) -> Awaitable:
+        """
+        Check if the current Sentinel configuration is able to reach the
+        quorum needed to failover a master, and the majority needed to
+        authorize the failover.
+        This command should be used in monitoring systems to check if a
+        Sentinel deployment is ok.
+        """
+        return self.execute_command("SENTINEL CKQUORUM", new_master_name, once=True)
+
+    def sentinel_flushconfig(self: _SELF_ANNOTATION) -> Awaitable:
+        """
+        Force Sentinel to rewrite its configuration on disk, including the
+        current Sentinel state.
+        Normally Sentinel rewrites the configuration every time something
+        changes in its state (in the context of the subset of the state which
+        is persisted on disk across restart).
+        However sometimes it is possible that the configuration file is lost
+        because of operation errors, disk failures, package upgrade scripts or
+        configuration managers. In those cases a way to to force Sentinel to
+        rewrite the configuration file is handy.
+        This command works even if the previous configuration file is
+        completely missing.
+        """
+        return self.execute_command("SENTINEL FLUSHCONFIG")

@@ -192,6 +192,23 @@ class Sentinel:
         self.min_other_sentinels = min_other_sentinels
         self.connection_kwargs = connection_kwargs
 
+    def execute_command(self, *args, **kwargs):
+        """
+        Execute Sentinel command in sentinel nodes.
+        once - If set to True, then execute the resulting command on a single
+               node at random, rather than across the entire sentinel cluster.
+        """
+        once = bool(kwargs.get("once", False))
+        if "once" in kwargs.keys():
+            kwargs.pop("once")
+
+        if once:
+            for sentinel in self.sentinels:
+                sentinel.execute_command(*args, **kwargs)
+        else:
+            random.choice(self.sentinels).execute_command(*args, **kwargs)
+        return True
+
     def __repr__(self):
         sentinel_addresses = []
         for sentinel in self.sentinels:

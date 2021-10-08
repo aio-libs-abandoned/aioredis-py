@@ -36,6 +36,12 @@ class SentinelTestClient:
             return []
         return self.cluster.slaves
 
+    def execute_command(self, *args, **kwargs):
+        # wrapper purely to validate the calls don't explode
+        from aioredis.client import bool_ok
+
+        return bool_ok
+
 
 class SentinelTestCluster:
     def __init__(self, service_name="mymaster", ip="127.0.0.1", port=6379):
@@ -207,3 +213,16 @@ async def test_slave_round_robin(cluster, sentinel, master_ip):
     assert await rotator.__anext__() == (master_ip, 6379)
     with pytest.raises(SlaveNotFoundError):
         await rotator.__anext__()
+
+
+async def test_ckquorum(cluster, sentinel):
+    assert await sentinel.sentinel_ckquorum("mymaster")
+
+
+async def test_flushconfig(cluster, sentinel):
+    assert await sentinel.sentinel_flushconfig()
+
+
+async def test_reset(cluster, sentinel):
+    cluster.master["is_odown"] = True
+    assert await sentinel.sentinel_reset("mymaster")
