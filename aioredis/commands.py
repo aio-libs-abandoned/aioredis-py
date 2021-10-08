@@ -1495,9 +1495,9 @@ class Commands:
         """Push ``values`` onto the head of the list ``name``"""
         return self.execute_command("LPUSH", name, *values)
 
-    def lpushx(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def lpushx(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``value`` onto the head of the list ``name`` if ``name`` exists"""
-        return self.execute_command("LPUSHX", name, value)
+        return self.execute_command("LPUSHX", name, *values)
 
     def lrange(self: _SELF_ANNOTATION, name: KeyT, start: int, end: int) -> Awaitable:
         """

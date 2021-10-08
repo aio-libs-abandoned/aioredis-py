@@ -1341,6 +1341,15 @@ class TestRedisCommands:
         assert await r.lpushx("a", "4") == 4
         assert await r.lrange("a", 0, -1) == [b"4", b"1", b"2", b"3"]
 
+    @skip_if_server_version_lt('4.0.0')
+    async def test_lpushx_with_list(self, r: aioredis.Redis):
+        # now with a list
+        await r.lpush('somekey', 'a')
+        await r.lpush('somekey', 'b')
+        assert await r.lpushx('somekey', 'foo', 'asdasd', 55, 'asdasdas') == 6
+        res = await r.lrange('somekey', 0, -1)
+        assert res == [b'asdasdas', b'55', b'asdasd', b'foo', b'b', b'a']
+
     async def test_lrange(self, r: aioredis.Redis):
         await r.rpush("a", "1", "2", "3", "4", "5")
         assert await r.lrange("a", 0, 2) == [b"1", b"2", b"3"]
