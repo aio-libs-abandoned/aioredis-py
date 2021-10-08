@@ -673,7 +673,7 @@ class TestRedisCommands:
             COMPLEXITY_STATEMENT = "Complexity info: N:4712,M:3788"
             old_parse_response = r.parse_response
 
-            def parse_response(connection, command_name, **options):
+            async def parse_response(connection, command_name, **options):
                 if command_name != "SLOWLOG GET":
                     return old_parse_response(connection, command_name, **options)
                 responses = await connection.read_response()
@@ -961,7 +961,7 @@ class TestRedisCommands:
         assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
 
     @skip_if_server_version_lt("6.2.0")
-    def test_getdel(self, r: aioredis.Redis):
+    async def test_getdel(self, r: aioredis.Redis):
         assert await r.getdel("a") is None
         await r.set("a", 1)
         assert await r.getdel("a") == b"1"
@@ -1753,7 +1753,7 @@ class TestRedisCommands:
         assert await r.zadd("a", {"a1": 1}, xx=True, incr=True) is None
 
     @skip_if_server_version_lt("6.2.0")
-    def test_zadd_gt_lt(self, r: aioredis.Redis):
+    async def test_zadd_gt_lt(self, r: aioredis.Redis):
 
         for i in range(1, 20):
             await r.zadd("a", {"a%s" % i: i})
@@ -1884,7 +1884,7 @@ class TestRedisCommands:
         assert await r.zpopmin("a", count=2) == [(b"a2", 2), (b"a3", 3)]
 
     @skip_if_server_version_lt("6.2.0")
-    def test_zrandemember(self, r):
+    async def test_zrandemember(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
         assert await r.zrandmember("a") is not None
         assert len(await r.zrandmember("a", 2)) == 2
