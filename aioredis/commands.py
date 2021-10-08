@@ -621,6 +621,12 @@ class Commands:
         """Ping the Redis server"""
         return self.execute_command("PING")
 
+    async def quit(self: _SELF_ANNOTATION) -> Awaitable:
+        """Ask the server to close the connection.
+        https://redis.io/commands/quit
+        """
+        return self.execute_command('QUIT')
+
     def save(self: _SELF_ANNOTATION) -> Awaitable:
         """
         Tell the Redis server to save its data to disk,

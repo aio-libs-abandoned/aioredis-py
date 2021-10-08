@@ -560,6 +560,9 @@ class TestRedisCommands:
     async def test_ping(self, r: aioredis.Redis):
         assert await r.ping()
 
+    async def test_quit(self, r: aioredis.Redis):
+        assert await r.quit()
+
     async def test_slowlog_get(self, r: aioredis.Redis, slowlog):
         assert await r.slowlog_reset()
         unicode_string = chr(3456) + "abcd" + chr(3421)
