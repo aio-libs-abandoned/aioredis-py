@@ -6,7 +6,7 @@ import aioredis
 async def main():
     redis = aioredis.from_url("redis://localhost", decode_responses=True)
 
-    await redis.hset("hash", mapping={"key1":"value1", "key2":"value2", "key3":123})
+    await redis.hset("hash", mapping={"key1": "value1", "key2": "value2", "key3": 123})
 
     result = await redis.hgetall("hash")
     assert result == {
