@@ -25,8 +25,8 @@ from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
 import async_timeout
 
-from .compat import Protocol, TypedDict
-from .exceptions import (
+from aioredis.compat import Protocol, TypedDict
+from aioredis.exceptions import (
     AuthenticationError,
     AuthenticationWrongNumberOfArgsError,
     BusyLoadingError,
@@ -43,7 +43,8 @@ from .exceptions import (
     ResponseError,
     TimeoutError,
 )
-from .utils import str_if_bytes
+from aioredis.typing import EncodableT, EncodedT
+from aioredis.utils import str_if_bytes
 
 NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {
     BlockingIOError: errno.EWOULDBLOCK,
@@ -87,10 +88,6 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
     "exports one or more module-side data "
     "types, can't unload"
 )
-
-EncodedT = Union[bytes, memoryview]
-DecodedT = Union[str, int, float]
-EncodableT = Union[EncodedT, DecodedT]
 
 
 class Encoder:
