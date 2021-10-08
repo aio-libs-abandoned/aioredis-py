@@ -104,6 +104,14 @@ class TestRedisCommands:
         password = await r.acl_genpass()
         assert isinstance(password, str)
 
+        with pytest.raises(exceptions.DataError):
+            await r.acl_genpass('value')
+            await r.acl_genpass(-5)
+            await r.acl_genpass(5555)
+
+        await r.acl_genpass(555)
+        assert isinstance(password, str)
+
     @skip_if_server_version_lt(REDIS_6_VERSION)
     async def test_acl_getuser_setuser(self, r: aioredis.Redis, request, event_loop):
         username = "redis-py-user"
