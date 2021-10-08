@@ -2549,6 +2549,154 @@ class TestRedisCommands:
     async def test_old_geopos_no_value(self, r: aioredis.Redis):
         assert await r.geopos("barcelona", "place1", "place2") == []
 
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearch(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, b'\x80place2') + \
+                 (2.583333, 41.316667, 'place3')
+        await r.geoadd('barcelona', *values)
+        assert await r.geosearch('barcelona', longitude=2.191,
+                           latitude=41.433, radius=1000) == [b'place1']
+        assert await r.geosearch('barcelona', longitude=2.187,
+                           latitude=41.406, radius=1000) == [b'\x80place2']
+        assert await r.geosearch('barcelona', longitude=2.191, latitude=41.433,
+                           height=1000, width=1000) == [b'place1']
+        assert await r.geosearch('barcelona', member='place3', radius=100,
+                           unit='km') == [b'\x80place2', b'place1', b'place3']
+        # test count
+        assert await r.geosearch('barcelona', member='place3', radius=100,
+                           unit='km', count=2) == [b'place3', b'\x80place2']
+        assert (await r.geosearch('barcelona', member='place3', radius=100,
+                           unit='km', count=1, any=True))[0] \
+               in [b'place1', b'place3', b'\x80place2']
+
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearch_member(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, b'\x80place2')
+
+        await r.geoadd('barcelona', *values)
+        assert await r.geosearch('barcelona', member='place1', radius=4000) == \
+               [b'\x80place2', b'place1']
+        assert await r.geosearch('barcelona', member='place1', radius=10) == \
+               [b'place1']
+
+        assert await r.geosearch('barcelona', member='place1', radius=4000,
+                           withdist=True,
+                           withcoord=True,
+                           withhash=True) == \
+               [[b'\x80place2', 3067.4157, 3471609625421029,
+                 (2.187376320362091, 41.40634178640635)],
+                [b'place1', 0.0, 3471609698139488,
+                 (2.1909382939338684, 41.433790281840835)]]
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearch_sort(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, 'place2')
+        await r.geoadd('barcelona', *values)
+        assert await r.geosearch('barcelona', longitude=2.191,
+                           latitude=41.433, radius=3000, sort='ASC') == \
+               [b'place1', b'place2']
+        assert await r.geosearch('barcelona', longitude=2.191,
+                           latitude=41.433, radius=3000, sort='DESC') == \
+               [b'place2', b'place1']
+
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearch_with(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, 'place2')
+        await r.geoadd('barcelona', *values)
+
+        # test a bunch of combinations to test the parse response
+        # function.
+        assert await r.geosearch('barcelona', longitude=2.191, latitude=41.433,
+                           radius=1, unit='km', withdist=True,
+                           withcoord=True, withhash=True) == \
+               [[b'place1', 0.0881, 3471609698139488,
+                 (2.19093829393386841, 41.43379028184083523)]]
+        assert await r.geosearch('barcelona', longitude=2.191, latitude=41.433,
+                           radius=1, unit='km',
+                           withdist=True, withcoord=True) == \
+               [[b'place1', 0.0881,
+                 (2.19093829393386841, 41.43379028184083523)]]
+        assert await r.geosearch('barcelona', longitude=2.191, latitude=41.433,
+                           radius=1, unit='km',
+                           withhash=True, withcoord=True) == \
+               [[b'place1', 3471609698139488,
+                 (2.19093829393386841, 41.43379028184083523)]]
+        # test no values.
+        assert await r.geosearch('barcelona', longitude=2, latitude=1,
+                           radius=1, unit='km', withdist=True,
+                           withcoord=True, withhash=True) == []
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearch_negative(self, r: aioredis.Redis):
+        # not specifying member nor longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona')
+        # specifying member and longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona',
+                               member="Paris", longitude=2, latitude=1)
+        # specifying one of longitude and latitude
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', longitude=2)
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', latitude=2)
+
+        # not specifying radius nor width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', member="Paris")
+        # specifying radius and width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', member="Paris",
+                               radius=3, width=2, height=1)
+        # specifying one of width and height
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', member="Paris", width=2)
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', member="Paris", height=2)
+
+        # invalid sort
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona',
+                               member="Paris", width=2, height=2, sort="wrong")
+
+        # invalid unit
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona',
+                               member="Paris", width=2, height=2, unit="miles")
+
+        # use any without count
+        with pytest.raises(exceptions.DataError):
+            assert await r.geosearch('barcelona', member='place3', radius=100, any=True)
+
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearchstore(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, 'place2')
+
+        await r.geoadd('barcelona', *values)
+        await r.geosearchstore('places_barcelona', 'barcelona',
+                         longitude=2.191, latitude=41.433, radius=1000)
+        assert await r.zrange('places_barcelona', 0, -1) == [b'place1']
+
+    @skip_unless_arch_bits(64)
+    @skip_if_server_version_lt('6.2.0')
+    async def test_geosearchstore_dist(self, r: aioredis.Redis):
+        values = (2.1909389952632, 41.433791470673, 'place1') + \
+                 (2.1873744593677, 41.406342043777, 'place2')
+
+        await r.geoadd('barcelona', *values)
+        await r.geosearchstore('places_barcelona', 'barcelona',
+                         longitude=2.191, latitude=41.433,
+                         radius=1000, storedist=True)
+        # instead of save the geo score, the distance is saved.
+        assert await r.zscore('places_barcelona', 'place1') == 88.05060698409301
+
     @skip_if_server_version_lt("3.2.0")
     async def test_georadius(self, r: aioredis.Redis):
         values = (2.1909389952632, 41.433791470673, "place1") + (

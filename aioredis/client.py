@@ -493,9 +493,14 @@ def parse_cluster_nodes(response, **options):
 
 
 def parse_georadius_generic(response, **options):
+    """
+    Parse the response of 'GEOSEARCH', GEORADIUS' and 'GEORADIUSBYMEMBER'
+    commands according to 'withdist', 'withhash' and 'withcoord' labels.
+    """
     if options["store"] or options["store_dist"]:
-        # `store` and `store_diff` cant be combined
+        # `store` and `store_dist` cant be combined
         # with other command arguments.
+        # relevant to 'GEORADIUS' and 'GEORADIUSBYMEMBER'
         return response
 
     if type(response) != list:
@@ -739,6 +744,7 @@ class Redis(Commands):
         "GEOPOS": lambda r: list(
             map(lambda ll: (float(ll[0]), float(ll[1])) if ll is not None else None, r)
         ),
+        "GEOSEARCH": parse_georadius_generic,
         "GEORADIUS": parse_georadius_generic,
         "GEORADIUSBYMEMBER": parse_georadius_generic,
         "HGETALL": lambda r: r and pairs_to_dict(r) or {},
