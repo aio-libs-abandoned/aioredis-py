@@ -3323,9 +3323,20 @@ class Commands:
         """
         return self.execute_command("SCRIPT EXISTS", *args)
 
-    def script_flush(self: _SELF_ANNOTATION) -> Awaitable:
-        """Flush all scripts from the script cache"""
-        return self.execute_command("SCRIPT FLUSH")
+    def script_flush(
+        self: _SELF_ANNOTATION,
+        sync_type: Union[Literal["SYNC"], Literal["ASYNC"]] = "SYNC",
+    ) -> Awaitable:
+        """Flush all scripts from the script cache.
+        ``sync_type`` is by default SYNC (synchronous) but it can also be
+                      ASYNC.
+        See: https://redis.io/commands/script-flush
+        """
+        if sync_type not in ["SYNC", "ASYNC"]:
+            raise DataError("SCRIPT FLUSH defaults to SYNC or "
+                            "accepts SYNC/ASYNC")
+        pieces = [sync_type]
+        return self.execute_command('SCRIPT FLUSH', *pieces)
 
     def script_kill(self: _SELF_ANNOTATION) -> Awaitable:
         """Kill the currently executing Lua script"""
