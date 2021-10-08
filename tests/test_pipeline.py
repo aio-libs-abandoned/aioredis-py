@@ -2,7 +2,7 @@ import pytest
 
 import aioredis
 
-from .conftest import wait_for_command
+from .conftest import wait_for_command, skip_if_server_version_lt
 
 pytestmark = pytest.mark.asyncio
 
@@ -366,3 +366,29 @@ class TestPipeline:
         async with r.pipeline() as pipe:
             await pipe.get("a")
             assert await pipe.execute() == [b"a1"]
+
+    @skip_if_server_version_lt('2.0.0')
+    async def test_pipeline_discard(self, r):
+
+        # empty pipeline should raise an error
+        async with r.pipeline() as pipe:
+            pipe.set('key', 'someval')
+            await pipe.discard()
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                await pipe.execute()
+
+        # setting a pipeline and discarding should do the same
+        async with r.pipeline() as pipe:
+            pipe.set('key', 'someval')
+            pipe.set('someotherkey', 'val')
+            response = await pipe.execute()
+            pipe.set('key', 'another value!')
+            await pipe.discard()
+            pipe.set('key', 'another vae!')
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                await pipe.execute()
+
+            pipe.set('foo', 'bar')
+            response = await pipe.execute()
+        assert response[0]
+        assert await r.get('foo') == b'bar'

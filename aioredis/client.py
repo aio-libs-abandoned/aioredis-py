@@ -1934,6 +1934,12 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         finally:
             await self.reset()
 
+    async def discard(self):
+        """Flushes all previously queued commands
+        See: https://redis.io/commands/DISCARD
+        """
+        await self.execute_command("DISCARD")
+
     async def watch(self, *names: KeyT):
         """Watches the values at keys ``names``"""
         if self.explicit_transaction:
