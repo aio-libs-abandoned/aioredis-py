@@ -410,6 +410,11 @@ def parse_zscan(response, **options):
     return int(cursor), list(zip(it, map(score_cast_func, it)))
 
 
+def parse_zmscore(response, **options):
+    # zmscore: list of scores (double precision floating point number) or nil
+    return [float(score) if score is not None else None for score in response]
+
+
 def parse_slowlog_get(response, **options):
     space = " " if options.get("decode_responses", False) else b" "
     return [
@@ -753,6 +758,7 @@ class Redis(Commands):
         "XPENDING": parse_xpending,
         "ZADD": parse_zadd,
         "ZSCAN": parse_zscan,
+        "ZMSCORE": parse_zmscore,
     }
 
     @classmethod

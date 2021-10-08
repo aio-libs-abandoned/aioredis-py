@@ -1989,6 +1989,17 @@ class TestRedisCommands:
             (b"a1", 23),
         ]
 
+    @skip_if_server_version_lt('6.1.240')
+    async def test_zmscore(self, r: aioredis.Redis):
+        with pytest.raises(exceptions.DataError):
+            await r.zmscore('invalid_key', [])
+
+        assert await r.zmscore('invalid_key', ['invalid_member']) == [None]
+
+        await r.zadd('a', {'a1': 1, 'a2': 2, 'a3': 3.5})
+        assert await r.zmscore('a', ['a1', 'a2', 'a3', 'a4']) == \
+               [1.0, 2.0, 3.5, None]
+
     # HYPERLOGLOG TESTS
     @skip_if_server_version_lt("2.8.9")
     async def test_pfadd(self, r: aioredis.Redis):
