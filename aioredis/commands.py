@@ -3505,6 +3505,9 @@ class Commands:
         """
         return self.execute_command("MODULE UNLOAD", name)
 
+    def command_count(self: _SELF_ANNOTATION) -> Awaitable:
+        return self.execute_command("COMMAND COUNT")
+
     def module_list(self: _SELF_ANNOTATION) -> Awaitable:
         """
         Returns a list of dictionaries containing the name and version of

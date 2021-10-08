@@ -3503,6 +3503,12 @@ class TestRedisCommands:
         assert isinstance(await r.module_list(), list)
         assert not await r.module_list()
 
+    @skip_if_server_version_lt('2.8.13')
+    async def test_command_count(self, r: aioredis.Redis):
+        res = await r.command_count()
+        assert isinstance(res, int)
+        assert res >= 100
+
 
 class TestBinarySave:
     async def test_binary_get_set(self, r: aioredis.Redis):
