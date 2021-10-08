@@ -3826,7 +3826,7 @@ class Script:
         self,
         keys: Optional[Sequence[KeyT]] = None,
         args: Optional[Iterable[EncodableT]] = None,
-        client: Optional[Redis] = None,
+        client: Optional["Redis"] = None,
     ):
         """Execute the script, passing any required ``args``"""
         from aioredis.client import Pipeline
