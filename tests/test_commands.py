@@ -1121,6 +1121,49 @@ class TestRedisCommands:
         assert await r.setrange("a", 6, "12345") == 11
         assert await r.get("a") == b"abcdef12345"
 
+    @skip_if_server_version_lt('6.0.0')
+    async def test_stralgo_lcs(self, r: aioredis.Redis):
+        key1 = 'key1'
+        key2 = 'key2'
+        value1 = 'ohmytext'
+        value2 = 'mynewtext'
+        res = 'mytext'
+        # test LCS of strings
+        assert await r.stralgo('LCS', value1, value2) == res
+        # test using keys
+        await r.mset({key1: value1, key2: value2})
+        assert await r.stralgo('LCS', key1, key2, specific_argument="keys") == res
+        # test other labels
+        assert await r.stralgo('LCS', value1, value2, len=True) == len(res)
+        assert await r.stralgo('LCS', value1, value2, idx=True) == \
+               {
+                   'len': len(res),
+                   'matches': [[(4, 7), (5, 8)], [(2, 3), (0, 1)]]
+               }
+        assert await r.stralgo('LCS', value1, value2,
+                         idx=True, withmatchlen=True) == \
+               {
+                   'len': len(res),
+                   'matches': [[4, (4, 7), (5, 8)], [2, (2, 3), (0, 1)]]
+               }
+        assert await r.stralgo('LCS', value1, value2,
+                         idx=True, minmatchlen=4, withmatchlen=True) == \
+               {
+                   'len': len(res),
+                   'matches': [[4, (4, 7), (5, 8)]]
+               }
+
+    @skip_if_server_version_lt('6.0.0')
+    async def test_stralgo_negative(self, r: aioredis.Redis):
+        with pytest.raises(exceptions.DataError):
+            await r.stralgo('ISSUB', 'value1', 'value2')
+        with pytest.raises(exceptions.DataError):
+            await r.stralgo('LCS', 'value1', 'value2', len=True, idx=True)
+        with pytest.raises(exceptions.DataError):
+            await r.stralgo('LCS', 'value1', 'value2', specific_argument="INT")
+        with pytest.raises(ValueError):
+            await r.stralgo('LCS', 'value1', 'value2', idx=True, minmatchlen="one")
+
     async def test_strlen(self, r: aioredis.Redis):
         await r.set("a", "foo")
         assert await r.strlen("a") == 3

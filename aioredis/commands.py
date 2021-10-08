@@ -18,7 +18,7 @@ from typing import (
     Union,
 )
 
-from aioredis.compat import Protocol
+from aioredis.compat import Literal, Protocol
 from aioredis.connection import ConnectionPool
 from aioredis.exceptions import ConnectionError, DataError, NoScriptError, RedisError
 from aioredis.typing import (
@@ -1263,6 +1263,61 @@ class Commands:
         Returns the length of the new string.
         """
         return self.execute_command("SETRANGE", name, offset, value)
+
+    def stralgo(
+        self: _SELF_ANNOTATION,
+        algo: Literal["LCS"],
+        value1: KeyT,
+        value2: KeyT,
+        specific_argument: Union[Literal["strings"], Literal["keys"]] = 'strings',
+        len: bool = False,
+        idx: bool = False,
+        minmatchlen: Optional[int] = None,
+        withmatchlen: bool = False
+    ) -> Awaitable:
+        """
+        Implements complex algorithms that operate on strings.
+        Right now the only algorithm implemented is the LCS algorithm
+        (longest common substring). However new algorithms could be
+        implemented in the future.
+        ``algo`` Right now must be LCS
+        ``value1`` and ``value2`` Can be two strings or two keys
+        ``specific_argument`` Specifying if the arguments to the algorithm
+        will be keys or strings. strings is the default.
+        ``len`` Returns just the len of the match.
+        ``idx`` Returns the match positions in each string.
+        ``minmatchlen`` Restrict the list of matches to the ones of a given
+        minimal length. Can be provided only when ``idx`` set to True.
+        ``withmatchlen`` Returns the matches with the len of the match.
+        Can be provided only when ``idx`` set to True.
+        """
+        # check validity
+        supported_algo = ['LCS']
+        if algo not in supported_algo:
+            raise DataError("The supported algorithms are: %s"
+                            % (', '.join(supported_algo)))
+        if specific_argument not in ['keys', 'strings']:
+            raise DataError("specific_argument can be only"
+                            " keys or strings")
+        if len and idx:
+            raise DataError("len and idx cannot be provided together.")
+
+        pieces = [algo, specific_argument.upper(), value1, value2]
+        if len:
+            pieces.append(b'LEN')
+        if idx:
+            pieces.append(b'IDX')
+        try:
+            int(minmatchlen)
+            pieces.extend([b'MINMATCHLEN', minmatchlen])
+        except TypeError:
+            pass
+        if withmatchlen:
+            pieces.append(b'WITHMATCHLEN')
+
+        return self.execute_command('STRALGO', *pieces, len=len, idx=idx,
+                                    minmatchlen=minmatchlen,
+                                    withmatchlen=withmatchlen)
 
     def strlen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
         """Return the number of bytes stored in the value of ``name``"""
@@ -2935,7 +2990,7 @@ class Commands:
         """
         return self._zaggregate("ZUNIONSTORE", dest, keys, aggregate)
 
-    def zmscore(self, key: KeyT, members: List[str]) -> Awaitable:
+    def zmscore(self: _SELF_ANNOTATION, key: KeyT, members: List[str]) -> Awaitable:
         """
         Returns the scores associated with the specified members
         in the sorted set stored at key.
