@@ -7,22 +7,22 @@ based on asyncio.
 
 ## Features
 
-| Feature                      | Supported             |
-|:-----------------------------|:----------------------|
-| hiredis parser               | :white_check_mark:    |
-| Pure-python parser           | :white_check_mark:    |
-| Low-level & High-level APIs  | :white_check_mark:    |
-| Pipelining support           | :white_check_mark:    |
-| Multi/Exec support           | :white_check_mark:    |
-| Connections Pool             | :white_check_mark:    |
-| Pub/Sub support              | :white_check_mark:    |
-| Sentinel support             | :white_check_mark:    |
-| ACL support                  | :white_check_mark:    |
-| Streams support              | :white_check_mark:    |
-| Redis Cluster support        | :no_entry_sign:       |
-| Tested Python versions       | 3.6, 3.7, 3.8, 3.9    |
-| Tested for Redis servers     | 5.0, 6.0              |
-| Support for dev Redis server | through low-level API |
+| Feature                      | Supported                |
+|:-----------------------------|:-------------------------|
+| hiredis parser               | :white_check_mark:       |
+| Pure-python parser           | :white_check_mark:       |
+| Low-level & High-level APIs  | :white_check_mark:       |
+| Pipelining support           | :white_check_mark:       |
+| Multi/Exec support           | :white_check_mark:       |
+| Connections Pool             | :white_check_mark:       |
+| Pub/Sub support              | :white_check_mark:       |
+| Sentinel support             | :white_check_mark:       |
+| ACL support                  | :white_check_mark:       |
+| Streams support              | :white_check_mark:       |
+| Redis Cluster support        | :no_entry_sign:          |
+| Tested Python versions       | 3.6, 3.7, 3.8, 3.9, 3.10 |
+| Tested for Redis servers     | 5.0, 6.0                 |
+| Support for dev Redis server | through low-level API    |
 
 
 ## Installation
