@@ -36,11 +36,6 @@ The easiest way to install aioredis is by using the package on PyPi:
 -   Python 3.6+
 -   hiredis
 
-## Benchmarks
-
-Benchmarks can be found here:
-<https://github.com/popravich/python-redis-benchmark>
-
 ## Contribute
 
 -   Issue Tracker: <https://github.com/aio-libs/aioredis/issues>
