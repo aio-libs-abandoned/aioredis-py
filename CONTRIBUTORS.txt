@@ -6,6 +6,7 @@ Adam Rothman
 Aider Ibragimov
 Alan Christianson
 Alexander Shorin
+Alexey Sveshnikov
 Aliaksei Urbanski
 Andrew Svetlov
 Anton Salii
