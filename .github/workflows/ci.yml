@@ -39,6 +39,10 @@ jobs:
       uses: py-actions/py-dependency-install@v2.1.0
       with:
         path: tests/requirements.txt
+    - name: Run mypy
+      run: |
+        pip install -r tests/requirements-mypy.txt
+        mypy
     - name: Run linter
       run: |
         make lint
