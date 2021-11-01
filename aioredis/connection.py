@@ -29,7 +29,7 @@ from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
 import async_timeout
 
-from .compat import Protocol, TypedDict
+from .compat import Protocol, TypedDict, create_task_or_run, get_event_loop
 from .exceptions import (
     AuthenticationError,
     AuthenticationWrongNumberOfArgsError,
@@ -665,12 +665,7 @@ class Connection:
     def __del__(self):
         try:
             if self.is_connected:
-                loop = asyncio.get_event_loop()
-                coro = self.disconnect()
-                if loop.is_running():
-                    loop.create_task(coro)
-                else:
-                    loop.run_until_complete(coro)
+                create_task_or_run(self.disconnect())
         except Exception:
             pass
 
@@ -817,7 +812,7 @@ class Connection:
         """Check the health of the connection with a PING/PONG"""
         if (
             self.health_check_interval
-            and asyncio.get_event_loop().time() > self.next_health_check
+            and get_event_loop().time() > self.next_health_check
         ):
             try:
                 await self.send_command("PING", check_health=False)
@@ -907,7 +902,7 @@ class Connection:
 
         if self.health_check_interval:
             self.next_health_check = (
-                asyncio.get_event_loop().time() + self.health_check_interval
+                get_event_loop().time() + self.health_check_interval
             )
 
         if isinstance(response, ResponseError):

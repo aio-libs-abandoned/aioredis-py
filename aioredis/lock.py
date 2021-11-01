@@ -4,6 +4,7 @@ import uuid
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, NoReturn, Optional, Union
 
+from aioredis.compat import get_event_loop
 from aioredis.exceptions import LockError, LockNotOwnedError
 
 if TYPE_CHECKING:
@@ -185,7 +186,7 @@ class Lock:
         object with the default encoding. If a token isn't specified, a UUID
         will be generated.
         """
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         sleep = self.sleep
         if token is None:
             token = uuid.uuid1().hex.encode()

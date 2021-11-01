@@ -38,6 +38,7 @@ Jeff Moser
 Kyrylo Dehtyarenko
 Leonid Shvechikov
 Manuel Miranda
+Marat Sharafutdinov
 Marek Szapiel
 Marijn Giesen
 Martin <the-panda>

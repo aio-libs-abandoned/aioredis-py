@@ -28,7 +28,7 @@ from typing import (
     cast,
 )
 
-from aioredis.compat import Protocol, TypedDict
+from aioredis.compat import Protocol, TypedDict, create_task_or_run, get_event_loop
 from aioredis.connection import (
     Connection,
     ConnectionPool,
@@ -1056,11 +1056,7 @@ class Redis:
 
     def __del__(self):
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.close())
-            else:
-                loop.run_until_complete(self.close())
+            create_task_or_run(self.close())
         except Exception:
             pass
 
@@ -4064,7 +4060,7 @@ class PubSub:
 
         if (
             conn.health_check_interval
-            and asyncio.get_event_loop().time() > conn.next_health_check
+            and get_event_loop().time() > conn.next_health_check
         ):
             await conn.send_command(
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
@@ -4351,11 +4347,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
 
     def __del__(self):
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.reset())
-            else:
-                loop.run_until_complete(self.reset())
+            create_task_or_run(self.reset())
             super().__del__()
         except Exception:
             pass
