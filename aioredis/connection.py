@@ -613,7 +613,7 @@ class Connection:
         socket_timeout: Optional[float] = None,
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: bool = False,
-        socket_keepalive_options: Optional[dict] = None,
+        socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
         socket_type: int = 0,
         retry_on_timeout: bool = False,
         encoding: str = "utf-8",

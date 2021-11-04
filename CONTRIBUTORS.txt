@@ -35,6 +35,7 @@ Ivan Antonyuck
 James Hilliard
 Jan Špaček
 Jeff Moser
+Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov
 Manuel Miranda

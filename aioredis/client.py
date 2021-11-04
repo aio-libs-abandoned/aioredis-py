@@ -839,7 +839,7 @@ class Redis:
         socket_timeout: Optional[float] = None,
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: Optional[bool] = None,
-        socket_keepalive_options: Optional[Dict[str, Any]] = None,
+        socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
         connection_pool: Optional[ConnectionPool] = None,
         unix_socket_path: Optional[str] = None,
         encoding: str = "utf-8",
