@@ -35,6 +35,7 @@ Ivan Antonyuck
 James Hilliard
 Jan Špaček
 Jeff Moser
+Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov
 Manuel Miranda
@@ -43,6 +44,7 @@ Marijn Giesen
 Martin <the-panda>
 Maxim Dodonchuk
 Michael Käufl
+Mikhail Solomenik
 Nickolai Novik
 Oleg Abramov
 Oleg Butuzov

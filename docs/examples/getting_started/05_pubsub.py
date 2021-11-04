@@ -14,7 +14,7 @@ async def reader(channel: aioredis.client.PubSub):
                 message = await channel.get_message(ignore_subscribe_messages=True)
                 if message is not None:
                     print(f"(Reader) Message Received: {message}")
-                    if message["data"] == STOPWORD:
+                    if message["data"].decode() == STOPWORD:
                         print("(Reader) STOP")
                         break
                 await asyncio.sleep(0.01)
@@ -27,11 +27,14 @@ async def main():
     pubsub = redis.pubsub()
     await pubsub.psubscribe("channel:*")
 
-    asyncio.create_task(reader(pubsub))
+    future = asyncio.create_task(reader(pubsub))
 
     await redis.publish("channel:1", "Hello")
     await redis.publish("channel:2", "World")
     await redis.publish("channel:1", STOPWORD)
 
+    await future
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    asyncio.run(main())

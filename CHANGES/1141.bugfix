@@ -1,0 +1,1 @@
+Fix type annotation of `socket_keepalive_options` arguments when creating connections and clients

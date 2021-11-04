@@ -2,9 +2,10 @@ import asyncio
 import datetime
 import inspect
 import re
+import time as mod_time
 from itertools import chain
 from typing import (
-    TYPE_CHECKING,
+    AbstractSet,
     Any,
     AsyncIterator,
     Awaitable,
@@ -13,6 +14,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     NoReturn,
     Optional,
     Set,
@@ -20,6 +22,8 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    ValuesView,
+    cast,
 )
 
 from aioredis.commands import EMPTY_RESPONSE, Commands, list_or_args
@@ -46,6 +50,59 @@ from aioredis.utils import safe_str, str_if_bytes
 
 if TYPE_CHECKING:
     from aioredis.commands import Script
+
+AbsExpiryT = Union[int, datetime.datetime]
+ExpiryT = Union[int, datetime.timedelta]
+ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
+BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
+_StringLikeT = Union[bytes, str, memoryview]
+KeyT = _StringLikeT  # Main redis key space
+PatternT = _StringLikeT  # Patterns matched against keys, fields etc
+FieldT = EncodableT  # Fields within hash tables, streams and geo commands
+KeysT = Union[KeyT, Sequence[KeyT]]
+ChannelT = _StringLikeT
+GroupT = _StringLikeT  # Consumer group
+ConsumerT = _StringLikeT  # Consumer name
+StreamIdT = Union[int, _StringLikeT]
+ScriptTextT = _StringLikeT
+# Mapping is not covariant in the key type, which prevents
+# Mapping[_StringLikeT, X from accepting arguments of type Dict[str, X]. Using
+# a TypeVar instead of a Union allows mappings with any of the permitted types
+# to be passed. Care is needed if there is more than one such mapping in a
+# type signature because they will all be required to be the same key type.
+AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
+AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
+AnyChannelT = ChannelT
+PubSubHandler = Callable[[Dict[str, str]], None]
+
+SYM_EMPTY = b""
+EMPTY_RESPONSE = "EMPTY_RESPONSE"
+
+_KeyT = TypeVar("_KeyT", bound=KeyT)
+_ArgT = TypeVar("_ArgT", KeyT, EncodableT)
+_RedisT = TypeVar("_RedisT", bound="Redis")
+_NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
+
+
+def list_or_args(
+    keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]
+) -> List[Union[_KeyT, _ArgT]]:
+    # returns a single new list combining keys and args
+    key_list: List[Union[_KeyT, _ArgT]]
+    try:
+        iter(keys)  # type: ignore[arg-type]
+        keys = cast(Iterable[_KeyT], keys)
+        # a string or bytes instance can be iterated, but indicates
+        # keys wasn't passed as a list
+        if isinstance(keys, (bytes, str)):
+            key_list = [keys]
+        else:
+            key_list = list(keys)
+    except TypeError:
+        key_list = [cast(memoryview, keys)]
+    if args:
+        key_list.extend(args)
+    return key_list
 
 
 def timestamp_to_datetime(response):
@@ -117,7 +174,7 @@ def parse_object(response, infotype):
 
 def parse_info(response):
     """Parse the result of Redis's INFO command into a Python dict"""
-    info = {}
+    info: Dict[str, Any] = {}
     response = str_if_bytes(response)
 
     def get_value(value):
@@ -416,7 +473,7 @@ def parse_zmscore(response, **options):
 
 
 def parse_slowlog_get(response, **options):
-    space = " " if options.get("decode_responses", False) else b" "
+    space: Union[str, bytes] = " " if options.get("decode_responses", False) else b" "
 
     def parse_item(item):
         result = {
@@ -513,7 +570,7 @@ def parse_georadius_generic(response, **options):
         # just a bunch of places
         return response_list
 
-    cast = {
+    cast: Dict[str, Callable] = {
         "withdist": float,
         "withcoord": lambda ll: (float(ll[0]), float(ll[1])),
         "withhash": int,
@@ -804,6 +861,8 @@ class Redis(Commands):
         "ZMSCORE": parse_zmscore,
     }
 
+    response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT]
+
     @classmethod
     def from_url(cls, url: str, **kwargs):
         """
@@ -858,7 +917,7 @@ class Redis(Commands):
         socket_timeout: Optional[float] = None,
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: Optional[bool] = None,
-        socket_keepalive_options: Optional[Dict[str, Any]] = None,
+        socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
         connection_pool: Optional[ConnectionPool] = None,
         unix_socket_path: Optional[str] = None,
         encoding: str = "utf-8",
@@ -926,7 +985,7 @@ class Redis(Commands):
             connection_pool = ConnectionPool(**kwargs)
         self.connection_pool = connection_pool
         self.single_connection_client = single_connection_client
-        self.connection = None
+        self.connection: Optional[Connection] = None
 
         self.response_callbacks = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
 
@@ -936,7 +995,7 @@ class Redis(Commands):
     def __await__(self):
         return self.initialize().__await__()
 
-    async def initialize(self):
+    async def initialize(self: _RedisT) -> _RedisT:
         if self.single_connection_client and self.connection is None:
             self.connection = await self.connection_pool.get_connection("_")
         return self
@@ -1067,7 +1126,8 @@ class Redis(Commands):
             connection_pool=self.connection_pool, single_connection_client=True
         )
 
-    __aenter__ = initialize
+    async def __aenter__(self: _RedisT) -> _RedisT:
+        return await self.initialize()
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.close()
@@ -1119,6 +1179,8 @@ class Redis(Commands):
                 return options[EMPTY_RESPONSE]
             raise
         if command_name in self.response_callbacks:
+            # Mypy bug: https://github.com/python/mypy/issues/10977
+            command_name = cast(str, command_name)
             retval = self.response_callbacks[command_name](response, **options)
             return await retval if inspect.isawaitable(retval) else retval
         return response
@@ -1368,7 +1430,7 @@ class PubSub:
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
 
-    def _normalize_keys(self, data: Mapping[AnyChannelT, EncodableT]):
+    def _normalize_keys(self, data: _NormalizeKeysT) -> _NormalizeKeysT:
         """
         normalize channel/pattern names to be either bytes or strings
         based on whether responses are automatically decoded. this saves us
@@ -1376,9 +1438,9 @@ class PubSub:
         """
         encode = self.encoder.encode
         decode = self.encoder.decode
-        return {decode(encode(k)): v for k, v in data.items()}
+        return {decode(encode(k)): v for k, v in data.items()}  # type: ignore[return-value]
 
-    async def psubscribe(self, *args: ChannelT, **kwargs: Callable):
+    async def psubscribe(self, *args: ChannelT, **kwargs: PubSubHandler):
         """
         Subscribe to channel patterns. Patterns supplied as keyword arguments
         expect a pattern name as the key and a callable as the value. A
@@ -1386,10 +1448,10 @@ class PubSub:
         received on that pattern rather than producing a message via
         ``listen()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_patterns: Dict[ChannelT, Optional[Callable]] = dict.fromkeys(args)
-        new_patterns.update(kwargs)
+        parsed_args = list_or_args((args[0],), args[1:]) if args else args
+        new_patterns: Dict[ChannelT, PubSubHandler] = dict.fromkeys(parsed_args)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_patterns.update(kwargs)  # type: ignore[arg-type]
         ret_val = await self.execute_command("PSUBSCRIBE", *new_patterns.keys())
         # update the patterns dict AFTER we send the command. we don't want to
         # subscribe twice to these patterns, once for the command and again
@@ -1399,18 +1461,20 @@ class PubSub:
         self.pending_unsubscribe_patterns.difference_update(new_patterns)
         return ret_val
 
-    def punsubscribe(self, *args: EncodableT) -> Awaitable:
+    def punsubscribe(self, *args: ChannelT) -> Awaitable:
         """
         Unsubscribe from the supplied patterns. If empty, unsubscribe from
         all patterns.
         """
+        patterns: Iterable[ChannelT]
         if args:
-            args = list_or_args(args[0], args[1:])
-            patterns = self._normalize_keys(dict.fromkeys(args))
+            parsed_args = list_or_args((args[0],), args[1:])
+            patterns = self._normalize_keys(dict.fromkeys(parsed_args)).keys()
         else:
+            parsed_args = []
             patterns = self.patterns
         self.pending_unsubscribe_patterns.update(patterns)
-        return self.execute_command("PUNSUBSCRIBE", *args)
+        return self.execute_command("PUNSUBSCRIBE", *parsed_args)
 
     async def subscribe(self, *args: ChannelT, **kwargs: Callable):
         """
@@ -1420,10 +1484,10 @@ class PubSub:
         that channel rather than producing a message via ``listen()`` or
         ``get_message()``.
         """
-        if args:
-            args = list_or_args(args[0], args[1:])
-        new_channels = dict.fromkeys(args)
-        new_channels.update(kwargs)
+        parsed_args = list_or_args((args[0],), args[1:]) if args else ()
+        new_channels = dict.fromkeys(parsed_args)
+        # Mypy bug: https://github.com/python/mypy/issues/10970
+        new_channels.update(kwargs)  # type: ignore[arg-type]
         ret_val = await self.execute_command("SUBSCRIBE", *new_channels.keys())
         # update the channels dict AFTER we send the command. we don't want to
         # subscribe twice to these channels, once for the command and again
@@ -1439,12 +1503,13 @@ class PubSub:
         all channels
         """
         if args:
-            args = list_or_args(args[0], args[1:])
-            channels = self._normalize_keys(dict.fromkeys(args))
+            parsed_args = list_or_args(args[0], args[1:])
+            channels = self._normalize_keys(dict.fromkeys(parsed_args))
         else:
+            parsed_args = []
             channels = self.channels
         self.pending_unsubscribe_channels.update(channels)
-        return self.execute_command("UNSUBSCRIBE", *args)
+        return self.execute_command("UNSUBSCRIBE", *parsed_args)
 
     async def listen(self) -> AsyncIterator:
         """Listen for messages on channels this client has been subscribed to"""
@@ -1537,7 +1602,7 @@ class PubSub:
     async def run(
         self,
         *,
-        exception_handler: "PSWorkerThreadExcHandlerT" = None,
+        exception_handler: Optional["PSWorkerThreadExcHandlerT"] = None,
         poll_timeout: float = 1.0,
     ) -> None:
         """Process pub/sub messages using registered callbacks.
@@ -1621,21 +1686,21 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __init__(
         self,
         connection_pool: ConnectionPool,
-        response_callbacks: Mapping[str, ResponseCallbackT],
+        response_callbacks: MutableMapping[Union[str, bytes], ResponseCallbackT],
         transaction: bool,
         shard_hint: Optional[str],
     ):
         self.connection_pool = connection_pool
         self.connection = None
         self.response_callbacks = response_callbacks
-        self.transaction = transaction
+        self.is_transaction = transaction
         self.shard_hint = shard_hint
         self.watching = False
         self.command_stack: CommandStackT = []
         self.scripts: Set[Script] = set()
         self.explicit_transaction = False
 
-    async def __aenter__(self) -> "Pipeline":
+    async def __aenter__(self: _RedisT) -> _RedisT:
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -1724,6 +1789,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 command_name, self.shard_hint
             )
             self.connection = conn
+        conn = cast(Connection, conn)
         try:
             await conn.send_command(*args)
             return await self.parse_response(conn, command_name, **options)
@@ -1771,12 +1837,14 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.command_stack.append((args, options))
         return self
 
-    async def _execute_transaction(
+    async def _execute_transaction(  # noqa: C901
         self, connection: Connection, commands: CommandStackT, raise_on_error
     ):
-        cmds = chain([(("MULTI",), {})], commands, [(("EXEC",), {})])
+        pre: CommandT = (("MULTI",), {})
+        post: CommandT = (("EXEC",), {})
+        cmds = (pre, *commands, post)
         all_cmds = connection.pack_commands(
-            [args for args, options in cmds if EMPTY_RESPONSE not in options]
+            args for args, options in cmds if EMPTY_RESPONSE not in options
         )
         await connection.send_packed_command(all_cmds)
         errors = []
@@ -1820,7 +1888,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             response.insert(i, e)
 
         if len(response) != len(commands):
-            await self.connection.disconnect()
+            if self.connection:
+                await self.connection.disconnect()
             raise ResponseError(
                 "Wrong number of response items from pipeline execution"
             ) from None
@@ -1868,7 +1937,9 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 self.annotate_exception(r, i + 1, commands[i][0])
                 raise r
 
-    def annotate_exception(self, exception: Exception, number: int, command: str):
+    def annotate_exception(
+        self, exception: Exception, number: int, command: Iterable[object]
+    ) -> None:
         cmd = " ".join(map(safe_str, command))
         msg = f"Command # {number} ({cmd}) of pipeline caused error: {exception.args}"
         exception.args = (msg,) + exception.args[1:]
@@ -1903,7 +1974,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             return []
         if self.scripts:
             await self.load_scripts()
-        if self.transaction or self.explicit_transaction:
+        if self.is_transaction or self.explicit_transaction:
             execute = self._execute_transaction
         else:
             execute = self._execute_pipeline
@@ -1914,6 +1985,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             # assign to self.connection so reset() releases the connection
             # back to the pool after we're done
             self.connection = conn
+        conn = cast(Connection, conn)
 
         try:
             return await execute(conn, stack, raise_on_error)
