@@ -34,7 +34,9 @@ The easiest way to install aioredis is by using the package on PyPi:
 ## Requirements
 
 -   Python 3.6+
--   hiredis
+-   hiredis (Optional but recommended)
+-   async-timeout
+-   typing-extensions
 
 ## Benchmarks
 
