@@ -36,7 +36,7 @@ class SentinelTestClient:
             return []
         return self.cluster.slaves
 
-    def execute_command(self, *args, **kwargs):
+    async def execute_command(self, *args, **kwargs):
         # wrapper purely to validate the calls don't explode
         from aioredis.client import bool_ok
 

@@ -256,7 +256,7 @@ class TestRedisCommands:
 
         assert await r.acl_setuser(username, enabled=False, reset=True)
         users = await r.acl_list()
-        assert len(users) == 2
+        assert len(users) == 2, users
 
     @skip_if_server_version_lt(REDIS_6_VERSION)
     async def test_acl_log(self, r: aioredis.Redis, request, event_loop, create_redis):
@@ -372,8 +372,8 @@ class TestRedisCommands:
         assert "addr" in clients[0]
 
     @skip_if_server_version_lt("6.2.0")
-    def test_client_info(self, r: aioredis.Redis):
-        info = r.client_info()
+    async def test_client_info(self, r: aioredis.Redis):
+        info = await r.client_info()
         assert isinstance(info, dict)
         assert "addr" in info
 
@@ -390,7 +390,7 @@ class TestRedisCommands:
         self, r: aioredis.Redis, request, create_redis
     ):
         clients = await r.client_list()
-        clients = r.client_list(client_id=[clients[0]["id"]])
+        clients = await r.client_list(client_id=[clients[0]["id"]])
         assert len(clients) == 1
         assert "addr" in clients[0]
 
@@ -398,7 +398,7 @@ class TestRedisCommands:
         await create_redis(flushdb=True)
         await create_redis(flushdb=True)
         await create_redis(flushdb=True)
-        clients_listed = r.client_list(client_id=clients[:-1])
+        clients_listed = await r.client_list()
         assert len(clients_listed) > 1
 
     @skip_if_server_version_lt("5.0.0")
@@ -573,7 +573,7 @@ class TestRedisCommands:
 
     @skip_if_server_version_lt("3.2.0")
     async def test_client_reply(self, create_redis):
-        r = create_redis(socket_timeout=1)
+        r = await create_redis(socket_timeout=1)
         assert await r.client_reply("ON") == b"OK"
         with pytest.raises(exceptions.TimeoutError):
             await r.client_reply("OFF")
@@ -583,7 +583,7 @@ class TestRedisCommands:
         assert await r.set("foo", "bar")
 
         # validate it was set
-        assert r.get("foo") == b"bar"
+        assert await r.get("foo") == b"bar"
 
     async def test_config_get(self, r: aioredis.Redis):
         data = await r.config_get()
@@ -717,7 +717,7 @@ class TestRedisCommands:
     async def test_bgsave(self, r: aioredis):
         assert await r.bgsave()
         await asyncio.sleep(0.3)
-        assert await r.bgsave()
+        assert await r.bgsave(True)
 
     # BASIC KEY COMMANDS
     async def test_append(self, r: aioredis.Redis):
