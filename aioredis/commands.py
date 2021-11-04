@@ -90,7 +90,7 @@ class Commands:
 
     def acl_deluser(self: _SELF_ANNOTATION, *username: str) -> Awaitable:
         """Delete the ACL for the specified ``username``s"""
-        return self.execute_command("ACL DELUSER", username)
+        return self.execute_command("ACL DELUSER", *username)
 
     def acl_genpass(self: _SELF_ANNOTATION, bits: Optional[int] = None) -> Awaitable:
         """Generate a random password value.
@@ -2582,14 +2582,14 @@ class Commands:
         """
         Trims old messages from a stream.
         name: name of the stream.
-        maxlen: truncate old stream members beyond this size.
+        maxlen: truncate old stream messages beyond this size
         Can't be specified with minid.
-        minid: the minimum id in the stream to query.
-        Can't be specified with maxlen.
         approximate: actual stream length may be slightly more than maxlen
+        minid: the minimum id in the stream to query
+        Can't be specified with maxlen.
         limit: specifies the maximum number of entries to retrieve
         """
-        pieces: List[EncodableT] = [b"MAXLEN"]
+        pieces: List[EncodableT] = []
         if maxlen is not None and minid is not None:
             raise DataError("Only one of ``maxlen`` or ``minid`` may be specified")
 
@@ -2606,6 +2606,7 @@ class Commands:
         if limit is not None:
             pieces.append(b"LIMIT")
             pieces.append(limit)
+
         return self.execute_command("XTRIM", name, *pieces)
 
     # SORTED SET COMMANDS
@@ -3168,7 +3169,7 @@ class Commands:
                 raise DataError("aggregate can be sum, min, or max")
         if options.get("withscores", False):
             pieces.append(b"WITHSCORES")
-        return self.execute_command(*pieces)
+        return self.execute_command(*pieces, **options)
 
     # HYPERLOGLOG COMMANDS
     def pfadd(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
