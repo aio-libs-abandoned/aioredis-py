@@ -1,6 +1,6 @@
 async-timeout==3.0.1
 coverage==6.1.1
-flake8==3.9.2
+flake8==4.0.1
 hiredis==2.0.0
 mock==4.0.3
 pytest==6.2.5
