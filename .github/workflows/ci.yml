@@ -61,14 +61,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        pyver: ["3.6", "3.7", "3.8", "3.9", "3.10", pypy3]
+        pyver: ["3.7", "3.8", "3.9", "3.10", pypy3]
         uvloop: [uvloop, no-uvloop]
-        redis: [5.0.10, 6.2.4]
+        redis: [6.2.4]
         exclude:
-        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
         - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
       fail-fast: false
     services:
       redis:

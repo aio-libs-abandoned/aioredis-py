@@ -25,7 +25,6 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -58,6 +57,6 @@ setup(
         "hiredis": 'hiredis>=1.0; implementation_name=="cpython"',
     },
     package_data={"aioredis": ["py.typed"]},
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     include_package_data=True,
 )
