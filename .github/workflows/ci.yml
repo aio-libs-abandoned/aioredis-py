@@ -61,7 +61,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        pyver: ["3.7", "3.8", "3.9", "3.10", pypy3]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "pypy-3.7", "pypy-3.8"]
         uvloop: [uvloop, no-uvloop]
         redis: [6.2.4]
         exclude:
