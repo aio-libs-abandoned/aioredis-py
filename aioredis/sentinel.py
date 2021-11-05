@@ -5,7 +5,7 @@ from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
 from aioredis.client import Redis
 from aioredis.commands import SentinelCommands
-from aioredis.connection import ConnectionPool, EncodableT, SSLConnection
+from aioredis.connection import Connection, ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
     ConnectionError,
     ReadOnlyError,

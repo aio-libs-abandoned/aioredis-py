@@ -73,6 +73,7 @@ class CommandsProtocol(Protocol):
 
 class Commands:
     _SELF_ANNOTATION = Union[CommandsProtocol, "Commands", "Redis"]
+    execute_command: Callable[..., Awaitable]
 
     # SERVER INFORMATION
 

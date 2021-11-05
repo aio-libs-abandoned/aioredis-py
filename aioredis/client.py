@@ -2,10 +2,8 @@ import asyncio
 import datetime
 import inspect
 import re
-import time as mod_time
-from itertools import chain
 from typing import (
-    AbstractSet,
+    TYPE_CHECKING,
     Any,
     AsyncIterator,
     Awaitable,
@@ -22,7 +20,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    ValuesView,
     cast,
 )
 
@@ -45,64 +42,17 @@ from aioredis.exceptions import (
     WatchError,
 )
 from aioredis.lock import Lock
-from aioredis.typing import AnyChannelT, ChannelT, EncodableT, KeyT
+from aioredis.typing import ChannelT, EncodableT, KeyT
 from aioredis.utils import safe_str, str_if_bytes
 
 if TYPE_CHECKING:
     from aioredis.commands import Script
 
-AbsExpiryT = Union[int, datetime.datetime]
-ExpiryT = Union[int, datetime.timedelta]
-ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
-BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
-_StringLikeT = Union[bytes, str, memoryview]
-KeyT = _StringLikeT  # Main redis key space
-PatternT = _StringLikeT  # Patterns matched against keys, fields etc
-FieldT = EncodableT  # Fields within hash tables, streams and geo commands
-KeysT = Union[KeyT, Sequence[KeyT]]
-ChannelT = _StringLikeT
-GroupT = _StringLikeT  # Consumer group
-ConsumerT = _StringLikeT  # Consumer name
-StreamIdT = Union[int, _StringLikeT]
-ScriptTextT = _StringLikeT
-# Mapping is not covariant in the key type, which prevents
-# Mapping[_StringLikeT, X from accepting arguments of type Dict[str, X]. Using
-# a TypeVar instead of a Union allows mappings with any of the permitted types
-# to be passed. Care is needed if there is more than one such mapping in a
-# type signature because they will all be required to be the same key type.
-AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
-AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
-AnyChannelT = ChannelT
 PubSubHandler = Callable[[Dict[str, str]], None]
-
-SYM_EMPTY = b""
-EMPTY_RESPONSE = "EMPTY_RESPONSE"
-
 _KeyT = TypeVar("_KeyT", bound=KeyT)
 _ArgT = TypeVar("_ArgT", KeyT, EncodableT)
 _RedisT = TypeVar("_RedisT", bound="Redis")
 _NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
-
-
-def list_or_args(
-    keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]
-) -> List[Union[_KeyT, _ArgT]]:
-    # returns a single new list combining keys and args
-    key_list: List[Union[_KeyT, _ArgT]]
-    try:
-        iter(keys)  # type: ignore[arg-type]
-        keys = cast(Iterable[_KeyT], keys)
-        # a string or bytes instance can be iterated, but indicates
-        # keys wasn't passed as a list
-        if isinstance(keys, (bytes, str)):
-            key_list = [keys]
-        else:
-            key_list = list(keys)
-    except TypeError:
-        key_list = [cast(memoryview, keys)]
-    if args:
-        key_list.extend(args)
-    return key_list
 
 
 def timestamp_to_datetime(response):
