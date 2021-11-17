@@ -3937,16 +3937,14 @@ class PubSub:
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
         self.encoder = self.connection_pool.get_encoder()
+        self.health_check_message_b = self.encoder.encode(self.HEALTH_CHECK_MESSAGE)
         if self.encoder.decode_responses:
             self.health_check_response: Iterable[Union[str, bytes]] = [
                 "pong",
                 self.HEALTH_CHECK_MESSAGE,
             ]
         else:
-            self.health_check_response = [
-                b"pong",
-                self.encoder.encode(self.HEALTH_CHECK_MESSAGE),
-            ]
+            self.health_check_response = [b"pong", self.health_check_message_b]
         self.channels: Dict[ChannelT, PubSubHandler] = {}
         self.pending_unsubscribe_channels: Set[ChannelT] = set()
         self.patterns: Dict[ChannelT, PubSubHandler] = {}
@@ -4049,7 +4047,10 @@ class PubSub:
             return None
         response = await self._execute(conn, conn.read_response)
 
-        if conn.health_check_interval and response == self.health_check_response:
+        if (
+            conn.health_check_interval
+            and response in (self.health_check_response, self.health_check_message_b)
+        ):
             # ignore the health check message as user might not expect it
             return None
         return response
