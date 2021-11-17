@@ -4047,9 +4047,9 @@ class PubSub:
             return None
         response = await self._execute(conn, conn.read_response)
 
-        if (
-            conn.health_check_interval
-            and response in (self.health_check_response, self.health_check_message_b)
+        if conn.health_check_interval and response in (
+            self.health_check_response,
+            self.health_check_message_b,
         ):
             # ignore the health check message as user might not expect it
             return None
