@@ -395,9 +395,12 @@ class TestRedisCommands:
         assert "addr" in clients[0]
 
         # testing multiple client ids
-        await create_redis(flushdb=True)
-        await create_redis(flushdb=True)
-        await create_redis(flushdb=True)
+        c1 = await create_redis(flushdb=False)
+        await c1.ping()
+        c2 = await create_redis(flushdb=False)
+        await c2.ping()
+        c3 = await create_redis(flushdb=False)
+        await c3.ping()
         clients_listed = await r.client_list()
         assert len(clients_listed) > 1
 
@@ -718,6 +721,8 @@ class TestRedisCommands:
         assert await r.bgsave()
         await asyncio.sleep(0.3)
         assert await r.bgsave(True)
+        # Wait for all bgsaves to complete to allow for parametrized testing.
+        await asyncio.sleep(0.3)
 
     # BASIC KEY COMMANDS
     async def test_append(self, r: aioredis.Redis):
