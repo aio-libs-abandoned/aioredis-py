@@ -38,6 +38,7 @@ Jeff Moser
 Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov
+Maksim Novikov
 Manuel Miranda
 Marek Szapiel
 Marijn Giesen

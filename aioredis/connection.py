@@ -373,7 +373,7 @@ class PythonParser(BaseParser):
     def on_connect(self, connection: "Connection"):
         """Called when the stream connects"""
         self._stream = connection._reader
-        if self._buffer is None or self._stream is None:
+        if self._stream is None:
             raise RedisError("Buffer is closed.")
 
         self._buffer = SocketBuffer(

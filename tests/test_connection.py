@@ -4,17 +4,15 @@ from unittest import mock
 
 import pytest
 
-from aioredis.connection import UnixDomainSocketConnection
+from aioredis.connection import PythonParser, UnixDomainSocketConnection
 from aioredis.exceptions import InvalidResponse
-from aioredis.utils import HIREDIS_AVAILABLE
-
-if TYPE_CHECKING:
-    from aioredis.connection import PythonParser
 
 
-@pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
 @pytest.mark.asyncio
-async def test_invalid_response(r):
+@pytest.mark.parametrize("create_redis", [(True, PythonParser)], indirect=True)
+async def test_invalid_response(create_redis):
+    r = await create_redis()
+
     raw = b"x"
     parser: "PythonParser" = r.connection._parser
     with mock.patch.object(parser._buffer, "readline", return_value=raw):
