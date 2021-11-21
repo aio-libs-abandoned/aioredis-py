@@ -1078,28 +1078,31 @@ class Redis:
         command_name = args[0]
         conn = self.connection or await pool.get_connection(command_name, **options)
         try:
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
+            resp = await conn.send_command(*args)
+            return await self.parse_response(resp, command_name, **options)
+        except ResponseError:
+            if EMPTY_RESPONSE in options:
+                return options[EMPTY_RESPONSE]
+            raise
         except (ConnectionError, TimeoutError) as e:
             await conn.disconnect()
             if not (conn.retry_on_timeout and isinstance(e, TimeoutError)):
                 raise
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
+            resp = await conn.send_command(*args)
+            return await self.parse_response(resp, command_name, **options)
         finally:
             if not self.connection:
                 await pool.release(conn)
 
     async def parse_response(
-        self, connection: Connection, command_name: Union[str, bytes], **options
+        self, response, command_name: Union[str, bytes], **options
     ):
         """Parses a response from the Redis server"""
-        try:
-            response = await connection.read_response()
-        except ResponseError:
+        if isinstance(response, ResponseError):
             if EMPTY_RESPONSE in options:
                 return options[EMPTY_RESPONSE]
-            raise
+            raise response from None
+
         if command_name in self.response_callbacks:
             # Mypy bug: https://github.com/python/mypy/issues/10977
             command_name = cast(str, command_name)
@@ -4431,8 +4434,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             self.connection = conn
         conn = cast(Connection, conn)
         try:
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
+            resp = await conn.send_command(*args)
+            return await self.parse_response(resp, command_name, **options)
         except (ConnectionError, TimeoutError) as e:
             await conn.disconnect()
             # if we were already watching a variable, the watch is no longer
@@ -4452,8 +4455,8 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             # retry_on_timeout is set, this is a TimeoutError and we are not
             # already WATCHing any variables. retry the command.
             try:
-                await conn.send_command(*args)
-                return self.parse_response(conn, command_name, **options)
+                resp = await conn.send_command(*args)
+                return self.parse_response(resp, command_name, **options)
             except (ConnectionError, TimeoutError):
                 # a subsequent failure should simply be raised
                 await self.reset()
