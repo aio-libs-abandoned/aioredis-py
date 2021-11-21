@@ -1,4 +1,7 @@
+import warnings
 from typing import TYPE_CHECKING, TypeVar, overload
+
+from packaging.version import Version
 
 if TYPE_CHECKING:
     from aioredis import Redis
@@ -6,9 +9,17 @@ if TYPE_CHECKING:
 
 
 try:
-    import hiredis  # noqa
+    import hiredis
 
     HIREDIS_AVAILABLE = True
+    hiredis_version = Version(hiredis.__version__)
+    if hiredis_version < Version("1.0.0"):
+        warnings.warn(
+            "aioredis supports hiredis @ 1.0.0 or higher. "
+            f"You have hiredis @ {hiredis.__version__}. "
+            "Pure-python parser will be used instead."
+        )
+        HIREDIS_AVAILABLE = False
 except ImportError:
     HIREDIS_AVAILABLE = False
 
@@ -59,3 +70,7 @@ def str_if_bytes(value: object) -> object:
 
 def safe_str(value: object) -> str:
     return str(str_if_bytes(value))
+
+
+SYM_EMPTY = b""
+EMPTY_RESPONSE = "EMPTY_RESPONSE"

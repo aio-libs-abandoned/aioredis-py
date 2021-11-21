@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import hashlib
 import time as mod_time
@@ -7,19 +9,12 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    Dict,
     Iterable,
-    List,
     Mapping,
-    Optional,
     Sequence,
-    Tuple,
-    Type,
-    Union,
 )
 
-from aioredis.compat import Literal, Protocol
-from aioredis.connection import ConnectionPool
+from aioredis.compat import Literal
 from aioredis.exceptions import ConnectionError, DataError, NoScriptError, RedisError
 from aioredis.typing import (
     AbsExpiryT,
@@ -27,6 +22,7 @@ from aioredis.typing import (
     AnyKeyT,
     BitfieldOffsetT,
     ChannelT,
+    CommandsProtocol,
     ConsumerT,
     EncodableT,
     ExpiryT,
@@ -39,46 +35,25 @@ from aioredis.typing import (
     StreamIdT,
     ZScoreBoundT,
 )
+from aioredis.utils import EMPTY_RESPONSE
+
+from .helpers import list_or_args
 
 if TYPE_CHECKING:
     from aioredis.client import Redis
 
-SYM_EMPTY = b""
-EMPTY_RESPONSE = "EMPTY_RESPONSE"
 
-
-def list_or_args(keys: KeysT, args: Optional[KeysT]) -> List[EncodableT]:
-    # returns a single new list combining keys and args
-    try:
-        iter(keys)
-        # a string or bytes instance can be iterated, but indicates
-        # keys wasn't passed as a list
-        if isinstance(keys, (bytes, str)):
-            keys = [keys]
-        else:
-            keys = list(keys)
-    except TypeError:
-        keys = [keys]
-    if args:
-        keys.extend(args)
-    return keys
-
-
-class CommandsProtocol(Protocol):
-    async def execute_command(self, *args, **options):
-        ...
-
-    connection_pool: ConnectionPool
-
-
-class Commands:
-    _SELF_ANNOTATION = Union[CommandsProtocol, "Commands", "Redis"]
-    execute_command: Callable[..., Awaitable]
+class CoreCommands(CommandsProtocol):
+    """
+    A class containing all of the implemented redis commands. This class is
+    to be used as a mixin.
+    """
 
     # SERVER INFORMATION
 
     # ACL methods
-    def acl_cat(self: _SELF_ANNOTATION, category: Optional[str] = None) -> Awaitable:
+
+    def acl_cat(self, category: str | None = None) -> Awaitable:
         """
         Returns a list of categories or commands within a category.
 
@@ -86,14 +61,14 @@ class Commands:
         If ``category`` is supplied, returns a list of all commands within
         that category.
         """
-        pieces: List[EncodableT] = [category] if category else []
+        pieces: list[EncodableT] = [category] if category else []
         return self.execute_command("ACL CAT", *pieces)
 
-    def acl_deluser(self: _SELF_ANNOTATION, *username: str) -> Awaitable:
+    def acl_deluser(self, *username: str) -> Awaitable:
         """Delete the ACL for the specified ``username``s"""
         return self.execute_command("ACL DELUSER", *username)
 
-    def acl_genpass(self: _SELF_ANNOTATION, bits: Optional[int] = None) -> Awaitable:
+    def acl_genpass(self, bits: int | None = None) -> Awaitable:
         """Generate a random password value.
         If ``bits`` is supplied then use this number of bits, rounded to
         the next multiple of 4.
@@ -107,11 +82,11 @@ class Commands:
                     raise ValueError
             except ValueError:
                 raise DataError(
-                    "genpass optionally accepts a bits argument, " "between 0 and 4096."
+                    "genpass optionally accepts a bits argument, between 0 and 4096."
                 )
         return self.execute_command("ACL GENPASS", *pieces)
 
-    def acl_getuser(self: _SELF_ANNOTATION, username: str) -> Awaitable:
+    def acl_getuser(self, username: str) -> Awaitable:
         """
         Get the ACL details for the specified ``username``.
 
@@ -119,17 +94,17 @@ class Commands:
         """
         return self.execute_command("ACL GETUSER", username)
 
-    def acl_help(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_help(self) -> Awaitable:
         """The ACL HELP command returns helpful text describing
         the different subcommands.
         """
         return self.execute_command("ACL HELP")
 
-    def acl_list(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_list(self) -> Awaitable:
         """Return a list of all ACLs on the server"""
         return self.execute_command("ACL LIST")
 
-    def acl_log(self: _SELF_ANNOTATION, count: Optional[int] = None) -> Awaitable:
+    def acl_log(self, count: int | None = None) -> Awaitable:
         """
         Get ACL logs as a list.
         :param int count: Get logs[0:count].
@@ -143,7 +118,7 @@ class Commands:
 
         return self.execute_command("ACL LOG", *args)
 
-    def acl_log_reset(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_log_reset(self) -> Awaitable:
         """
         Reset ACL logs.
         :rtype: Boolean.
@@ -151,7 +126,7 @@ class Commands:
         args = [b"RESET"]
         return self.execute_command("ACL LOG", *args)
 
-    def acl_load(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_load(self) -> Awaitable:
         """
         Load ACL rules from the configured ``aclfile``.
 
@@ -160,7 +135,7 @@ class Commands:
         """
         return self.execute_command("ACL LOAD")
 
-    def acl_save(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_save(self) -> Awaitable:
         """
         Save ACL rules to the configured ``aclfile``.
 
@@ -170,15 +145,15 @@ class Commands:
         return self.execute_command("ACL SAVE")
 
     def acl_setuser(  # noqa: C901
-        self: _SELF_ANNOTATION,
+        self,
         username: str,
         enabled: bool = False,
         nopass: bool = False,
-        passwords: Optional[Union[str, Iterable[str]]] = None,
-        hashed_passwords: Optional[Union[str, Iterable[str]]] = None,
-        categories: Optional[Iterable[str]] = None,
-        commands: Optional[Iterable[str]] = None,
-        keys: Optional[Iterable[KeyT]] = None,
+        passwords: str | Iterable[str] | None = None,
+        hashed_passwords: str | Iterable[str] | None = None,
+        categories: Iterable[str] | None = None,
+        commands: Iterable[str] | None = None,
+        keys: Iterable[KeyT] | None = None,
         reset: bool = False,
         reset_keys: bool = False,
         reset_passwords: bool = False,
@@ -243,7 +218,7 @@ class Commands:
         or hashed_passwords will be applied on top.
         """
         encoder = self.connection_pool.get_encoder()
-        pieces: List[Union[str, bytes]] = [username]
+        pieces: list[str | bytes] = [username]
 
         if reset:
             pieces.append(b"reset")
@@ -292,8 +267,8 @@ class Commands:
                     pieces.append(b"!%s" % hashed_password[1:])
                 else:
                     raise DataError(
-                        "Hashed %d password must be prefixeed "
-                        'with a "+" to add or a "-" to remove' % i
+                        f"Hashed {i} password must be prefixeed "
+                        'with a "+" to add or a "-" to remove'
                     )
 
         if nopass:
@@ -333,19 +308,19 @@ class Commands:
 
         return self.execute_command("ACL SETUSER", *pieces)
 
-    def acl_users(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_users(self) -> Awaitable:
         """Returns a list of all registered users on the server."""
         return self.execute_command("ACL USERS")
 
-    def acl_whoami(self: _SELF_ANNOTATION) -> Awaitable:
+    def acl_whoami(self) -> Awaitable:
         """Get the username for the current connection"""
         return self.execute_command("ACL WHOAMI")
 
-    def bgrewriteaof(self: _SELF_ANNOTATION) -> Awaitable:
+    def bgrewriteaof(self) -> Awaitable:
         """Tell the Redis server to rewrite the AOF file from data in memory."""
         return self.execute_command("BGREWRITEAOF")
 
-    def bgsave(self: _SELF_ANNOTATION, schedule: bool = True) -> Awaitable:
+    def bgsave(self, schedule: bool = True) -> Awaitable:
         """
         Tell the Redis server to save its data to disk.  Unlike save(),
         this method is asynchronous and returns immediately.
@@ -355,17 +330,17 @@ class Commands:
             pieces.append("SCHEDULE")
         return self.execute_command("BGSAVE", *pieces)
 
-    def client_kill(self: _SELF_ANNOTATION, address: str) -> Awaitable:
+    def client_kill(self, address: str) -> Awaitable:
         """Disconnects the client at ``address`` (ip:port)"""
         return self.execute_command("CLIENT KILL", address)
 
     def client_kill_filter(
-        self: _SELF_ANNOTATION,
-        _id: Optional[str] = None,
-        _type: Optional[str] = None,
-        addr: Optional[str] = None,
-        skipme: Optional[bool] = None,
-        laddr: Optional[bool] = None,
+        self,
+        _id: str | None = None,
+        _type: str | None = None,
+        addr: str | None = None,
+        skipme: bool | None = None,
+        laddr: bool | None = None,
         user: str = None,
     ) -> Awaitable:
         """
@@ -408,7 +383,7 @@ class Commands:
             )
         return self.execute_command("CLIENT KILL", *args)
 
-    def client_info(self: _SELF_ANNOTATION) -> Awaitable:
+    def client_info(self) -> Awaitable:
         """
         Returns information and statistics about the current
         client connection.
@@ -416,9 +391,9 @@ class Commands:
         return self.execute_command("CLIENT INFO")
 
     def client_list(
-        self: _SELF_ANNOTATION,
-        _type: Optional[str] = None,
-        client_id: Optional[List[EncodableT]] = None,
+        self,
+        _type: str | None = None,
+        client_id: list[EncodableT] | None = None,
     ) -> Awaitable:
         """
         Returns a list of currently connected clients.
@@ -444,19 +419,28 @@ class Commands:
             args.append(" ".join(client_id))
         return self.execute_command("CLIENT LIST", *args)
 
-    def client_getname(self: _SELF_ANNOTATION) -> Awaitable:
+    def client_getname(self) -> Awaitable:
         """Returns the current connection name"""
         return self.execute_command("CLIENT GETNAME")
 
+    def client_getredir(self):
+        """Returns the ID (an integer) of the client to whom we are
+        redirecting tracking notifications.
+
+        see: https://redis.io/commands/client-getredir
+        """
+        return self.execute_command("CLIENT GETREDIR")
+
     def client_reply(
-        self: _SELF_ANNOTATION,
-        reply: Union[Literal["ON"], Literal["OFF"], Literal["SKIP"]],
+        self,
+        reply: Literal["ON"] | Literal["OFF"] | Literal["SKIP"],
     ) -> Awaitable:
         """Enable and disable redis server replies.
         ``reply`` Must be ON OFF or SKIP,
             ON - The default most with server replies to commands
             OFF - Disable server responses to commands
             SKIP - Skip the response of the immediately following command.
+
         Note: When setting OFF or SKIP replies, you will need a client object
         with a timeout specified in seconds, and will need to catch the
         TimeoutError.
@@ -469,24 +453,22 @@ class Commands:
             raise DataError("CLIENT REPLY must be one of %r" % replies)
         return self.execute_command("CLIENT REPLY", reply)
 
-    def client_id(self: _SELF_ANNOTATION) -> Awaitable:
+    def client_id(self) -> Awaitable:
         """Returns the current connection id"""
         return self.execute_command("CLIENT ID")
 
-    def client_trackinginfo(self: _SELF_ANNOTATION) -> Awaitable:
+    def client_trackinginfo(self) -> Awaitable:
         """Returns the information about the current client connection's
         use of the server assisted client side cache.
         See https://redis.io/commands/client-trackinginfo
         """
         return self.execute_command("CLIENT TRACKINGINFO")
 
-    def client_setname(self: _SELF_ANNOTATION, name: str) -> Awaitable:
+    def client_setname(self, name: str) -> Awaitable:
         """Sets the current connection name"""
         return self.execute_command("CLIENT SETNAME", name)
 
-    def client_unblock(
-        self: _SELF_ANNOTATION, client_id: int, error: bool = False
-    ) -> Awaitable:
+    def client_unblock(self, client_id: int, error: bool = False) -> Awaitable:
         """
         Unblocks a connection by its client id.
         If ``error`` is True, unblocks the client with a special error message.
@@ -498,7 +480,7 @@ class Commands:
             args.append(b"ERROR")
         return self.execute_command(*args)
 
-    def client_pause(self: _SELF_ANNOTATION, timeout: int) -> Awaitable:
+    def client_pause(self, timeout: int) -> Awaitable:
         """
         Suspend all the Redis clients for the specified amount of time
         :param timeout: milliseconds to pause clients
@@ -507,49 +489,54 @@ class Commands:
             raise DataError("CLIENT PAUSE timeout must be an integer")
         return self.execute_command("CLIENT PAUSE", str(timeout))
 
-    def client_unpause(self: _SELF_ANNOTATION) -> Awaitable:
+    def client_unpause(self) -> Awaitable:
         """
         Unpause all redis clients
         """
         return self.execute_command("CLIENT UNPAUSE")
 
-    def readwrite(self: _SELF_ANNOTATION) -> Awaitable:
+    def readwrite(self) -> Awaitable:
         """Disables read queries for a connection to a Redis Cluster slave node"""
         return self.execute_command("READWRITE")
 
-    def readonly(self: _SELF_ANNOTATION) -> Awaitable:
+    def readonly(self) -> Awaitable:
         """Enables read queries for a connection to a Redis Cluster replica node"""
         return self.execute_command("READONLY")
 
-    def config_get(self: _SELF_ANNOTATION, pattern: str = "*") -> Awaitable:
+    def config_get(self, pattern: str = "*") -> Awaitable:
         """Return a dictionary of configuration based on the ``pattern``"""
         return self.execute_command("CONFIG GET", pattern)
 
-    def config_set(self: _SELF_ANNOTATION, name: str, value: EncodableT) -> Awaitable:
+    def config_set(self, name: str, value: EncodableT) -> Awaitable:
         """Set config item ``name`` with ``value``"""
         return self.execute_command("CONFIG SET", name, value)
 
-    def config_resetstat(self: _SELF_ANNOTATION) -> Awaitable:
+    def config_resetstat(self) -> Awaitable:
         """Reset runtime statistics"""
         return self.execute_command("CONFIG RESETSTAT")
 
-    def config_rewrite(self: _SELF_ANNOTATION) -> Awaitable:
+    def config_rewrite(self) -> Awaitable:
         """Rewrite config file with the minimal change to reflect running config"""
         return self.execute_command("CONFIG REWRITE")
 
-    def dbsize(self: _SELF_ANNOTATION) -> Awaitable:
+    def dbsize(self) -> Awaitable:
         """Returns the number of keys in the current database"""
         return self.execute_command("DBSIZE")
 
-    def debug_object(self: _SELF_ANNOTATION, key: KeyT) -> Awaitable:
+    def debug_object(self, key: KeyT) -> Awaitable:
         """Returns version specific meta information about a given key"""
         return self.execute_command("DEBUG OBJECT", key)
 
-    def echo(self: _SELF_ANNOTATION, value: EncodableT) -> Awaitable:
+    def debug_segfault(self):
+        raise NotImplementedError(
+            "DEBUG SEGFAULT is intentionally not implemented in the client."
+        )
+
+    def echo(self, value: EncodableT) -> Awaitable:
         """Echo the string back from the server"""
         return self.execute_command("ECHO", value)
 
-    def flushall(self: _SELF_ANNOTATION, asynchronous: bool = False) -> Awaitable:
+    def flushall(self, asynchronous: bool = False) -> Awaitable:
         """
         Delete all keys in all databases on the current host.
 
@@ -561,7 +548,7 @@ class Commands:
             args.append(b"ASYNC")
         return self.execute_command("FLUSHALL", *args)
 
-    def flushdb(self: _SELF_ANNOTATION, asynchronous: bool = False) -> Awaitable:
+    def flushdb(self, asynchronous: bool = False) -> Awaitable:
         """
         Delete all keys in the current database.
 
@@ -573,11 +560,11 @@ class Commands:
             args.append(b"ASYNC")
         return self.execute_command("FLUSHDB", *args)
 
-    def swapdb(self: _SELF_ANNOTATION, first: int, second: int) -> Awaitable:
+    def swapdb(self, first: int, second: int) -> Awaitable:
         """Swap two databases"""
         return self.execute_command("SWAPDB", first, second)
 
-    def info(self: _SELF_ANNOTATION, section: Optional[str] = None) -> Awaitable:
+    def info(self, section: str | None = None) -> Awaitable:
         """
         Returns a dictionary containing information about the Redis server
 
@@ -592,16 +579,14 @@ class Commands:
         else:
             return self.execute_command("INFO", section)
 
-    def lastsave(self: _SELF_ANNOTATION) -> Awaitable:
+    def lastsave(self) -> Awaitable:
         """
         Return a Python datetime object representing the last time the
         Redis database was saved to disk
         """
         return self.execute_command("LASTSAVE")
 
-    def lolwut(
-        self: _SELF_ANNOTATION, *version_numbers: Union[str, float]
-    ) -> Awaitable:
+    def lolwut(self, *version_numbers: str | float) -> Awaitable:
         """Get the Redis version and a piece of generative computer art
         See: https://redis.io/commands/lolwut
         """
@@ -611,7 +596,7 @@ class Commands:
             return self.execute_command("LOLWUT")
 
     def migrate(
-        self: _SELF_ANNOTATION,
+        self,
         host: str,
         port: int,
         keys: KeysT,
@@ -619,7 +604,7 @@ class Commands:
         timeout: int,
         copy: bool = False,
         replace: bool = False,
-        auth: Optional[str] = None,
+        auth: str | None = None,
     ) -> Awaitable:
         """
         Migrate 1 or more keys from the current Redis server to a different
@@ -641,7 +626,7 @@ class Commands:
         keys = list_or_args(keys, [])
         if not keys:
             raise DataError("MIGRATE requires at least one key")
-        pieces: List[EncodableT] = []
+        pieces: list[EncodableT] = []
         if copy:
             pieces.append(b"COPY")
         if replace:
@@ -655,18 +640,32 @@ class Commands:
             "MIGRATE", host, port, "", destination_db, timeout, *pieces
         )
 
-    def object(self: _SELF_ANNOTATION, infotype: str, key: KeyT) -> Awaitable:
+    def object(self, infotype: str, key: KeyT) -> Awaitable:
         """Return the encoding, idletime, or refcount about the key"""
         return self.execute_command("OBJECT", infotype, key, infotype=infotype)
 
-    def memory_stats(self: _SELF_ANNOTATION) -> Awaitable:
+    def memory_doctor(self):
+        raise NotImplementedError(
+            "MEMORY DOCTOR is intentionally not implemented in the client."
+        )
+
+    def memory_help(self):
+        raise NotImplementedError(
+            "MEMORY HELP is intentionally not implemented in the client."
+        )
+
+    def memory_stats(self):
         """Return a dictionary of memory stats"""
         return self.execute_command("MEMORY STATS")
 
+    def memory_malloc_stats(self):
+        """Return an internal statistics report from the memory allocator."""
+        return self.execute_command("MEMORY MALLOC-STATS")
+
     def memory_usage(
-        self: _SELF_ANNOTATION,
+        self,
         key: KeyT,
-        samples: Optional[int] = None,
+        samples: int | None = None,
     ) -> Awaitable:
         """
         Return the total memory usage for key, its value and associated
@@ -681,21 +680,21 @@ class Commands:
             args.extend([b"SAMPLES", samples])
         return self.execute_command("MEMORY USAGE", key, *args)
 
-    def memory_purge(self: _SELF_ANNOTATION) -> Awaitable:
+    def memory_purge(self) -> Awaitable:
         """Attempts to purge dirty pages for reclamation by allocator"""
         return self.execute_command("MEMORY PURGE")
 
-    def ping(self: _SELF_ANNOTATION) -> Awaitable:
+    def ping(self) -> Awaitable:
         """Ping the Redis server"""
         return self.execute_command("PING")
 
-    def quit(self: _SELF_ANNOTATION) -> Awaitable:
+    def quit(self) -> Awaitable:
         """Ask the server to close the connection.
         https://redis.io/commands/quit
         """
         return self.execute_command("QUIT")
 
-    def save(self: _SELF_ANNOTATION) -> Awaitable:
+    def save(self) -> Awaitable:
         """
         Tell the Redis server to save its data to disk,
         blocking until the save is complete
@@ -703,10 +702,10 @@ class Commands:
         return self.execute_command("SAVE")
 
     def shutdown(
-        self: _SELF_ANNOTATION,
+        self,
         save: bool = False,
         nosave: bool = False,
-    ) -> Optional[Awaitable]:
+    ) -> Awaitable | None:
         """Shutdown the Redis server.  If Redis has persistence configured,
         data will be flushed before shutdown.  If the "save" option is set,
         a data flush will be attempted even if there is no persistence
@@ -728,9 +727,9 @@ class Commands:
         raise RedisError("SHUTDOWN seems to have failed.")
 
     def slaveof(
-        self: _SELF_ANNOTATION,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
+        self,
+        host: str | None = None,
+        port: int | None = None,
     ) -> Awaitable:
         """
         Set the server to be a replicated slave of the instance identified
@@ -741,12 +740,12 @@ class Commands:
             return self.execute_command("SLAVEOF", b"NO", b"ONE")
         return self.execute_command("SLAVEOF", host, port)
 
-    def slowlog_get(self: _SELF_ANNOTATION, num: Optional[int] = None) -> Awaitable:
+    def slowlog_get(self, num: int | None = None) -> Awaitable:
         """
         Get the entries from the slowlog. If ``num`` is specified, get the
         most recent ``num`` items.
         """
-        args: List[EncodableT] = ["SLOWLOG GET"]
+        args: list[EncodableT] = ["SLOWLOG GET"]
         if num is not None:
             args.append(num)
         decode_responses = self.connection_pool.connection_kwargs.get(
@@ -754,22 +753,22 @@ class Commands:
         )
         return self.execute_command(*args, decode_responses=decode_responses)
 
-    def slowlog_len(self: _SELF_ANNOTATION) -> Awaitable:
+    def slowlog_len(self) -> Awaitable:
         """Get the number of items in the slowlog"""
         return self.execute_command("SLOWLOG LEN")
 
-    def slowlog_reset(self: _SELF_ANNOTATION) -> Awaitable:
+    def slowlog_reset(self) -> Awaitable:
         """Remove all items in the slowlog"""
         return self.execute_command("SLOWLOG RESET")
 
-    def time(self: _SELF_ANNOTATION) -> Awaitable:
+    def time(self) -> Awaitable:
         """
         Returns the server time as a 2-item tuple of ints:
         (seconds since epoch, microseconds into this second).
         """
         return self.execute_command("TIME")
 
-    def wait(self: _SELF_ANNOTATION, num_replicas: int, timeout: int) -> Awaitable:
+    def wait(self, num_replicas: int, timeout: int) -> Awaitable:
         """
         Redis synchronous replication
         That returns the number of replicas that processed the query when
@@ -779,7 +778,7 @@ class Commands:
         return self.execute_command("WAIT", num_replicas, timeout)
 
     # BASIC KEY COMMANDS
-    def append(self: _SELF_ANNOTATION, key: KeyT, value: EncodableT) -> Awaitable:
+    def append(self, key: KeyT, value: EncodableT) -> Awaitable:
         """
         Appends the string ``value`` to the value at ``key``. If ``key``
         doesn't already exist, create it with a value of ``value``.
@@ -788,16 +787,16 @@ class Commands:
         return self.execute_command("APPEND", key, value)
 
     def bitcount(
-        self: _SELF_ANNOTATION,
+        self,
         key: KeyT,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
     ) -> Awaitable:
         """
         Returns the count of set bits in the value of ``key``.  Optional
         ``start`` and ``end`` parameters indicate which bytes to consider
         """
-        params: List[EncodableT] = [key]
+        params: list[EncodableT] = [key]
         if start is not None and end is not None:
             params.append(start)
             params.append(end)
@@ -806,10 +805,10 @@ class Commands:
         return self.execute_command("BITCOUNT", *params)
 
     def bitfield(
-        self: _SELF_ANNOTATION,
+        self,
         key: KeyT,
-        default_overflow: Optional[str] = None,
-    ) -> "BitFieldOperation":
+        default_overflow: str | None = None,
+    ) -> BitFieldOperation:
         """
         Return a BitFieldOperation instance to conveniently construct one or
         more bitfield operations on ``key``.
@@ -817,7 +816,7 @@ class Commands:
         return BitFieldOperation(self, key, default_overflow=default_overflow)
 
     def bitop(
-        self: _SELF_ANNOTATION,
+        self,
         operation: str,
         dest: KeyT,
         *keys: KeyT,
@@ -829,11 +828,11 @@ class Commands:
         return self.execute_command("BITOP", operation, dest, *keys)
 
     def bitpos(
-        self: _SELF_ANNOTATION,
+        self,
         key: KeyT,
         bit: int,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
+        start: int | None = None,
+        end: int | None = None,
     ) -> Awaitable:
         """
         Return the position of the first bit set to 1 or 0 in a string.
@@ -854,10 +853,10 @@ class Commands:
         return self.execute_command("BITPOS", *params)
 
     def copy(
-        self: _SELF_ANNOTATION,
+        self,
         source: str,
         destination: str,
-        destination_db: Optional[str] = None,
+        destination_db: str | None = None,
         replace: bool = False,
     ) -> Awaitable:
         """
@@ -877,7 +876,7 @@ class Commands:
             params.append("REPLACE")
         return self.execute_command("COPY", *params)
 
-    def decr(self: _SELF_ANNOTATION, name: KeyT, amount: int = 1) -> Awaitable:
+    def decr(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Decrements the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as 0 - ``amount``
@@ -886,29 +885,29 @@ class Commands:
         # as DECRBY redis command.
         return self.decrby(name, amount)
 
-    def decrby(self: _SELF_ANNOTATION, name: KeyT, amount: int = 1) -> Awaitable:
+    def decrby(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Decrements the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as 0 - ``amount``
         """
         return self.execute_command("DECRBY", name, amount)
 
-    def delete(self: _SELF_ANNOTATION, *names: KeyT) -> Awaitable:
+    def delete(self, *names: KeyT) -> Awaitable:
         """Delete one or more keys specified by ``names``"""
         return self.execute_command("DEL", *names)
 
-    def dump(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def dump(self, name: KeyT) -> Awaitable:
         """
         Return a serialized version of the value stored at the specified key.
         If key does not exist a nil bulk reply is returned.
         """
         return self.execute_command("DUMP", name)
 
-    def exists(self: _SELF_ANNOTATION, *names: KeyT) -> Awaitable:
+    def exists(self, *names: KeyT) -> Awaitable:
         """Returns the number of ``names`` that exist"""
         return self.execute_command("EXISTS", *names)
 
-    def expire(self: _SELF_ANNOTATION, name: KeyT, time: ExpiryT) -> Awaitable:
+    def expire(self, name: KeyT, time: ExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name`` for ``time`` seconds. ``time``
         can be represented by an integer or a Python timedelta object.
@@ -917,7 +916,7 @@ class Commands:
             time = int(time.total_seconds())
         return self.execute_command("EXPIRE", name, time)
 
-    def expireat(self: _SELF_ANNOTATION, name: KeyT, when: AbsExpiryT) -> Awaitable:
+    def expireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name``. ``when`` can be represented
         as an integer indicating unix time or a Python datetime object.
@@ -926,13 +925,13 @@ class Commands:
             when = int(mod_time.mktime(when.timetuple()))
         return self.execute_command("EXPIREAT", name, when)
 
-    def get(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def get(self, name: KeyT) -> Awaitable:
         """
         Return the value at key ``name``, or None if the key doesn't exist
         """
         return self.execute_command("GET", name)
 
-    def getdel(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def getdel(self, name: KeyT) -> Awaitable:
         """
         Get the value at key ``name`` and delete the key. This command
         is similar to GET, except for the fact that it also deletes
@@ -942,12 +941,12 @@ class Commands:
         return self.execute_command("GETDEL", name)
 
     def getex(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        ex: Optional[ExpiryT] = None,
-        px: Optional[ExpiryT] = None,
-        exat: Optional[AbsExpiryT] = None,
-        pxat: Optional[AbsExpiryT] = None,
+        ex: ExpiryT | None = None,
+        px: ExpiryT | None = None,
+        exat: AbsExpiryT | None = None,
+        pxat: AbsExpiryT | None = None,
         persist: bool = False,
     ):
         """
@@ -1005,18 +1004,18 @@ class Commands:
 
         return self.execute_command("GETEX", name, *pieces)
 
-    def getbit(self: _SELF_ANNOTATION, name: KeyT, offset: int) -> Awaitable:
+    def getbit(self, name: KeyT, offset: int) -> Awaitable:
         """Returns a boolean indicating the value of ``offset`` in ``name``"""
         return self.execute_command("GETBIT", name, offset)
 
-    def getrange(self: _SELF_ANNOTATION, key: KeyT, start: int, end: int) -> Awaitable:
+    def getrange(self, key: KeyT, start: int, end: int) -> Awaitable:
         """
         Returns the substring of the string value stored at ``key``,
         determined by the offsets ``start`` and ``end`` (both are inclusive)
         """
         return self.execute_command("GETRANGE", key, start, end)
 
-    def getset(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def getset(self, name: KeyT, value: EncodableT) -> Awaitable:
         """
         Sets the value at key ``name`` to ``value``
         and returns the old value at key ``name`` atomically.
@@ -1026,14 +1025,14 @@ class Commands:
         """
         return self.execute_command("GETSET", name, value)
 
-    def incr(self: _SELF_ANNOTATION, name: KeyT, amount: int = 1) -> Awaitable:
+    def incr(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Increments the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as ``amount``
         """
         return self.incrby(name, amount)
 
-    def incrby(self: _SELF_ANNOTATION, name: KeyT, amount: int = 1) -> Awaitable:
+    def incrby(self, name: KeyT, amount: int = 1) -> Awaitable:
         """
         Increments the value of ``key`` by ``amount``.  If no key exists,
         the value will be initialized as ``amount``
@@ -1042,21 +1041,19 @@ class Commands:
         # as INCRBY redis command.
         return self.execute_command("INCRBY", name, amount)
 
-    def incrbyfloat(
-        self: _SELF_ANNOTATION, name: KeyT, amount: float = 1.0
-    ) -> Awaitable:
+    def incrbyfloat(self, name: KeyT, amount: float = 1.0) -> Awaitable:
         """
         Increments the value at key ``name`` by floating ``amount``.
         If no key exists, the value will be initialized as ``amount``
         """
         return self.execute_command("INCRBYFLOAT", name, amount)
 
-    def keys(self: _SELF_ANNOTATION, pattern: PatternT = "*") -> Awaitable:
+    def keys(self, pattern: PatternT = "*") -> Awaitable:
         """Returns a list of keys matching ``pattern``"""
         return self.execute_command("KEYS", pattern)
 
     def lmove(
-        self: _SELF_ANNOTATION,
+        self,
         first_list: str,
         second_list: str,
         src: str = "LEFT",
@@ -1073,7 +1070,7 @@ class Commands:
         return self.execute_command("LMOVE", *params)
 
     def blmove(
-        self: _SELF_ANNOTATION,
+        self,
         first_list: str,
         second_list: str,
         timeout: int,
@@ -1086,52 +1083,48 @@ class Commands:
         params = [first_list, second_list, src, dest, timeout]
         return self.execute_command("BLMOVE", *params)
 
-    def mget(self: _SELF_ANNOTATION, keys: KeysT, *args: EncodableT) -> Awaitable:
+    def mget(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """
         Returns a list of values ordered identically to ``keys``
         """
         args = list_or_args(keys, args)
-        options: Dict[str, Union[EncodableT, Iterable[EncodableT]]] = {}
+        options: dict[str, EncodableT | Iterable[EncodableT]] = {}
         if not args:
             options[EMPTY_RESPONSE] = []
         return self.execute_command("MGET", *args, **options)
 
-    def mset(
-        self: _SELF_ANNOTATION, mapping: Mapping[AnyKeyT, EncodableT]
-    ) -> Awaitable:
+    def mset(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
         """
         Sets key/values based on a mapping. Mapping is a dictionary of
         key/value pairs. Both keys and values should be strings or types that
         can be cast to a string via str().
         """
-        items: List[EncodableT] = []
+        items: list[EncodableT] = []
         for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("MSET", *items)
 
-    def msetnx(
-        self: _SELF_ANNOTATION, mapping: Mapping[AnyKeyT, EncodableT]
-    ) -> Awaitable:
+    def msetnx(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
         """
         Sets key/values based on a mapping if none of the keys are already set.
         Mapping is a dictionary of key/value pairs. Both keys and values
         should be strings or types that can be cast to a string via str().
         Returns a boolean indicating if the operation was successful.
         """
-        items: List[EncodableT] = []
+        items: list[EncodableT] = []
         for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("MSETNX", *items)
 
-    def move(self: _SELF_ANNOTATION, name: KeyT, db: int) -> Awaitable:
+    def move(self, name: KeyT, db: int) -> Awaitable:
         """Moves the key ``name`` to a different Redis database ``db``"""
         return self.execute_command("MOVE", name, db)
 
-    def persist(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def persist(self, name: KeyT) -> Awaitable:
         """Removes an expiration on ``name``"""
         return self.execute_command("PERSIST", name)
 
-    def pexpire(self: _SELF_ANNOTATION, name: KeyT, time: ExpiryT) -> Awaitable:
+    def pexpire(self, name: KeyT, time: ExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name`` for ``time`` milliseconds.
         ``time`` can be represented by an integer or a Python timedelta
@@ -1141,7 +1134,7 @@ class Commands:
             time = int(time.total_seconds() * 1000)
         return self.execute_command("PEXPIRE", name, time)
 
-    def pexpireat(self: _SELF_ANNOTATION, name: KeyT, when: AbsExpiryT) -> Awaitable:
+    def pexpireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
         """
         Set an expire flag on key ``name``. ``when`` can be represented
         as an integer representing unix time in milliseconds (unix time * 1000)
@@ -1153,7 +1146,7 @@ class Commands:
         return self.execute_command("PEXPIREAT", name, when)
 
     def psetex(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         time_ms: ExpiryT,
         value: EncodableT,
@@ -1167,12 +1160,12 @@ class Commands:
             time_ms = int(time_ms.total_seconds() * 1000)
         return self.execute_command("PSETEX", name, time_ms, value)
 
-    def pttl(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def pttl(self, name: KeyT) -> Awaitable:
         """Returns the number of milliseconds until the key ``name`` will expire"""
         return self.execute_command("PTTL", name)
 
     def hrandfield(
-        self: _SELF_ANNOTATION,
+        self,
         key: str,
         count: int = None,
         withvalues: bool = False,
@@ -1196,29 +1189,29 @@ class Commands:
 
         return self.execute_command("HRANDFIELD", key, *params)
 
-    def randomkey(self: _SELF_ANNOTATION) -> Awaitable:
+    def randomkey(self) -> Awaitable:
         """Returns the name of a random key"""
         return self.execute_command("RANDOMKEY")
 
-    def rename(self: _SELF_ANNOTATION, src: KeyT, dst: KeyT) -> Awaitable:
+    def rename(self, src: KeyT, dst: KeyT) -> Awaitable:
         """
         Rename key ``src`` to ``dst``
         """
         return self.execute_command("RENAME", src, dst)
 
-    def renamenx(self: _SELF_ANNOTATION, src: KeyT, dst: KeyT) -> Awaitable:
+    def renamenx(self, src: KeyT, dst: KeyT) -> Awaitable:
         """Rename key ``src`` to ``dst`` if ``dst`` doesn't already exist"""
         return self.execute_command("RENAMENX", src, dst)
 
     def restore(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         ttl: float,
         value: EncodableT,
         replace: bool = False,
         absttl: bool = False,
-        idletime: Optional[int] = None,
-        frequency: Optional[int] = None,
+        idletime: int | None = None,
+        frequency: int | None = None,
     ) -> Awaitable:
         """
         Create a key using the provided serialized value, previously obtained
@@ -1258,17 +1251,17 @@ class Commands:
         return self.execute_command("RESTORE", *params)
 
     def set(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         value: EncodableT,
-        ex: Optional[ExpiryT] = None,
-        px: Optional[ExpiryT] = None,
+        ex: ExpiryT | None = None,
+        px: ExpiryT | None = None,
         nx: bool = False,
         xx: bool = False,
         keepttl: bool = False,
         get: bool = False,
-        exat: Optional[AbsExpiryT] = None,
-        pxat: Optional[AbsExpiryT] = None,
+        exat: AbsExpiryT | None = None,
+        pxat: AbsExpiryT | None = None,
     ) -> Awaitable:
         """
         Set the value at key ``name`` to ``value``
@@ -1287,7 +1280,7 @@ class Commands:
             (Available since Redis 6.0)
 
         ``get`` if True, set the value at key ``name`` to ``value`` and return
-            the old value stored at key, or None if key did not exist.
+            the old value stored at key, or None if the key did not exist.
             (Available since Redis 6.2)
 
         ``exat`` sets an expire flag on key ``name`` for ``ex`` seconds,
@@ -1296,18 +1289,24 @@ class Commands:
         ``pxat`` sets an expire flag on key ``name`` for ``ex`` milliseconds,
             specified in unix time.
         """
-        pieces: List[EncodableT] = [name, value]
+        pieces: list[EncodableT] = [name, value]
         options = {}
         if ex is not None:
             pieces.append("EX")
             if isinstance(ex, datetime.timedelta):
-                ex = int(ex.total_seconds())
-            pieces.append(ex)
+                pieces.append(int(ex.total_seconds()))
+            elif isinstance(ex, int):
+                pieces.append(ex)
+            else:
+                raise DataError("ex must be datetime.timedelta or int")
         if px is not None:
             pieces.append("PX")
             if isinstance(px, datetime.timedelta):
-                px = int(px.total_seconds() * 1000)
-            pieces.append(px)
+                pieces.append(int(px.total_seconds() * 1000))
+            elif isinstance(px, int):
+                pieces.append(px)
+            else:
+                raise DataError("px must be datetime.timedelta or int")
         if exat is not None:
             pieces.append("EXAT")
             if isinstance(exat, datetime.datetime):
@@ -1334,9 +1333,7 @@ class Commands:
 
         return self.execute_command("SET", *pieces, **options)
 
-    def setbit(
-        self: _SELF_ANNOTATION, name: KeyT, offset: int, value: int
-    ) -> Awaitable:
+    def setbit(self, name: KeyT, offset: int, value: int) -> Awaitable:
         """
         Flag the ``offset`` in ``name`` as ``value``. Returns a boolean
         indicating the previous value of ``offset``.
@@ -1345,7 +1342,7 @@ class Commands:
         return self.execute_command("SETBIT", name, offset, value)
 
     def setex(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         time: ExpiryT,
         value: EncodableT,
@@ -1359,12 +1356,12 @@ class Commands:
             time = int(time.total_seconds())
         return self.execute_command("SETEX", name, time, value)
 
-    def setnx(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def setnx(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Set the value of key ``name`` to ``value`` if key doesn't exist"""
         return self.execute_command("SETNX", name, value)
 
     def setrange(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         offset: int,
         value: EncodableT,
@@ -1382,14 +1379,14 @@ class Commands:
         return self.execute_command("SETRANGE", name, offset, value)
 
     def stralgo(
-        self: _SELF_ANNOTATION,
+        self,
         algo: Literal["LCS"],
         value1: KeyT,
         value2: KeyT,
-        specific_argument: Union[Literal["strings"], Literal["keys"]] = "strings",
+        specific_argument: Literal["strings"] | Literal["keys"] = "strings",
         len: bool = False,
         idx: bool = False,
-        minmatchlen: Optional[int] = None,
+        minmatchlen: int | None = None,
         withmatchlen: bool = False,
     ) -> Awaitable:
         """
@@ -1441,40 +1438,38 @@ class Commands:
             withmatchlen=withmatchlen,
         )
 
-    def strlen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def strlen(self, name: KeyT) -> Awaitable:
         """Return the number of bytes stored in the value of ``name``"""
         return self.execute_command("STRLEN", name)
 
-    def substr(
-        self: _SELF_ANNOTATION, name: KeyT, start: int, end: int = -1
-    ) -> Awaitable:
+    def substr(self, name: KeyT, start: int, end: int = -1) -> Awaitable:
         """
         Return a substring of the string at key ``name``. ``start`` and ``end``
         are 0-based integers specifying the portion of the string to return.
         """
         return self.execute_command("SUBSTR", name, start, end)
 
-    def touch(self: _SELF_ANNOTATION, *args: KeyT) -> Awaitable:
+    def touch(self, *args: KeyT) -> Awaitable:
         """
         Alters the last access time of a key(s) ``*args``. A key is ignored
         if it does not exist.
         """
         return self.execute_command("TOUCH", *args)
 
-    def ttl(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def ttl(self, name: KeyT) -> Awaitable:
         """Returns the number of seconds until the key ``name`` will expire"""
         return self.execute_command("TTL", name)
 
-    def type(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def type(self, name: KeyT) -> Awaitable:
         """Returns the type of key ``name``"""
         return self.execute_command("TYPE", name)
 
-    def unlink(self: _SELF_ANNOTATION, *names: KeyT) -> Awaitable:
+    def unlink(self, *names: KeyT) -> Awaitable:
         """Unlink one or more keys specified by ``names``"""
         return self.execute_command("UNLINK", *names)
 
     # LIST COMMANDS
-    def blpop(self: _SELF_ANNOTATION, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def blpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         LPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -1491,7 +1486,7 @@ class Commands:
         keys.append(timeout)
         return self.execute_command("BLPOP", *keys)
 
-    def brpop(self: _SELF_ANNOTATION, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def brpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         RPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -1509,7 +1504,7 @@ class Commands:
         return self.execute_command("BRPOP", *keys)
 
     def brpoplpush(
-        self: _SELF_ANNOTATION,
+        self,
         src: KeyT,
         dst: KeyT,
         timeout: int = 0,
@@ -1526,7 +1521,7 @@ class Commands:
             timeout = 0
         return self.execute_command("BRPOPLPUSH", src, dst, timeout)
 
-    def lindex(self: _SELF_ANNOTATION, name: KeyT, index: int) -> Awaitable:
+    def lindex(self, name: KeyT, index: int) -> Awaitable:
         """
         Return the item from list ``name`` at position ``index``
 
@@ -1536,7 +1531,7 @@ class Commands:
         return self.execute_command("LINDEX", name, index)
 
     def linsert(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         where: str,
         refvalue: EncodableT,
@@ -1551,14 +1546,14 @@ class Commands:
         """
         return self.execute_command("LINSERT", name, where, refvalue, value)
 
-    def llen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def llen(self, name: KeyT) -> Awaitable:
         """Return the length of the list ``name``"""
         return self.execute_command("LLEN", name)
 
     def lpop(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Removes and returns the first elements of the list ``name``.
@@ -1572,15 +1567,15 @@ class Commands:
         else:
             return self.execute_command("LPOP", name)
 
-    def lpush(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def lpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``values`` onto the head of the list ``name``"""
         return self.execute_command("LPUSH", name, *values)
 
-    def lpushx(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def lpushx(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``value`` onto the head of the list ``name`` if ``name`` exists"""
         return self.execute_command("LPUSHX", name, *values)
 
-    def lrange(self: _SELF_ANNOTATION, name: KeyT, start: int, end: int) -> Awaitable:
+    def lrange(self, name: KeyT, start: int, end: int) -> Awaitable:
         """
         Return a slice of the list ``name`` between
         position ``start`` and ``end``
@@ -1591,7 +1586,7 @@ class Commands:
         return self.execute_command("LRANGE", name, start, end)
 
     def lrem(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         count: int,
         value: EncodableT,
@@ -1608,7 +1603,7 @@ class Commands:
         return self.execute_command("LREM", name, count, value)
 
     def lset(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         index: int,
         value: EncodableT,
@@ -1616,7 +1611,7 @@ class Commands:
         """Set ``position`` of list ``name`` to ``value``"""
         return self.execute_command("LSET", name, index, value)
 
-    def ltrim(self: _SELF_ANNOTATION, name: KeyT, start: int, end: int) -> Awaitable:
+    def ltrim(self, name: KeyT, start: int, end: int) -> Awaitable:
         """
         Trim the list ``name``, removing all values not within the slice
         between ``start`` and ``end``
@@ -1627,9 +1622,9 @@ class Commands:
         return self.execute_command("LTRIM", name, start, end)
 
     def rpop(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Removes and returns the last elements of the list ``name``.
@@ -1643,28 +1638,28 @@ class Commands:
         else:
             return self.execute_command("RPOP", name)
 
-    def rpoplpush(self: _SELF_ANNOTATION, src: KeyT, dst: KeyT) -> Awaitable:
+    def rpoplpush(self, src: KeyT, dst: KeyT) -> Awaitable:
         """
         RPOP a value off of the ``src`` list and atomically LPUSH it
         on to the ``dst`` list.  Returns the value.
         """
         return self.execute_command("RPOPLPUSH", src, dst)
 
-    def rpush(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def rpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Push ``values`` onto the tail of the list ``name``"""
         return self.execute_command("RPUSH", name, *values)
 
-    def rpushx(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def rpushx(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Push ``value`` onto the tail of the list ``name`` if ``name`` exists"""
         return self.execute_command("RPUSHX", name, value)
 
     def lpos(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         value: EncodableT,
-        rank: Optional[int] = None,
-        count: Optional[int] = None,
-        maxlen: Optional[int] = None,
+        rank: int | None = None,
+        count: int | None = None,
+        maxlen: int | None = None,
     ) -> Awaitable:
         """
         Get position of ``value`` within the list ``name``
@@ -1689,7 +1684,7 @@ class Commands:
          position(s) of items within the first 1000 entries in the list.
          A ``maxlen`` of 0 (the default) will scan the entire list.
         """
-        pieces: List[EncodableT] = [name, value]
+        pieces: list[EncodableT] = [name, value]
         if rank is not None:
             pieces.extend(["RANK", rank])
 
@@ -1702,15 +1697,15 @@ class Commands:
         return self.execute_command("LPOS", *pieces)
 
     def sort(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        start: Optional[int] = None,
-        num: Optional[int] = None,
-        by: Optional[KeyT] = None,
-        get: Optional[KeysT] = None,
+        start: int | None = None,
+        num: int | None = None,
+        by: KeyT | None = None,
+        get: KeysT | None = None,
         desc: bool = False,
         alpha: bool = False,
-        store: Optional[KeyT] = None,
+        store: KeyT | None = None,
         groups: bool = False,
     ) -> Awaitable:
         """
@@ -1740,7 +1735,7 @@ class Commands:
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
 
-        pieces: List[EncodableT] = [name]
+        pieces: list[EncodableT] = [name]
         if by is not None:
             pieces.append(b"BY")
             pieces.append(by)
@@ -1754,20 +1749,16 @@ class Commands:
             # values. We can't just iterate blindly because strings are
             # iterable.
             if isinstance(get, (bytes, str)):
-                pieces.append(b"GET")
-                pieces.append(get)
+                pieces.extend([b"GET", get])
             else:
                 for g in get:
-                    pieces.append(b"GET")
-                    pieces.append(g)
+                    pieces.extend([b"GET", g])
         if desc:
             pieces.append(b"DESC")
         if alpha:
             pieces.append(b"ALPHA")
         if store is not None:
-            pieces.append(b"STORE")
-            pieces.append(store)
-
+            pieces.extend([b"STORE", store])
         if groups:
             if not get or isinstance(get, (bytes, str)) or len(get) < 2:
                 raise DataError(
@@ -1781,11 +1772,11 @@ class Commands:
 
     # SCAN COMMANDS
     def scan(
-        self: _SELF_ANNOTATION,
+        self,
         cursor: int = 0,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
-        _type: Optional[str] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
     ) -> Awaitable:
         """
         Incrementally return lists of key names. Also return a cursor
@@ -1801,7 +1792,7 @@ class Commands:
             HASH, LIST, SET, STREAM, STRING, ZSET
             Additionally, Redis modules can expose other types as well.
         """
-        pieces: List[EncodableT] = [cursor]
+        pieces: list[EncodableT] = [cursor]
         if match is not None:
             pieces.extend([b"MATCH", match])
         if count is not None:
@@ -1811,10 +1802,10 @@ class Commands:
         return self.execute_command("SCAN", *pieces)
 
     async def scan_iter(
-        self: _SELF_ANNOTATION,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
-        _type: Optional[str] = None,
+        self,
+        match: PatternT | None = None,
+        count: int | None = None,
+        _type: str | None = None,
     ) -> AsyncIterator:
         """
         Make an iterator using the SCAN command so that the client doesn't
@@ -1839,11 +1830,11 @@ class Commands:
                 yield d
 
     def sscan(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         cursor: int = 0,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Incrementally return lists of elements in a set. Also return a cursor
@@ -1853,7 +1844,7 @@ class Commands:
 
         ``count`` allows for hint the minimum number of returns
         """
-        pieces: List[EncodableT] = [name, cursor]
+        pieces: list[EncodableT] = [name, cursor]
         if match is not None:
             pieces.extend([b"MATCH", match])
         if count is not None:
@@ -1861,10 +1852,10 @@ class Commands:
         return self.execute_command("SSCAN", *pieces)
 
     async def sscan_iter(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
     ) -> AsyncIterator:
         """
         Make an iterator using the SSCAN command so that the client doesn't
@@ -1883,11 +1874,11 @@ class Commands:
                 yield d
 
     def hscan(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         cursor: int = 0,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Incrementally return key/value slices in a hash. Also return a cursor
@@ -1897,7 +1888,7 @@ class Commands:
 
         ``count`` allows for hint the minimum number of returns
         """
-        pieces: List[EncodableT] = [name, cursor]
+        pieces: list[EncodableT] = [name, cursor]
         if match is not None:
             pieces.extend([b"MATCH", match])
         if count is not None:
@@ -1905,10 +1896,10 @@ class Commands:
         return self.execute_command("HSCAN", *pieces)
 
     async def hscan_iter(
-        self: _SELF_ANNOTATION,
+        self,
         name: str,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
+        match: PatternT | None = None,
+        count: int | None = None,
     ) -> AsyncIterator:
         """
         Make an iterator using the HSCAN command so that the client doesn't
@@ -1927,12 +1918,12 @@ class Commands:
                 yield it
 
     def zscan(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         cursor: int = 0,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
-        score_cast_func: Union[Type, Callable] = float,
+        match: PatternT | None = None,
+        count: int | None = None,
+        score_cast_func: type | Callable = float,
     ) -> Awaitable:
         """
         Incrementally return lists of elements in a sorted set. Also return a
@@ -1944,7 +1935,7 @@ class Commands:
 
         ``score_cast_func`` a callable used to cast the score return value
         """
-        pieces: List[EncodableT] = [name, cursor]
+        pieces: list[EncodableT] = [name, cursor]
         if match is not None:
             pieces.extend([b"MATCH", match])
         if count is not None:
@@ -1953,11 +1944,11 @@ class Commands:
         return self.execute_command("ZSCAN", *pieces, **options)
 
     async def zscan_iter(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        match: Optional[PatternT] = None,
-        count: Optional[int] = None,
-        score_cast_func: Union[Type, Callable] = float,
+        match: PatternT | None = None,
+        count: int | None = None,
+        score_cast_func: type | Callable = float,
     ) -> AsyncIterator:
         """
         Make an iterator using the ZSCAN command so that the client doesn't
@@ -1982,21 +1973,21 @@ class Commands:
                 yield d
 
     # SET COMMANDS
-    def sadd(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def sadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Add ``value(s)`` to set ``name``"""
         return self.execute_command("SADD", name, *values)
 
-    def scard(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def scard(self, name: KeyT) -> Awaitable:
         """Return the number of elements in set ``name``"""
         return self.execute_command("SCARD", name)
 
-    def sdiff(self: _SELF_ANNOTATION, keys: KeysT, *args: EncodableT) -> Awaitable:
+    def sdiff(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the difference of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SDIFF", *args)
 
     def sdiffstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
         keys: KeysT,
         *args: EncodableT,
@@ -2008,13 +1999,13 @@ class Commands:
         args = list_or_args(keys, args)
         return self.execute_command("SDIFFSTORE", dest, *args)
 
-    def sinter(self: _SELF_ANNOTATION, keys: KeysT, *args: EncodableT) -> Awaitable:
+    def sinter(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the intersection of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SINTER", *args)
 
     def sinterstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
         keys: KeysT,
         *args: EncodableT,
@@ -2026,16 +2017,24 @@ class Commands:
         args = list_or_args(keys, args)
         return self.execute_command("SINTERSTORE", dest, *args)
 
-    def sismember(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def sismember(self, name: KeyT, value: EncodableT) -> Awaitable:
         """Return a boolean indicating if ``value`` is a member of set ``name``"""
         return self.execute_command("SISMEMBER", name, value)
 
-    def smembers(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def smembers(self, name: KeyT) -> Awaitable:
         """Return all members of the set ``name``"""
         return self.execute_command("SMEMBERS", name)
 
+    def smismember(self, name, values, *args):
+        """
+        Return whether each value in ``values`` is a member of the set ``name``
+        as a list of ``bool`` in the order of ``values``
+        """
+        args = list_or_args(values, args)
+        return self.execute_command("SMISMEMBER", name, *args)
+
     def smove(
-        self: _SELF_ANNOTATION,
+        self,
         src: KeyT,
         dst: KeyT,
         value: EncodableT,
@@ -2044,18 +2043,18 @@ class Commands:
         return self.execute_command("SMOVE", src, dst, value)
 
     def spop(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """Remove and return a random member of set ``name``"""
         args = (count is not None) and [count] or []
         return self.execute_command("SPOP", name, *args)
 
     def srandmember(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        number: Optional[int] = None,
+        number: int | None = None,
     ) -> Awaitable:
         """
         If ``number`` is None, returns a random member of set ``name``.
@@ -2067,17 +2066,17 @@ class Commands:
         args = (number is not None) and [number] or []
         return self.execute_command("SRANDMEMBER", name, *args)
 
-    def srem(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def srem(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Remove ``values`` from set ``name``"""
         return self.execute_command("SREM", name, *values)
 
-    def sunion(self: _SELF_ANNOTATION, keys: KeysT, *args: EncodableT) -> Awaitable:
+    def sunion(self, keys: KeysT, *args: EncodableT) -> Awaitable:
         """Return the union of sets specified by ``keys``"""
         args = list_or_args(keys, args)
         return self.execute_command("SUNION", *args)
 
     def sunionstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
         keys: KeysT,
         *args: EncodableT,
@@ -2091,7 +2090,7 @@ class Commands:
 
     # STREAMS COMMANDS
     def xack(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         *ids: StreamIdT,
@@ -2105,15 +2104,15 @@ class Commands:
         return self.execute_command("XACK", name, groupname, *ids)
 
     def xadd(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        fields: Dict[FieldT, EncodableT],
+        fields: dict[FieldT, EncodableT],
         id: StreamIdT = "*",
-        maxlen: Optional[int] = None,
+        maxlen: int | None = None,
         approximate: bool = True,
         nomkstream: bool = False,
-        minid: Optional[StreamIdT] = None,
-        limit: Optional[int] = None,
+        minid: StreamIdT | None = None,
+        limit: int | None = None,
     ) -> Awaitable:
         """
         Add to a stream.
@@ -2121,14 +2120,14 @@ class Commands:
         fields: dict of field/value pairs to insert into the stream
         id: Location to insert this record. By default it is appended.
         maxlen: truncate old stream members beyond this size.
-        Can't be specify with minid.
-        minid: the minimum id in the stream to query.
-        Can't be specify with maxlen.
+        Can't be specified with minid.
         approximate: actual stream length may be slightly more than maxlen
         nomkstream: When set to true, do not make a stream
+        minid: the minimum id in the stream to query.
+        Can't be specified with maxlen.
         limit: specifies the maximum number of entries to retrieve
         """
-        pieces: List[EncodableT] = []
+        pieces: list[EncodableT] = []
         if maxlen is not None and minid is not None:
             raise DataError("Only one of ```maxlen``` or ```minid``` may be specified")
         if maxlen is not None:
@@ -2156,13 +2155,13 @@ class Commands:
         return self.execute_command("XADD", name, *pieces)
 
     def xautoclaim(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         consumername: ConsumerT,
         min_idle_time: int,
         start_id: int = 0,
-        count: Optional[int] = None,
+        count: int | None = None,
         justid: bool = False,
     ) -> Awaitable:
         """
@@ -2205,15 +2204,15 @@ class Commands:
         return self.execute_command("XAUTOCLAIM", *pieces, **kwargs)
 
     def xclaim(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         consumername: ConsumerT,
         min_idle_time: int,
-        message_ids: Union[List[StreamIdT], Tuple[StreamIdT]],
-        idle: Optional[int] = None,
-        time: Optional[int] = None,
-        retrycount: Optional[int] = None,
+        message_ids: list[StreamIdT] | tuple[StreamIdT],
+        idle: int | None = None,
+        time: int | None = None,
+        retrycount: int | None = None,
         force: bool = False,
         justid: bool = False,
     ) -> Awaitable:
@@ -2248,7 +2247,7 @@ class Commands:
             )
 
         kwargs = {}
-        pieces: List[EncodableT] = [name, groupname, consumername, str(min_idle_time)]
+        pieces: list[EncodableT] = [name, groupname, consumername, str(min_idle_time)]
         pieces.extend(list(message_ids))
 
         if idle is not None:
@@ -2275,7 +2274,7 @@ class Commands:
             kwargs["parse_justid"] = True
         return self.execute_command("XCLAIM", *pieces, **kwargs)
 
-    def xdel(self: _SELF_ANNOTATION, name: KeyT, *ids: StreamIdT) -> Awaitable:
+    def xdel(self, name: KeyT, *ids: StreamIdT) -> Awaitable:
         """
         Deletes one or more messages from a stream.
         name: name of the stream.
@@ -2284,7 +2283,7 @@ class Commands:
         return self.execute_command("XDEL", name, *ids)
 
     def xgroup_create(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         id: StreamIdT = "$",
@@ -2296,13 +2295,13 @@ class Commands:
         groupname: name of the consumer group.
         id: ID of the last item in the stream to consider already delivered.
         """
-        pieces: List[EncodableT] = ["XGROUP CREATE", name, groupname, id]
+        pieces: list[EncodableT] = ["XGROUP CREATE", name, groupname, id]
         if mkstream:
             pieces.append(b"MKSTREAM")
         return self.execute_command(*pieces)
 
     def xgroup_delconsumer(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         consumername: ConsumerT,
@@ -2317,9 +2316,7 @@ class Commands:
         """
         return self.execute_command("XGROUP DELCONSUMER", name, groupname, consumername)
 
-    def xgroup_destroy(
-        self: _SELF_ANNOTATION, name: KeyT, groupname: GroupT
-    ) -> Awaitable:
+    def xgroup_destroy(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Destroy a consumer group.
         name: name of the stream.
@@ -2328,7 +2325,7 @@ class Commands:
         return self.execute_command("XGROUP DESTROY", name, groupname)
 
     def xgroup_createconsumer(
-        self: _SELF_ANNOTATION, name: KeyT, groupname: GroupT, consumername: ConsumerT
+        self, name: KeyT, groupname: GroupT, consumername: ConsumerT
     ) -> Awaitable:
         """
         Consumers in a consumer group are auto-created every time a new
@@ -2343,7 +2340,7 @@ class Commands:
         )
 
     def xgroup_setid(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         id: StreamIdT,
@@ -2356,9 +2353,7 @@ class Commands:
         """
         return self.execute_command("XGROUP SETID", name, groupname, id)
 
-    def xinfo_consumers(
-        self: _SELF_ANNOTATION, name: KeyT, groupname: GroupT
-    ) -> Awaitable:
+    def xinfo_consumers(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Returns general information about the consumers in the group.
         name: name of the stream.
@@ -2366,27 +2361,33 @@ class Commands:
         """
         return self.execute_command("XINFO CONSUMERS", name, groupname)
 
-    def xinfo_groups(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def xinfo_groups(self, name: KeyT) -> Awaitable:
         """
         Returns general information about the consumer groups of the stream.
         name: name of the stream.
         """
         return self.execute_command("XINFO GROUPS", name)
 
-    def xinfo_stream(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def xinfo_stream(self, name: KeyT, full: bool = False) -> Awaitable:
         """
         Returns general information about the stream.
         name: name of the stream.
+        full: optional boolean, false by default. Return full summary
         """
-        return self.execute_command("XINFO STREAM", name)
+        pieces = [name]
+        options = {}
+        if full:
+            pieces.append(b"FULL")
+            options = {"full": full}
+        return self.execute_command("XINFO STREAM", *pieces, **options)
 
-    def xlen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def xlen(self, name: KeyT) -> Awaitable:
         """
         Returns the number of elements in a given stream.
         """
         return self.execute_command("XLEN", name)
 
-    def xpending(self: _SELF_ANNOTATION, name: KeyT, groupname: GroupT) -> Awaitable:
+    def xpending(self, name: KeyT, groupname: GroupT) -> Awaitable:
         """
         Returns information about pending messages of a group.
         name: name of the stream.
@@ -2395,27 +2396,28 @@ class Commands:
         return self.execute_command("XPENDING", name, groupname)
 
     def xpending_range(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         groupname: GroupT,
         min: StreamIdT,
         max: StreamIdT,
         count: int,
-        consumername: Optional[ConsumerT] = None,
-        idle: Optional[int] = None,
+        consumername: ConsumerT | None = None,
+        idle: int | None = None,
     ) -> Awaitable:
         """
         Returns information about pending messages, in a range.
+
         name: name of the stream.
         groupname: name of the consumer group.
+        idle: available from  version 6.2. filter entries by their
+        idle-time, given in milliseconds (optional).
         min: minimum stream ID.
         max: maximum stream ID.
         count: number of messages to return
         consumername: name of a consumer to filter by (optional).
-        idle: available from  version 6.2. Filter entries by their
-        idle-time, given in milliseconds (optional).
-        """
 
+        """
         if {min, max, count} == {None}:
             if idle is not None or consumername is not None:
                 raise DataError(
@@ -2425,34 +2427,38 @@ class Commands:
                 )
             return self.xpending(name, groupname)
 
-        pieces: List[EncodableT] = [name, groupname]
+        pieces: list[EncodableT] = [name, groupname]
         if min is None or max is None or count is None:
             raise DataError(
                 "XPENDING must be provided with min, max "
                 "and count parameters, or none of them."
             )
-            # idle
+        # idle
         try:
             if int(idle) < 0:
                 raise DataError("XPENDING idle must be a integer >= 0")
             pieces.extend(["IDLE", idle])
         except TypeError:
             pass
-            # count
+        # count
         try:
             if int(count) < 0:
                 raise DataError("XPENDING count must be a integer >= 0")
             pieces.extend([min, max, count])
         except TypeError:
             pass
+        # consumername
+        if consumername:
+            pieces.append(consumername)
+
         return self.execute_command("XPENDING", *pieces, parse_detail=True)
 
     def xrange(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         min: StreamIdT = "-",
         max: StreamIdT = "+",
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Read stream values within an interval.
@@ -2464,7 +2470,7 @@ class Commands:
         count: if set, only return this many items, beginning with the
                earliest available.
         """
-        pieces: List[EncodableT] = [min, max]
+        pieces: list[EncodableT] = [min, max]
         if count is not None:
             if not isinstance(count, int) or count < 1:
                 raise DataError("XRANGE count must be a positive integer")
@@ -2474,10 +2480,10 @@ class Commands:
         return self.execute_command("XRANGE", name, *pieces)
 
     def xread(
-        self: _SELF_ANNOTATION,
-        streams: Dict[KeyT, StreamIdT],
-        count: Optional[int] = None,
-        block: Optional[int] = None,
+        self,
+        streams: dict[KeyT, StreamIdT],
+        count: int | None = None,
+        block: int | None = None,
     ) -> Awaitable:
         """
         Block and monitor multiple streams for new data.
@@ -2487,7 +2493,7 @@ class Commands:
                earliest available.
         block: number of milliseconds to wait, if nothing already present.
         """
-        pieces: List[EncodableT] = []
+        pieces: list[EncodableT] = []
         if block is not None:
             if not isinstance(block, int) or block < 0:
                 raise DataError("XREAD block must be a non-negative integer")
@@ -2507,12 +2513,12 @@ class Commands:
         return self.execute_command("XREAD", *pieces)
 
     def xreadgroup(
-        self: _SELF_ANNOTATION,
+        self,
         groupname: str,
         consumername: str,
-        streams: Dict[KeyT, StreamIdT],
-        count: Optional[int] = None,
-        block: Optional[int] = None,
+        streams: dict[KeyT, StreamIdT],
+        count: int | None = None,
+        block: int | None = None,
         noack: bool = False,
     ) -> Awaitable:
         """
@@ -2526,7 +2532,7 @@ class Commands:
         block: number of milliseconds to wait, if nothing already present.
         noack: do not add messages to the PEL
         """
-        pieces: List[EncodableT] = [b"GROUP", groupname, consumername]
+        pieces: list[EncodableT] = [b"GROUP", groupname, consumername]
         if count is not None:
             if not isinstance(count, int) or count < 1:
                 raise DataError("XREADGROUP count must be a positive integer")
@@ -2547,11 +2553,11 @@ class Commands:
         return self.execute_command("XREADGROUP", *pieces)
 
     def xrevrange(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         max: StreamIdT = "+",
         min: StreamIdT = "-",
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Read stream values within an interval, in reverse order.
@@ -2563,7 +2569,7 @@ class Commands:
         count: if set, only return this many items, beginning with the
                latest available.
         """
-        pieces: List[EncodableT] = [max, min]
+        pieces: list[EncodableT] = [max, min]
         if count is not None:
             if not isinstance(count, int) or count < 1:
                 raise DataError("XREVRANGE count must be a positive integer")
@@ -2573,12 +2579,12 @@ class Commands:
         return self.execute_command("XREVRANGE", name, *pieces)
 
     def xtrim(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         maxlen: int,
         approximate: bool = True,
-        minid: Optional[StreamIdT] = None,
-        limit: Optional[int] = None,
+        minid: StreamIdT | None = None,
+        limit: int | None = None,
     ) -> Awaitable:
         """
         Trims old messages from a stream.
@@ -2590,7 +2596,7 @@ class Commands:
         Can't be specified with maxlen.
         limit: specifies the maximum number of entries to retrieve
         """
-        pieces: List[EncodableT] = []
+        pieces: list[EncodableT] = []
         if maxlen is not None and minid is not None:
             raise DataError("Only one of ``maxlen`` or ``minid`` may be specified")
 
@@ -2612,7 +2618,7 @@ class Commands:
 
     # SORTED SET COMMANDS
     def zadd(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         mapping: Mapping[AnyKeyT, EncodableT],
         nx: bool = False,
@@ -2666,7 +2672,7 @@ class Commands:
         if nx is True and (gt is not None or lt is not None):
             raise DataError("Only one of 'gt' or 'lt' can be set.")
 
-        pieces: List[EncodableT] = []
+        pieces: list[EncodableT] = []
         options = {}
         if nx:
             pieces.append(b"NX")
@@ -2686,12 +2692,12 @@ class Commands:
             pieces.append(pair[0])
         return self.execute_command("ZADD", name, *pieces, **options)
 
-    def zcard(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def zcard(self, name: KeyT) -> Awaitable:
         """Return the number of elements in the sorted set ``name``"""
         return self.execute_command("ZCARD", name)
 
     def zcount(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         min: ZScoreBoundT,
         max: ZScoreBoundT,
@@ -2702,9 +2708,7 @@ class Commands:
         """
         return self.execute_command("ZCOUNT", name, min, max)
 
-    def zdiff(
-        self: _SELF_ANNOTATION, keys: KeysT, withscores: bool = False
-    ) -> Awaitable:
+    def zdiff(self, keys: KeysT, withscores: bool = False) -> Awaitable:
         """
         Returns the difference between the first and all successive input
         sorted sets provided in ``keys``.
@@ -2714,7 +2718,7 @@ class Commands:
             pieces.append("WITHSCORES")
         return self.execute_command("ZDIFF", *pieces)
 
-    def zdiffstore(self: _SELF_ANNOTATION, dest: KeyT, keys: KeysT) -> Awaitable:
+    def zdiffstore(self, dest: KeyT, keys: KeysT) -> Awaitable:
         """
         Computes the difference between the first and all successive input
         sorted sets provided in ``keys`` and stores the result in ``dest``.
@@ -2723,7 +2727,7 @@ class Commands:
         return self.execute_command("ZDIFFSTORE", dest, *pieces)
 
     def zincrby(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         amount: float,
         value: EncodableT,
@@ -2732,9 +2736,9 @@ class Commands:
         return self.execute_command("ZINCRBY", name, amount, value)
 
     def zinter(
-        self: _SELF_ANNOTATION,
+        self,
         keys: KeysT,
-        aggregate: Optional[str] = None,
+        aggregate: str | None = None,
         withscores: bool = False,
     ) -> Awaitable:
         """
@@ -2749,10 +2753,10 @@ class Commands:
         return self._zaggregate("ZINTER", None, keys, aggregate, withscores=withscores)
 
     def zinterstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
-        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: Optional[str] = None,
+        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
     ) -> Awaitable:
         """
         Intersect multiple sorted sets specified by ``keys`` into a new
@@ -2766,7 +2770,7 @@ class Commands:
         return self._zaggregate("ZINTERSTORE", dest, keys, aggregate)
 
     def zlexcount(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         min: EncodableT,
         max: EncodableT,
@@ -2778,9 +2782,9 @@ class Commands:
         return self.execute_command("ZLEXCOUNT", name, min, max)
 
     def zpopmax(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Remove and return up to ``count`` members with the highest scores
@@ -2791,9 +2795,9 @@ class Commands:
         return self.execute_command("ZPOPMAX", name, *args, **options)
 
     def zpopmin(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        count: Optional[int] = None,
+        count: int | None = None,
     ) -> Awaitable:
         """
         Remove and return up to ``count`` members with the lowest scores
@@ -2804,7 +2808,7 @@ class Commands:
         return self.execute_command("ZPOPMIN", name, *args, **options)
 
     def zrandmember(
-        self: _SELF_ANNOTATION,
+        self,
         key: KeyT,
         count: int = None,
         withscores: bool = False,
@@ -2830,7 +2834,7 @@ class Commands:
 
         return self.execute_command("ZRANDMEMBER", key, *params)
 
-    def bzpopmax(self: _SELF_ANNOTATION, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmax(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         ZPOPMAX a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -2847,7 +2851,7 @@ class Commands:
         keys.append(timeout)
         return self.execute_command("BZPOPMAX", *keys)
 
-    def bzpopmin(self: _SELF_ANNOTATION, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmin(self, keys: KeysT, timeout: int = 0) -> Awaitable:
         """
         ZPOPMIN a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -2860,18 +2864,64 @@ class Commands:
         """
         if timeout is None:
             timeout = 0
-        klist: List[EncodableT] = list_or_args(keys, None)
+        klist: list[EncodableT] = list_or_args(keys, None)
         klist.append(timeout)
         return self.execute_command("BZPOPMIN", *klist)
 
+    def _zrange(
+        self,
+        command,
+        dest,
+        name,
+        start,
+        end,
+        desc=False,
+        byscore=False,
+        bylex=False,
+        withscores=False,
+        score_cast_func=float,
+        offset=None,
+        num=None,
+    ):
+        if byscore and bylex:
+            raise DataError(
+                "``byscore`` and ``bylex`` can not be " "specified together."
+            )
+        if (offset is not None and num is None) or (num is not None and offset is None):
+            raise DataError("``offset`` and ``num`` must both be specified.")
+        if bylex and withscores:
+            raise DataError(
+                "``withscores`` not supported in combination " "with ``bylex``."
+            )
+        pieces = [command]
+        if dest:
+            pieces.append(dest)
+        pieces.extend([name, start, end])
+        if byscore:
+            pieces.append("BYSCORE")
+        if bylex:
+            pieces.append("BYLEX")
+        if desc:
+            pieces.append("REV")
+        if offset is not None and num is not None:
+            pieces.extend(["LIMIT", offset, num])
+        if withscores:
+            pieces.append("WITHSCORES")
+        options = {"withscores": withscores, "score_cast_func": score_cast_func}
+        return self.execute_command(*pieces, **options)
+
     def zrange(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         start: int,
         end: int,
         desc: bool = False,
         withscores: bool = False,
-        score_cast_func: Union[Type, Callable] = float,
+        score_cast_func: type | Callable = float,
+        byscore: bool = False,
+        bylex: bool = False,
+        offset: int = None,
+        num: int = None,
     ) -> Awaitable:
         """
         Return a range of values from sorted set ``name`` between
@@ -2879,43 +2929,119 @@ class Commands:
 
         ``start`` and ``end`` can be negative, indicating the end of the range.
 
-        ``desc`` a boolean indicating whether to sort the results descendingly
+        ``desc`` a boolean indicating whether to sort the results in reversed
+        order.
 
         ``withscores`` indicates to return the scores along with the values.
+        The return type is a list of (value, score) pairs.
+
+        ``score_cast_func`` a callable used to cast the score return value.
+
+        ``byscore`` when set to True, returns the range of elements from the
+        sorted set having scores equal or between ``start`` and ``end``.
+
+        ``bylex`` when set to True, returns the range of elements from the
+        sorted set between the ``start`` and ``end`` lexicographical closed
+        range intervals.
+        Valid ``start`` and ``end`` must start with ( or [, in order to specify
+        whether the range interval is exclusive or inclusive, respectively.
+
+        ``offset`` and ``num`` are specified, then return a slice of the range.
+        Can't be provided when using ``bylex``.
+        """
+        # Need to support ``desc`` also when using old redis version
+        # because it was supported in 3.5.3 (of redis-py)
+        if not byscore and not bylex and (offset is None and num is None) and desc:
+            return self.zrevrange(name, start, end, withscores, score_cast_func)
+
+        return self._zrange(
+            "ZRANGE",
+            None,
+            name,
+            start,
+            end,
+            desc,
+            byscore,
+            bylex,
+            withscores,
+            score_cast_func,
+            offset,
+            num,
+        )
+
+    def zrevrange(self, name, start, end, withscores=False, score_cast_func=float):
+        """
+        Return a range of values from sorted set ``name`` between
+        ``start`` and ``end`` sorted in descending order.
+
+        ``start`` and ``end`` can be negative, indicating the end of the range.
+
+        ``withscores`` indicates to return the scores along with the values
         The return type is a list of (value, score) pairs
 
         ``score_cast_func`` a callable used to cast the score return value
         """
-        if desc:
-            return self.zrevrange(name, start, end, withscores, score_cast_func)
-        pieces: List[EncodableT] = ["ZRANGE", name, start, end]
+        pieces = ["ZREVRANGE", name, start, end]
         if withscores:
             pieces.append(b"WITHSCORES")
         options = {"withscores": withscores, "score_cast_func": score_cast_func}
         return self.execute_command(*pieces, **options)
 
     def zrangestore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
         name: KeyT,
         start: int,
         end: int,
+        byscore: bool = False,
+        bylex: bool = False,
+        desc: bool = False,
+        offset: int = None,
+        num: int = None,
     ) -> Awaitable:
         """
         Stores in ``dest`` the result of a range of values from sorted set
         ``name`` between ``start`` and ``end`` sorted in ascending order.
 
         ``start`` and ``end`` can be negative, indicating the end of the range.
+
+        ``byscore`` when set to True, returns the range of elements from the
+        sorted set having scores equal or between ``start`` and ``end``.
+
+        ``bylex`` when set to True, returns the range of elements from the
+        sorted set between the ``start`` and ``end`` lexicographical closed
+        range intervals.
+        Valid ``start`` and ``end`` must start with ( or [, in order to specify
+        whether the range interval is exclusive or inclusive, respectively.
+
+        ``desc`` a boolean indicating whether to sort the results in reversed
+        order.
+
+        ``offset`` and ``num`` are specified, then return a slice of the range.
+        Can't be provided when using ``bylex``.
         """
-        return self.execute_command("ZRANGESTORE", dest, name, start, end)
+        return self._zrange(
+            "ZRANGESTORE",
+            dest,
+            name,
+            start,
+            end,
+            desc,
+            byscore,
+            bylex,
+            False,
+            None,
+            offset,
+            num,
+        )
 
     def zrangebylex(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         min: EncodableT,
         max: EncodableT,
-        start: Optional[int] = None,
-        num: Optional[int] = None,
+        start: int | None = None,
+        num: int | None = None,
     ) -> Awaitable:
         """
         Return the lexicographical range of values from sorted set ``name``
@@ -2926,18 +3052,18 @@ class Commands:
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
-        pieces: List[EncodableT] = ["ZRANGEBYLEX", name, min, max]
+        pieces: list[EncodableT] = ["ZRANGEBYLEX", name, min, max]
         if start is not None and num is not None:
             pieces.extend([b"LIMIT", start, num])
         return self.execute_command(*pieces)
 
     def zrevrangebylex(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         max: EncodableT,
         min: EncodableT,
-        start: Optional[int] = None,
-        num: Optional[int] = None,
+        start: int | None = None,
+        num: int | None = None,
     ) -> Awaitable:
         """
         Return the reversed lexicographical range of values from sorted set
@@ -2948,20 +3074,20 @@ class Commands:
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
-        pieces: List[EncodableT] = ["ZREVRANGEBYLEX", name, max, min]
+        pieces: list[EncodableT] = ["ZREVRANGEBYLEX", name, max, min]
         if start is not None and num is not None:
             pieces.extend([b"LIMIT", start, num])
         return self.execute_command(*pieces)
 
     def zrangebyscore(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         min: ZScoreBoundT,
         max: ZScoreBoundT,
-        start: Optional[int] = None,
-        num: Optional[int] = None,
+        start: int | None = None,
+        num: int | None = None,
         withscores: bool = False,
-        score_cast_func: Union[Type, Callable] = float,
+        score_cast_func: type | Callable = float,
     ) -> Awaitable:
         """
         Return a range of values from the sorted set ``name`` with scores
@@ -2977,7 +3103,7 @@ class Commands:
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
-        pieces: List[EncodableT] = ["ZRANGEBYSCORE", name, min, max]
+        pieces: list[EncodableT] = ["ZRANGEBYSCORE", name, min, max]
         if start is not None and num is not None:
             pieces.extend([b"LIMIT", start, num])
         if withscores:
@@ -2985,89 +3111,16 @@ class Commands:
         options = {"withscores": withscores, "score_cast_func": score_cast_func}
         return self.execute_command(*pieces, **options)
 
-    def zrank(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
-        """
-        Returns a 0-based value indicating the rank of ``value`` in sorted set
-        ``name``
-        """
-        return self.execute_command("ZRANK", name, value)
-
-    def zrem(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Remove member ``values`` from sorted set ``name``"""
-        return self.execute_command("ZREM", name, *values)
-
-    def zremrangebylex(
-        self: _SELF_ANNOTATION,
-        name: KeyT,
-        min: EncodableT,
-        max: EncodableT,
-    ) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` between the
-        lexicographical range specified by ``min`` and ``max``.
-
-        Returns the number of elements removed.
-        """
-        return self.execute_command("ZREMRANGEBYLEX", name, min, max)
-
-    def zremrangebyrank(
-        self: _SELF_ANNOTATION, name: KeyT, min: int, max: int
-    ) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` with ranks between
-        ``min`` and ``max``. Values are 0-based, ordered from smallest score
-        to largest. Values can be negative indicating the highest scores.
-        Returns the number of elements removed
-        """
-        return self.execute_command("ZREMRANGEBYRANK", name, min, max)
-
-    def zremrangebyscore(
-        self: _SELF_ANNOTATION,
-        name: KeyT,
-        min: ZScoreBoundT,
-        max: ZScoreBoundT,
-    ) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` with scores
-        between ``min`` and ``max``. Returns the number of elements removed.
-        """
-        return self.execute_command("ZREMRANGEBYSCORE", name, min, max)
-
-    def zrevrange(
-        self: _SELF_ANNOTATION,
-        name: KeyT,
-        start: int,
-        end: int,
-        withscores: bool = False,
-        score_cast_func: Union[Type, Callable] = float,
-    ) -> Awaitable:
-        """
-        Return a range of values from sorted set ``name`` between
-        ``start`` and ``end`` sorted in descending order.
-
-        ``start`` and ``end`` can be negative, indicating the end of the range.
-
-        ``withscores`` indicates to return the scores along with the values
-        The return type is a list of (value, score) pairs
-
-        ``score_cast_func`` a callable used to cast the score return value
-        """
-        pieces: List[EncodableT] = ["ZREVRANGE", name, start, end]
-        if withscores:
-            pieces.append(b"WITHSCORES")
-        options = {"withscores": withscores, "score_cast_func": score_cast_func}
-        return self.execute_command(*pieces, **options)
-
     def zrevrangebyscore(
-        self: _SELF_ANNOTATION,
-        name: KeyT,
-        max: ZScoreBoundT,
-        min: ZScoreBoundT,
-        start: Optional[int] = None,
-        num: Optional[int] = None,
-        withscores: bool = False,
-        score_cast_func: Union[Type, Callable] = float,
-    ) -> Awaitable:
+        self,
+        name,
+        max,
+        min,
+        start=None,
+        num=None,
+        withscores=False,
+        score_cast_func=float,
+    ):
         """
         Return a range of values from the sorted set ``name`` with scores
         between ``min`` and ``max`` in descending order.
@@ -3082,29 +3135,75 @@ class Commands:
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
-        pieces: List[EncodableT] = ["ZREVRANGEBYSCORE", name, max, min]
+        pieces = ["ZREVRANGEBYSCORE", name, max, min]
         if start is not None and num is not None:
-            pieces.extend([b"LIMIT", start, num])
+            pieces.extend(["LIMIT", start, num])
         if withscores:
-            pieces.append(b"WITHSCORES")
+            pieces.append("WITHSCORES")
         options = {"withscores": withscores, "score_cast_func": score_cast_func}
         return self.execute_command(*pieces, **options)
 
-    def zrevrank(self: _SELF_ANNOTATION, name: KeyT, value: EncodableT) -> Awaitable:
+    def zrank(self, name: KeyT, value: EncodableT) -> Awaitable:
+        """
+        Returns a 0-based value indicating the rank of ``value`` in sorted set
+        ``name``
+        """
+        return self.execute_command("ZRANK", name, value)
+
+    def zrem(self, name: KeyT, *values: EncodableT) -> Awaitable:
+        """Remove member ``values`` from sorted set ``name``"""
+        return self.execute_command("ZREM", name, *values)
+
+    def zremrangebylex(
+        self,
+        name: KeyT,
+        min: EncodableT,
+        max: EncodableT,
+    ) -> Awaitable:
+        """
+        Remove all elements in the sorted set ``name`` between the
+        lexicographical range specified by ``min`` and ``max``.
+
+        Returns the number of elements removed.
+        """
+        return self.execute_command("ZREMRANGEBYLEX", name, min, max)
+
+    def zremrangebyrank(self, name: KeyT, min: int, max: int) -> Awaitable:
+        """
+        Remove all elements in the sorted set ``name`` with ranks between
+        ``min`` and ``max``. Values are 0-based, ordered from smallest score
+        to largest. Values can be negative indicating the highest scores.
+        Returns the number of elements removed
+        """
+        return self.execute_command("ZREMRANGEBYRANK", name, min, max)
+
+    def zremrangebyscore(
+        self,
+        name: KeyT,
+        min: ZScoreBoundT,
+        max: ZScoreBoundT,
+    ) -> Awaitable:
+        """
+        Remove all elements in the sorted set ``name`` with scores
+        between ``min`` and ``max``. Returns the number of elements removed.
+        """
+        return self.execute_command("ZREMRANGEBYSCORE", name, min, max)
+
+    def zrevrank(self, name: KeyT, value: EncodableT) -> Awaitable:
         """
         Returns a 0-based value indicating the descending rank of
         ``value`` in sorted set ``name``
         """
         return self.execute_command("ZREVRANK", name, value)
 
-    def zscore(self: _SELF_ANNOTATION, name: str, value: EncodableT) -> Awaitable:
+    def zscore(self, name: str, value: EncodableT) -> Awaitable:
         """Return the score of element ``value`` in sorted set ``name``"""
         return self.execute_command("ZSCORE", name, value)
 
     def zunion(
-        self: _SELF_ANNOTATION,
-        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: Optional[str] = None,
+        self,
+        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
         withscores: bool = False,
     ) -> Awaitable:
         """
@@ -3116,10 +3215,10 @@ class Commands:
         return self._zaggregate("ZUNION", None, keys, aggregate, withscores=withscores)
 
     def zunionstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
-        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: Optional[str] = None,
+        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
     ) -> Awaitable:
         """
         Union multiple sorted sets specified by ``keys`` into
@@ -3128,7 +3227,7 @@ class Commands:
         """
         return self._zaggregate("ZUNIONSTORE", dest, keys, aggregate)
 
-    def zmscore(self: _SELF_ANNOTATION, key: KeyT, members: List[str]) -> Awaitable:
+    def zmscore(self, key: KeyT, members: list[str]) -> Awaitable:
         """
         Returns the scores associated with the specified members
         in the sorted set stored at key.
@@ -3143,14 +3242,14 @@ class Commands:
         return self.execute_command("ZMSCORE", *pieces)
 
     def _zaggregate(
-        self: _SELF_ANNOTATION,
+        self,
         command: str,
-        dest: Optional[KeyT],
-        keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
-        aggregate: Optional[str] = None,
+        dest: KeyT | None,
+        keys: Sequence[KeyT] | Mapping[AnyKeyT, float],
+        aggregate: str | None = None,
         **options,
     ) -> Awaitable:
-        pieces: List[EncodableT] = [command]
+        pieces: list[EncodableT] = [command]
         if dest is not None:
             pieces.append(dest)
         pieces.append(len(keys))
@@ -3173,40 +3272,40 @@ class Commands:
         return self.execute_command(*pieces, **options)
 
     # HYPERLOGLOG COMMANDS
-    def pfadd(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def pfadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Adds the specified elements to the specified HyperLogLog."""
         return self.execute_command("PFADD", name, *values)
 
-    def pfcount(self: _SELF_ANNOTATION, *sources: KeyT) -> Awaitable:
+    def pfcount(self, *sources: KeyT) -> Awaitable:
         """
         Return the approximated cardinality of
         the set observed by the HyperLogLog at key(s).
         """
         return self.execute_command("PFCOUNT", *sources)
 
-    def pfmerge(self: _SELF_ANNOTATION, dest: KeyT, *sources: KeyT) -> Awaitable:
+    def pfmerge(self, dest: KeyT, *sources: KeyT) -> Awaitable:
         """Merge N different HyperLogLogs into a single one."""
         return self.execute_command("PFMERGE", dest, *sources)
 
     # HASH COMMANDS
-    def hdel(self: _SELF_ANNOTATION, name: KeyT, *keys: FieldT) -> Awaitable:
+    def hdel(self, name: KeyT, *keys: FieldT) -> Awaitable:
         """Delete ``keys`` from hash ``name``"""
         return self.execute_command("HDEL", name, *keys)
 
-    def hexists(self: _SELF_ANNOTATION, name: KeyT, key: FieldT) -> Awaitable:
+    def hexists(self, name: KeyT, key: FieldT) -> Awaitable:
         """Returns a boolean indicating if ``key`` exists within hash ``name``"""
         return self.execute_command("HEXISTS", name, key)
 
-    def hget(self: _SELF_ANNOTATION, name: KeyT, key: FieldT) -> Awaitable:
+    def hget(self, name: KeyT, key: FieldT) -> Awaitable:
         """Return the value of ``key`` within the hash ``name``"""
         return self.execute_command("HGET", name, key)
 
-    def hgetall(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def hgetall(self, name: KeyT) -> Awaitable:
         """Return a Python dict of the hash's name/value pairs"""
         return self.execute_command("HGETALL", name)
 
     def hincrby(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         key: FieldT,
         amount: int = 1,
@@ -3215,7 +3314,7 @@ class Commands:
         return self.execute_command("HINCRBY", name, key, amount)
 
     def hincrbyfloat(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         key: FieldT,
         amount: float = 1.0,
@@ -3225,20 +3324,20 @@ class Commands:
         """
         return self.execute_command("HINCRBYFLOAT", name, key, amount)
 
-    def hkeys(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def hkeys(self, name: KeyT) -> Awaitable:
         """Return the list of keys within hash ``name``"""
         return self.execute_command("HKEYS", name)
 
-    def hlen(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def hlen(self, name: KeyT) -> Awaitable:
         """Return the number of elements in hash ``name``"""
         return self.execute_command("HLEN", name)
 
     def hset(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        key: Optional[FieldT] = None,
-        value: Optional[EncodableT] = None,
-        mapping: Optional[Mapping[AnyFieldT, EncodableT]] = None,
+        key: FieldT | None = None,
+        value: EncodableT | None = None,
+        mapping: Mapping[AnyFieldT, EncodableT] | None = None,
     ) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name``,
@@ -3248,7 +3347,7 @@ class Commands:
         """
         if key is None and not mapping:
             raise DataError("'hset' with no key value pairs")
-        items: List[EncodableT] = []
+        items: list[EncodableT] = []
         if key is not None:
             items.extend((key, value))
         if mapping:
@@ -3258,7 +3357,7 @@ class Commands:
         return self.execute_command("HSET", name, *items)
 
     def hsetnx(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         key: FieldT,
         value: EncodableT,
@@ -3270,7 +3369,7 @@ class Commands:
         return self.execute_command("HSETNX", name, key, value)
 
     def hmset(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         mapping: Mapping[AnyFieldT, EncodableT],
     ) -> Awaitable:
@@ -3292,7 +3391,7 @@ class Commands:
         return self.execute_command("HMSET", name, *items)
 
     def hmget(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         keys: Sequence[FieldT],
         *args: FieldT,
@@ -3301,11 +3400,11 @@ class Commands:
         args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *args)
 
-    def hvals(self: _SELF_ANNOTATION, name: KeyT) -> Awaitable:
+    def hvals(self, name: KeyT) -> Awaitable:
         """Return the list of values within hash ``name``"""
         return self.execute_command("HVALS", name)
 
-    def hstrlen(self: _SELF_ANNOTATION, name: KeyT, key: FieldT) -> Awaitable:
+    def hstrlen(self, name: KeyT, key: FieldT) -> Awaitable:
         """
         Return the number of bytes stored in the value of ``key``
         within hash ``name``
@@ -3313,7 +3412,7 @@ class Commands:
         return self.execute_command("HSTRLEN", name, key)
 
     def publish(
-        self: _SELF_ANNOTATION,
+        self,
         channel: ChannelT,
         message: EncodableT,
     ) -> Awaitable:
@@ -3323,30 +3422,40 @@ class Commands:
         """
         return self.execute_command("PUBLISH", channel, message)
 
-    def pubsub_channels(self: _SELF_ANNOTATION, pattern: PatternT = "*") -> Awaitable:
+    def pubsub_channels(self, pattern: PatternT = "*") -> Awaitable:
         """
         Return a list of channels that have at least one subscriber
         """
         return self.execute_command("PUBSUB CHANNELS", pattern)
 
-    def pubsub_numpat(self: _SELF_ANNOTATION) -> Awaitable:
+    def pubsub_numpat(self) -> Awaitable:
         """
         Returns the number of subscriptions to patterns
         """
         return self.execute_command("PUBSUB NUMPAT")
 
-    def pubsub_numsub(self: _SELF_ANNOTATION, *args: ChannelT) -> Awaitable:
+    def pubsub_numsub(self, *args: ChannelT) -> Awaitable:
         """
         Return a list of (channel, number of subscribers) tuples
         for each channel given in ``*args``
         """
         return self.execute_command("PUBSUB NUMSUB", *args)
 
-    def cluster(self: _SELF_ANNOTATION, cluster_arg: str, *args: str) -> Awaitable:
+    def cluster(self, cluster_arg: str, *args: str) -> Awaitable:
         return self.execute_command(f"CLUSTER {cluster_arg.upper()}", *args)
 
+    def replicaof(self, *args):
+        """
+        Update the replication settings of a redis replica, on the fly.
+        Examples of valid arguments include:
+            NO ONE (set no replication)
+            host port (set to the host and port of a redis server)
+        see: https://redis.io/commands/replicaof
+        """
+        return self.execute_command("REPLICAOF", *args)
+
     def eval(
-        self: _SELF_ANNOTATION,
+        self,
         script: ScriptTextT,
         numkeys: int,
         *keys_and_args: EncodableT,
@@ -3362,7 +3471,7 @@ class Commands:
         return self.execute_command("EVAL", script, numkeys, *keys_and_args)
 
     def evalsha(
-        self: _SELF_ANNOTATION,
+        self,
         sha: str,
         numkeys: int,
         *keys_and_args: str,
@@ -3378,7 +3487,7 @@ class Commands:
         """
         return self.execute_command("EVALSHA", sha, numkeys, *keys_and_args)
 
-    def script_exists(self: _SELF_ANNOTATION, *args: str) -> Awaitable:
+    def script_exists(self, *args: str) -> Awaitable:
         """
         Check if a script exists in the script cache by specifying the SHAs of
         each script as ``args``. Returns a list of boolean values indicating if
@@ -3386,29 +3495,43 @@ class Commands:
         """
         return self.execute_command("SCRIPT EXISTS", *args)
 
+    def script_debug(self, *args):
+        raise NotImplementedError(
+            "SCRIPT DEBUG is intentionally not implemented in the client."
+        )
+
     def script_flush(
-        self: _SELF_ANNOTATION,
-        sync_type: Union[Literal["SYNC"], Literal["ASYNC"]] = "SYNC",
+        self,
+        sync_type: Literal["SYNC"] | Literal["ASYNC"] = "SYNC",
     ) -> Awaitable:
         """Flush all scripts from the script cache.
         ``sync_type`` is by default SYNC (synchronous) but it can also be
                       ASYNC.
         See: https://redis.io/commands/script-flush
         """
-        if sync_type not in ["SYNC", "ASYNC"]:
-            raise DataError("SCRIPT FLUSH defaults to SYNC or " "accepts SYNC/ASYNC")
-        pieces = [sync_type]
+
+        # Redis pre 6 had no sync_type.
+        if sync_type not in ["SYNC", "ASYNC", None]:
+            raise DataError(
+                "SCRIPT FLUSH defaults to SYNC in redis > 6.2, or "
+                "accepts SYNC/ASYNC. For older versions, "
+                "of redis leave as None."
+            )
+        if sync_type is None:
+            pieces = []
+        else:
+            pieces = [sync_type]
         return self.execute_command("SCRIPT FLUSH", *pieces)
 
-    def script_kill(self: _SELF_ANNOTATION) -> Awaitable:
+    def script_kill(self) -> Awaitable:
         """Kill the currently executing Lua script"""
         return self.execute_command("SCRIPT KILL")
 
-    def script_load(self: _SELF_ANNOTATION, script: ScriptTextT) -> Awaitable:
+    def script_load(self, script: ScriptTextT) -> Awaitable:
         """Load a Lua ``script`` into the script cache. Returns the SHA."""
         return self.execute_command("SCRIPT LOAD", script)
 
-    def register_script(self: _SELF_ANNOTATION, script: ScriptTextT) -> "Script":
+    def register_script(self, script: ScriptTextT) -> Script:
         """
         Register a Lua ``script`` specifying the ``keys`` it will touch.
         Returns a Script object that is callable and hides the complexity of
@@ -3418,23 +3541,52 @@ class Commands:
         return Script(self, script)
 
     # GEO COMMANDS
-    def geoadd(self: _SELF_ANNOTATION, name: KeyT, *values: EncodableT) -> Awaitable:
+    def geoadd(
+        self,
+        name: KeyT,
+        values: Sequence[EncodableT],
+        nx: bool = False,
+        xx: bool = False,
+        ch: bool = False,
+    ) -> Awaitable:
         """
         Add the specified geospatial items to the specified key identified
         by the ``name`` argument. The Geospatial items are given as ordered
         members of the ``values`` argument, each item or place is formed by
         the triad longitude, latitude and name.
+
+        Note: You can use ZREM to remove elements.
+
+        ``nx`` forces ZADD to only create new elements and not to update
+        scores for elements that already exist.
+
+        ``xx`` forces ZADD to only update scores of elements that already
+        exist. New elements will not be added.
+
+        ``ch`` modifies the return value to be the numbers of elements changed.
+        Changed elements include new elements that were added and elements
+        whose scores changed.
         """
+        if nx and xx:
+            raise DataError("GEOADD allows either 'nx' or 'xx', not both")
         if len(values) % 3 != 0:
             raise DataError("GEOADD requires places with lon, lat and name values")
-        return self.execute_command("GEOADD", name, *values)
+        pieces = [name]
+        if nx:
+            pieces.append("NX")
+        if xx:
+            pieces.append("XX")
+        if ch:
+            pieces.append("CH")
+        pieces.extend(values)
+        return self.execute_command("GEOADD", *pieces)
 
     def geodist(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         place1: FieldT,
         place2: FieldT,
-        unit: Optional[str] = None,
+        unit: str | None = None,
     ) -> Awaitable:
         """
         Return the distance between ``place1`` and ``place2`` members of the
@@ -3442,21 +3594,21 @@ class Commands:
         The units must be one of the following : m, km mi, ft. By default
         meters are used.
         """
-        pieces: List[EncodableT] = [name, place1, place2]
+        pieces: list[EncodableT] = [name, place1, place2]
         if unit and unit not in ("m", "km", "mi", "ft"):
             raise DataError("GEODIST invalid unit")
         elif unit:
             pieces.append(unit)
         return self.execute_command("GEODIST", *pieces)
 
-    def geohash(self: _SELF_ANNOTATION, name: KeyT, *values: FieldT) -> Awaitable:
+    def geohash(self, name: KeyT, *values: FieldT) -> Awaitable:
         """
         Return the geo hash string for each item of ``values`` members of
         the specified key identified by the ``name`` argument.
         """
         return self.execute_command("GEOHASH", name, *values)
 
-    def geopos(self: _SELF_ANNOTATION, name: KeyT, *values: FieldT) -> Awaitable:
+    def geopos(self, name: KeyT, *values: FieldT) -> Awaitable:
         """
         Return the positions of each item of ``values`` as members of
         the specified key identified by the ``name`` argument. Each position
@@ -3465,19 +3617,20 @@ class Commands:
         return self.execute_command("GEOPOS", name, *values)
 
     def georadius(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         longitude: float,
         latitude: float,
         radius: float,
-        unit: Optional[str] = None,
+        unit: str | None = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: Optional[int] = None,
-        sort: Optional[str] = None,
-        store: Optional[KeyT] = None,
-        store_dist: Optional[KeyT] = None,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
     ) -> Awaitable:
         """
         Return the members of the specified key identified by the
@@ -3521,21 +3674,23 @@ class Commands:
             sort=sort,
             store=store,
             store_dist=store_dist,
+            any=any,
         )
 
     def georadiusbymember(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
         member: FieldT,
         radius: float,
-        unit: Optional[str] = None,
+        unit: str | None = None,
         withdist: bool = False,
         withcoord: bool = False,
         withhash: bool = False,
-        count: Optional[int] = None,
-        sort: Optional[str] = None,
-        store: Optional[KeyT] = None,
-        store_dist: Optional[KeyT] = None,
+        count: int | None = None,
+        sort: str | None = None,
+        store: KeyT | None = None,
+        store_dist: KeyT | None = None,
+        any: bool = False,
     ) -> Awaitable:
         """
         This command is exactly like ``georadius`` with the sole difference
@@ -3556,15 +3711,16 @@ class Commands:
             sort=sort,
             store=store,
             store_dist=store_dist,
+            any=any,
         )
 
     def _georadiusgeneric(
-        self: _SELF_ANNOTATION,
+        self,
         command: str,
         *args: EncodableT,
-        **kwargs: Optional[EncodableT],
+        **kwargs: EncodableT | None,
     ) -> Awaitable:
-        pieces: List[EncodableT] = list(args)
+        pieces: list[EncodableT] = list(args)
         if kwargs["unit"] and kwargs["unit"] not in ("m", "km", "mi", "ft"):
             raise DataError("GEORADIUS invalid unit")
         elif kwargs["unit"]:
@@ -3584,6 +3740,8 @@ class Commands:
 
         if kwargs["count"]:
             pieces.extend([b"COUNT", kwargs["count"]])
+            if kwargs["any"]:
+                pieces.append("ANY")
 
         if kwargs["sort"]:
             if kwargs["sort"] == "ASC":
@@ -3605,17 +3763,17 @@ class Commands:
         return self.execute_command(command, *pieces, **kwargs)
 
     def geosearch(
-        self: _SELF_ANNOTATION,
+        self,
         name: KeyT,
-        member: Optional[FieldT] = None,
-        longitude: Optional[float] = None,
-        latitude: Optional[float] = None,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         unit: str = "m",
-        radius: Optional[float] = None,
-        width: Optional[float] = None,
-        height: Optional[float] = None,
-        sort: Optional[str] = None,
-        count: Optional[int] = None,
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
         any: bool = False,
         withcoord: bool = False,
         withdist: bool = False,
@@ -3675,18 +3833,18 @@ class Commands:
         )
 
     def geosearchstore(
-        self: _SELF_ANNOTATION,
+        self,
         dest: KeyT,
         name: KeyT,
-        member: Optional[FieldT] = None,
-        longitude: Optional[float] = None,
-        latitude: Optional[float] = None,
+        member: FieldT | None = None,
+        longitude: float | None = None,
+        latitude: float | None = None,
         unit: str = "m",
-        radius: Optional[float] = None,
-        width: Optional[float] = None,
-        height: Optional[float] = None,
-        sort: Optional[str] = None,
-        count: Optional[int] = None,
+        radius: float | None = None,
+        width: float | None = None,
+        height: float | None = None,
+        sort: str | None = None,
+        count: int | None = None,
         any: bool = False,
         storedist: bool = False,
     ) -> Awaitable:
@@ -3720,10 +3878,10 @@ class Commands:
         )
 
     def _geosearchgeneric(  # noqa C901
-        self: _SELF_ANNOTATION,
+        self,
         command: str,
         *args: EncodableT,
-        **kwargs: Optional[EncodableT],
+        **kwargs: EncodableT | None,
     ) -> Awaitable:
         pieces = list(args)
 
@@ -3787,7 +3945,7 @@ class Commands:
         return self.execute_command(command, *pieces, **kwargs)
 
     # MODULE COMMANDS
-    def module_load(self: _SELF_ANNOTATION, path: str, *args: EncodableT) -> Awaitable:
+    def module_load(self, path: str, *args: EncodableT) -> Awaitable:
         """
         Loads the module from ``path``.
         Passes all ``*args`` to the module, during loading.
@@ -3795,28 +3953,36 @@ class Commands:
         """
         return self.execute_command("MODULE LOAD", path, *args)
 
-    def module_unload(self: _SELF_ANNOTATION, name: str) -> Awaitable:
+    def module_unload(self, name: str) -> Awaitable:
         """
         Unloads the module ``name``.
         Raises ``ModuleError`` if ``name`` is not in loaded modules.
         """
         return self.execute_command("MODULE UNLOAD", name)
 
-    def command_count(self: _SELF_ANNOTATION) -> Awaitable:
-        return self.execute_command("COMMAND COUNT")
-
-    def module_list(self: _SELF_ANNOTATION) -> Awaitable:
+    def module_list(self) -> Awaitable:
         """
         Returns a list of dictionaries containing the name and version of
         all loaded modules.
         """
         return self.execute_command("MODULE LIST")
 
+    def command_info(self):
+        raise NotImplementedError(
+            "COMMAND INFO is intentionally not implemented in the client."
+        )
+
+    def command_count(self):
+        return self.execute_command("COMMAND COUNT")
+
+    def command(self):
+        return self.execute_command("COMMAND")
+
 
 class Script:
     """An executable Lua script object returned by ``register_script``"""
 
-    def __init__(self, registered_client: "Redis", script: ScriptTextT):
+    def __init__(self, registered_client: Redis, script: ScriptTextT):
         self.registered_client = registered_client
         self.script = script
         # Precalculate and store the SHA1 hex digest of the script.
@@ -3830,9 +3996,9 @@ class Script:
 
     async def __call__(
         self,
-        keys: Optional[Sequence[KeyT]] = None,
-        args: Optional[Iterable[EncodableT]] = None,
-        client: Optional["Redis"] = None,
+        keys: Sequence[KeyT] | None = None,
+        args: Iterable[EncodableT] | None = None,
+        client: "Redis" | None = None,
     ):
         """Execute the script, passing any required ``args``"""
         from aioredis.client import Pipeline
@@ -3846,7 +4012,6 @@ class Script:
         if isinstance(client, Pipeline):
             # Make sure the pipeline can register the script before executing.
             client.scripts.add(self)
-            return client.evalsha(self.sha, len(keys), *args)
         try:
             return await client.evalsha(self.sha, len(keys), *args)
         except NoScriptError:
@@ -3862,13 +4027,11 @@ class BitFieldOperation:
     Command builder for BITFIELD commands.
     """
 
-    def __init__(
-        self, client: "Redis", key: str, default_overflow: Optional[str] = None
-    ):
+    def __init__(self, client: Redis, key: str, default_overflow: str | None = None):
         self.client = client
         self.key = key
         self._default_overflow = default_overflow
-        self.operations: List[Tuple[EncodableT, ...]] = []
+        self.operations: list[tuple[EncodableT, ...]] = []
         self._last_overflow = "WRAP"
         self.reset()
 
@@ -3898,7 +4061,7 @@ class BitFieldOperation:
         fmt: str,
         offset: BitfieldOffsetT,
         increment: int,
-        overflow: Optional[str] = None,
+        overflow: str | None = None,
     ):
         """
         Increment a bitfield by a given amount.
@@ -3963,97 +4126,3 @@ class BitFieldOperation:
         command = self.command
         self.reset()
         return self.client.execute_command(*command)
-
-
-class SentinelCommands:
-    _SELF_ANNOTATION = Union[CommandsProtocol, "SentinelCommands"]
-
-    def sentinel_get_master_addr_by_name(
-        self: _SELF_ANNOTATION, service_name: str
-    ) -> Awaitable:
-        """Returns a (host, port) pair for the given ``service_name``"""
-        return self.execute_command("SENTINEL GET-MASTER-ADDR-BY-NAME", service_name)
-
-    def sentinel_master(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
-        """Returns a dictionary containing the specified masters state."""
-        return self.execute_command("SENTINEL MASTER", service_name)
-
-    def sentinel_masters(self: _SELF_ANNOTATION) -> Awaitable:
-        """Returns a list of dictionaries containing each master's state."""
-        return self.execute_command("SENTINEL MASTERS")
-
-    def sentinel_monitor(
-        self: _SELF_ANNOTATION,
-        name: str,
-        ip: str,
-        port: int,
-        quorum: int,
-    ) -> Awaitable:
-        """Add a new master to Sentinel to be monitored"""
-        return self.execute_command("SENTINEL MONITOR", name, ip, port, quorum)
-
-    def sentinel_remove(self: _SELF_ANNOTATION, name: str) -> Awaitable:
-        """Remove a master from Sentinel's monitoring"""
-        return self.execute_command("SENTINEL REMOVE", name)
-
-    def sentinel_sentinels(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
-        """Returns a list of sentinels for ``service_name``"""
-        return self.execute_command("SENTINEL SENTINELS", service_name)
-
-    def sentinel_set(
-        self: _SELF_ANNOTATION,
-        name: str,
-        option: str,
-        value: EncodableT,
-    ) -> Awaitable:
-        """Set Sentinel monitoring parameters for a given master"""
-        return self.execute_command("SENTINEL SET", name, option, value)
-
-    def sentinel_slaves(self: _SELF_ANNOTATION, service_name: str) -> Awaitable:
-        """Returns a list of slaves for ``service_name``"""
-        return self.execute_command("SENTINEL SLAVES", service_name)
-
-    def sentinel_reset(self: _SELF_ANNOTATION, pattern: PatternT) -> Awaitable:
-        """
-        This command will reset all the masters with matching name.
-        The pattern argument is a glob-style pattern.
-        The reset process clears any previous state in a master (including a
-        failover in progress), and removes every slave and sentinel already
-        discovered and associated with the master.
-        """
-        return self.execute_command("SENTINEL RESET", pattern, once=True)
-
-    def sentinel_failover(self: _SELF_ANNOTATION, new_master_name: str) -> Awaitable:
-        """
-        Force a failover as if the master was not reachable, and without
-        asking for agreement to other Sentinels (however a new version of the
-        configuration will be published so that the other Sentinels will
-        update their configurations).
-        """
-        return self.execute_command("SENTINEL FAILOVER", new_master_name)
-
-    def sentinel_ckquorum(self: _SELF_ANNOTATION, new_master_name: str) -> Awaitable:
-        """
-        Check if the current Sentinel configuration is able to reach the
-        quorum needed to failover a master, and the majority needed to
-        authorize the failover.
-        This command should be used in monitoring systems to check if a
-        Sentinel deployment is ok.
-        """
-        return self.execute_command("SENTINEL CKQUORUM", new_master_name, once=True)
-
-    def sentinel_flushconfig(self: _SELF_ANNOTATION) -> Awaitable:
-        """
-        Force Sentinel to rewrite its configuration on disk, including the
-        current Sentinel state.
-        Normally Sentinel rewrites the configuration every time something
-        changes in its state (in the context of the subset of the state which
-        is persisted on disk across restart).
-        However sometimes it is possible that the configuration file is lost
-        because of operation errors, disk failures, package upgrade scripts or
-        configuration managers. In those cases a way to to force Sentinel to
-        rewrite the configuration file is handy.
-        This command works even if the previous configuration file is
-        completely missing.
-        """
-        return self.execute_command("SENTINEL FLUSHCONFIG")

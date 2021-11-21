@@ -52,6 +52,7 @@ setup(
     install_requires=[
         "async-timeout",
         "typing-extensions",
+        "deprecated",
     ],
     extras_require={
         "hiredis": 'hiredis>=1.0; implementation_name=="cpython"',

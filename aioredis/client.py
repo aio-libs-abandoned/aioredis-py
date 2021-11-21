@@ -1,9 +1,10 @@
 import asyncio
+import copy
 import datetime
+import hashlib
 import inspect
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncIterator,
     Awaitable,
@@ -15,6 +16,7 @@ from typing import (
     MutableMapping,
     NoReturn,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -23,7 +25,7 @@ from typing import (
     cast,
 )
 
-from aioredis.commands import EMPTY_RESPONSE, Commands, list_or_args
+from aioredis.commands import CoreCommands, RedisModuleCommands, list_or_args
 from aioredis.compat import Protocol, TypedDict
 from aioredis.connection import (
     Connection,
@@ -35,6 +37,7 @@ from aioredis.exceptions import (
     ConnectionError,
     ExecAbortError,
     ModuleError,
+    NoScriptError,
     PubSubError,
     RedisError,
     ResponseError,
@@ -42,11 +45,9 @@ from aioredis.exceptions import (
     WatchError,
 )
 from aioredis.lock import Lock
-from aioredis.typing import ChannelT, EncodableT, KeyT
-from aioredis.utils import safe_str, str_if_bytes
-
-if TYPE_CHECKING:
-    from aioredis.commands import Script
+from aioredis.retry import Retry
+from aioredis.typing import ChannelT, EncodableT, KeyT, ScriptTextT
+from aioredis.utils import EMPTY_RESPONSE, safe_str, str_if_bytes
 
 PubSubHandler = Callable[[Dict[str, str]], None]
 _KeyT = TypeVar("_KeyT", bound=KeyT)
@@ -73,7 +74,7 @@ def string_keys_to_dict(key_string, callback):
 class CaseInsensitiveDict(dict):
     """Case insensitive dict implementation. Assumes string keys only."""
 
-    def __init__(self, data):
+    def __init__(self, data: Mapping[str, Any]):
         for k, v in data.items():
             self[k.upper()] = v
 
@@ -335,14 +336,20 @@ def parse_xautoclaim(response, **options):
     return parse_stream_list(response[1])
 
 
-def parse_xinfo_stream(response):
+def parse_xinfo_stream(response, **options):
     data = pairs_to_dict(response, decode_keys=True)
-    first = data["first-entry"]
-    if first is not None:
-        data["first-entry"] = (first[0], pairs_to_dict(first[1]))
-    last = data["last-entry"]
-    if last is not None:
-        data["last-entry"] = (last[0], pairs_to_dict(last[1]))
+    if not options.get("full", False):
+        first = data["first-entry"]
+        if first is not None:
+            data["first-entry"] = (first[0], pairs_to_dict(first[1]))
+        last = data["last-entry"]
+        if last is not None:
+            data["last-entry"] = (last[0], pairs_to_dict(last[1]))
+    else:
+        data["entries"] = {_id: pairs_to_dict(entry) for _id, entry in data["entries"]}
+        data["groups"] = [
+            pairs_to_dict(group, decode_keys=True) for group in data["groups"]
+        ]
     return data
 
 
@@ -500,7 +507,7 @@ def parse_cluster_nodes(response, **options):
     return dict(_parse_node_line(line) for line in raw_lines)
 
 
-def parse_georadius_generic(response, **options):
+def parse_geosearch_generic(response, **options):
     """
     Parse the response of 'GEOSEARCH', GEORADIUS' and 'GEORADIUSBYMEMBER'
     commands according to 'withdist', 'withhash' and 'withcoord' labels.
@@ -653,20 +660,22 @@ ResponseCallbackT = Union[ResponseCallbackProtocol, AsyncResponseCallbackProtoco
 _R = TypeVar("_R")
 
 
-class Redis(Commands):
+class Redis(RedisModuleCommands, CoreCommands):
     """
     Implementation of the Redis protocol.
 
     This abstract class provides a Python interface to all Redis commands
     and an implementation of the Redis protocol.
 
-    Connection and Pipeline derive from this, implementing how
-    the commands are sent and received to the Redis server
+    Pipelines derive from this, implementing how
+    the commands are sent and received to the Redis server. Based on
+    configuration, an instance will either use a ConnectionPool, or
+    Connection object to talk to redis.
     """
 
     RESPONSE_CALLBACKS = {
         **string_keys_to_dict(
-            "AUTH COPY EXPIRE EXPIREAT HEXISTS HMSET LMOVE BLMOVE MOVE "
+            "AUTH COPY EXPIRE EXPIREAT PEXPIRE PEXPIREAT HEXISTS HMSET LMOVE BLMOVE MOVE "
             "MSETNX PERSIST PSETEX RENAMENX SISMEMBER SMOVE SETEX SETNX",
             bool,
         ),
@@ -727,6 +736,7 @@ class Redis(Commands):
         "CLIENT SETNAME": bool_ok,
         "CLIENT UNBLOCK": lambda r: r and int(r) == 1 or False,
         "CLIENT PAUSE": bool_ok,
+        "CLIENT GETREDIR": int,
         "CLIENT TRACKINGINFO": lambda r: list(map(str_if_bytes, r)),
         "CLUSTER ADDSLOTS": bool_ok,
         "CLUSTER COUNT-FAILURE-REPORTS": lambda x: int(x),
@@ -744,7 +754,6 @@ class Redis(Commands):
         "CLUSTER SET-CONFIG-EPOCH": bool_ok,
         "CLUSTER SETSLOT": bool_ok,
         "CLUSTER SLAVES": parse_cluster_nodes,
-        "COMMAND": int,
         "COMMAND COUNT": int,
         "CONFIG GET": parse_config_get,
         "CONFIG RESETSTAT": bool_ok,
@@ -754,9 +763,9 @@ class Redis(Commands):
         "GEOPOS": lambda r: list(
             map(lambda ll: (float(ll[0]), float(ll[1])) if ll is not None else None, r)
         ),
-        "GEOSEARCH": parse_georadius_generic,
-        "GEORADIUS": parse_georadius_generic,
-        "GEORADIUSBYMEMBER": parse_georadius_generic,
+        "GEOSEARCH": parse_geosearch_generic,
+        "GEORADIUS": parse_geosearch_generic,
+        "GEORADIUSBYMEMBER": parse_geosearch_generic,
         "HGETALL": lambda r: r and pairs_to_dict(r) or {},
         "HSCAN": parse_hscan,
         "INFO": parse_info,
@@ -885,7 +894,13 @@ class Redis(Commands):
         health_check_interval: int = 0,
         client_name: Optional[str] = None,
         username: Optional[str] = None,
+        retry: Optional[Retry] = None,
     ):
+        """
+        Initialize a new Redis client.
+        To specify a retry policy, first set `retry_on_timeout` to `True`
+        then set `retry` to a valid `Retry` object
+        """
         kwargs: Dict[str, Any]
         if not connection_pool:
             kwargs = {
@@ -897,6 +912,7 @@ class Redis(Commands):
                 "encoding_errors": encoding_errors,
                 "decode_responses": decode_responses,
                 "retry_on_timeout": retry_on_timeout,
+                "retry": copy.deepcopy(retry),
                 "max_connections": max_connections,
                 "health_check_interval": health_check_interval,
                 "client_name": client_name,
@@ -954,6 +970,33 @@ class Redis(Commands):
         """Set a custom Response Callback"""
         self.response_callbacks[command] = callback
 
+    def load_external_module(
+        self,
+        funcname,
+        func,
+    ):
+        """
+        This function can be used to add externally defined redis modules,
+        and their namespaces to the redis client.
+
+        funcname - A string containing the name of the function to create
+        func - The function, being added to this class.
+
+        ex: Assume that one has a custom redis module named foomod that
+        creates command named 'foo.dothing' and 'foo.anotherthing' in redis.
+        To load function functions into this namespace:
+
+        from redis import Redis
+        from foomodule import F
+        r = Redis()
+        r.load_external_module("foo", F)
+        r.foo().dothing('your', 'arguments')
+
+        For a concrete example see the reimport of the redisjson module in
+        tests/test_connection.py::test_loading_external_modules
+        """
+        setattr(self, funcname, func)
+
     def pipeline(
         self, transaction: bool = True, shard_hint: Optional[str] = None
     ) -> "Pipeline":
@@ -1004,7 +1047,7 @@ class Redis(Commands):
         sleep: float = 0.1,
         blocking_timeout: Optional[float] = None,
         lock_class: Optional[Type[Lock]] = None,
-        thread_local=True,
+        thread_local: bool = True,
     ) -> Lock:
         """
         Return a new Lock object using key ``name`` that mimics
@@ -1098,6 +1141,23 @@ class Redis(Commands):
             self.connection = None
             await self.connection_pool.release(conn)
 
+    async def _send_command_parse_response(self, conn, command_name, *args, **options):
+        """
+        Send a command and parse the response
+        """
+        await conn.send_command(*args)
+        return await self.parse_response(conn, command_name, **options)
+
+    async def _disconnect_raise(self, conn: Connection, error: Exception):
+        """
+        Close the connection and raise an exception
+        if retry_on_timeout is not set or the error
+        is not a TimeoutError
+        """
+        await conn.disconnect()
+        if not (conn.retry_on_timeout and isinstance(error, TimeoutError)):
+            raise error
+
     # COMMAND EXECUTION AND PROTOCOL PARSING
     async def execute_command(self, *args, **options):
         """Execute a command and return a parsed response"""
@@ -1105,15 +1165,14 @@ class Redis(Commands):
         pool = self.connection_pool
         command_name = args[0]
         conn = self.connection or await pool.get_connection(command_name, **options)
+
         try:
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
-        except (ConnectionError, TimeoutError) as e:
-            await conn.disconnect()
-            if not (conn.retry_on_timeout and isinstance(e, TimeoutError)):
-                raise
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
+            return await conn.retry.call_with_retry(
+                lambda: self._send_command_parse_response(
+                    conn, command_name, *args, **options
+                ),
+                lambda error: self._disconnect_raise(conn, error),
+            )
         finally:
             if not self.connection:
                 await pool.release(conn)
@@ -1329,20 +1388,29 @@ class PubSub:
         kwargs = {"check_health": not self.subscribed}
         await self._execute(connection, connection.send_command, *args, **kwargs)
 
-    async def _execute(self, connection, command, *args, **kwargs):
-        try:
-            return await command(*args, **kwargs)
-        except (ConnectionError, TimeoutError) as e:
-            await connection.disconnect()
-            if not (connection.retry_on_timeout and isinstance(e, TimeoutError)):
-                raise
-            # Connect manually here. If the Redis server is down, this will
-            # fail and raise a ConnectionError as desired.
-            await connection.connect()
-            # the ``on_connect`` callback should haven been called by the
-            # connection to resubscribe us to any channels and patterns we were
-            # previously listening to
-            return await command(*args, **kwargs)
+    async def _disconnect_raise_connect(self, conn, error):
+        """
+        Close the connection and raise an exception
+        if retry_on_timeout is not set or the error
+        is not a TimeoutError. Otherwise, try to reconnect
+        """
+        await conn.disconnect()
+        if not (conn.retry_on_timeout and isinstance(error, TimeoutError)):
+            raise error
+        await conn.connect()
+
+    async def _execute(self, conn, command, *args, **kwargs):
+        """
+        Connect manually upon disconnection. If the Redis server is down,
+        this will fail and raise a ConnectionError as desired.
+        After reconnection, the ``on_connect`` callback should have been
+        called by the # connection to resubscribe us to any channels and
+        patterns we were previously listening to
+        """
+        return await conn.retry.call_with_retry(
+            lambda: command(*args, **kwargs),
+            lambda error: self._disconnect_raise_connect(conn, error),
+        )
 
     async def parse_response(self, block: bool = True, timeout: float = 0):
         """Parse the response from a publish/subscribe command"""
@@ -1724,6 +1792,28 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             return self.immediate_execute_command(*args, **kwargs)
         return self.pipeline_execute_command(*args, **kwargs)
 
+    async def _disconnect_reset_raise(self, conn, error):
+        """
+        Close the connection, reset watching state and
+        raise an exception if we were watching,
+        retry_on_timeout is not set,
+        or the error is not a TimeoutError
+        """
+        await conn.disconnect()
+        # if we were already watching a variable, the watch is no longer
+        # valid since this connection has died. raise a WatchError, which
+        # indicates the user should retry this transaction.
+        if self.watching:
+            await self.reset()
+            raise WatchError(
+                "A ConnectionError occurred on while " "watching one or more keys"
+            )
+        # if retry_on_timeout is not set, or the error is not
+        # a TimeoutError, raise it
+        if not (conn.retry_on_timeout and isinstance(error, TimeoutError)):
+            await self.reset()
+            raise
+
     async def immediate_execute_command(self, *args, **options):
         """
         Execute a command immediately, but don't auto-retry on a
@@ -1739,38 +1829,13 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                 command_name, self.shard_hint
             )
             self.connection = conn
-        conn = cast(Connection, conn)
-        try:
-            await conn.send_command(*args)
-            return await self.parse_response(conn, command_name, **options)
-        except (ConnectionError, TimeoutError) as e:
-            await conn.disconnect()
-            # if we were already watching a variable, the watch is no longer
-            # valid since this connection has died. raise a WatchError, which
-            # indicates the user should retry this transaction.
-            if self.watching:
-                await self.reset()
-                raise WatchError(
-                    "A ConnectionError occurred on while watching one or more keys"
-                ) from e
-            # if retry_on_timeout is not set, or the error is not
-            # a TimeoutError, raise it
-            if not (conn.retry_on_timeout and isinstance(e, TimeoutError)):
-                await self.reset()
-                raise
 
-            # retry_on_timeout is set, this is a TimeoutError and we are not
-            # already WATCHing any variables. retry the command.
-            try:
-                await conn.send_command(*args)
-                return self.parse_response(conn, command_name, **options)
-            except (ConnectionError, TimeoutError):
-                # a subsequent failure should simply be raised
-                await self.reset()
-                raise
-        except asyncio.CancelledError:
-            await conn.disconnect()
-            raise
+        return await conn.retry.call_with_retry(
+            lambda: self._send_command_parse_response(
+                conn, command_name, *args, **options
+            ),
+            lambda error: self._disconnect_reset_raise(conn, error),
+        )
 
     def pipeline_execute_command(self, *args, **options):
         """
@@ -1894,10 +1959,10 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         msg = f"Command # {number} ({cmd}) of pipeline caused error: {exception.args}"
         exception.args = (msg,) + exception.args[1:]
 
-    def parse_response(
+    async def parse_response(
         self, connection: Connection, command_name: Union[str, bytes], **options
     ):
-        result = super().parse_response(connection, command_name, **options)
+        result = await super().parse_response(connection, command_name, **options)
         if command_name in self.UNWATCH_COMMANDS:
             self.watching = False
         elif command_name == "WATCH":
@@ -1916,6 +1981,26 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             for s, exist in zip(scripts, exists):
                 if not exist:
                     s.sha = await immediate("SCRIPT LOAD", s.script)
+
+    async def _disconnect_raise_reset(self, conn: Connection, error: Exception):
+        """
+        Close the connection, raise an exception if we were watching,
+        and raise an exception if retry_on_timeout is not set,
+        or the error is not a TimeoutError
+        """
+        await conn.disconnect()
+        # if we were watching a variable, the watch is no longer valid
+        # since this connection has died. raise a WatchError, which
+        # indicates the user should retry this transaction.
+        if self.watching:
+            raise WatchError(
+                "A ConnectionError occurred on while " "watching one or more keys"
+            )
+        # if retry_on_timeout is not set, or the error is not
+        # a TimeoutError, raise it
+        if not (conn.retry_on_timeout and isinstance(error, TimeoutError)):
+            await self.reset()
+            raise
 
     async def execute(self, raise_on_error: bool = True):
         """Execute all the commands in the current pipeline"""
@@ -1938,22 +2023,10 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         conn = cast(Connection, conn)
 
         try:
-            return await execute(conn, stack, raise_on_error)
-        except (ConnectionError, TimeoutError) as e:
-            await conn.disconnect()
-            # if we were watching a variable, the watch is no longer valid
-            # since this connection has died. raise a WatchError, which
-            # indicates the user should retry this transaction.
-            if self.watching:
-                raise WatchError(
-                    "A ConnectionError occurred on while " "watching one or more keys"
-                ) from e
-            # if retry_on_timeout is not set, or the error is not
-            # a TimeoutError, raise it
-            if not (conn.retry_on_timeout and isinstance(e, TimeoutError)):
-                raise
-            # retry a TimeoutError when retry_on_timeout is set
-            return await execute(conn, stack, raise_on_error)
+            return await conn.retry.call_with_retry(
+                lambda: execute(conn, stack, raise_on_error),
+                lambda error: self._disconnect_raise_reset(conn, error),
+            )
         finally:
             await self.reset()
 
@@ -1972,3 +2045,47 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     async def unwatch(self):
         """Unwatches all previously specified keys"""
         return self.watching and await self.execute_command("UNWATCH") or True
+
+
+class Script:
+    """An executable Lua script object returned by ``register_script``"""
+
+    def __init__(self, registered_client: Redis, script: ScriptTextT):
+        self.registered_client = registered_client
+        self.script = script
+        # Precalculate and store the SHA1 hex digest of the script.
+
+        if isinstance(script, str):
+            # We need the encoding from the client in order to generate an
+            # accurate byte representation of the script
+            encoder = registered_client.connection_pool.get_encoder()
+            script_bytes = encoder.encode(script)
+        else:
+            script_bytes = script
+        self.sha = hashlib.sha1(script_bytes).hexdigest()
+
+    async def __call__(
+        self,
+        keys: Optional[Sequence[KeyT]] = None,
+        args: Optional[Iterable[EncodableT]] = None,
+        client: Optional[Redis] = None,
+    ):
+        """Execute the script, passing any required ``args``"""
+        keys = keys or []
+        args = args or []
+        if client is None:
+            client = self.registered_client
+        args = tuple(keys) + tuple(args)
+        # make sure the Redis server knows about the script
+        if isinstance(client, Pipeline):
+            # Make sure the pipeline can register the script before executing.
+            client.scripts.add(self)
+            return client.evalsha(self.sha, len(keys), *args)
+        try:
+            return await client.evalsha(self.sha, len(keys), *args)
+        except NoScriptError:
+            # Maybe the client is pointed to a differnet server than the client
+            # that created this instance?
+            # Overwrite the sha just in case there was a discrepancy.
+            self.sha = await client.script_load(self.script)
+            return await client.evalsha(self.sha, len(keys), *args)

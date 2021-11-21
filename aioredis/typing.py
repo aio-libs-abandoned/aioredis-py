@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from typing import Iterable, TypeVar, Union
+from typing import TYPE_CHECKING, Iterable, TypeVar, Union
+
+from aioredis.compat import Protocol
+
+if TYPE_CHECKING:
+    from aioredis.connection import ConnectionPool
 
 EncodedT = Union[bytes, memoryview]
 DecodedT = Union[str, int, float]
 EncodableT = Union[EncodedT, DecodedT]
 AbsExpiryT = Union[int, datetime]
-ExpiryT = Union[int, timedelta]
+ExpiryT = Union[float, timedelta]
 ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
 BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
 _StringLikeT = Union[bytes, str, memoryview]
@@ -26,3 +33,10 @@ ScriptTextT = _StringLikeT
 AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
 AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
 AnyChannelT = TypeVar("AnyChannelT", bytes, str, memoryview)
+
+
+class CommandsProtocol(Protocol):
+    connection_pool: ConnectionPool
+
+    def execute_command(self, *args, **options):
+        ...

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import enum
 import errno
 import inspect
@@ -7,7 +8,7 @@ import os
 import socket
 import ssl
 import threading
-import warnings
+import weakref
 from itertools import chain
 from types import MappingProxyType
 from typing import (
@@ -27,8 +28,8 @@ from typing import (
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
 import async_timeout
-from packaging.version import Version
 
+from aioredis.backoff import NoBackoff
 from aioredis.compat import Protocol, TypedDict
 from aioredis.exceptions import (
     AuthenticationError,
@@ -47,8 +48,13 @@ from aioredis.exceptions import (
     ResponseError,
     TimeoutError,
 )
+from aioredis.retry import Retry
 from aioredis.typing import EncodableT, EncodedT
-from aioredis.utils import str_if_bytes
+from aioredis.utils import HIREDIS_AVAILABLE, str_if_bytes
+
+hiredis = None
+if HIREDIS_AVAILABLE:
+    import hiredis
 
 NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {
     BlockingIOError: errno.EWOULDBLOCK,
@@ -59,21 +65,6 @@ NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {
 
 NONBLOCKING_EXCEPTIONS = tuple(NONBLOCKING_EXCEPTION_ERROR_NUMBERS.keys())
 
-try:
-    import hiredis
-
-except (ImportError, ModuleNotFoundError):
-    HIREDIS_AVAILABLE = False
-else:
-    HIREDIS_AVAILABLE = True
-    hiredis_version = Version(hiredis.__version__)
-    if hiredis_version < Version("1.0.0"):
-        warnings.warn(
-            "aioredis supports hiredis @ 1.0.0 or higher. "
-            f"You have hiredis @ {hiredis.__version__}. "
-            "Pure-python parser will be used instead."
-        )
-        HIREDIS_AVAILABLE = False
 
 SYM_STAR = b"*"
 SYM_DOLLAR = b"$"
@@ -195,11 +186,9 @@ class BaseParser:
         error_code = response.split(" ")[0]
         if error_code in self.EXCEPTION_CLASSES:
             response = response[len(error_code) + 1 :]
-            exception_class_or_dict = self.EXCEPTION_CLASSES[error_code]
-            if isinstance(exception_class_or_dict, dict):
-                exception_class = exception_class_or_dict.get(response, ResponseError)
-            else:
-                exception_class = exception_class_or_dict
+            exception_class = self.EXCEPTION_CLASSES[error_code]
+            if isinstance(exception_class, dict):
+                exception_class = exception_class.get(response, ResponseError)
             return exception_class(response)
         return ResponseError(response)
 
@@ -621,6 +610,7 @@ class Connection:
         health_check_interval: float = 0,
         client_name: Optional[str] = None,
         username: Optional[str] = None,
+        retry: Optional[Retry] = None,
         encoder_class: Type[Encoder] = Encoder,
     ):
         self.pid = os.getpid()
@@ -636,6 +626,14 @@ class Connection:
         self.socket_keepalive_options = socket_keepalive_options or {}
         self.socket_type = socket_type
         self.retry_on_timeout = retry_on_timeout
+        if retry_on_timeout:
+            if retry is None:
+                self.retry = Retry(NoBackoff(), 1)
+            else:
+                # deep-copy the Retry object as it is mutable
+                self.retry = copy.deepcopy(retry)
+        else:
+            self.retry = Retry(NoBackoff(), 0)
         self.health_check_interval = health_check_interval
         self.next_health_check: float = -1
         self.ssl_context: Optional[RedisSSLContext] = None
@@ -645,7 +643,7 @@ class Connection:
         self._parser = parser_class(
             socket_read_size=socket_read_size,
         )
-        self._connect_callbacks: List[ConnectCallbackT] = []
+        self._connect_callbacks: List[weakref.WeakMethod[ConnectCallbackT]] = []
         self._buffer_cutoff = 6000
         self._lock = asyncio.Lock()
 
@@ -676,7 +674,7 @@ class Connection:
         return bool(self._reader and self._writer)
 
     def register_connect_callback(self, callback):
-        self._connect_callbacks.append(callback)
+        self._connect_callbacks.append(weakref.WeakMethod(callback))
 
     def clear_connect_callbacks(self):
         self._connect_callbacks = []
@@ -705,7 +703,8 @@ class Connection:
 
         # run any user callbacks. right now the only internal callback
         # is for pubsub channel/pattern resubscription
-        for callback in self._connect_callbacks:
+        for ref in self._connect_callbacks:
+            callback = ref()
             task = callback(self)
             if task and inspect.isawaitable(task):
                 await task
@@ -810,26 +809,23 @@ class Connection:
                 f"Timed out closing connection after {self.socket_connect_timeout}"
             ) from None
 
+    async def _send_ping(self):
+        """Send PING, expect PONG in return"""
+        await self.send_command("PING", check_health=False)
+        if str_if_bytes(await self.read_response()) != "PONG":
+            raise ConnectionError("Bad response from PING health check")
+
+    async def _ping_failed(self, error):
+        """Function to call when PING fails"""
+        await self.disconnect()
+
     async def check_health(self):
         """Check the health of the connection with a PING/PONG"""
         if (
             self.health_check_interval
-            and asyncio.get_event_loop().time() > self.next_health_check
+            and asyncio.get_running_loop().time() > self.next_health_check
         ):
-            try:
-                await self.send_command("PING", check_health=False)
-                if str_if_bytes(await self.read_response()) != "PONG":
-                    raise ConnectionError("Bad response from PING health check")
-            except (ConnectionError, TimeoutError) as err:
-                await self.disconnect()
-                try:
-                    await self.send_command("PING", check_health=False)
-                    if str_if_bytes(await self.read_response()) != "PONG":
-                        raise ConnectionError(
-                            "Bad response from PING health check"
-                        ) from None
-                except BaseException as err2:
-                    raise err2 from err
+            await self.retry.call_with_retry(self._send_ping, self._ping_failed)
 
     async def _send_packed_command(self, command: Iterable[bytes]) -> None:
         if self._writer is None:
@@ -904,7 +900,7 @@ class Connection:
 
         if self.health_check_interval:
             self.next_health_check = (
-                asyncio.get_event_loop().time() + self.health_check_interval
+                asyncio.get_running_loop().time() + self.health_check_interval
             )
 
         if isinstance(response, ResponseError):
@@ -1094,8 +1090,14 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         parser_class: Type[BaseParser] = DefaultParser,
         socket_read_size: int = 65536,
         health_check_interval: float = 0.0,
-        client_name=None,
+        client_name: str = None,
+        retry: Optional[Retry] = None,
     ):
+        """
+        Initialize a new UnixDomainSocketConnection.
+        To specify a retry policy, first set `retry_on_timeout` to `True`
+        then set `retry` to a valid `Retry` object
+        """
         self.pid = os.getpid()
         self.path = path
         self.db = db
@@ -1105,6 +1107,14 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self.socket_timeout = socket_timeout
         self.socket_connect_timeout = socket_connect_timeout or socket_timeout or None
         self.retry_on_timeout = retry_on_timeout
+        if retry_on_timeout:
+            if retry is None:
+                self.retry = Retry(NoBackoff(), 1)
+            else:
+                # deep-copy the Retry object as it is mutable
+                self.retry = copy.deepcopy(retry)
+        else:
+            self.retry = Retry(NoBackoff(), 0)
         self.health_check_interval = health_check_interval
         self.next_health_check = -1
         self.encoder = Encoder(encoding, encoding_errors, decode_responses)
