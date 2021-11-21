@@ -28,6 +28,7 @@ Dmitry Vasilishin <dmvass>
 Evgenii Morozov <emorozov>
 Federico Jaite <fedej>
 Hugo <hugovk>
+Ian Good
 Ihor Gorobets
 Ihor Liubymov
 Ilya Samartsev
