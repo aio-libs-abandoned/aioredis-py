@@ -8,7 +8,7 @@ import aioredis
 from aioredis.connection import Connection, to_bool
 
 from .compat import mock
-from .conftest import REDIS_6_VERSION, skip_if_server_version_lt
+from .conftest import skip_if_redis_enterprise, skip_if_server_version_lt
 from .test_pubsub import wait_for_message
 
 pytestmark = pytest.mark.asyncio
@@ -119,7 +119,12 @@ class TestBlockingConnectionPool:
         return pool
 
     async def test_connection_creation(self, master_host):
-        connection_kwargs = {"foo": "bar", "biz": "baz", "host": master_host}
+        connection_kwargs = {
+            "foo": "bar",
+            "biz": "baz",
+            "host": master_host[0],
+            "port": master_host[1],
+        }
         pool = self.get_pool(connection_kwargs=connection_kwargs)
         connection = await pool.get_connection("_")
         assert isinstance(connection, DummyConnection)
@@ -127,13 +132,18 @@ class TestBlockingConnectionPool:
 
     async def test_disconnect(self, master_host):
         """A regression test for #1047"""
-        connection_kwargs = {"foo": "bar", "biz": "baz", "host": master_host}
+        connection_kwargs = {
+            "foo": "bar",
+            "biz": "baz",
+            "host": master_host[0],
+            "port": master_host[1],
+        }
         pool = self.get_pool(connection_kwargs=connection_kwargs)
         await pool.get_connection("_")
         await pool.disconnect()
 
     async def test_multiple_connections(self, master_host):
-        connection_kwargs = {"host": master_host}
+        connection_kwargs = {"host": master_host[0], "port": master_host[1]}
         pool = self.get_pool(connection_kwargs=connection_kwargs)
         c1 = await pool.get_connection("_")
         c2 = await pool.get_connection("_")
@@ -158,7 +168,7 @@ class TestBlockingConnectionPool:
         When out of connections, block until another connection is released
         to the pool
         """
-        connection_kwargs = {"host": master_host}
+        connection_kwargs = {"host": master_host[0], "port": master_host[1]}
         pool = self.get_pool(
             max_connections=1, timeout=2, connection_kwargs=connection_kwargs
         )
@@ -226,7 +236,7 @@ class TestConnectionPoolURLParsing:
             "port": 6380,
         }
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     def test_username(self):
         pool = aioredis.ConnectionPool.from_url("redis://myuser:@localhost")
         assert pool.connection_class == aioredis.Connection
@@ -235,7 +245,7 @@ class TestConnectionPoolURLParsing:
             "username": "myuser",
         }
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
         pool = aioredis.ConnectionPool.from_url(
             "redis://%2Fmyuser%2F%2B name%3D%24+:@localhost"
@@ -264,7 +274,7 @@ class TestConnectionPoolURLParsing:
             "password": "/mypass/+ word=$+",
         }
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     def test_username_and_password(self):
         pool = aioredis.ConnectionPool.from_url("redis://myuser:mypass@localhost")
         assert pool.connection_class == aioredis.Connection
@@ -379,7 +389,7 @@ class TestConnectionPoolUnixSocketURLParsing:
             "path": "/socket",
         }
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     def test_username(self):
         pool = aioredis.ConnectionPool.from_url("unix://myuser:@/socket")
         assert pool.connection_class == aioredis.UnixDomainSocketConnection
@@ -388,7 +398,7 @@ class TestConnectionPoolUnixSocketURLParsing:
             "username": "myuser",
         }
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     def test_quoted_username(self):
         pool = aioredis.ConnectionPool.from_url(
             "unix://%2Fmyuser%2F%2B name%3D%24+:@/socket"
@@ -503,6 +513,7 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @skip_if_server_version_lt("2.8.8")
+    @skip_if_redis_enterprise
     async def test_busy_loading_disconnects_socket(self, r):
         """
         If Redis raises a LOADING error, the connection should be
@@ -514,6 +525,7 @@ class TestConnection:
             assert not r.connection._reader
 
     @skip_if_server_version_lt("2.8.8")
+    @skip_if_redis_enterprise
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
         """
         BusyLoadingErrors should raise from Pipelines that execute a
@@ -530,6 +542,7 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @skip_if_server_version_lt("2.8.8")
+    @skip_if_redis_enterprise
     async def test_busy_loading_from_pipeline(self, r):
         """
         BusyLoadingErrors should be raised from a pipeline execution
@@ -545,6 +558,7 @@ class TestConnection:
         assert not pool._available_connections[0]._reader
 
     @skip_if_server_version_lt("2.8.8")
+    @skip_if_redis_enterprise
     async def test_read_only_error(self, r):
         """READONLY errors get turned in ReadOnlyError exceptions"""
         with pytest.raises(aioredis.ReadOnlyError):
@@ -570,6 +584,7 @@ class TestConnection:
             "path=/path/to/socket,db=0",
         )
 
+    @skip_if_redis_enterprise
     async def test_connect_no_auth_supplied_when_required(self, r):
         """
         AuthenticationError should be raised when the server requires a
@@ -580,6 +595,7 @@ class TestConnection:
                 "DEBUG", "ERROR", "ERR Client sent AUTH, but no password is set"
             )
 
+    @skip_if_redis_enterprise
     async def test_connect_invalid_password_supplied(self, r):
         """AuthenticationError should be raised when sending the wrong password"""
         with pytest.raises(aioredis.AuthenticationError):

@@ -7,18 +7,16 @@ import pytest
 from packaging.version import Version
 
 import aioredis
+from aioredis.backoff import NoBackoff
 from aioredis.client import Monitor
 from aioredis.connection import parse_url
+from aioredis.retry import Retry
 
 from .compat import mock
 
-# redis 6 release candidates report a version number of 5.9.x. Use this
-# constant for skip_if decorators as a placeholder until 6.0.0 is officially
-# released
-REDIS_6_VERSION = "5.9.0"
-
 REDIS_INFO = {}
 default_redis_url = "redis://localhost:6379/9"
+default_redismod_url = "redis://localhost:36379"
 
 
 # Taken from python3.9
@@ -74,6 +72,14 @@ def pytest_addoption(parser):
         help="Redis connection string, defaults to `%(default)s`",
     )
     parser.addoption(
+        "--redismod-url",
+        default=default_redismod_url,
+        action="store",
+        help="Connection string to redis server"
+        " with loaded modules,"
+        " defaults to `%(default)s`",
+    )
+    parser.addoption(
         "--uvloop", action=BooleanOptionalAction, help="Run tests with uvloop"
     )
 
@@ -81,6 +87,11 @@ def pytest_addoption(parser):
 async def _get_info(redis_url):
     client = aioredis.Redis.from_url(redis_url)
     info = await client.info()
+    cmds = [c[0].upper().decode() for c in (await client.command())]
+    if "dping" in cmds:
+        info["enterprise"] = True
+    else:
+        info["enterprise"] = False
     await client.connection_pool.disconnect()
     return info
 
@@ -99,11 +110,23 @@ def pytest_sessionstart(session):
             ) from e
 
     redis_url = session.config.getoption("--redis-url")
-    info = asyncio.get_event_loop().run_until_complete(_get_info(redis_url))
+    loop = asyncio.get_event_loop()
+    info = loop.run_until_complete(_get_info(redis_url))
     version = info["redis_version"]
     arch_bits = info["arch_bits"]
     REDIS_INFO["version"] = version
     REDIS_INFO["arch_bits"] = arch_bits
+    REDIS_INFO["enterprise"] = info["enterprise"]
+
+    # module info, if the second redis is running
+    try:
+        redismod_url = session.config.getoption("--redismod-url")
+        info = loop.run_until_complete(_get_info(redismod_url))
+        REDIS_INFO["modules"] = info["modules"]
+    except aioredis.exceptions.ConnectionError:
+        pass
+    except KeyError:
+        pass
 
 
 def skip_if_server_version_lt(min_version):
@@ -125,9 +148,43 @@ def skip_unless_arch_bits(arch_bits):
     )
 
 
+def skip_ifmodversion_lt(min_version: str, module_name: str):
+    try:
+        modules = REDIS_INFO["modules"]
+    except KeyError:
+        return pytest.mark.skipif(True, reason="Redis server does not have modules")
+    if modules == []:
+        return pytest.mark.skipif(True, reason="No redis modules found")
+
+    for j in modules:
+        if module_name == j.get("name"):
+            version = j.get("ver")
+            mv = int(min_version.replace(".", ""))
+            check = version < mv
+            return pytest.mark.skipif(check, reason="Redis module version")
+
+    raise AttributeError(f"No redis module named {module_name}")
+
+
+def skip_if_redis_enterprise(func):
+    check = REDIS_INFO["enterprise"] is True
+    return pytest.mark.skipif(check, reason="Redis enterprise")
+
+
+def skip_ifnot_redis_enterprise(func):
+    check = REDIS_INFO["enterprise"] is False
+    return pytest.mark.skipif(check, reason="Redis enterprise")
+
+
 @pytest.fixture(params=[True, False], ids=["single", "pool"])
 def create_redis(request, event_loop):
-    """Wrapper around aioredis.create_redis."""
+    """
+    Helper for fixtures or tests that need a Redis client
+
+    Uses the "--redis-url" command line argument for connection info. Unlike
+    ConnectionPool.from_url, keyword arguments to this function override
+    values specified in the URL.
+    """
     single_connection = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
@@ -167,9 +224,27 @@ def create_redis(request, event_loop):
     return f
 
 
+# specifically set to the zero database, because creating
+# an index on db != 0 raises a ResponseError in redis
+@pytest.fixture()
+async def modclient(create_redis, request, **kwargs):
+    rmurl = request.config.getoption("--redismod-url")
+    redis = await create_redis(url=rmurl, decode_responses=True, **kwargs)
+    async with redis:
+        yield redis
+
+
 @pytest.fixture()
 async def r(create_redis):
     yield await create_redis()
+
+
+@pytest.fixture()
+async def r_timeout(create_redis):
+
+    redis = await create_redis(socket_timeout=1)
+    async with redis:
+        yield redis
 
 
 @pytest.fixture()
@@ -180,6 +255,7 @@ async def r2(create_redis):
 
 def _gen_cluster_mock_resp(r, response):
     connection = mock.AsyncMock()
+    connection.retry = Retry(NoBackoff(), 0)
     connection.read_response.return_value = response
     r.connection = connection
     return r

@@ -1,6 +1,10 @@
 import pytest
 
-from .conftest import wait_for_command
+from .conftest import (
+    skip_if_redis_enterprise,
+    skip_ifnot_redis_enterprise,
+    wait_for_command,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -13,11 +17,12 @@ class TestMonitor:
             assert response is None
 
     async def test_response_values(self, r):
+        db = r.connection_pool.connection_kwargs.get("db", 0)
         async with r.monitor() as m:
             await r.ping()
             response = await wait_for_command(r, m, "PING")
             assert isinstance(response["time"], float)
-            assert response["db"] == 9
+            assert response["db"] == db
             assert response["client_type"] in ("tcp", "unix")
             assert isinstance(response["client_address"], str)
             assert isinstance(response["client_port"], str)
@@ -43,6 +48,7 @@ class TestMonitor:
             response = await wait_for_command(r, m, "GET foo\\\\x92")
             assert response["command"] == "GET foo\\\\x92"
 
+    @skip_if_redis_enterprise
     async def test_lua_script(self, r):
         async with r.monitor() as m:
             script = 'return redis.call("GET", "foo")'
@@ -52,3 +58,11 @@ class TestMonitor:
             assert response["client_type"] == "lua"
             assert response["client_address"] == "lua"
             assert response["client_port"] == ""
+
+    @skip_ifnot_redis_enterprise
+    async def test_lua_script_in_enterprise(self, r):
+        async with r.monitor() as m:
+            script = 'return redis.call("GET", "foo")'
+            assert await r.eval(script, 0) is None
+            response = await wait_for_command(r, m, "GET foo")
+            assert response is None

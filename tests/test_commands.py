@@ -11,7 +11,7 @@ import aioredis
 from aioredis import exceptions
 from aioredis.client import parse_info
 from tests.conftest import (
-    REDIS_6_VERSION,
+    skip_if_redis_enterprise,
     skip_if_server_version_gte,
     skip_if_server_version_lt,
     skip_unless_arch_bits,
@@ -70,19 +70,19 @@ class TestRedisCommands:
             await r.get("a")
 
     # SERVER INFORMATION
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_cat_no_category(self, r: aioredis.Redis):
         categories = await r.acl_cat()
         assert isinstance(categories, list)
         assert "read" in categories
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_cat_with_category(self, r: aioredis.Redis):
         commands = await r.acl_cat("read")
         assert isinstance(commands, list)
         assert "get" in commands
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_deluser(self, r: aioredis.Redis, request, event_loop):
         username = "redis-py-user"
 
@@ -110,7 +110,7 @@ class TestRedisCommands:
         assert await r.acl_getuser(users[3]) is None
         assert await r.acl_getuser(users[4]) is None
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_genpass(self, r: aioredis.Redis):
         password = await r.acl_genpass()
         assert isinstance(password, str)
@@ -123,7 +123,7 @@ class TestRedisCommands:
         await r.acl_genpass(555)
         assert isinstance(password, str)
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_getuser_setuser(self, r: aioredis.Redis, request, event_loop):
         username = "redis-py-user"
 
@@ -235,13 +235,13 @@ class TestRedisCommands:
         )
         assert len((await r.acl_getuser(username))["passwords"]) == 1
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_help(self, r: aioredis.Redis):
         res = await r.acl_help()
         assert isinstance(res, list)
         assert len(res) != 0
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_list(self, r: aioredis.Redis, request, event_loop):
         username = "redis-py-user"
 
@@ -258,7 +258,7 @@ class TestRedisCommands:
         users = await r.acl_list()
         assert len(users) == 2, users
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_log(self, r: aioredis.Redis, request, event_loop, create_redis):
         username = "redis-py-user"
 
@@ -301,7 +301,7 @@ class TestRedisCommands:
         assert "client-info" in (await r.acl_log(count=1))[0]
         assert await r.acl_log_reset()
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_setuser_categories_without_prefix_fails(
         self, r: aioredis.Redis, request, event_loop
     ):
@@ -319,7 +319,7 @@ class TestRedisCommands:
         with pytest.raises(exceptions.DataError):
             await r.acl_setuser(username, categories=["list"])
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_setuser_commands_without_prefix_fails(
         self, r: aioredis.Redis, request, event_loop
     ):
@@ -337,7 +337,7 @@ class TestRedisCommands:
         with pytest.raises(exceptions.DataError):
             await r.acl_setuser(username, commands=["get"])
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_setuser_add_passwords_and_nopass_fails(
         self, r: aioredis.Redis, request, event_loop
     ):
@@ -355,13 +355,13 @@ class TestRedisCommands:
         with pytest.raises(exceptions.DataError):
             await r.acl_setuser(username, passwords="+mypass", nopass=True)
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_users(self, r: aioredis.Redis):
         users = await r.acl_users()
         assert isinstance(users, list)
         assert len(users) > 0
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_acl_whoami(self, r: aioredis.Redis):
         username = await r.acl_whoami()
         assert isinstance(username, str)
@@ -384,6 +384,11 @@ class TestRedisCommands:
         for client_type in ["normal", "master", "replica", "pubsub"]:
             clients = await r.client_list(_type=client_type)
             assert isinstance(clients, list)
+
+    @skip_if_redis_enterprise
+    async def test_client_list_replica(self, r):
+        clients = await r.client_list(_type="replica")
+        assert isinstance(clients, list)
 
     @skip_if_server_version_lt("6.2.0")
     async def test_client_list_client_id(
@@ -543,10 +548,9 @@ class TestRedisCommands:
         client_2_addr = clients_by_name["redis-py-c2"].get("laddr")
         assert await r.client_kill_filter(laddr=client_2_addr)
 
-    @skip_if_server_version_lt("2.8.12")
-    async def test_client_kill_filter_by_user(
-        self, r: aioredis.Redis, request, create_redis
-    ):
+    @skip_if_server_version_lt("6.0.0")
+    @skip_if_redis_enterprise
+    async def test_client_kill_filter_by_user(self, r: aioredis.Redis, create_redis):
         killuser = "user_to_kill"
         await r.acl_setuser(
             killuser,
@@ -564,6 +568,7 @@ class TestRedisCommands:
         await r.acl_deluser(killuser)
 
     @skip_if_server_version_lt("2.9.50")
+    @skip_if_redis_enterprise
     async def test_client_pause(self, r: aioredis.Redis):
         assert await r.client_pause(1)
         assert await r.client_pause(timeout=1)
@@ -571,6 +576,7 @@ class TestRedisCommands:
             await r.client_pause(timeout="not an integer")
 
     @skip_if_server_version_lt("6.2.0")
+    @skip_if_redis_enterprise
     async def test_client_unpause(self, r: aioredis.Redis):
         assert await r.client_unpause() == b"OK"
 
@@ -588,11 +594,18 @@ class TestRedisCommands:
         # validate it was set
         assert await r.get("foo") == b"bar"
 
+    @skip_if_server_version_lt("6.0.0")
+    @skip_if_redis_enterprise
+    async def test_client_getredir(self, r):
+        assert isinstance(await r.client_getredir(), int)
+        assert await r.client_getredir() == -1
+
     async def test_config_get(self, r: aioredis.Redis):
         data = await r.config_get()
         assert "maxmemory" in data
         assert data["maxmemory"].isdigit()
 
+    @skip_if_redis_enterprise
     async def test_config_resetstat(self, r: aioredis.Redis):
         await r.ping()
         prior_commands_processed = int((await r.info())["total_commands_processed"])
@@ -601,14 +614,12 @@ class TestRedisCommands:
         reset_commands_processed = int((await r.info())["total_commands_processed"])
         assert reset_commands_processed < prior_commands_processed
 
-    async def test_config_set(self, r: aioredis.Redis):
-        data = await r.config_get()
-        rdbname = data["dbfilename"]
-        try:
-            assert await r.config_set("dbfilename", "redis_py_test.rdb")
-            assert (await r.config_get())["dbfilename"] == "redis_py_test.rdb"
-        finally:
-            assert await r.config_set("dbfilename", rdbname)
+    @skip_if_redis_enterprise
+    async def test_config_set(self, r):
+        await r.config_set("timeout", 70)
+        assert await r.config_get()["timeout"] == "70"
+        assert await r.config_set("timeout", 0)
+        assert await r.config_get()["timeout"] == "0"
 
     async def test_dbsize(self, r: aioredis.Redis):
         await r.set("a", "foo")
@@ -625,6 +636,7 @@ class TestRedisCommands:
         assert isinstance(info, dict)
         assert info["db9"]["keys"] == 2
 
+    @skip_if_redis_enterprise
     async def test_lastsave(self, r: aioredis.Redis):
         assert isinstance(await r.lastsave(), datetime.datetime)
 
@@ -717,6 +729,7 @@ class TestRedisCommands:
         assert isinstance(t[0], int)
         assert isinstance(t[1], int)
 
+    @skip_if_redis_enterprise
     async def test_bgsave(self, r: aioredis):
         assert await r.bgsave()
         await asyncio.sleep(0.3)
@@ -966,7 +979,7 @@ class TestRedisCommands:
         assert (await r.get("unicode_string")).decode("utf-8") == unicode_string
 
     @skip_if_server_version_lt("6.2.0")
-    async def test_getdel(self, r: aioredis.Redis):
+    async def test_getdel(self, r):
         assert await r.getdel("a") is None
         await r.set("a", 1)
         assert await r.getdel("a") == b"1"
@@ -1186,6 +1199,8 @@ class TestRedisCommands:
         assert await r.get("a") == b"1"
         assert 0 < await r.pttl("a") <= 10000
         assert 0 < await r.ttl("a") <= 10
+        with pytest.raises(exceptions.DataError):
+            assert await r.set("a", "1", px=10.0)
 
     @skip_if_server_version_lt("2.6.0")
     async def test_set_px_timedelta(self, r: aioredis.Redis):
@@ -1198,6 +1213,8 @@ class TestRedisCommands:
     async def test_set_ex(self, r: aioredis.Redis):
         assert await r.set("a", "1", ex=10)
         assert 0 < await r.ttl("a") <= 10
+        with pytest.raises(exceptions.DataError):
+            assert await r.set("a", "1", ex=10.0)
 
     @skip_if_server_version_lt("2.6.0")
     async def test_set_ex_timedelta(self, r: aioredis.Redis):
@@ -1223,7 +1240,7 @@ class TestRedisCommands:
         assert await r.set("a", "1", xx=True, px=10000)
         assert 0 < await r.ttl("a") <= 10
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_set_keepttl(self, r: aioredis.Redis):
         await r.set("a", "val")
         assert await r.set("a", "1", xx=True, px=10000)
@@ -1265,6 +1282,12 @@ class TestRedisCommands:
         value1 = "ohmytext"
         value2 = "mynewtext"
         res = "mytext"
+
+        if skip_if_redis_enterprise(None).args[0] is True:
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                assert r.stralgo("LCS", value1, value2) == res
+            return
+
         # test LCS of strings
         assert await r.stralgo("LCS", value1, value2) == res
         # test using keys
@@ -1301,6 +1324,12 @@ class TestRedisCommands:
 
     async def test_substr(self, r: aioredis.Redis):
         await r.set("a", "0123456789")
+
+        if skip_if_redis_enterprise(None).args[0] is True:
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                assert r.substr("a", 0) == b"0123456789"
+            return
+
         assert await r.substr("a", 0) == b"0123456789"
         assert await r.substr("a", 2) == b"23456789"
         assert await r.substr("a", 3, 5) == b"345"
@@ -1530,7 +1559,7 @@ class TestRedisCommands:
         _, keys = await r.scan(match="a")
         assert set(keys) == {b"a"}
 
-    @skip_if_server_version_lt(REDIS_6_VERSION)
+    @skip_if_server_version_lt("6.0.0")
     async def test_scan_type(self, r: aioredis.Redis):
         await r.sadd("a-set", 1)
         await r.hset("a-hash", "foo", 2)
@@ -1647,6 +1676,13 @@ class TestRedisCommands:
     async def test_smembers(self, r: aioredis.Redis):
         await r.sadd("a", "1", "2", "3")
         assert await r.smembers("a") == {b"1", b"2", b"3"}
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_smismember(self, r):
+        await r.sadd("a", "1", "2", "3")
+        result_list = [True, False, True, True]
+        assert await r.smismember("a", "1", "4", "2", "3") == result_list
+        assert await r.smismember("a", ["1", "4", "2", "3"]) == result_list
 
     async def test_smove(self, r: aioredis.Redis):
         await r.sadd("a", "a1", "a2")
@@ -1928,6 +1964,8 @@ class TestRedisCommands:
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
         assert await r.zrange("a", 0, 1) == [b"a1", b"a2"]
         assert await r.zrange("a", 1, 2) == [b"a2", b"a3"]
+        assert await r.zrange("a", 0, 2) == [b"a1", b"a2", b"a3"]
+        assert await r.zrange("a", 0, 2, desc=True) == [b"a3", b"a2", b"a1"]
 
         # withscores
         assert await r.zrange("a", 0, 1, withscores=True) == [
@@ -1945,6 +1983,59 @@ class TestRedisCommands:
             (b"a2", 2),
         ]
 
+    async def test_zrange_errors(self, r):
+        with pytest.raises(exceptions.DataError):
+            await r.zrange("a", 0, 1, byscore=True, bylex=True)
+        with pytest.raises(exceptions.DataError):
+            await r.zrange("a", 0, 1, bylex=True, withscores=True)
+        with pytest.raises(exceptions.DataError):
+            await r.zrange("a", 0, 1, byscore=True, withscores=True, offset=4)
+        with pytest.raises(exceptions.DataError):
+            await r.zrange("a", 0, 1, byscore=True, withscores=True, num=2)
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_zrange_params(self, r):
+        # bylex
+        await r.zadd("a", {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0, "f": 0, "g": 0})
+        assert await r.zrange("a", "[aaa", "(g", bylex=True) == [
+            b"b",
+            b"c",
+            b"d",
+            b"e",
+            b"f",
+        ]
+        assert await r.zrange("a", "[f", "+", bylex=True) == [b"f", b"g"]
+        assert await r.zrange("a", "+", "[f", desc=True, bylex=True) == [b"g", b"f"]
+        assert await r.zrange("a", "-", "+", bylex=True, offset=3, num=2) == [
+            b"d",
+            b"e",
+        ]
+        assert await r.zrange(
+            "a", "+", "-", desc=True, bylex=True, offset=3, num=2
+        ) == [b"d", b"c"]
+
+        # byscore
+        await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3, "a4": 4, "a5": 5})
+        assert await r.zrange("a", 2, 4, byscore=True, offset=1, num=2) == [
+            b"a3",
+            b"a4",
+        ]
+        assert await r.zrange("a", 4, 2, desc=True, byscore=True, offset=1, num=2) == [
+            b"a3",
+            b"a2",
+        ]
+        assert await r.zrange("a", 2, 4, byscore=True, withscores=True) == [
+            (b"a2", 2.0),
+            (b"a3", 3.0),
+            (b"a4", 4.0),
+        ]
+        assert await r.zrange(
+            "a", 4, 2, desc=True, byscore=True, withscores=True, score_cast_func=int
+        ) == [(b"a4", 4), (b"a3", 3), (b"a2", 2)]
+
+        # rev
+        assert await r.zrange("a", 0, 1, desc=True) == [b"a5", b"a4"]
+
     @skip_if_server_version_lt("6.2.0")
     async def test_zrangestore(self, r: aioredis.Redis):
         await r.zadd("a", {"a1": 1, "a2": 2, "a3": 3})
@@ -1953,6 +2044,17 @@ class TestRedisCommands:
         assert await r.zrangestore("b", "a", 1, 2)
         assert await r.zrange("b", 0, -1) == [b"a2", b"a3"]
         assert await r.zrange("b", 0, -1, withscores=True) == [(b"a2", 2), (b"a3", 3)]
+        # reversed order
+        assert await r.zrangestore("b", "a", 1, 2, desc=True)
+        assert await r.zrange("b", 0, -1) == [b"a1", b"a2"]
+        # by score
+        assert await r.zrangestore(
+            "b", "a", 2, 1, byscore=True, offset=0, num=1, desc=True
+        )
+        assert await r.zrange("b", 0, -1) == [b"a2"]
+        # by lex
+        assert await r.zrangestore("b", "a", "[a2", "(a3", bylex=True, offset=0, num=1)
+        assert await r.zrange("b", 0, -1) == [b"a2"]
 
     @skip_if_server_version_lt("2.8.9")
     async def test_zrangebylex(self, r: aioredis.Redis):
@@ -1991,8 +2093,6 @@ class TestRedisCommands:
             (b"a3", 3.0),
             (b"a4", 4.0),
         ]
-
-        # custom score function
         assert await r.zrangebyscore(
             "a", 2, 4, withscores=True, score_cast_func=int
         ) == [(b"a2", 2), (b"a3", 3), (b"a4", 4)]
@@ -2539,14 +2639,53 @@ class TestRedisCommands:
             41.406342043777,
             "place2",
         )
-
-        assert await r.geoadd("barcelona", *values) == 2
+        assert await r.geoadd("barcelona", values) == 2
         assert await r.zcard("barcelona") == 2
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geoadd_nx(self, r):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+        assert await r.geoadd("a", values) == 2
+        values = (
+            (2.1909389952632, 41.433791470673, "place1")
+            + (2.1873744593677, 41.406342043777, "place2")
+            + (2.1804738294738, 41.405647879212, "place3")
+        )
+        assert await r.geoadd("a", values, nx=True) == 1
+        assert await r.zrange("a", 0, -1) == [b"place3", b"place2", b"place1"]
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geoadd_xx(self, r):
+        values = (2.1909389952632, 41.433791470673, "place1")
+        assert await r.geoadd("a", values) == 1
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+        assert await r.geoadd("a", values, xx=True) == 0
+        assert await r.zrange("a", 0, -1) == [b"place1"]
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_geoadd_ch(self, r):
+        values = (2.1909389952632, 41.433791470673, "place1")
+        assert await r.geoadd("a", values) == 1
+        values = (2.1909389952632, 31.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            "place2",
+        )
+        assert await r.geoadd("a", values, ch=True) == 2
+        assert await r.zrange("a", 0, -1) == [b"place1", b"place2"]
 
     @skip_if_server_version_lt("3.2.0")
     async def test_geoadd_invalid_params(self, r: aioredis.Redis):
         with pytest.raises(exceptions.RedisError):
-            await r.geoadd("barcelona", *(1, 2))
+            await r.geoadd("barcelona", (1, 2))
 
     @skip_if_server_version_lt("3.2.0")
     async def test_geodist(self, r: aioredis.Redis):
@@ -2555,8 +2694,7 @@ class TestRedisCommands:
             41.406342043777,
             "place2",
         )
-
-        assert await r.geoadd("barcelona", *values) == 2
+        assert await r.geoadd("barcelona", values) == 2
         assert await r.geodist("barcelona", "place1", "place2") == 3067.4157
 
     @skip_if_server_version_lt("3.2.0")
@@ -2567,13 +2705,13 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geodist("barcelona", "place1", "place2", "km") == 3.0674
 
     @skip_if_server_version_lt("3.2.0")
     async def test_geodist_missing_one_member(self, r: aioredis.Redis):
         values = (2.1909389952632, 41.433791470673, "place1")
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geodist("barcelona", "place1", "missing_member", "km") is None
 
     @skip_if_server_version_lt("3.2.0")
@@ -2589,13 +2727,14 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geohash("barcelona", "place1", "place2", "place3") == [
             "sp3e9yg3kd0",
             "sp3e9cbc3t0",
             None,
         ]
 
+    @skip_unless_arch_bits(64)
     @skip_if_server_version_lt("3.2.0")
     async def test_geopos(self, r: aioredis.Redis):
         values = (2.1909389952632, 41.433791470673, "place1") + (
@@ -2604,7 +2743,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         # redis uses 52 bits precision, hereby small errors may be introduced.
         assert await r.geopos("barcelona", "place1", "place2") == [
             (2.19093829393386841, 41.43379028184083523),
@@ -2627,7 +2766,7 @@ class TestRedisCommands:
             + (2.1873744593677, 41.406342043777, b"\x80place2")
             + (2.583333, 41.316667, "place3")
         )
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geosearch(
             "barcelona", longitude=2.191, latitude=41.433, radius=1000
         ) == [b"place1"]
@@ -2659,7 +2798,7 @@ class TestRedisCommands:
             b"\x80place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geosearch("barcelona", member="place1", radius=4000) == [
             b"\x80place2",
             b"place1",
@@ -2695,7 +2834,7 @@ class TestRedisCommands:
             41.406342043777,
             "place2",
         )
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.geosearch(
             "barcelona", longitude=2.191, latitude=41.433, radius=3000, sort="ASC"
         ) == [b"place1", b"place2"]
@@ -2711,7 +2850,7 @@ class TestRedisCommands:
             41.406342043777,
             "place2",
         )
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
 
         # test a bunch of combinations to test the parse response
         # function.
@@ -2824,7 +2963,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         await r.geosearchstore(
             "places_barcelona",
             "barcelona",
@@ -2843,7 +2982,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         await r.geosearchstore(
             "places_barcelona",
             "barcelona",
@@ -2863,7 +3002,7 @@ class TestRedisCommands:
             b"\x80place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadius("barcelona", 2.191, 41.433, 1000) == [b"place1"]
         assert await r.georadius("barcelona", 2.187, 41.406, 1000) == [b"\x80place2"]
 
@@ -2875,7 +3014,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadius("barcelona", 1, 2, 1000) == []
 
     @skip_if_server_version_lt("3.2.0")
@@ -2886,7 +3025,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadius("barcelona", 2.191, 41.433, 1, unit="km") == [
             b"place1"
         ]
@@ -2900,7 +3039,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
 
         # test a bunch of combinations to test the parse response
         # function.
@@ -2955,7 +3094,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadius("barcelona", 2.191, 41.433, 3000, count=1) == [
             b"place1"
         ]
@@ -2968,7 +3107,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadius("barcelona", 2.191, 41.433, 3000, sort="ASC") == [
             b"place1",
             b"place2",
@@ -2986,7 +3125,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         await r.georadius("barcelona", 2.191, 41.433, 1000, store="places_barcelona")
         assert await r.zrange("places_barcelona", 0, -1) == [b"place1"]
 
@@ -2999,7 +3138,7 @@ class TestRedisCommands:
             "place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         await r.georadius(
             "barcelona", 2.191, 41.433, 1000, store_dist="places_barcelona"
         )
@@ -3015,7 +3154,7 @@ class TestRedisCommands:
             b"\x80place2",
         )
 
-        await r.geoadd("barcelona", *values)
+        await r.geoadd("barcelona", values)
         assert await r.georadiusbymember("barcelona", "place1", 4000) == [
             b"\x80place2",
             b"place1",
@@ -3038,6 +3177,18 @@ class TestRedisCommands:
                 (2.1909382939338684, 41.433790281840835),
             ],
         ]
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_georadiusmember_count(self, r):
+        values = (2.1909389952632, 41.433791470673, "place1") + (
+            2.1873744593677,
+            41.406342043777,
+            b"\x80place2",
+        )
+        await r.geoadd("barcelona", values)
+        assert await r.georadiusbymember(
+            "barcelona", "place1", 4000, count=1, any=True
+        ) == [b"\x80place2"]
 
     @skip_if_server_version_lt("5.0.0")
     async def test_xack(self, r: aioredis.Redis):
@@ -3405,6 +3556,18 @@ class TestRedisCommands:
         assert info["first-entry"] == await get_stream_message(r, stream, m1)
         assert info["last-entry"] == await get_stream_message(r, stream, m2)
 
+    @skip_if_server_version_lt("6.0.0")
+    async def test_xinfo_stream_full(self, r):
+        stream = "stream"
+        group = "group"
+        m1 = await r.xadd(stream, {"foo": "bar"})
+        await r.xgroup_create(stream, group, 0)
+        info = await r.xinfo_stream(stream, full=True)
+
+        assert info["length"] == 1
+        assert m1 in info["entries"]
+        assert len(info["groups"]) == 1
+
     @skip_if_server_version_lt("5.0.0")
     async def test_xlen(self, r: aioredis.Redis):
         stream = "stream"
@@ -3465,6 +3628,13 @@ class TestRedisCommands:
         assert response[0]["consumer"] == consumer1.encode()
         assert response[1]["message_id"] == m2
         assert response[1]["consumer"] == consumer2.encode()
+
+        # test with consumer name
+        response = await r.xpending_range(
+            stream, group, min="-", max="+", count=5, consumername=consumer1
+        )
+        assert response[0]["message_id"] == m1
+        assert response[0]["consumer"] == consumer1.encode()
 
     @skip_if_server_version_lt("6.2.0")
     async def test_xpending_range_idle(self, r: aioredis.Redis):
@@ -3813,10 +3983,35 @@ class TestRedisCommands:
         assert resp == [0, None, 255]
 
     @skip_if_server_version_lt("4.0.0")
+    async def test_memory_help(self, r):
+        with pytest.raises(NotImplementedError):
+            await r.memory_help()
+
+    @skip_if_server_version_lt("4.0.0")
+    async def test_memory_doctor(self, r):
+        with pytest.raises(NotImplementedError):
+            await r.memory_doctor()
+
+    @skip_if_server_version_lt("4.0.0")
+    async def test_memory_malloc_stats(self, r):
+        if skip_if_redis_enterprise(None).args[0] is True:
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                assert await r.memory_malloc_stats()
+            return
+
+        assert await r.memory_malloc_stats()
+
+    @skip_if_server_version_lt("4.0.0")
     async def test_memory_stats(self, r: aioredis.Redis):
         # put a key into the current db to make sure that "db.<current-db>"
         # has data
         await r.set("foo", "bar")
+
+        if skip_if_redis_enterprise(None).args[0] is True:
+            with pytest.raises(aioredis.exceptions.ResponseError):
+                stats = await r.memory_stats()
+            return
+
         stats = await r.memory_stats()
         assert isinstance(stats, dict)
         for key, value in stats.items():
@@ -3829,9 +4024,11 @@ class TestRedisCommands:
         assert isinstance(await r.memory_usage("foo"), int)
 
     @skip_if_server_version_lt("4.0.0")
+    @skip_if_redis_enterprise
     async def test_module_list(self, r: aioredis.Redis):
         assert isinstance(await r.module_list(), list)
-        assert not await r.module_list()
+        for x in await r.module_list():
+            assert isinstance(x, dict)
 
     @skip_if_server_version_lt("2.8.13")
     async def test_command_count(self, r: aioredis.Redis):
@@ -3839,7 +4036,16 @@ class TestRedisCommands:
         assert isinstance(res, int)
         assert res >= 100
 
+    @skip_if_server_version_lt("2.8.13")
+    async def test_command(self, r):
+        res = await r.command()
+        assert len(res) >= 100
+        cmds = [c[0].decode() for c in res]
+        assert "set" in cmds
+        assert "get" in cmds
+
     @skip_if_server_version_lt("4.0.0")
+    @skip_if_redis_enterprise
     async def test_module(self, r: aioredis.Redis):
         with pytest.raises(aioredis.exceptions.ModuleError) as excinfo:
             await r.module_load("/some/fake/path")
@@ -3874,7 +4080,8 @@ class TestRedisCommands:
         assert await r.restore(key2, 0, dumpdata)
         assert await r.ttl(key2) == -1
 
-        # idletime
+    @skip_if_server_version_lt("5.0.0")
+    async def test_restore_idletime(self, r):
         key = "yayakey"
         await r.set(key, "blee!")
         dumpdata = await r.dump(key)
@@ -3882,7 +4089,8 @@ class TestRedisCommands:
         assert await r.restore(key, 0, dumpdata, idletime=5)
         assert await r.get(key) == b"blee!"
 
-        # frequency
+    @skip_if_server_version_lt("5.0.0")
+    async def test_restore_frequency(self, r):
         key = "yayakey"
         await r.set(key, "blee!")
         dumpdata = await r.dump(key)
