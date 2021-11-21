@@ -1,0 +1,22 @@
+version: "3"
+services:
+  redis:
+    image: redis:6.2.6-buster
+    ports:
+    # Maps port 6379 on service container to the host
+    - 6379:6379
+    # Set health checks to wait until redis has started
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redismod:
+    image: redislabs/redismod:edge
+    ports:
+    - 36379:6379/tcp
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
