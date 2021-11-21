@@ -80,6 +80,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redismod:
+        image: redislabs/redismod:edge
+        ports:
+        - 36379:6379/tcp
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
