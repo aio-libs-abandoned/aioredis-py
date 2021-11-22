@@ -1,6 +1,6 @@
 import string
 
-from redis.commands.helpers import (
+from aioredis.commands.helpers import (
     delist,
     list_or_args,
     nativestr,

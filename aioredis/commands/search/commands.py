@@ -316,11 +316,11 @@ class SearchCommands(CommandsProtocol):
 
         return conn.execute_command(*args)
 
-    def load_document(self, id):
+    async def load_document(self, id):
         """
         Load a single document by id
         """
-        fields = self.client.hgetall(id)
+        fields = await self.client.hgetall(id)
         f2 = {to_string(k): to_string(v) for k, v in fields.items()}
         fields = f2
 
@@ -342,13 +342,13 @@ class SearchCommands(CommandsProtocol):
 
         return self.client.execute_command(MGET_CMD, self.index_name, *ids)
 
-    def info(self):
+    async def info(self):
         """
         Get info an stats about the the current index, including the number of
         documents, memory consumption, etc
         """
 
-        res = self.client.execute_command(INFO_CMD, self.index_name)
+        res = await self.client.execute_command(INFO_CMD, self.index_name)
         it = map(to_string, res)
         return dict(zip(it, it))
 
@@ -364,7 +364,7 @@ class SearchCommands(CommandsProtocol):
         args += query.get_args()
         return args, query
 
-    def search(self, query):
+    async def search(self, query):
         """
         Search the index for a given query, and return a result of documents
 
@@ -376,7 +376,7 @@ class SearchCommands(CommandsProtocol):
         """
         args, query = self._mk_query_args(query)
         st = time.time()
-        res = self.execute_command(SEARCH_CMD, *args)
+        res = await self.execute_command(SEARCH_CMD, *args)
 
         return Result(
             res,
@@ -393,7 +393,7 @@ class SearchCommands(CommandsProtocol):
     def explain_cli(self, query):
         raise NotImplementedError("EXPLAINCLI will not be implemented.")
 
-    def aggregate(self, query):
+    async def aggregate(self, query):
         """
         Issue an aggregation query
 
@@ -413,7 +413,7 @@ class SearchCommands(CommandsProtocol):
         else:
             raise ValueError("Bad query", query)
 
-        raw = self.execute_command(*cmd)
+        raw = await self.execute_command(*cmd)
         if has_cursor:
             if isinstance(query, Cursor):
                 query.cid = raw[1]
@@ -434,7 +434,7 @@ class SearchCommands(CommandsProtocol):
         res = AggregateResult(rows, cursor, schema)
         return res
 
-    def spellcheck(self, query, distance=None, include=None, exclude=None):
+    async def spellcheck(self, query, distance=None, include=None, exclude=None):
         """
         Issue a spellcheck query
 
@@ -456,7 +456,7 @@ class SearchCommands(CommandsProtocol):
         if exclude:
             cmd.extend(["TERMS", "EXCLUDE", exclude])
 
-        raw = self.execute_command(*cmd)
+        raw = await self.execute_command(*cmd)
 
         corrections = {}
         if raw == 0:
@@ -528,7 +528,7 @@ class SearchCommands(CommandsProtocol):
         cmd = [DICT_DUMP_CMD, name]
         return self.execute_command(*cmd)
 
-    def config_set(self, option, value):
+    async def config_set(self, option, value):
         """Set runtime configuration option.
 
         ### Parameters
@@ -537,10 +537,10 @@ class SearchCommands(CommandsProtocol):
         - **value**: a value for the configuration option.
         """
         cmd = [CONFIG_CMD, "SET", option, value]
-        raw = self.execute_command(*cmd)
+        raw = await self.execute_command(*cmd)
         return raw == "OK"
 
-    def config_get(self, option):
+    async def config_get(self, option):
         """Get runtime configuration option value.
 
         ### Parameters
@@ -549,7 +549,7 @@ class SearchCommands(CommandsProtocol):
         """
         cmd = [CONFIG_CMD, "GET", option]
         res = {}
-        raw = self.execute_command(*cmd)
+        raw = await self.execute_command(*cmd)
         if raw:
             for kvs in raw:
                 res[kvs[0]] = kvs[1]
@@ -598,7 +598,7 @@ class SearchCommands(CommandsProtocol):
         """
         return self.execute_command(ALIAS_DEL_CMD, alias)
 
-    def sugadd(self, key, *suggestions, **kwargs):
+    async def sugadd(self, key, *suggestions, **kwargs):
         """
         Add suggestion terms to the AutoCompleter engine. Each suggestion has
         a score and string.
@@ -618,7 +618,7 @@ class SearchCommands(CommandsProtocol):
 
             pipe.execute_command(*args)
 
-        return pipe.execute()[-1]
+        return (await pipe.execute())[-1]
 
     def suglen(self, key):
         """
@@ -635,7 +635,7 @@ class SearchCommands(CommandsProtocol):
         """
         return self.execute_command(SUGDEL_COMMAND, key, string)
 
-    def sugget(
+    async def sugget(
         self, key, prefix, fuzzy=False, num=10, with_scores=False, with_payloads=False
     ):
         """
@@ -676,7 +676,7 @@ class SearchCommands(CommandsProtocol):
         if with_payloads:
             args.append(WITHPAYLOADS)
 
-        ret = self.execute_command(*args)
+        ret = await self.execute_command(*args)
         results = []
         if not ret:
             return results
@@ -706,12 +706,12 @@ class SearchCommands(CommandsProtocol):
         cmd.extend(terms)
         return self.execute_command(*cmd)
 
-    def syndump(self):
+    async def syndump(self):
         """
         Dumps the contents of a synonym group.
 
         The command is used to dump the synonyms data structure.
         Returns a list of synonym terms and their synonym group ids.
         """
-        raw = self.execute_command(SYNDUMP_CMD, self.index_name)
+        raw = await self.execute_command(SYNDUMP_CMD, self.index_name)
         return {raw[i]: raw[i + 1] for i in range(0, len(raw), 2)}

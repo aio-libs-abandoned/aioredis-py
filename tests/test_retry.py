@@ -1,8 +1,9 @@
 import pytest
-from redis.backoff import NoBackoff
-from redis.connection import Connection, UnixDomainSocketConnection
-from redis.exceptions import ConnectionError
-from redis.retry import Retry
+
+from aioredis.backoff import NoBackoff
+from aioredis.connection import Connection, UnixDomainSocketConnection
+from aioredis.exceptions import ConnectionError
+from aioredis.retry import Retry
 
 
 class BackoffMock:
@@ -54,11 +55,12 @@ class TestRetry:
         self.actual_failures += 1
 
     @pytest.mark.parametrize("retries", range(10))
-    def test_retry(self, retries):
+    @pytest.mark.asyncio
+    async def test_retry(self, retries):
         backoff = BackoffMock()
         retry = Retry(backoff, retries)
         with pytest.raises(ConnectionError):
-            retry.call_with_retry(self._do, self._fail)
+            await retry.call_with_retry(self._do, self._fail)
 
         assert self.actual_attempts == 1 + retries
         assert self.actual_failures == 1 + retries

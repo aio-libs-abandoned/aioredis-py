@@ -22,11 +22,7 @@ class Search(SearchCommands):
             self.chunk_size = chunk_size
             self.current_chunk = 0
 
-        def __del__(self):
-            if self.current_chunk:
-                self.commit()
-
-        def add_document(
+        async def add_document(
             self,
             doc_id,
             nosave=False,
@@ -40,7 +36,7 @@ class Search(SearchCommands):
             """
             Add a document to the batch query
             """
-            self.client._add_document(
+            await self.client._add_document(
                 doc_id,
                 conn=self.pipeline,
                 nosave=nosave,
@@ -54,9 +50,9 @@ class Search(SearchCommands):
             self.current_chunk += 1
             self.total += 1
             if self.current_chunk >= self.chunk_size:
-                self.commit()
+                await self.commit()
 
-        def add_document_hash(
+        async def add_document_hash(
             self,
             doc_id,
             score=1.0,
@@ -65,7 +61,7 @@ class Search(SearchCommands):
             """
             Add a hash to the batch query
             """
-            self.client._add_document_hash(
+            await self.client._add_document_hash(
                 doc_id,
                 conn=self.pipeline,
                 score=score,
@@ -74,13 +70,13 @@ class Search(SearchCommands):
             self.current_chunk += 1
             self.total += 1
             if self.current_chunk >= self.chunk_size:
-                self.commit()
+                await self.commit()
 
-        def commit(self):
+        async def commit(self):
             """
             Manually commit and flush the batch indexing query
             """
-            self.pipeline.execute()
+            await self.pipeline.execute()
             self.current_chunk = 0
 
     def __init__(self, client, index_name="idx"):
