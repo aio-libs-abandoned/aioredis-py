@@ -1,0 +1,2 @@
+fixed raw socket.error
+(or one of its subclasses) raises instead of a redis.exceptions.ConnectionError
