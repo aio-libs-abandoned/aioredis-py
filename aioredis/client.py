@@ -3576,7 +3576,7 @@ class Redis:
         """
         return self.execute_command("EVAL", script, numkeys, *keys_and_args)
 
-    def evalsha(self, sha: str, numkeys: int, *keys_and_args: str) -> Awaitable:
+    def evalsha(self, sha: str, numkeys: int, *keys_and_args: EncodableT) -> Awaitable:
         """
         Use the ``sha`` to execute a Lua script already registered via EVAL
         or SCRIPT LOAD. Specify the ``numkeys`` the script will touch and the
