@@ -4047,9 +4047,11 @@ class PubSub:
             return None
         response = await self._execute(conn, conn.read_response)
 
+        # The response depends on whether there were any subscriptions
+        # active at the time the PING was issued.
         if conn.health_check_interval and response in (
-            self.health_check_response,
-            self.health_check_message_b,
+            self.health_check_response,  # If there was at least one subscription
+            self.health_check_message_b,  # If there wasn't
         ):
             # ignore the health check message as user might not expect it
             return None
