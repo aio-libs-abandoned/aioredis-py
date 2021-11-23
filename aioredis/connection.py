@@ -52,17 +52,6 @@ NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {
     ssl.SSLError: 2,
 }
 
-# In Python 2.7 a socket.error is raised for a nonblocking read.
-# The _compat module aliases BlockingIOError to socket.error to be
-# Python 2/3 compatible.
-# However this means that all socket.error exceptions need to be handled
-# properly within these exception handlers.
-# We need to make sure socket.error is included in these handlers and
-# provide a dummy error number that will never match a real exception.
-if socket.error not in NONBLOCKING_EXCEPTION_ERROR_NUMBERS:
-    NONBLOCKING_EXCEPTION_ERROR_NUMBERS[socket.error] = -999999
-
-NONBLOCKING_EXCEPTIONS = tuple(NONBLOCKING_EXCEPTION_ERROR_NUMBERS.keys())
 
 try:
     import hiredis
@@ -868,6 +857,10 @@ class Connection:
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError(f"Timeout reading from {self.host}:{self.port}")
+        except OSError as e:
+            self.disconnect()
+            raise ConnectionError("Error while reading from %s:%s : %s" %
+                                  (self.host, self.port, e.args))
         except BaseException:
             await self.disconnect()
             raise
