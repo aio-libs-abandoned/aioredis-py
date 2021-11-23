@@ -51,7 +51,7 @@ NONBLOCKING_EXCEPTION_ERROR_NUMBERS = {
     ssl.SSLWantWriteError: 2,
     ssl.SSLError: 2,
 }
-
+NONBLOCKING_EXCEPTIONS = tuple(NONBLOCKING_EXCEPTION_ERROR_NUMBERS.keys())
 
 try:
     import hiredis
