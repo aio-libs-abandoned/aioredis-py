@@ -858,7 +858,7 @@ class Connection:
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError(f"Timeout reading from {self.host}:{self.port}")
-        except OSError as e:
+        except socket.error as e:
             await self.disconnect()
             raise ConnectionError(
                 f"Error while reading from {self.host}:{self.port} : {e.args}"
