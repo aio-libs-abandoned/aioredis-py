@@ -8,7 +8,12 @@ import pytest
 
 import aioredis
 from aioredis.client import Monitor
-from aioredis.connection import parse_url
+from aioredis.connection import (
+    HIREDIS_AVAILABLE,
+    HiredisParser,
+    PythonParser,
+    parse_url,
+)
 
 from .compat import mock
 
@@ -125,16 +130,40 @@ def skip_unless_arch_bits(arch_bits):
     )
 
 
-@pytest.fixture(params=[True, False], ids=["single", "pool"])
+@pytest.fixture(
+    params=[
+        (True, PythonParser),
+        (False, PythonParser),
+        pytest.param(
+            (True, HiredisParser),
+            marks=pytest.mark.skipif(
+                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+            ),
+        ),
+        pytest.param(
+            (False, HiredisParser),
+            marks=pytest.mark.skipif(
+                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+            ),
+        ),
+    ],
+    ids=[
+        "single-python-parser",
+        "pool-python-parser",
+        "single-hiredis",
+        "pool-hiredis",
+    ],
+)
 def create_redis(request, event_loop):
     """Wrapper around aioredis.create_redis."""
-    single_connection = request.param
+    single_connection, parser_cls = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
         single = kwargs.pop("single_connection_client", False) or single_connection
+        parser_class = kwargs.pop("parser_class", None) or parser_cls
         url_options = parse_url(url)
         url_options.update(kwargs)
-        pool = aioredis.ConnectionPool(**url_options)
+        pool = aioredis.ConnectionPool(parser_class=parser_class, **url_options)
         client: aioredis.Redis = aioredis.Redis(connection_pool=pool)
         if single:
             client = client.client()

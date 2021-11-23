@@ -29,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: POSIX",
     "Environment :: Web Environment",
@@ -46,7 +47,7 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=classifiers,
     platforms=["POSIX"],
-    url="https://github.com/aio-libs/aioredis",
+    url="https://github.com/aio-libs/aioredis-py",
     license="MIT",
     packages=find_packages(exclude=["tests"]),
     install_requires=[
