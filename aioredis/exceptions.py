@@ -7,7 +7,7 @@ class RedisError(Exception):
     pass
 
 
-class ConnectionError(builtins.ConnectionError, RedisError):
+class ConnectionError(RedisError):
     pass
 
 
