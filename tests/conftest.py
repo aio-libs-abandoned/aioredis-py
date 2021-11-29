@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import random
 from distutils.version import StrictVersion
+from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
 import pytest
@@ -24,6 +25,9 @@ REDIS_6_VERSION = "5.9.0"
 
 REDIS_INFO = {}
 default_redis_url = "redis://localhost:6379/9"
+
+_DecoratedTest = TypeVar("_DecoratedTest", bound="Callable")
+_TestDecorator = Callable[[_DecoratedTest], _DecoratedTest]
 
 
 # Taken from python3.9
@@ -111,19 +115,19 @@ def pytest_sessionstart(session):
     REDIS_INFO["arch_bits"] = arch_bits
 
 
-def skip_if_server_version_lt(min_version):
+def skip_if_server_version_lt(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = StrictVersion(redis_version) < StrictVersion(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required >= {min_version}")
 
 
-def skip_if_server_version_gte(min_version):
+def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = StrictVersion(redis_version) >= StrictVersion(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required < {min_version}")
 
 
-def skip_unless_arch_bits(arch_bits):
+def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
     return pytest.mark.skipif(
         REDIS_INFO["arch_bits"] != arch_bits,
         reason=f"server is not {arch_bits}-bit",
