@@ -1,0 +1,1 @@
+Delete `__del__` from Redis (Fixes #1115)
