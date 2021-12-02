@@ -1054,16 +1054,6 @@ class Redis:
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.close()
 
-    def __del__(self):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.close())
-            else:
-                loop.run_until_complete(self.close())
-        except Exception:
-            pass
-
     async def close(self):
         conn = self.connection
         if conn:
