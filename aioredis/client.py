@@ -4339,17 +4339,6 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __await__(self):
         return self._async_self().__await__()
 
-    def __del__(self):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.reset())
-            else:
-                loop.run_until_complete(self.reset())
-            super().__del__()
-        except Exception:
-            pass
-
     def __len__(self):
         return len(self.command_stack)
 
