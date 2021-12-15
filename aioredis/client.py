@@ -1057,21 +1057,14 @@ class Redis:
     _DEL_MESSAGE = "Unclosed Redis client"
 
     def __del__(self, _warnings: Any = warnings) -> None:
-        try:
-            if self.connection is not None:
-                _warnings.warn(
-                    f"Unclosed client session {self!r}",
-                    ResourceWarning,
-                    source=self,
-                )
-                context = {"client": self, "message": self._DEL_MESSAGE}
-                if self._source_traceback is not None:
-                    context["source_traceback"] = self._source_traceback
-                self._loop.call_exception_handler(context)
-        except AttributeError:
-            # loop was not initialized yet,
-            # either self._connector or self._loop doesn't exist
-            pass
+        if self.connection is not None:
+            _warnings.warn(
+                f"Unclosed client session {self!r}",
+                ResourceWarning,
+                source=self,
+            )
+            context = {"client": self, "message": self._DEL_MESSAGE}
+            asyncio.get_event_loop().call_exception_handler(context)
 
     async def close(self):
         conn = self.connection
