@@ -65,6 +65,7 @@ GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
 StreamIdT = Union[int, _StringLikeT]
 ScriptTextT = _StringLikeT
+TimeoutSecT = Union[int, float, _StringLikeT]
 # Mapping is not covariant in the key type, which prevents
 # Mapping[_StringLikeT, X from accepting arguments of type Dict[str, X]. Using
 # a TypeVar instead of a Union allows mappings with any of the permitted types
@@ -2124,7 +2125,7 @@ class Redis:
         return self.execute_command("UNLINK", *names)
 
     # LIST COMMANDS
-    def blpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def blpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         LPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -2137,7 +2138,7 @@ class Redis:
         """
         return self.execute_command("BLPOP", *list_or_args(keys, (timeout,)))
 
-    def brpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def brpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         RPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -2150,7 +2151,7 @@ class Redis:
         """
         return self.execute_command("BRPOP", *list_or_args(keys, (timeout,)))
 
-    def brpoplpush(self, src: KeyT, dst: KeyT, timeout: int = 0) -> Awaitable:
+    def brpoplpush(self, src: KeyT, dst: KeyT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         Pop a value off the tail of ``src``, push it on the head of ``dst``
         and then return it.
@@ -3140,7 +3141,7 @@ class Redis:
         options = {"withscores": True}
         return self.execute_command("ZPOPMIN", name, *args, **options)
 
-    def bzpopmax(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmax(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         ZPOPMAX a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -3154,7 +3155,7 @@ class Redis:
         parsed_keys = list_or_args(keys, (timeout,))
         return self.execute_command("BZPOPMAX", *parsed_keys)
 
-    def bzpopmin(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmin(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         ZPOPMIN a value off of the first non-empty sorted set
         named in the ``keys`` list.
