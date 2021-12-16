@@ -1,0 +1,1 @@
+Change `__del__` in Redis to raise ResourceWarning (Fixes #1115)

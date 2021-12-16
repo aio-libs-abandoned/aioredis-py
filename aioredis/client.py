@@ -1055,15 +1055,17 @@ class Redis:
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.close()
 
-    def __del__(self):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.close())
-            else:
-                loop.run_until_complete(self.close())
-        except Exception:
-            pass
+    _DEL_MESSAGE = "Unclosed Redis client"
+
+    def __del__(self, _warnings: Any = warnings) -> None:
+        if self.connection is not None:
+            _warnings.warn(
+                f"Unclosed client session {self!r}",
+                ResourceWarning,
+                source=self,
+            )
+            context = {"client": self, "message": self._DEL_MESSAGE}
+            asyncio.get_event_loop().call_exception_handler(context)
 
     async def close(self):
         conn = self.connection
@@ -4350,16 +4352,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
     def __await__(self):
         return self._async_self().__await__()
 
-    def __del__(self):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.reset())
-            else:
-                loop.run_until_complete(self.reset())
-            super().__del__()
-        except Exception:
-            pass
+    _DEL_MESSAGE = "Unclosed Pipeline client"
 
     def __len__(self):
         return len(self.command_stack)
