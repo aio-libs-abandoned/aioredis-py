@@ -36,7 +36,7 @@ jobs:
         restore-keys: |
             pip-lint-
     - name: Install dependencies
-      uses: py-actions/py-dependency-install@v2.1.0
+      uses: py-actions/py-dependency-install@v3
       with:
         path: tests/requirements.txt
     - name: Run mypy
@@ -106,7 +106,7 @@ jobs:
         restore-keys: |
             pip-ci-${{ runner.os }}-${{ matrix.pyver }}
     - name: Install dependencies
-      uses: py-actions/py-dependency-install@v2.1.0
+      uses: py-actions/py-dependency-install@v3
       with:
         path: tests/requirements.txt
     - name: Install uvloop
