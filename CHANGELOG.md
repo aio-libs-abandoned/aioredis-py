@@ -1,6 +1,22 @@
-
-
 # Changelog
+
+## 2.0.1 - (2021-12-20)
+
+### Features
+
+- Added Python 3.10 to CI & Updated the Docs
+  (see #1160)
+- Enable mypy in CI (see #1101)
+- Synchronized reading the responses from a connection
+  (see #1106)
+
+### Fixes
+
+- Remove __del__ from Redis (Fixes #1115)
+  (see #1227)
+- fix socket.error raises (see #1129)
+- Fix buffer is closed error when using PythonParser class
+  (see #1213)
 
 ## 2.0.0 - (2021-03-18)
 
