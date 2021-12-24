@@ -22,6 +22,7 @@ Chao Guo <jeffguorg>
 Contributors
 Daniil Kozhanov
 David Francos
+David Testé
 Dima Kit
 Dima Kruk
 Dmitry Vasilishin <dmvass>
