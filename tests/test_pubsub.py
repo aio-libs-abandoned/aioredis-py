@@ -543,7 +543,7 @@ class TestPubSubTimeouts:
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
         assert await p.get_message(timeout=0.01) is None
 
-    def test_get_message_not_subscribed_return_none(self, r):
+    async def test_get_message_not_subscribed_return_none(self, r):
         p = r.pubsub()
         assert p.subscribed is False
         assert await p.get_message() is None
@@ -553,7 +553,7 @@ class TestPubSubTimeouts:
             assert await p.get_message(timeout=0.01) is None
             assert mock.called
 
-    def test_get_message_subscribe_during_waiting(self, r):
+    async def test_get_message_subscribe_during_waiting(self, r):
         p = r.pubsub()
 
         async def poll(ps, expected_res):
@@ -566,7 +566,7 @@ class TestPubSubTimeouts:
         await asyncio.sleep(0.2)
         await p.subscribe("foo")
 
-    def test_get_message_wait_for_subscription_not_being_called(self, r):
+    async def test_get_message_wait_for_subscription_not_being_called(self, r):
         p = r.pubsub()
         await p.subscribe("foo")
         with patch.object(asyncio.Event, "wait") as mock:
