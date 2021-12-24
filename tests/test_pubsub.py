@@ -1,6 +1,5 @@
 import asyncio
-import threading
-import time
+from unittest.mock import patch
 
 import pytest
 
@@ -343,15 +342,6 @@ class TestPubSubMessages:
             "pmessage", channel, "test message", pattern=pattern
         )
 
-    async def test_get_message_without_subscribe(self, r):
-        p = r.pubsub()
-        with pytest.raises(RuntimeError) as info:
-            await p.get_message()
-        expect = (
-            "connection not set: " "did you forget to call subscribe() or psubscribe()?"
-        )
-        assert expect in info.exconly()
-
 
 class TestPubSubAutoDecoding:
     """These tests only validate that we get unicode values back"""
@@ -552,6 +542,37 @@ class TestPubSubTimeouts:
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
         assert await p.get_message(timeout=0.01) is None
+
+    def test_get_message_not_subscribed_return_none(self, r):
+        p = r.pubsub()
+        assert p.subscribed is False
+        assert await p.get_message() is None
+        assert await p.get_message(timeout=0.1) is None
+        with patch.object(asyncio.Event, "wait") as mock:
+            mock.return_value = False
+            assert await p.get_message(timeout=0.01) is None
+            assert mock.called
+
+    def test_get_message_subscribe_during_waiting(self, r):
+        p = r.pubsub()
+
+        async def poll(ps, expected_res):
+            assert await ps.get_message() is None
+            message = await ps.get_message(timeout=1)
+            assert message == expected_res
+
+        subscribe_response = make_message("subscribe", "foo", 1)
+        asyncio.create_task(poll(p, subscribe_response))
+        await asyncio.sleep(0.2)
+        await p.subscribe("foo")
+
+    def test_get_message_wait_for_subscription_not_being_called(self, r):
+        p = r.pubsub()
+        await p.subscribe("foo")
+        with patch.object(asyncio.Event, "wait") as mock:
+            assert p.subscribed is True
+            assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
+            assert mock.called is False
 
 
 class TestPubSubRun:
