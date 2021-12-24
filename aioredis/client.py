@@ -4030,6 +4030,8 @@ class PubSub:
         """
         ttl = 10
         conn = self.connection
+        if not conn:
+            return
         while self.health_check_response_counter > 0 and ttl > 0:
             if await self._execute(conn, conn.can_read, timeout=conn.socket_timeout):
                 response = await self._execute(conn, conn.read_response)
