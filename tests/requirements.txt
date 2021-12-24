@@ -1,4 +1,4 @@
-async-timeout==3.0.1
+async-timeout==4.0.2
 coverage==6.1.1
 flake8==4.0.1
 hiredis==2.0.0
