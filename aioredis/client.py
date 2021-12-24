@@ -3925,7 +3925,7 @@ class PubSub:
     PUBLISH_MESSAGE_TYPES = ("message", "pmessage")
     UNSUBSCRIBE_MESSAGE_TYPES = ("unsubscribe", "punsubscribe")
     HEALTH_CHECK_MESSAGE = "aioredis-py-health-check"
-    
+
     channels: Dict[ChannelT, PubSubHandler]
     pending_unsubscribe_channels: Set[ChannelT]
     patterns: Dict[ChannelT, PubSubHandler]
