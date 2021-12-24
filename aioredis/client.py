@@ -3925,6 +3925,11 @@ class PubSub:
     PUBLISH_MESSAGE_TYPES = ("message", "pmessage")
     UNSUBSCRIBE_MESSAGE_TYPES = ("unsubscribe", "punsubscribe")
     HEALTH_CHECK_MESSAGE = "aioredis-py-health-check"
+    
+    channels: Dict[ChannelT, PubSubHandler]
+    pending_unsubscribe_channels: Set[ChannelT]
+    patterns: Dict[ChannelT, PubSubHandler]
+    pending_unsubscribe_patterns: Set[ChannelT]
 
     def __init__(
         self,
@@ -3948,11 +3953,8 @@ class PubSub:
             ]
         else:
             self.health_check_response = [b"pong", self.health_check_response_b]
-        self.channels: Dict[ChannelT, PubSubHandler] = {}
-        self.pending_unsubscribe_channels: Set[ChannelT] = set()
-        self.patterns: Dict[ChannelT, PubSubHandler] = {}
-        self.pending_unsubscribe_patterns: Set[ChannelT] = set()
         self._lock = asyncio.Lock()
+        await self.reset()
 
     async def __aenter__(self):
         return self
