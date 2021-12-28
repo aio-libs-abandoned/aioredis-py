@@ -45,6 +45,7 @@ jobs:
         mypy
     - name: Run linter
       run: |
+        pip install -U setuptools
         make lint
     - name: Prepare twine checker
       run: |
