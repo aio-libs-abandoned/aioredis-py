@@ -31,10 +31,10 @@ jobs:
     - name: Cache PyPI
       uses: actions/cache@v2.1.6
       with:
-        key: pip-lint-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements.txt') }}
         path: ~/.cache/pip
         restore-keys: |
-            pip-lint-
+            ${{ runner.os }}-pip-lint-
     - name: Install dependencies
       uses: py-actions/py-dependency-install@v3
       with:
