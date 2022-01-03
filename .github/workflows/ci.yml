@@ -31,21 +31,21 @@ jobs:
     - name: Cache PyPI
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements.txt') }}
+        key: pip-lint-${{ hashFiles('**/requirements.txt') }}
         path: ~/.cache/pip
         restore-keys: |
-            ${{ runner.os }}-pip-lint-
+            pip-lint-
     - name: Install dependencies
       uses: py-actions/py-dependency-install@v3
       with:
         path: tests/requirements.txt
     - name: Run mypy
       run: |
+        pip install -U setuptools
         pip install -r tests/requirements-mypy.txt
         mypy
     - name: Run linter
       run: |
-        pip install -U setuptools
         make lint
     - name: Prepare twine checker
       run: |
