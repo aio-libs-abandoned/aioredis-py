@@ -22,12 +22,14 @@ Chao Guo <jeffguorg>
 Contributors
 Daniil Kozhanov
 David Francos
+David Testé
 Dima Kit
 Dima Kruk
 Dmitry Vasilishin <dmvass>
 Evgenii Morozov <emorozov>
 Federico Jaite <fedej>
 Hugo <hugovk>
+Ian Good
 Ihor Gorobets
 Ihor Liubymov
 Ilya Samartsev
@@ -38,6 +40,7 @@ Jeff Moser
 Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov
+Maksim Novikov
 Manuel Miranda
 Marek Szapiel
 Marijn Giesen

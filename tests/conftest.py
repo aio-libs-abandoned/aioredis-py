@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import random
+from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
 import pytest
@@ -9,7 +10,12 @@ from packaging.version import Version
 import aioredis
 from aioredis.backoff import NoBackoff
 from aioredis.client import Monitor
-from aioredis.connection import parse_url
+from aioredis.connection import (
+    HIREDIS_AVAILABLE,
+    HiredisParser,
+    PythonParser,
+    parse_url,
+)
 from aioredis.retry import Retry
 
 from .compat import mock
@@ -17,6 +23,9 @@ from .compat import mock
 REDIS_INFO = {}
 default_redis_url = "redis://localhost:6379/9"
 default_redismod_url = "redis://localhost:36379"
+
+_DecoratedTest = TypeVar("_DecoratedTest", bound="Callable")
+_TestDecorator = Callable[[_DecoratedTest], _DecoratedTest]
 
 
 # Taken from python3.9
@@ -129,26 +138,26 @@ def pytest_sessionstart(session):
         pass
 
 
-def skip_if_server_version_lt(min_version):
+def skip_if_server_version_lt(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = Version(redis_version) < Version(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required >= {min_version}")
 
 
-def skip_if_server_version_gte(min_version):
+def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = Version(redis_version) >= Version(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required < {min_version}")
 
 
-def skip_unless_arch_bits(arch_bits):
+def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
     return pytest.mark.skipif(
         REDIS_INFO["arch_bits"] != arch_bits,
         reason=f"server is not {arch_bits}-bit",
     )
 
 
-def skip_ifmodversion_lt(min_version: str, module_name: str):
+def skip_ifmodversion_lt(min_version: str, module_name: str) -> _TestDecorator:
     try:
         modules = REDIS_INFO["modules"]
     except KeyError:
@@ -166,33 +175,51 @@ def skip_ifmodversion_lt(min_version: str, module_name: str):
     raise AttributeError(f"No redis module named {module_name}")
 
 
-def skip_if_redis_enterprise(func):
+def skip_if_redis_enterprise(func) -> _TestDecorator:
     check = REDIS_INFO["enterprise"] is True
     return pytest.mark.skipif(check, reason="Redis enterprise")
 
 
-def skip_ifnot_redis_enterprise(func):
+def skip_ifnot_redis_enterprise(func) -> _TestDecorator:
     check = REDIS_INFO["enterprise"] is False
     return pytest.mark.skipif(check, reason="Redis enterprise")
 
 
-@pytest.fixture(params=[True, False], ids=["single", "pool"])
+@pytest.fixture(
+    params=[
+        (True, PythonParser),
+        (False, PythonParser),
+        pytest.param(
+            (True, HiredisParser),
+            marks=pytest.mark.skipif(
+                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+            ),
+        ),
+        pytest.param(
+            (False, HiredisParser),
+            marks=pytest.mark.skipif(
+                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+            ),
+        ),
+    ],
+    ids=[
+        "single-python-parser",
+        "pool-python-parser",
+        "single-hiredis",
+        "pool-hiredis",
+    ],
+)
 def create_redis(request, event_loop):
-    """
-    Helper for fixtures or tests that need a Redis client
-
-    Uses the "--redis-url" command line argument for connection info. Unlike
-    ConnectionPool.from_url, keyword arguments to this function override
-    values specified in the URL.
-    """
-    single_connection = request.param
+    """Wrapper around aioredis.create_redis."""
+    single_connection, parser_cls = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
         flushdb = kwargs.pop("flushdb", True)
         single = kwargs.pop("single_connection_client", False) or single_connection
+        parser_class = kwargs.pop("parser_class", None) or parser_cls
         url_options = parse_url(url)
         url_options.update(kwargs)
-        pool = aioredis.ConnectionPool(**url_options)
+        pool = aioredis.ConnectionPool(parser_class=parser_class, **url_options)
         client: aioredis.Redis = aioredis.Redis(connection_pool=pool)
         if single:
             client = client.client()

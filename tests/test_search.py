@@ -108,7 +108,7 @@ async def client(modclient):
 
 
 @pytest.mark.redismod
-async def test_client(client):
+async def test_client(client: Redis):
     num_docs = 500
     await createIndex(client.ft(), num_docs=num_docs)
     await waitForIndex(client, "idx")
@@ -219,7 +219,7 @@ async def test_client(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_payloads(client):
+async def test_payloads(client: Redis):
     await client.ft().create_index((TextField("txt"),))
 
     await client.ft().add_document("doc1", payload="foo baz", txt="foo bar")
@@ -235,7 +235,7 @@ async def test_payloads(client):
 
 
 @pytest.mark.redismod
-async def test_scores(client):
+async def test_scores(client: Redis):
     await client.ft().create_index((TextField("txt"),))
 
     await client.ft().add_document("doc1", txt="foo baz")
@@ -252,12 +252,12 @@ async def test_scores(client):
 
 
 @pytest.mark.redismod
-async def test_replace(client):
+async def test_replace(client: Redis):
     await client.ft().create_index((TextField("txt"),))
 
     await client.ft().add_document("doc1", txt="foo bar")
     await client.ft().add_document("doc2", txt="foo bar")
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     res = await client.ft().search("foo bar")
     assert 2 == res.total
@@ -273,11 +273,11 @@ async def test_replace(client):
 
 
 @pytest.mark.redismod
-async def test_stopwords(client):
+async def test_stopwords(client: Redis):
     await client.ft().create_index((TextField("txt"),), stopwords=["foo", "bar", "baz"])
     await client.ft().add_document("doc1", txt="foo bar")
     await client.ft().add_document("doc2", txt="hello world")
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     q1 = Query("foo bar").no_content()
     q2 = Query("foo bar hello world").no_content()
@@ -287,7 +287,7 @@ async def test_stopwords(client):
 
 
 @pytest.mark.redismod
-async def test_filters(client):
+async def test_filters(client: Redis):
     await client.ft().create_index(
         (TextField("txt"), NumericField("num"), GeoField("loc"))
     )
@@ -296,7 +296,7 @@ async def test_filters(client):
     )
     await client.ft().add_document("doc2", txt="foo baz", num=2, loc="-0.1,51.2")
 
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
     # Test numerical filter
     q1 = Query("foo").add_filter(NumericFilter("num", 0, 2)).no_content()
     q2 = (
@@ -327,7 +327,7 @@ async def test_filters(client):
 
 
 @pytest.mark.redismod
-async def test_payloads_with_no_content(client):
+async def test_payloads_with_no_content(client: Redis):
     await client.ft().create_index((TextField("txt"),))
     await client.ft().add_document("doc1", payload="foo baz", txt="foo bar")
     await client.ft().add_document("doc2", payload="foo baz2", txt="foo bar")
@@ -338,7 +338,7 @@ async def test_payloads_with_no_content(client):
 
 
 @pytest.mark.redismod
-async def test_sort_by(client):
+async def test_sort_by(client: Redis):
     await client.ft().create_index(
         (TextField("txt"), NumericField("num", sortable=True))
     )
@@ -381,7 +381,7 @@ async def test_drop_index():
 
 
 @pytest.mark.redismod
-async def test_example(client):
+async def test_example(client: Redis):
     # Creating the index definition and schema
     await client.ft().create_index((TextField("title", weight=5.0), TextField("body")))
 
@@ -400,7 +400,7 @@ async def test_example(client):
 
 
 @pytest.mark.redismod
-async def test_auto_complete(client):
+async def test_auto_complete(client: Redis):
     n = 0
     with open(TITLES_CSV) as f:
         cr = csv.reader(f)
@@ -449,7 +449,7 @@ async def test_auto_complete(client):
 
 
 @pytest.mark.redismod
-async def test_no_index(client):
+async def test_no_index(client: Redis):
     await client.ft().create_index(
         (
             TextField("field"),
@@ -466,7 +466,7 @@ async def test_no_index(client):
     await client.ft().add_document(
         "doc2", field="aab", text="2", numeric="2", geo="2,2", tag="2"
     )
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     res = await client.ft().search(Query("@text:aa*"))
     assert 0 == res.total
@@ -502,13 +502,13 @@ async def test_no_index(client):
 
 
 @pytest.mark.redismod
-async def test_partial(client):
+async def test_partial(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2"), TextField("f3")))
     await client.ft().add_document("doc1", f1="f1_val", f2="f2_val")
     await client.ft().add_document("doc2", f1="f1_val", f2="f2_val")
     await client.ft().add_document("doc1", f3="f3_val", partial=True)
     await client.ft().add_document("doc2", f3="f3_val", replace=True)
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     # Search for f3 value. All documents should have it
     res = await client.ft().search("@f3:f3_val")
@@ -520,13 +520,13 @@ async def test_partial(client):
 
 
 @pytest.mark.redismod
-async def test_no_create(client):
+async def test_no_create(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2"), TextField("f3")))
     await client.ft().add_document("doc1", f1="f1_val", f2="f2_val")
     await client.ft().add_document("doc2", f1="f1_val", f2="f2_val")
     await client.ft().add_document("doc1", f3="f3_val", no_create=True)
     await client.ft().add_document("doc2", f3="f3_val", no_create=True, partial=True)
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     # Search for f3 value. All documents should have it
     res = await client.ft().search("@f3:f3_val")
@@ -541,20 +541,20 @@ async def test_no_create(client):
 
 
 @pytest.mark.redismod
-async def test_explain(client):
+async def test_explain(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2"), TextField("f3")))
     res = await client.ft().explain("@f3:f3_val @f2:f2_val @f1:f1_val")
     assert res
 
 
 @pytest.mark.redismod
-async def test_explaincli(client):
+async def test_explaincli(client: Redis):
     with pytest.raises(NotImplementedError):
         await client.ft().explain_cli("foo")
 
 
 @pytest.mark.redismod
-async def test_summarize(client):
+async def test_summarize(client: Redis):
     await createIndex(client.ft())
     await waitForIndex(client, "idx")
 
@@ -657,7 +657,7 @@ async def test_alias_basic():
 
 
 @pytest.mark.redismod
-async def test_tags(client):
+async def test_tags(client: Redis):
     await client.ft().create_index((TextField("txt"), TagField("tags")))
     tags = "foo,foo bar,hello;world"
     tags2 = "soba,ramen"
@@ -687,7 +687,7 @@ async def test_tags(client):
 
 
 @pytest.mark.redismod
-async def test_textfield_sortable_nostem(client):
+async def test_textfield_sortable_nostem(client: Redis):
     # Creating the index definition with sortable and no_stem
     await client.ft().create_index((TextField("txt", sortable=True, no_stem=True),))
 
@@ -698,7 +698,7 @@ async def test_textfield_sortable_nostem(client):
 
 
 @pytest.mark.redismod
-async def test_alter_schema_add(client):
+async def test_alter_schema_add(client: Redis):
     # Creating the index definition and schema
     await client.ft().create_index(TextField("title"))
 
@@ -719,14 +719,14 @@ async def test_alter_schema_add(client):
 
 
 @pytest.mark.redismod
-async def test_spell_check(client):
+async def test_spell_check(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2")))
 
     await client.ft().add_document(
         "doc1", f1="some valid content", f2="this is sample text"
     )
     await client.ft().add_document("doc2", f1="very important", f2="lorem ipsum")
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     # test spellcheck
     res = await client.ft().spellcheck("impornant")
@@ -758,7 +758,7 @@ async def test_spell_check(client):
 
 
 @pytest.mark.redismod
-async def test_dict_operations(client):
+async def test_dict_operations(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2")))
     # Add three items
     res = await client.ft().dict_add("custom_dict", "item1", "item2", "item3")
@@ -777,7 +777,7 @@ async def test_dict_operations(client):
 
 
 @pytest.mark.redismod
-async def test_phonetic_matcher(client):
+async def test_phonetic_matcher(client: Redis):
     await client.ft().create_index((TextField("name"),))
     await client.ft().add_document("doc1", name="Jon")
     await client.ft().add_document("doc2", name="John")
@@ -799,7 +799,7 @@ async def test_phonetic_matcher(client):
 
 
 @pytest.mark.redismod
-async def test_scorer(client):
+async def test_scorer(client: Redis):
     await client.ft().create_index((TextField("description"),))
 
     await client.ft().add_document(
@@ -828,7 +828,7 @@ async def test_scorer(client):
 
 
 @pytest.mark.redismod
-async def test_get(client):
+async def test_get(client: Redis):
     await client.ft().create_index((TextField("f1"), TextField("f2")))
 
     assert [None] == await client.ft().get("doc1")
@@ -852,7 +852,7 @@ async def test_get(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_config(client):
+async def test_config(client: Redis):
     assert await client.ft().config_set("TIMEOUT", "100")
     with pytest.raises(aioredis.ResponseError):
         await client.ft().config_set("TIMEOUT", "null")
@@ -863,7 +863,7 @@ async def test_config(client):
 
 
 @pytest.mark.redismod
-async def test_aggregations(client):
+async def test_aggregations(client: Redis):
     # Creating the index definition and schema
     await client.ft().create_index(
         (
@@ -934,7 +934,7 @@ async def test_aggregations(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.0.0", "search")
-async def test_index_definition(client):
+async def test_index_definition(client: Redis):
     """
     Create definition and test its args
     """
@@ -973,12 +973,12 @@ async def test_index_definition(client):
         "txt",
     ] == definition.args
 
-    createIndex(client.ft(), num_docs=500, definition=definition)
+    await createIndex(client.ft(), num_docs=500, definition=definition)
 
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.0.0", "search")
-async def test_create_client_definition(client):
+async def test_create_client_definition(client: Redis):
     """
     Create definition with no index type provided,
     and use hset to test the client definition (the default is HASH).
@@ -996,7 +996,7 @@ async def test_create_client_definition(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.0.0", "search")
-async def test_create_client_definition_hash(client):
+async def test_create_client_definition_hash(client: Redis):
     """
     Create definition with IndexType.HASH as index type (ON HASH),
     and use hset to test the client definition.
@@ -1014,7 +1014,7 @@ async def test_create_client_definition_hash(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_create_client_definition_json(client):
+async def test_create_client_definition_json(client: Redis):
     """
     Create definition with IndexType.JSON as index type (ON JSON),
     and use json client to test it.
@@ -1034,7 +1034,7 @@ async def test_create_client_definition_json(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_fields_as_name(client):
+async def test_fields_as_name(client: Redis):
     # create index
     SCHEMA = (
         TextField("$.name", sortable=True, as_name="name"),
@@ -1058,7 +1058,7 @@ async def test_fields_as_name(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_search_return_fields(client):
+async def test_search_return_fields(client: Redis):
     res = await client.json().set(
         "doc:1",
         Path.rootPath(),
@@ -1073,7 +1073,7 @@ async def test_search_return_fields(client):
         NumericField("$.flt"),
     )
     await client.ft().create_index(SCHEMA, definition=definition)
-    waitForIndex(client, "idx")
+    await waitForIndex(client, "idx")
 
     total = (
         await client.ft().search(Query("*").return_field("$.t", as_field="txt"))
@@ -1091,7 +1091,7 @@ async def test_search_return_fields(client):
 
 
 @pytest.mark.redismod
-async def test_synupdate(client):
+async def test_synupdate(client: Redis):
     definition = IndexDefinition(index_type=IndexType.HASH)
     await client.ft().create_index(
         (
@@ -1116,7 +1116,7 @@ async def test_synupdate(client):
 
 
 @pytest.mark.redismod
-async def test_syndump(client):
+async def test_syndump(client: Redis):
     definition = IndexDefinition(index_type=IndexType.HASH)
     await client.ft().create_index(
         (
@@ -1142,7 +1142,7 @@ async def test_syndump(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_create_json_with_alias(client):
+async def test_create_json_with_alias(client: Redis):
     """
     Create definition with IndexType.JSON as index type (ON JSON) with two
     fields with aliases, and use json client to test it.
@@ -1174,7 +1174,7 @@ async def test_create_json_with_alias(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_json_with_multipath(client):
+async def test_json_with_multipath(client: Redis):
     """
     Create definition with IndexType.JSON as index type (ON JSON),
     and use json client to test it.
@@ -1201,7 +1201,7 @@ async def test_json_with_multipath(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("2.2.0", "search")
-async def test_json_with_jsonpath(client):
+async def test_json_with_jsonpath(client: Redis):
     definition = IndexDefinition(index_type=IndexType.JSON)
     await client.ft().create_index(
         (

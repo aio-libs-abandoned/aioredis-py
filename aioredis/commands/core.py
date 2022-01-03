@@ -33,6 +33,7 @@ from aioredis.typing import (
     PatternT,
     ScriptTextT,
     StreamIdT,
+    TimeoutSecT,
     ZScoreBoundT,
 )
 from aioredis.utils import EMPTY_RESPONSE
@@ -1469,7 +1470,7 @@ class CoreCommands(CommandsProtocol):
         return self.execute_command("UNLINK", *names)
 
     # LIST COMMANDS
-    def blpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def blpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         LPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -1486,7 +1487,7 @@ class CoreCommands(CommandsProtocol):
         keys.append(timeout)
         return self.execute_command("BLPOP", *keys)
 
-    def brpop(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def brpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         RPOP a value off of the first non-empty list
         named in the ``keys`` list.
@@ -1507,7 +1508,7 @@ class CoreCommands(CommandsProtocol):
         self,
         src: KeyT,
         dst: KeyT,
-        timeout: int = 0,
+        timeout: TimeoutSecT = 0,
     ) -> Awaitable:
         """
         Pop a value off the tail of ``src``, push it on the head of ``dst``
@@ -2834,7 +2835,7 @@ class CoreCommands(CommandsProtocol):
 
         return self.execute_command("ZRANDMEMBER", key, *params)
 
-    def bzpopmax(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmax(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         ZPOPMAX a value off of the first non-empty sorted set
         named in the ``keys`` list.
@@ -2851,7 +2852,7 @@ class CoreCommands(CommandsProtocol):
         keys.append(timeout)
         return self.execute_command("BZPOPMAX", *keys)
 
-    def bzpopmin(self, keys: KeysT, timeout: int = 0) -> Awaitable:
+    def bzpopmin(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         ZPOPMIN a value off of the first non-empty sorted set
         named in the ``keys`` list.

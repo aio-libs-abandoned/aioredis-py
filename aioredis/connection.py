@@ -359,7 +359,7 @@ class PythonParser(BaseParser):
     def on_connect(self, connection: "Connection"):
         """Called when the stream connects"""
         self._stream = connection._reader
-        if self._buffer is None or self._stream is None:
+        if self._stream is None:
             raise RedisError("Buffer is closed.")
 
         self._buffer = SocketBuffer(
@@ -894,6 +894,11 @@ class Connection:
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError(f"Timeout reading from {self.host}:{self.port}")
+        except OSError as e:
+            await self.disconnect()
+            raise ConnectionError(
+                f"Error while reading from {self.host}:{self.port} : {e.args}"
+            )
         except BaseException:
             await self.disconnect()
             raise
@@ -1124,6 +1129,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._parser = parser_class(socket_read_size=socket_read_size)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
+        self._lock = asyncio.Lock()
 
     def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
         pieces = [

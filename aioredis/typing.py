@@ -25,6 +25,7 @@ GroupT = _StringLikeT  # Consumer group
 ConsumerT = _StringLikeT  # Consumer name
 StreamIdT = Union[int, _StringLikeT]
 ScriptTextT = _StringLikeT
+TimeoutSecT = Union[int, float, _StringLikeT]
 # Mapping is not covariant in the key type, which prevents
 # Mapping[_StringLikeT, X from accepting arguments of type Dict[str, X]. Using
 # a TypeVar instead of a Union allows mappings with any of the permitted types

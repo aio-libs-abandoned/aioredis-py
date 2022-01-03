@@ -11,13 +11,13 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-async def client(modclient):
+async def client(modclient: aioredis.Redis):
     await modclient.flushdb()
     return modclient
 
 
 @pytest.mark.redismod
-async def test_json_setbinarykey(client):
+async def test_json_setbinarykey(client: aioredis.Redis):
     d = {"hello": "world", b"some": "value"}
     with pytest.raises(TypeError):
         await client.json().set("somekey", Path.rootPath(), d)
@@ -25,7 +25,7 @@ async def test_json_setbinarykey(client):
 
 
 @pytest.mark.redismod
-async def test_json_setgetdeleteforget(client):
+async def test_json_setgetdeleteforget(client: aioredis.Redis):
     assert await client.json().set("foo", Path.rootPath(), "bar")
     assert await client.json().get("foo") == "bar"
     assert await client.json().get("baz") is None
@@ -35,13 +35,13 @@ async def test_json_setgetdeleteforget(client):
 
 
 @pytest.mark.redismod
-async def test_jsonget(client):
+async def test_jsonget(client: aioredis.Redis):
     await client.json().set("foo", Path.rootPath(), "bar")
     assert await client.json().get("foo") == "bar"
 
 
 @pytest.mark.redismod
-async def test_json_get_jset(client):
+async def test_json_get_jset(client: aioredis.Redis):
     assert await client.json().set("foo", Path.rootPath(), "bar")
     assert "bar" == await client.json().get("foo")
     assert await client.json().get("baz") is None
@@ -50,7 +50,7 @@ async def test_json_get_jset(client):
 
 
 @pytest.mark.redismod
-async def test_nonascii_setgetdelete(client):
+async def test_nonascii_setgetdelete(client: aioredis.Redis):
     assert await client.json().set("notascii", Path.rootPath(), "hyvää-élève")
     assert "hyvää-élève" == await client.json().get("notascii", no_escape=True)
     assert 1 == await client.json().delete("notascii")
@@ -58,7 +58,7 @@ async def test_nonascii_setgetdelete(client):
 
 
 @pytest.mark.redismod
-async def test_jsonsetexistentialmodifiersshouldsucceed(client):
+async def test_jsonsetexistentialmodifiersshouldsucceed(client: aioredis.Redis):
     obj = {"foo": "bar"}
     assert await client.json().set("obj", Path.rootPath(), obj)
 
@@ -76,7 +76,7 @@ async def test_jsonsetexistentialmodifiersshouldsucceed(client):
 
 
 @pytest.mark.redismod
-async def test_mgetshouldsucceed(client):
+async def test_mgetshouldsucceed(client: aioredis.Redis):
     await client.json().set("1", Path.rootPath(), 1)
     await client.json().set("2", Path.rootPath(), 2)
     assert await client.json().mget(["1"], Path.rootPath()) == [1]
@@ -86,21 +86,21 @@ async def test_mgetshouldsucceed(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("99.99.99", "ReJSON")  # todo: update after the release
-async def test_clear(client):
+async def test_clear(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 1, 2, 3, 4])
     assert 1 == await client.json().clear("arr", Path.rootPath())
     assert [] == await client.json().get("arr")
 
 
 @pytest.mark.redismod
-async def test_type(client):
+async def test_type(client: aioredis.Redis):
     await client.json().set("1", Path.rootPath(), 1)
     assert "integer" == await client.json().type("1", Path.rootPath())
     assert "integer" == await client.json().type("1")
 
 
 @pytest.mark.redismod
-async def test_numincrby(client):
+async def test_numincrby(client: aioredis.Redis):
     await client.json().set("num", Path.rootPath(), 1)
     assert 2 == await client.json().numincrby("num", Path.rootPath(), 1)
     assert 2.5 == await client.json().numincrby("num", Path.rootPath(), 0.5)
@@ -108,7 +108,7 @@ async def test_numincrby(client):
 
 
 @pytest.mark.redismod
-async def test_nummultby(client):
+async def test_nummultby(client: aioredis.Redis):
     await client.json().set("num", Path.rootPath(), 1)
 
     with pytest.deprecated_call():
@@ -119,7 +119,7 @@ async def test_nummultby(client):
 
 @pytest.mark.redismod
 @skip_ifmodversion_lt("99.99.99", "ReJSON")  # todo: update after the release
-async def test_toggle(client):
+async def test_toggle(client: aioredis.Redis):
     await client.json().set("bool", Path.rootPath(), False)
     assert await client.json().toggle("bool", Path.rootPath())
     assert await client.json().toggle("bool", Path.rootPath()) is False
@@ -130,14 +130,14 @@ async def test_toggle(client):
 
 
 @pytest.mark.redismod
-async def test_strappend(client):
+async def test_strappend(client: aioredis.Redis):
     await client.json().set("jsonkey", Path.rootPath(), "foo")
     assert 6 == await client.json().strappend("jsonkey", "bar")
     assert "foobar" == await client.json().get("jsonkey", Path.rootPath())
 
 
 @pytest.mark.redismod
-async def test_debug(client):
+async def test_debug(client: aioredis.Redis):
     await client.json().set("str", Path.rootPath(), "foo")
     assert 24 == await client.json().debug("MEMORY", "str", Path.rootPath())
     assert 24 == await client.json().debug("MEMORY", "str")
@@ -147,7 +147,7 @@ async def test_debug(client):
 
 
 @pytest.mark.redismod
-async def test_strlen(client):
+async def test_strlen(client: aioredis.Redis):
     await client.json().set("str", Path.rootPath(), "foo")
     assert 3 == await client.json().strlen("str", Path.rootPath())
     await client.json().strappend("str", "bar", Path.rootPath())
@@ -156,7 +156,7 @@ async def test_strlen(client):
 
 
 @pytest.mark.redismod
-async def test_arrappend(client):
+async def test_arrappend(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [1])
     assert 2 == await client.json().arrappend("arr", Path.rootPath(), 2)
     assert 4 == await client.json().arrappend("arr", Path.rootPath(), 3, 4)
@@ -164,14 +164,14 @@ async def test_arrappend(client):
 
 
 @pytest.mark.redismod
-async def test_arrindex(client):
+async def test_arrindex(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 1, 2, 3, 4])
     assert 1 == await client.json().arrindex("arr", Path.rootPath(), 1)
     assert -1 == await client.json().arrindex("arr", Path.rootPath(), 1, 2)
 
 
 @pytest.mark.redismod
-async def test_arrinsert(client):
+async def test_arrinsert(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 4])
     assert 5 - -await client.json().arrinsert(
         "arr",
@@ -192,7 +192,7 @@ async def test_arrinsert(client):
 
 
 @pytest.mark.redismod
-async def test_arrlen(client):
+async def test_arrlen(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 1, 2, 3, 4])
     assert 5 == await client.json().arrlen("arr", Path.rootPath())
     assert 5 == await client.json().arrlen("arr")
@@ -200,7 +200,7 @@ async def test_arrlen(client):
 
 
 @pytest.mark.redismod
-async def test_arrpop(client):
+async def test_arrpop(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 1, 2, 3, 4])
     assert 4 == await client.json().arrpop("arr", Path.rootPath(), 4)
     assert 3 == await client.json().arrpop("arr", Path.rootPath(), -1)
@@ -218,7 +218,7 @@ async def test_arrpop(client):
 
 
 @pytest.mark.redismod
-async def test_arrtrim(client):
+async def test_arrtrim(client: aioredis.Redis):
     await client.json().set("arr", Path.rootPath(), [0, 1, 2, 3, 4])
     assert 3 == await client.json().arrtrim("arr", Path.rootPath(), 1, 3)
     assert [1, 2, 3] == await client.json().get("arr")
@@ -241,7 +241,7 @@ async def test_arrtrim(client):
 
 
 @pytest.mark.redismod
-async def test_resp(client):
+async def test_resp(client: aioredis.Redis):
     obj = {"foo": "bar", "baz": 1, "qaz": True}
     await client.json().set("obj", Path.rootPath(), obj)
     assert "bar" == await client.json().resp("obj", Path("foo"))
@@ -251,7 +251,7 @@ async def test_resp(client):
 
 
 @pytest.mark.redismod
-async def test_objkeys(client):
+async def test_objkeys(client: aioredis.Redis):
     obj = {"foo": "bar", "baz": "qaz"}
     await client.json().set("obj", Path.rootPath(), obj)
     keys = await client.json().objkeys("obj", Path.rootPath())
@@ -268,7 +268,7 @@ async def test_objkeys(client):
 
 
 @pytest.mark.redismod
-async def test_objlen(client):
+async def test_objlen(client: aioredis.Redis):
     obj = {"foo": "bar", "baz": "qaz"}
     await client.json().set("obj", Path.rootPath(), obj)
     assert len(obj) == await client.json().objlen("obj", Path.rootPath())
@@ -279,7 +279,7 @@ async def test_objlen(client):
 
 @pytest.mark.pipeline
 @pytest.mark.redismod
-async def test_json_commands_in_pipeline(client):
+async def test_json_commands_in_pipeline(client: aioredis.Redis):
     p = await client.json().pipeline()
     p.set("foo", Path.rootPath(), "bar")
     p.get("foo")
@@ -289,7 +289,7 @@ async def test_json_commands_in_pipeline(client):
     assert await client.get("foo") is None
 
     # now with a true, json object
-    client.flushdb()
+    await client.flushdb()
     p = await client.json().pipeline()
     d = {"hello": "world", "oh": "snap"}
     p.jsonset("foo", Path.rootPath(), d)
@@ -302,7 +302,7 @@ async def test_json_commands_in_pipeline(client):
 
 
 @pytest.mark.redismod
-async def test_json_delete_with_dollar(client):
+async def test_json_delete_with_dollar(client: aioredis.Redis):
     doc1 = {"a": 1, "nested": {"a": 2, "b": 3}}
     assert await client.json().set("doc1", "$", doc1)
     assert await client.json().delete("doc1", "$..a") == 2
@@ -355,7 +355,7 @@ async def test_json_delete_with_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_json_forget_with_dollar(client):
+async def test_json_forget_with_dollar(client: aioredis.Redis):
     doc1 = {"a": 1, "nested": {"a": 2, "b": 3}}
     assert await client.json().set("doc1", "$", doc1)
     assert await client.json().forget("doc1", "$..a") == 2
@@ -408,7 +408,7 @@ async def test_json_forget_with_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_json_mget_dollar(client):
+async def test_json_mget_dollar(client: aioredis.Redis):
     # Test mget with multi paths
     await client.json().set(
         "doc1",
@@ -425,18 +425,24 @@ async def test_json_mget_dollar(client):
     assert await client.json().get("doc2", "$..a") == [4, 6, [None]]
 
     # Test mget with single path
-    await client.json().mget("doc1", "$..a") == [1, 3, None]
+    assert await client.json().mget("doc1", "$..a") == [1, 3, None]
     # Test mget with multi path
-    await client.json().mget(["doc1", "doc2"], "$..a") == [[1, 3, None], [4, 6, [None]]]
+    assert await client.json().mget(["doc1", "doc2"], "$..a") == [
+        [1, 3, None],
+        [4, 6, [None]],
+    ]
 
     # Test missing key
-    await client.json().mget(["doc1", "missing_doc"], "$..a") == [[1, 3, None], None]
+    assert await client.json().mget(["doc1", "missing_doc"], "$..a") == [
+        [1, 3, None],
+        None,
+    ]
     res = await client.json().mget(["missing_doc1", "missing_doc2"], "$..a")
     assert res == [None, None]
 
 
 @pytest.mark.redismod
-async def test_numby_commands_dollar(client):
+async def test_numby_commands_dollar(client: aioredis.Redis):
 
     # Test NUMINCRBY
     await client.json().set(
@@ -478,31 +484,31 @@ async def test_numby_commands_dollar(client):
     await client.json().set(
         "doc1", "$", {"a": "b", "b": [{"a": 2}, {"a": 5.0}, {"a": "c"}]}
     )
-    await client.json().numincrby("doc1", ".b[0].a", 3) == 5
+    assert await client.json().numincrby("doc1", ".b[0].a", 3) == 5
 
     # Test legacy NUMMULTBY
     await client.json().set(
         "doc1", "$", {"a": "b", "b": [{"a": 2}, {"a": 5.0}, {"a": "c"}]}
     )
-    await client.json().nummultby("doc1", ".b[0].a", 3) == 6
+    assert await client.json().nummultby("doc1", ".b[0].a", 3) == 6
 
 
 @pytest.mark.redismod
-async def test_strappend_dollar(client):
+async def test_strappend_dollar(client: aioredis.Redis):
 
     await client.json().set(
         "doc1", "$", {"a": "foo", "nested1": {"a": "hello"}, "nested2": {"a": 31}}
     )
     # Test multi
-    await client.json().strappend("doc1", "bar", "$..a") == [6, 8, None]
+    assert await client.json().strappend("doc1", "bar", "$..a") == [6, 8, None]
 
-    await client.json().get("doc1", "$") == [
+    assert await client.json().get("doc1", "$") == [
         {"a": "foobar", "nested1": {"a": "hellobar"}, "nested2": {"a": 31}}
     ]
     # Test single
-    await client.json().strappend("doc1", "baz", "$.nested1.a") == [11]
+    assert await client.json().strappend("doc1", "baz", "$.nested1.a") == [11]
 
-    await client.json().get("doc1", "$") == [
+    assert await client.json().get("doc1", "$") == [
         {"a": "foobar", "nested1": {"a": "hellobarbaz"}, "nested2": {"a": 31}}
     ]
 
@@ -511,8 +517,8 @@ async def test_strappend_dollar(client):
         await client.json().strappend("non_existing_doc", "$..a", "err")
 
     # Test multi
-    await client.json().strappend("doc1", "bar", ".*.a") == 8
-    await client.json().get("doc1", "$") == [
+    assert await client.json().strappend("doc1", "bar", ".*.a") == 8
+    assert await client.json().get("doc1", "$") == [
         {"a": "foo", "nested1": {"a": "hellobar"}, "nested2": {"a": 31}}
     ]
 
@@ -522,7 +528,7 @@ async def test_strappend_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_strlen_dollar(client):
+async def test_strlen_dollar(client: aioredis.Redis):
 
     # Test multi
     await client.json().set(
@@ -535,8 +541,8 @@ async def test_strlen_dollar(client):
     assert res1 == res2
 
     # Test single
-    await client.json().strlen("doc1", "$.nested1.a") == [8]
-    await client.json().strlen("doc1", "$.nested2.a") == [None]
+    assert await client.json().strlen("doc1", "$.nested1.a") == [8]
+    assert await client.json().strlen("doc1", "$.nested2.a") == [None]
 
     # Test missing key
     with pytest.raises(exceptions.ResponseError):
@@ -544,7 +550,7 @@ async def test_strlen_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrappend_dollar(client):
+async def test_arrappend_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -555,7 +561,11 @@ async def test_arrappend_dollar(client):
         },
     )
     # Test multi
-    await client.json().arrappend("doc1", "$..a", "bar", "racuda") == [3, 5, None]
+    assert await client.json().arrappend("doc1", "$..a", "bar", "racuda") == [
+        3,
+        5,
+        None,
+    ]
     assert await client.json().get("doc1", "$") == [
         {
             "a": ["foo", "bar", "racuda"],
@@ -614,7 +624,7 @@ async def test_arrappend_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrinsert_dollar(client):
+async def test_arrinsert_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -654,7 +664,7 @@ async def test_arrinsert_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrlen_dollar(client):
+async def test_arrlen_dollar(client: aioredis.Redis):
 
     await client.json().set(
         "doc1",
@@ -704,7 +714,7 @@ async def test_arrlen_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrpop_dollar(client):
+async def test_arrpop_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -737,7 +747,7 @@ async def test_arrpop_dollar(client):
         },
     )
     # Test multi (all paths are updated, but return result of last path)
-    await client.json().arrpop("doc1", "..a", "1") is None
+    assert await client.json().arrpop("doc1", "..a", "1") is None
     assert await client.json().get("doc1", "$") == [
         {"a": [], "nested1": {"a": ["hello", "world"]}, "nested2": {"a": 31}}
     ]
@@ -748,7 +758,7 @@ async def test_arrpop_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrtrim_dollar(client):
+async def test_arrtrim_dollar(client: aioredis.Redis):
 
     await client.json().set(
         "doc1",
@@ -805,7 +815,7 @@ async def test_arrtrim_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_objkeys_dollar(client):
+async def test_objkeys_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -833,7 +843,7 @@ async def test_objkeys_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_objlen_dollar(client):
+async def test_objlen_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -890,7 +900,7 @@ async def load_types_data(nested_key_name):
 
 
 @pytest.mark.redismod
-async def test_type_dollar(client):
+async def test_type_dollar(client: aioredis.Redis):
     jdata, jtypes = await load_types_data("a")
     await client.json().set("doc1", "$", jdata)
     # Test multi
@@ -904,7 +914,7 @@ async def test_type_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_clear_dollar(client):
+async def test_clear_dollar(client: aioredis.Redis):
 
     await client.json().set(
         "doc1",
@@ -954,7 +964,7 @@ async def test_clear_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_toggle_dollar(client):
+async def test_toggle_dollar(client: aioredis.Redis):
     await client.json().set(
         "doc1",
         "$",
@@ -982,7 +992,7 @@ async def test_toggle_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_debug_dollar(client):
+async def test_debug_dollar(client: aioredis.Redis):
 
     jdata, jtypes = await load_types_data("a")
 
@@ -1013,7 +1023,7 @@ async def test_debug_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_resp_dollar(client):
+async def test_resp_dollar(client: aioredis.Redis):
 
     data = {
         "L1": {
@@ -1160,7 +1170,7 @@ async def test_resp_dollar(client):
 
 
 @pytest.mark.redismod
-async def test_arrindex_dollar(client):
+async def test_arrindex_dollar(client: aioredis.Redis):
 
     await client.json().set(
         "store",
@@ -1409,7 +1419,7 @@ async def test_decoders_and_unstring():
 
 
 @pytest.mark.redismod
-async def test_custom_decoder(client):
+async def test_custom_decoder(client: aioredis.Redis):
     import json
 
     import ujson

@@ -1,12 +1,12 @@
 import pytest
 
-from aioredis.backoff import NoBackoff
+from aioredis.backoff import AbstractBackoff, NoBackoff
 from aioredis.connection import Connection, UnixDomainSocketConnection
 from aioredis.exceptions import ConnectionError
 from aioredis.retry import Retry
 
 
-class BackoffMock:
+class BackoffMock(AbstractBackoff):
     def __init__(self):
         self.reset_calls = 0
         self.calls = 0
@@ -32,7 +32,7 @@ class TestConnectionConstructorWithRetry:
 
     @pytest.mark.parametrize("retries", range(10))
     @pytest.mark.parametrize("Class", [Connection, UnixDomainSocketConnection])
-    def test_retry_on_timeout_retry(self, Class, retries):
+    def test_retry_on_timeout_retry(self, Class, retries: int):
         retry_on_timeout = retries > 0
         c = Class(retry_on_timeout=retry_on_timeout, retry=Retry(NoBackoff(), retries))
         assert c.retry_on_timeout == retry_on_timeout
@@ -56,7 +56,7 @@ class TestRetry:
 
     @pytest.mark.parametrize("retries", range(10))
     @pytest.mark.asyncio
-    async def test_retry(self, retries):
+    async def test_retry(self, retries: int):
         backoff = BackoffMock()
         retry = Retry(backoff, retries)
         with pytest.raises(ConnectionError):

@@ -1,17 +1,14 @@
 import asyncio
 import types
-from typing import TYPE_CHECKING
-from unittest import mock
 
 import pytest
 
-from aioredis.connection import UnixDomainSocketConnection
+from aioredis.connection import PythonParser, UnixDomainSocketConnection
 from aioredis.exceptions import InvalidResponse
 from aioredis.utils import HIREDIS_AVAILABLE
 from tests.conftest import skip_if_server_version_lt
 
-if TYPE_CHECKING:
-    from aioredis.connection import PythonParser
+from .compat import mock
 
 pytestmark = pytest.mark.asyncio
 
@@ -19,8 +16,10 @@ pytestmark = pytest.mark.asyncio
 @pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
 async def test_invalid_response(r):
     raw = b"x"
+    readline_mock = mock.AsyncMock(return_value=raw)
+
     parser: "PythonParser" = r.connection._parser
-    with mock.patch.object(parser._buffer, "readline", return_value=raw):
+    with mock.patch.object(parser._buffer, "readline", readline_mock):
         with pytest.raises(InvalidResponse) as cm:
             await parser.read_response()
     assert str(cm.value) == "Protocol Error: %r" % raw
