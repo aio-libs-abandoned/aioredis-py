@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from time import sleep
+from asyncio import sleep
 from typing import TYPE_CHECKING, Awaitable, Callable, TypeVar
 
 from aioredis.exceptions import ConnectionError, RedisError, TimeoutError
@@ -57,4 +57,4 @@ class Retry:
                     raise error
                 backoff = self._backoff.compute(failures)
                 if backoff > 0:
-                    sleep(backoff)
+                    await sleep(backoff)
