@@ -88,6 +88,7 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_subscribe_unsubscribe(**kwargs)
 
+    @pytest.mark.onlynoncluster
     async def _test_resubscribe_on_reconnection(
         self, p, sub_type, unsub_type, sub_func, unsub_func, keys
     ):
@@ -181,6 +182,7 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_subscribed_property(**kwargs)
 
+    @pytest.mark.onlynoncluster
     async def test_subscribe_property_with_patterns(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_subscribed_property(**kwargs)
@@ -224,6 +226,7 @@ class TestPubSubSubscribeUnsubscribe:
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_sub_unsub_resub(**kwargs)
 
+    @pytest.mark.onlynoncluster
     async def test_sub_unsub_resub_patterns(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_sub_unsub_resub(**kwargs)
@@ -313,6 +316,7 @@ class TestPubSubMessages:
         assert await wait_for_message(p) is None
         assert self.message == make_message("message", "foo", "test message")
 
+    @pytest.mark.onlynoncluster
     async def test_pattern_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{"f*": self.message_handler})
@@ -333,6 +337,9 @@ class TestPubSubMessages:
         assert await wait_for_message(p) is None
         assert self.message == make_message("message", channel, "test message")
 
+    @pytest.mark.onlynoncluster
+    # see: https://redis-py-cluster.readthedocs.io/en/stable/pubsub.html
+    # #known-limitations-with-pubsub
     async def test_unicode_pattern_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         pattern = "uni" + chr(4456) + "*"
@@ -412,6 +419,7 @@ class TestPubSubAutoDecoding:
             "message", self.channel, self.data
         )
 
+    @pytest.mark.onlynoncluster
     async def test_pattern_publish(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.psubscribe(self.pattern)
@@ -480,6 +488,7 @@ class TestPubSubRedisDown:
 
 
 class TestPubSubSubcommands:
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_channels(self, r: aioredis.Redis):
         p = r.pubsub()
@@ -489,6 +498,7 @@ class TestPubSubSubcommands:
         expected = [b"bar", b"baz", b"foo", b"quux"]
         assert all([channel in await r.pubsub_channels() for channel in expected])
 
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_numsub(self, r: aioredis.Redis):
         p1 = r.pubsub()
@@ -504,7 +514,7 @@ class TestPubSubSubcommands:
         assert (await wait_for_message(p3))["type"] == "subscribe"
 
         channels = [(b"foo", 1), (b"bar", 2), (b"baz", 3)]
-        assert channels == await r.pubsub_numsub("foo", "bar", "baz")
+        assert await r.pubsub_numsub("foo", "bar", "baz") == channels
 
     @skip_if_server_version_lt("2.8.0")
     async def test_pubsub_numpat(self, r: aioredis.Redis):
@@ -535,6 +545,7 @@ class TestPubSubPings:
         )
 
 
+@pytest.mark.onlynoncluster
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
     async def test_connection_error_raised_when_connection_dies(

@@ -89,6 +89,20 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      rediscluster:
+        image: barshaul/redis-py:6.2.6-cluster
+        ports:
+        - 16379:16379/tcp
+        - 16380:16380/tcp
+        - 16381:16381/tcp
+        - 16382:16382/tcp
+        - 16383:16383/tcp
+        - 16384:16384/tcp
+        options: >-
+          --health-cmd 'python -c "import socket;print(True) if all([0 == socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex(('127.0.0.1',port)) for port in range(16379,16384)]) else False"'
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:

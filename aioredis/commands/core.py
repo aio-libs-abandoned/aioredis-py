@@ -44,10 +44,10 @@ if TYPE_CHECKING:
     from aioredis.client import Redis
 
 
-class CoreCommands(CommandsProtocol):
+class ACLCommands(CommandsProtocol):
     """
-    A class containing all of the implemented redis commands. This class is
-    to be used as a mixin.
+    Redis Access Control List (ACL) commands.
+    see: https://redis.io/topics/acl
     """
 
     # SERVER INFORMATION
@@ -317,6 +317,12 @@ class CoreCommands(CommandsProtocol):
         """Get the username for the current connection"""
         return self.execute_command("ACL WHOAMI")
 
+
+class ManagementCommands(CommandsProtocol):
+    """
+    Redis management commands
+    """
+
     def bgrewriteaof(self) -> Awaitable:
         """Tell the Redis server to rewrite the AOF file from data in memory."""
         return self.execute_command("BGREWRITEAOF")
@@ -496,6 +502,14 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("CLIENT UNPAUSE")
 
+    def command_info(self):
+        raise NotImplementedError(
+            "COMMAND INFO is intentionally not implemented in the client."
+        )
+
+    def command_count(self) -> Awaitable:
+        return self.execute_command("COMMAND COUNT")
+
     def readwrite(self) -> Awaitable:
         """Disables read queries for a connection to a Redis Cluster slave node"""
         return self.execute_command("READWRITE")
@@ -519,6 +533,9 @@ class CoreCommands(CommandsProtocol):
     def config_rewrite(self) -> Awaitable:
         """Rewrite config file with the minimal change to reflect running config"""
         return self.execute_command("CONFIG REWRITE")
+
+    def cluster(self, cluster_arg, *args) -> Awaitable:
+        return self.execute_command("CLUSTER %s" % cluster_arg.upper(), *args)
 
     def dbsize(self) -> Awaitable:
         """Returns the number of keys in the current database"""
@@ -695,6 +712,16 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("QUIT")
 
+    def replicaof(self, *args) -> Awaitable:
+        """
+        Update the replication settings of a redis replica, on the fly.
+        Examples of valid arguments include:
+            NO ONE (set no replication)
+            host port (set to the host and port of a redis server)
+        For more information check  https://redis.io/commands/replicaof
+        """
+        return self.execute_command("REPLICAOF", *args)
+
     def save(self) -> Awaitable:
         """
         Tell the Redis server to save its data to disk,
@@ -778,7 +805,12 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("WAIT", num_replicas, timeout)
 
-    # BASIC KEY COMMANDS
+
+class BasicKeyCommands(CommandsProtocol):
+    """
+    Redis basic key-based commands
+    """
+
     def append(self, key: KeyT, value: EncodableT) -> Awaitable:
         """
         Appends the string ``value`` to the value at ``key``. If ``key``
@@ -1469,7 +1501,13 @@ class CoreCommands(CommandsProtocol):
         """Unlink one or more keys specified by ``names``"""
         return self.execute_command("UNLINK", *names)
 
-    # LIST COMMANDS
+
+class ListCommands(CommandsProtocol):
+    """
+    Redis commands for List data type.
+    see: https://redis.io/topics/data-types#lists
+    """
+
     def blpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
         """
         LPOP a value off of the first non-empty list
@@ -1771,7 +1809,13 @@ class CoreCommands(CommandsProtocol):
         options = {"groups": len(get) if groups else None}
         return self.execute_command("SORT", *pieces, **options)
 
-    # SCAN COMMANDS
+
+class ScanCommands(CommandsProtocol):
+    """
+    Redis SCAN commands.
+    see: https://redis.io/commands/scan
+    """
+
     def scan(
         self,
         cursor: int = 0,
@@ -1973,7 +2017,13 @@ class CoreCommands(CommandsProtocol):
             for d in data:
                 yield d
 
-    # SET COMMANDS
+
+class SetCommands(CommandsProtocol):
+    """
+    Redis commands for Set data type.
+    see: https://redis.io/topics/data-types#sets
+    """
+
     def sadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Add ``value(s)`` to set ``name``"""
         return self.execute_command("SADD", name, *values)
@@ -2089,7 +2139,13 @@ class CoreCommands(CommandsProtocol):
         args = list_or_args(keys, args)
         return self.execute_command("SUNIONSTORE", dest, *args)
 
-    # STREAMS COMMANDS
+
+class StreamCommands(CommandsProtocol):
+    """
+    Redis commands for Stream data type.
+    see: https://redis.io/topics/streams-intro
+    """
+
     def xack(
         self,
         name: KeyT,
@@ -2617,7 +2673,13 @@ class CoreCommands(CommandsProtocol):
 
         return self.execute_command("XTRIM", name, *pieces)
 
-    # SORTED SET COMMANDS
+
+class SortedSetCommands(CommandsProtocol):
+    """
+    Redis commands for Sorted Sets data type.
+    see: https://redis.io/topics/data-types-intro#redis-sorted-sets
+    """
+
     def zadd(
         self,
         name: KeyT,
@@ -3272,7 +3334,13 @@ class CoreCommands(CommandsProtocol):
             pieces.append(b"WITHSCORES")
         return self.execute_command(*pieces, **options)
 
-    # HYPERLOGLOG COMMANDS
+
+class HyperlogCommands(CommandsProtocol):
+    """
+    Redis commands of HyperLogLogs data type.
+    see: https://redis.io/topics/data-types-intro#hyperloglogs
+    """
+
     def pfadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
         """Adds the specified elements to the specified HyperLogLog."""
         return self.execute_command("PFADD", name, *values)
@@ -3288,7 +3356,13 @@ class CoreCommands(CommandsProtocol):
         """Merge N different HyperLogLogs into a single one."""
         return self.execute_command("PFMERGE", dest, *sources)
 
-    # HASH COMMANDS
+
+class HashCommands(CommandsProtocol):
+    """
+    Redis commands for Hash data type.
+    see: https://redis.io/topics/data-types-intro#redis-hashes
+    """
+
     def hdel(self, name: KeyT, *keys: FieldT) -> Awaitable:
         """Delete ``keys`` from hash ``name``"""
         return self.execute_command("HDEL", name, *keys)
@@ -3412,6 +3486,13 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("HSTRLEN", name, key)
 
+
+class PubSubCommands(CommandsProtocol):
+    """
+    Redis PubSub commands.
+    see https://redis.io/topics/pubsub
+    """
+
     def publish(
         self,
         channel: ChannelT,
@@ -3442,18 +3523,12 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("PUBSUB NUMSUB", *args)
 
-    def cluster(self, cluster_arg: str, *args: str) -> Awaitable:
-        return self.execute_command(f"CLUSTER {cluster_arg.upper()}", *args)
 
-    def replicaof(self, *args):
-        """
-        Update the replication settings of a redis replica, on the fly.
-        Examples of valid arguments include:
-            NO ONE (set no replication)
-            host port (set to the host and port of a redis server)
-        see: https://redis.io/commands/replicaof
-        """
-        return self.execute_command("REPLICAOF", *args)
+class ScriptCommands(CommandsProtocol):
+    """
+    Redis Lua script commands. see:
+    https://redis.com/ebook/part-3-next-steps/chapter-11-scripting-redis-with-lua/
+    """
 
     def eval(
         self,
@@ -3496,7 +3571,7 @@ class CoreCommands(CommandsProtocol):
         """
         return self.execute_command("SCRIPT EXISTS", *args)
 
-    def script_debug(self, *args):
+    async def script_debug(self, *args) -> None:
         raise NotImplementedError(
             "SCRIPT DEBUG is intentionally not implemented in the client."
         )
@@ -3541,7 +3616,13 @@ class CoreCommands(CommandsProtocol):
         """
         return Script(self, script)
 
-    # GEO COMMANDS
+
+class GeoCommands(CommandsProtocol):
+    """
+    Redis Geospatial commands.
+    see: https://redis.com/redis-best-practices/indexing-patterns/geospatial/
+    """
+
     def geoadd(
         self,
         name: KeyT,
@@ -3945,7 +4026,13 @@ class CoreCommands(CommandsProtocol):
 
         return self.execute_command(command, *pieces, **kwargs)
 
-    # MODULE COMMANDS
+
+class ModuleCommands(CommandsProtocol):
+    """
+    Redis Module commands.
+    see: https://redis.io/topics/modules-intro
+    """
+
     def module_load(self, path: str, *args: EncodableT) -> Awaitable:
         """
         Loads the module from ``path``.
@@ -3981,7 +4068,9 @@ class CoreCommands(CommandsProtocol):
 
 
 class Script:
-    """An executable Lua script object returned by ``register_script``"""
+    """
+    An executable Lua script object returned by ``register_script``
+    """
 
     def __init__(self, registered_client: Redis, script: ScriptTextT):
         self.registered_client = registered_client
@@ -4127,3 +4216,34 @@ class BitFieldOperation:
         command = self.command
         self.reset()
         return self.client.execute_command(*command)
+
+
+class DataAccessCommands(
+    BasicKeyCommands,
+    ListCommands,
+    ScanCommands,
+    SetCommands,
+    StreamCommands,
+    SortedSetCommands,
+    HyperlogCommands,
+    HashCommands,
+    GeoCommands,
+):
+    """
+    A class containing all of the implemented data access redis commands.
+    This class is to be used as a mixin.
+    """
+
+
+class CoreCommands(
+    ACLCommands,
+    DataAccessCommands,
+    ManagementCommands,
+    ModuleCommands,
+    PubSubCommands,
+    ScriptCommands,
+):
+    """
+    A class containing all of the implemented redis commands. This class is
+    to be used as a mixin.
+    """

@@ -512,6 +512,7 @@ class TestConnection:
         assert len(pool._available_connections) == 1
         assert not pool._available_connections[0]._reader
 
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
     @skip_if_redis_enterprise
     async def test_busy_loading_disconnects_socket(self, r):
@@ -524,6 +525,7 @@ class TestConnection:
         if r.connection:
             assert not r.connection._reader
 
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
     @skip_if_redis_enterprise
     async def test_busy_loading_from_pipeline_immediate_command(self, r):
@@ -541,6 +543,7 @@ class TestConnection:
         assert len(pool._available_connections) == 1
         assert not pool._available_connections[0]._reader
 
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.8.8")
     @skip_if_redis_enterprise
     async def test_busy_loading_from_pipeline(self, r):
@@ -602,6 +605,7 @@ class TestConnection:
             await r.execute_command("DEBUG", "ERROR", "ERR invalid password")
 
 
+@pytest.mark.onlynoncluster
 class TestMultiConnectionClient:
     @pytest.fixture()
     async def r(self, create_redis, server):
@@ -610,6 +614,7 @@ class TestMultiConnectionClient:
         await redis.flushall()
 
 
+@pytest.mark.onlynoncluster
 class TestHealthCheck:
     interval = 60
 

@@ -20,6 +20,7 @@ return "hello " .. name
 """
 
 
+@pytest.mark.onlynoncluster
 class TestScripting:
     @pytest.fixture
     async def r(self, create_redis):

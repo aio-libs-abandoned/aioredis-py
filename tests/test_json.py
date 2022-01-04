@@ -1399,6 +1399,7 @@ async def test_arrindex_dollar(client: aioredis.Redis):
     )
 
 
+@pytest.mark.onlynoncluster
 async def test_decoders_and_unstring():
     assert unstring("4") == 4
     assert unstring("45.55") == 45.55

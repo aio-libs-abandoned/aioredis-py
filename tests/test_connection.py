@@ -13,6 +13,7 @@ from .compat import mock
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.onlynoncluster
 @pytest.mark.skipif(HIREDIS_AVAILABLE, reason="PythonParser only")
 async def test_invalid_response(r):
     raw = b"x"

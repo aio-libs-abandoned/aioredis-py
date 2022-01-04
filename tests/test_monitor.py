@@ -9,6 +9,7 @@ from .conftest import (
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.onlynoncluster
 class TestMonitor:
     async def test_wait_command_not_found(self, r):
         """Make sure the wait_for_command func works when command is not found"""

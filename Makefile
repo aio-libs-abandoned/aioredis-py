@@ -64,4 +64,5 @@ certificate:
 
 
 ci-test:
-	$(PYTEST) --cov --cov-append --cov-report=xml
+	$(PYTEST) --cov --cov-append --cov-report=xml:coverage_redis.xml -m 'not onlycluster'
+	$(PYTEST) --cov --cov-append --cov-report=xml:coverage_cluster.xml -m 'not onlynotcluster and not redismod' --redis-url="redis://localhost:16379/0"

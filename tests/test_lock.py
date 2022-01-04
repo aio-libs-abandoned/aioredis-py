@@ -8,6 +8,7 @@ from aioredis.lock import Lock
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.onlynoncluster
 class TestLock:
     @pytest.fixture()
     async def r_decoded(self, create_redis):
@@ -223,6 +224,7 @@ class TestLock:
             await lock.reacquire()
 
 
+@pytest.mark.onlynoncluster
 class TestLockClassSelection:
     def test_lock_class_argument(self, r):
         class MyLock:

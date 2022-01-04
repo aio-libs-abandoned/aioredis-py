@@ -53,6 +53,7 @@ class TestPipeline:
             await pipe.execute()
             assert len(pipe) == 0
 
+    @pytest.mark.onlynoncluster
     async def test_pipeline_no_transaction(self, r):
         async with r.pipeline(transaction=False) as pipe:
             pipe.set("a", "a1").set("b", "b1").set("c", "c1")
@@ -132,6 +133,7 @@ class TestPipeline:
             assert await pipe.set("z", "zzz").execute() == [True]
             assert await r.get("z") == b"zzz"
 
+    @pytest.mark.onlynoncluster
     async def test_transaction_with_empty_error_command(self, r):
         """
         Commands with custom EMPTY_ERROR functionality return their default
@@ -146,6 +148,7 @@ class TestPipeline:
                 assert result[1] == []
                 assert result[2]
 
+    @pytest.mark.onlynoncluster
     async def test_pipeline_with_empty_error_command(self, r):
         """
         Commands with custom EMPTY_ERROR functionality return their default
@@ -175,6 +178,7 @@ class TestPipeline:
             assert await pipe.set("z", "zzz").execute() == [True]
             assert await r.get("z") == b"zzz"
 
+    @pytest.mark.onlynoncluster
     async def test_parse_error_raised_transaction(self, r):
         async with r.pipeline() as pipe:
             pipe.multi()
@@ -191,6 +195,7 @@ class TestPipeline:
             assert await pipe.set("z", "zzz").execute() == [True]
             assert await r.get("z") == b"zzz"
 
+    @pytest.mark.onlynoncluster
     async def test_watch_succeed(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -208,6 +213,7 @@ class TestPipeline:
             assert await pipe.execute() == [True]
             assert not pipe.watching
 
+    @pytest.mark.onlynoncluster
     async def test_watch_failure(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -222,6 +228,7 @@ class TestPipeline:
 
             assert not pipe.watching
 
+    @pytest.mark.onlynoncluster
     async def test_watch_failure_in_empty_transaction(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -235,6 +242,7 @@ class TestPipeline:
 
             assert not pipe.watching
 
+    @pytest.mark.onlynoncluster
     async def test_unwatch(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -247,6 +255,7 @@ class TestPipeline:
             pipe.get("a")
             assert await pipe.execute() == [b"1"]
 
+    @pytest.mark.onlynoncluster
     async def test_watch_exec_no_unwatch(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -267,6 +276,7 @@ class TestPipeline:
             unwatch_command = await wait_for_command(r, m, "UNWATCH")
             assert unwatch_command is None, "should not send UNWATCH"
 
+    @pytest.mark.onlynoncluster
     async def test_watch_reset_unwatch(self, r):
         await r.set("a", 1)
 
@@ -281,6 +291,7 @@ class TestPipeline:
             assert unwatch_command is not None
             assert unwatch_command["command"] == "UNWATCH"
 
+    @pytest.mark.onlynoncluster
     async def test_transaction_callable(self, r):
         await r.set("a", 1)
         await r.set("b", 2)
@@ -305,6 +316,7 @@ class TestPipeline:
         assert result == [True]
         assert await r.get("c") == b"4"
 
+    @pytest.mark.onlynoncluster
     async def test_transaction_callable_returns_value_from_callable(self, r):
         async def callback(pipe):
             # No need to do anything here since we only want the return value
@@ -367,6 +379,7 @@ class TestPipeline:
             await pipe.get("a")
             assert await pipe.execute() == [b"a1"]
 
+    @pytest.mark.onlynoncluster
     @skip_if_server_version_lt("2.0.0")
     async def test_pipeline_discard(self, r):
 

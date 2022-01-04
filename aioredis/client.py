@@ -26,7 +26,12 @@ from typing import (
     cast,
 )
 
-from aioredis.commands import CoreCommands, RedisModuleCommands, list_or_args
+from aioredis.commands import (
+    CoreCommands,
+    RedisModuleCommands,
+    SentinelCommands,
+    list_or_args,
+)
 from aioredis.compat import Protocol, TypedDict
 from aioredis.connection import (
     Connection,
@@ -489,6 +494,7 @@ def parse_cluster_info(response, **options):
 def _parse_node_line(line):
     line_items = line.split(" ")
     node_id, addr, flags, master_id, ping, pong, epoch, connected = line.split(" ")[:8]
+    addr = addr.split("@")[0]
     slots = [sl.split("-") for sl in line_items[8:]]
     node_dict = {
         "node_id": node_id,
@@ -504,8 +510,13 @@ def _parse_node_line(line):
 
 
 def parse_cluster_nodes(response, **options):
-    raw_lines = str_if_bytes(response).splitlines()
-    return dict(_parse_node_line(line) for line in raw_lines)
+    """
+    @see: https://redis.io/commands/cluster-nodes  # string
+    @see: https://redis.io/commands/cluster-replicas # list of string
+    """
+    if isinstance(response, str):
+        response = response.splitlines()
+    return dict(_parse_node_line(str_if_bytes(node)) for node in response)
 
 
 def parse_geosearch_generic(response, **options):
@@ -539,6 +550,21 @@ def parse_geosearch_generic(response, **options):
     f = [lambda x: x]
     f += [cast[o] for o in ["withdist", "withhash", "withcoord"] if options[o]]
     return [list(map(lambda fv: fv[0](fv[1]), zip(f, r))) for r in response_list]
+
+
+def parse_command(response, **options):
+    commands = {}
+    for command in response:
+        cmd_dict = {}
+        cmd_name = str_if_bytes(command[0])
+        cmd_dict["name"] = cmd_name
+        cmd_dict["arity"] = int(command[1])
+        cmd_dict["flags"] = [str_if_bytes(flag) for flag in command[2]]
+        cmd_dict["first_key_pos"] = command[3]
+        cmd_dict["last_key_pos"] = command[4]
+        cmd_dict["step_count"] = command[5]
+        commands[cmd_name] = cmd_dict
+    return commands
 
 
 def parse_pubsub_numsub(response, **options):
@@ -661,7 +687,7 @@ ResponseCallbackT = Union[ResponseCallbackProtocol, AsyncResponseCallbackProtoco
 _R = TypeVar("_R")
 
 
-class Redis(RedisModuleCommands, CoreCommands):
+class Redis(RedisModuleCommands, CoreCommands, SentinelCommands):
     """
     Implementation of the Redis protocol.
 
@@ -755,7 +781,10 @@ class Redis(RedisModuleCommands, CoreCommands):
         "CLUSTER SET-CONFIG-EPOCH": bool_ok,
         "CLUSTER SETSLOT": bool_ok,
         "CLUSTER SLAVES": parse_cluster_nodes,
+        "CLUSTER REPLICAS": parse_cluster_nodes,
+        "COMMAND": parse_command,
         "COMMAND COUNT": int,
+        "COMMAND GETKEYS": lambda r: list(map(str_if_bytes, r)),
         "CONFIG GET": parse_config_get,
         "CONFIG RESETSTAT": bool_ok,
         "CONFIG SET": bool_ok,
@@ -1301,6 +1330,7 @@ class PubSub:
         connection_pool: ConnectionPool,
         shard_hint: Optional[str] = None,
         ignore_subscribe_messages: bool = False,
+        encoder=None,
     ):
         self.connection_pool = connection_pool
         self.shard_hint = shard_hint
@@ -1308,7 +1338,9 @@ class PubSub:
         self.connection = None
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
-        self.encoder = self.connection_pool.get_encoder()
+        self.encoder = encoder
+        if self.encoder is None:
+            self.encoder = self.connection_pool.get_encoder()
         if self.encoder.decode_responses:
             self.health_check_response: Iterable[Union[str, bytes]] = [
                 "pong",

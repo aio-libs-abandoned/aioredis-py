@@ -574,6 +574,7 @@ class Connection:
         "socket_keepalive",
         "socket_keepalive_options",
         "socket_type",
+        "redis_connect_func",
         "retry_on_timeout",
         "health_check_interval",
         "next_health_check",
@@ -586,6 +587,7 @@ class Connection:
         "_connect_callbacks",
         "_buffer_cutoff",
         "_lock",
+        "_socket_read_size",
         "__dict__",
     )
 
@@ -611,6 +613,7 @@ class Connection:
         client_name: Optional[str] = None,
         username: Optional[str] = None,
         retry: Optional[Retry] = None,
+        redis_connect_func: Optional[ConnectCallbackT] = None,
         encoder_class: Type[Encoder] = Encoder,
     ):
         self.pid = os.getpid()
@@ -638,11 +641,11 @@ class Connection:
         self.next_health_check: float = -1
         self.ssl_context: Optional[RedisSSLContext] = None
         self.encoder = encoder_class(encoding, encoding_errors, decode_responses)
+        self.redis_connect_func = redis_connect_func
         self._reader: Optional[asyncio.StreamReader] = None
         self._writer: Optional[asyncio.StreamWriter] = None
-        self._parser = parser_class(
-            socket_read_size=socket_read_size,
-        )
+        self._socket_read_size = socket_read_size
+        self.set_parser(parser_class)
         self._connect_callbacks: List[weakref.WeakMethod[ConnectCallbackT]] = []
         self._buffer_cutoff = 6000
         self._lock = asyncio.Lock()
@@ -679,6 +682,14 @@ class Connection:
     def clear_connect_callbacks(self):
         self._connect_callbacks = []
 
+    def set_parser(self, parser_class):
+        """
+        Creates a new instance of parser_class with socket size:
+        _socket_read_size and assigns it to the parser for the connection
+        :param parser_class: The required parser class
+        """
+        self._parser = parser_class(socket_read_size=self._socket_read_size)
+
     async def connect(self):
         """Connects to the Redis server if not already connected"""
         if self.is_connected:
@@ -695,7 +706,14 @@ class Connection:
             raise ConnectionError(exc) from exc
 
         try:
-            await self.on_connect()
+            if self.redis_connect_func is None:
+                # Use the default on_connect function
+                await self.on_connect()
+            else:
+                # Use the passed function redis_connect_func
+                await self.redis_connect_func(self) if asyncio.iscoroutinefunction(
+                    self.redis_connect_func
+                ) else self.redis_connect_func(self)
         except RedisError:
             # clean up after any error in on_connect
             await self.disconnect()
@@ -1126,7 +1144,8 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._sock = None
         self._reader = None
         self._writer = None
-        self._parser = parser_class(socket_read_size=socket_read_size)
+        self._socket_read_size = socket_read_size
+        self.set_parser(parser_class)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
         self._lock = asyncio.Lock()
