@@ -47,11 +47,11 @@ class TestRetry:
         self.actual_attempts = 0
         self.actual_failures = 0
 
-    def _do(self):
+    async def _do(self):
         self.actual_attempts += 1
         raise ConnectionError()
 
-    def _fail(self, error):
+    async def _fail(self, error):
         self.actual_failures += 1
 
     @pytest.mark.parametrize("retries", range(10))
