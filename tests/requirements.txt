@@ -8,3 +8,4 @@ pytest-asyncio==0.16.0
 pytest-cov==3.0.0
 pytest-sugar==0.9.4
 pytest-xdist==2.4.0
+ujson==4.2.0

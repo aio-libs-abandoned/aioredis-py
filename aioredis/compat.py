@@ -1,8 +1,9 @@
-import sys
-
-if sys.version_info >= (3, 8):
-    from typing import Protocol, TypedDict
-else:
-    from typing_extensions import Protocol, TypedDict
-
-__all__ = ("Protocol", "TypedDict")
+# flake8: noqa
+try:
+    from typing import Literal, Protocol, TypedDict  # lgtm [py/unused-import]
+except ImportError:
+    from typing_extensions import (  # lgtm [py/unused-import]
+        Literal,
+        Protocol,
+        TypedDict,
+    )

@@ -47,7 +47,6 @@ repos:
   - id: check-xml
   - id: check-yaml
   - id: debug-statements
-  - id: check-added-large-files
   - id: check-symlinks
   - id: debug-statements
   - id: detect-aws-credentials

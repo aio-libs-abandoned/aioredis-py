@@ -1,11 +1,11 @@
 import asyncio
-import threading
-import time
+from typing import Optional
 
 import pytest
 
 import aioredis
 from aioredis.exceptions import ConnectionError
+from aioredis.typing import EncodableT
 
 from .compat import mock
 from .conftest import skip_if_server_version_lt
@@ -27,7 +27,9 @@ async def wait_for_message(pubsub, timeout=0.1, ignore_subscribe_messages=False)
     return None
 
 
-def make_message(type, channel, data, pattern=None):
+def make_message(
+    type, channel: Optional[str], data: EncodableT, pattern: Optional[str] = None
+):
     return {
         "type": type,
         "pattern": pattern and pattern.encode("utf-8") or None,
@@ -78,11 +80,11 @@ class TestPubSubSubscribeUnsubscribe:
             i = len(keys) - 1 - i
             assert await wait_for_message(p) == make_message(unsub_type, key, i)
 
-    async def test_channel_subscribe_unsubscribe(self, r):
+    async def test_channel_subscribe_unsubscribe(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_subscribe_unsubscribe(**kwargs)
 
-    async def test_pattern_subscribe_unsubscribe(self, r):
+    async def test_pattern_subscribe_unsubscribe(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_subscribe_unsubscribe(**kwargs)
 
@@ -120,11 +122,11 @@ class TestPubSubSubscribeUnsubscribe:
         for channel in unique_channels:
             assert channel in keys
 
-    async def test_resubscribe_to_channels_on_reconnection(self, r):
+    async def test_resubscribe_to_channels_on_reconnection(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_resubscribe_on_reconnection(**kwargs)
 
-    async def test_resubscribe_to_patterns_on_reconnection(self, r):
+    async def test_resubscribe_to_patterns_on_reconnection(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_resubscribe_on_reconnection(**kwargs)
 
@@ -175,15 +177,15 @@ class TestPubSubSubscribeUnsubscribe:
         # now we're finally unsubscribed
         assert p.subscribed is False
 
-    async def test_subscribe_property_with_channels(self, r):
+    async def test_subscribe_property_with_channels(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_subscribed_property(**kwargs)
 
-    async def test_subscribe_property_with_patterns(self, r):
+    async def test_subscribe_property_with_patterns(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_subscribed_property(**kwargs)
 
-    async def test_ignore_all_subscribe_messages(self, r):
+    async def test_ignore_all_subscribe_messages(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
 
         checks = (
@@ -200,7 +202,7 @@ class TestPubSubSubscribeUnsubscribe:
             assert await wait_for_message(p) is None
         assert p.subscribed is False
 
-    async def test_ignore_individual_subscribe_messages(self, r):
+    async def test_ignore_individual_subscribe_messages(self, r: aioredis.Redis):
         p = r.pubsub()
 
         checks = (
@@ -218,11 +220,11 @@ class TestPubSubSubscribeUnsubscribe:
             assert message is None
         assert p.subscribed is False
 
-    async def test_sub_unsub_resub_channels(self, r):
+    async def test_sub_unsub_resub_channels(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_sub_unsub_resub(**kwargs)
 
-    async def test_sub_unsub_resub_patterns(self, r):
+    async def test_sub_unsub_resub_patterns(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_sub_unsub_resub(**kwargs)
 
@@ -240,11 +242,11 @@ class TestPubSubSubscribeUnsubscribe:
         assert await wait_for_message(p) == make_message(sub_type, key, 1)
         assert p.subscribed is True
 
-    async def test_sub_unsub_all_resub_channels(self, r):
+    async def test_sub_unsub_all_resub_channels(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "channel")
         await self._test_sub_unsub_all_resub(**kwargs)
 
-    async def test_sub_unsub_all_resub_patterns(self, r):
+    async def test_sub_unsub_all_resub_patterns(self, r: aioredis.Redis):
         kwargs = make_subscribe_test_data(r.pubsub(), "pattern")
         await self._test_sub_unsub_all_resub(**kwargs)
 
@@ -270,7 +272,7 @@ class TestPubSubMessages:
     def message_handler(self, message):
         self.message = message
 
-    async def test_published_message_to_channel(self, r):
+    async def test_published_message_to_channel(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
@@ -280,7 +282,7 @@ class TestPubSubMessages:
         assert isinstance(message, dict)
         assert message == make_message("message", "foo", "test message")
 
-    async def test_published_message_to_pattern(self, r):
+    async def test_published_message_to_pattern(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe("foo")
         await p.psubscribe("f*")
@@ -303,7 +305,7 @@ class TestPubSubMessages:
         assert message2 in expected
         assert message1 != message2
 
-    async def test_channel_message_handler(self, r):
+    async def test_channel_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(foo=self.message_handler)
         assert await wait_for_message(p) is None
@@ -311,7 +313,7 @@ class TestPubSubMessages:
         assert await wait_for_message(p) is None
         assert self.message == make_message("message", "foo", "test message")
 
-    async def test_pattern_message_handler(self, r):
+    async def test_pattern_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.psubscribe(**{"f*": self.message_handler})
         assert await wait_for_message(p) is None
@@ -321,7 +323,7 @@ class TestPubSubMessages:
             "pmessage", "foo", "test message", pattern="f*"
         )
 
-    async def test_unicode_channel_message_handler(self, r):
+    async def test_unicode_channel_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         channel = "uni" + chr(4456) + "code"
         channels = {channel: self.message_handler}
@@ -331,7 +333,7 @@ class TestPubSubMessages:
         assert await wait_for_message(p) is None
         assert self.message == make_message("message", channel, "test message")
 
-    async def test_unicode_pattern_message_handler(self, r):
+    async def test_unicode_pattern_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         pattern = "uni" + chr(4456) + "*"
         channel = "uni" + chr(4456) + "code"
@@ -343,7 +345,7 @@ class TestPubSubMessages:
             "pmessage", channel, "test message", pattern=pattern
         )
 
-    async def test_get_message_without_subscribe(self, r):
+    async def test_get_message_without_subscribe(self, r: aioredis.Redis):
         p = r.pubsub()
         with pytest.raises(RuntimeError) as info:
             await p.get_message()
@@ -375,7 +377,7 @@ class TestPubSubAutoDecoding:
             decode_responses=True,
         )
 
-    async def test_channel_subscribe_unsubscribe(self, r):
+    async def test_channel_subscribe_unsubscribe(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe(self.channel)
         assert await wait_for_message(p) == self.make_message(
@@ -387,7 +389,7 @@ class TestPubSubAutoDecoding:
             "unsubscribe", self.channel, 0
         )
 
-    async def test_pattern_subscribe_unsubscribe(self, r):
+    async def test_pattern_subscribe_unsubscribe(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.psubscribe(self.pattern)
         assert await wait_for_message(p) == self.make_message(
@@ -399,7 +401,7 @@ class TestPubSubAutoDecoding:
             "punsubscribe", self.pattern, 0
         )
 
-    async def test_channel_publish(self, r):
+    async def test_channel_publish(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe(self.channel)
         assert await wait_for_message(p) == self.make_message(
@@ -410,7 +412,7 @@ class TestPubSubAutoDecoding:
             "message", self.channel, self.data
         )
 
-    async def test_pattern_publish(self, r):
+    async def test_pattern_publish(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.psubscribe(self.pattern)
         assert await wait_for_message(p) == self.make_message(
@@ -421,7 +423,7 @@ class TestPubSubAutoDecoding:
             "pmessage", self.channel, self.data, pattern=self.pattern
         )
 
-    async def test_channel_message_handler(self, r):
+    async def test_channel_message_handler(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(**{self.channel: self.message_handler})
         assert await wait_for_message(p) is None
@@ -470,7 +472,7 @@ class TestPubSubAutoDecoding:
 
 
 class TestPubSubRedisDown:
-    async def test_channel_subscribe(self, r):
+    async def test_channel_subscribe(self, r: aioredis.Redis):
         r = aioredis.Redis(host="localhost", port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
@@ -479,7 +481,7 @@ class TestPubSubRedisDown:
 
 class TestPubSubSubcommands:
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_channels(self, r):
+    async def test_pubsub_channels(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe("foo", "bar", "baz", "quux")
         for i in range(4):
@@ -488,7 +490,7 @@ class TestPubSubSubcommands:
         assert all([channel in await r.pubsub_channels() for channel in expected])
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numsub(self, r):
+    async def test_pubsub_numsub(self, r: aioredis.Redis):
         p1 = r.pubsub()
         await p1.subscribe("foo", "bar", "baz")
         for i in range(3):
@@ -505,7 +507,7 @@ class TestPubSubSubcommands:
         assert channels == await r.pubsub_numsub("foo", "bar", "baz")
 
     @skip_if_server_version_lt("2.8.0")
-    async def test_pubsub_numpat(self, r):
+    async def test_pubsub_numpat(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.psubscribe("*oo", "*ar", "b*z")
         for i in range(3):
@@ -515,7 +517,7 @@ class TestPubSubSubcommands:
 
 class TestPubSubPings:
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping(self, r):
+    async def test_send_pubsub_ping(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping()
@@ -524,7 +526,7 @@ class TestPubSubPings:
         )
 
     @skip_if_server_version_lt("3.0.0")
-    async def test_send_pubsub_ping_message(self, r):
+    async def test_send_pubsub_ping_message(self, r: aioredis.Redis):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe("foo")
         await p.ping(message="hello world")
@@ -535,7 +537,9 @@ class TestPubSubPings:
 
 class TestPubSubConnectionKilled:
     @skip_if_server_version_lt("3.0.0")
-    async def test_connection_error_raised_when_connection_dies(self, r):
+    async def test_connection_error_raised_when_connection_dies(
+        self, r: aioredis.Redis
+    ):
         p = r.pubsub()
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
@@ -547,7 +551,7 @@ class TestPubSubConnectionKilled:
 
 
 class TestPubSubTimeouts:
-    async def test_get_message_with_timeout_returns_none(self, r):
+    async def test_get_message_with_timeout_returns_none(self, r: aioredis.Redis):
         p = r.pubsub()
         await p.subscribe("foo")
         assert await wait_for_message(p) == make_message("subscribe", "foo", 1)
@@ -568,7 +572,7 @@ class TestPubSubRun:
             ):
                 return
 
-    async def test_callbacks(self, r):
+    async def test_callbacks(self, r: aioredis.Redis):
         def callback(message):
             messages.put_nowait(message)
 
@@ -590,7 +594,7 @@ class TestPubSubRun:
             "type": "message",
         }
 
-    async def test_exception_handler(self, r):
+    async def test_exception_handler(self, r: aioredis.Redis):
         def exception_handler_callback(e, pubsub) -> None:
             assert pubsub == p
             exceptions.put_nowait(e)

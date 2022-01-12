@@ -1,8 +1,10 @@
+import asyncio
 import random
 import weakref
 from typing import AsyncIterator, Iterable, Mapping, Sequence, Tuple, Type
 
 from aioredis.client import Redis
+from aioredis.commands import SentinelCommands
 from aioredis.connection import Connection, ConnectionPool, EncodableT, SSLConnection
 from aioredis.exceptions import (
     ConnectionError,
@@ -21,15 +23,10 @@ class SlaveNotFoundError(ConnectionError):
     pass
 
 
-class SentinelManagedConnection(SSLConnection):
+class SentinelManagedConnection(Connection):
     def __init__(self, **kwargs):
         self.connection_pool = kwargs.pop("connection_pool")
-        if not kwargs.pop("ssl", False):
-            # use constructor from Connection class
-            super(SSLConnection, self).__init__(**kwargs)
-        else:
-            # use constructor from SSLConnection class
-            super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __repr__(self):
         pool = self.connection_pool
@@ -75,6 +72,10 @@ class SentinelManagedConnection(SSLConnection):
             raise
 
 
+class SentinelManagedSSLConnection(SentinelManagedConnection, SSLConnection):
+    pass
+
+
 class SentinelConnectionPool(ConnectionPool):
     """
     Sentinel backed connection pool.
@@ -85,7 +86,10 @@ class SentinelConnectionPool(ConnectionPool):
 
     def __init__(self, service_name, sentinel_manager, **kwargs):
         kwargs["connection_class"] = kwargs.get(
-            "connection_class", SentinelManagedConnection
+            "connection_class",
+            SentinelManagedSSLConnection
+            if kwargs.pop("ssl", False)
+            else SentinelManagedConnection,
         )
         self.is_master = kwargs.pop("is_master", True)
         self.check_connection = kwargs.pop("check_connection", False)
@@ -141,7 +145,7 @@ class SentinelConnectionPool(ConnectionPool):
         raise SlaveNotFoundError(f"No slave found for {self.service_name!r}")
 
 
-class Sentinel:
+class Sentinel(SentinelCommands):
     """
     Redis Sentinel cluster client
 
@@ -191,6 +195,26 @@ class Sentinel:
         ]
         self.min_other_sentinels = min_other_sentinels
         self.connection_kwargs = connection_kwargs
+
+    async def execute_command(self, *args, **kwargs):
+        """
+        Execute Sentinel command in sentinel nodes.
+        once - If set to True, then execute the resulting command on a single
+               node at random, rather than across the entire sentinel cluster.
+        """
+        once = bool(kwargs.get("once", False))
+        if "once" in kwargs.keys():
+            kwargs.pop("once")
+
+        if once:
+            tasks = [
+                asyncio.create_task(sentinel.execute_command(*args, **kwargs))
+                for sentinel in self.sentinels
+            ]
+            await asyncio.gather(*tasks)
+        else:
+            await random.choice(self.sentinels).execute_command(*args, **kwargs)
+        return True
 
     def __repr__(self):
         sentinel_addresses = []
@@ -268,7 +292,7 @@ class Sentinel:
         Returns a redis client instance for the ``service_name`` master.
 
         A :py:class:`~redis.sentinel.SentinelConnectionPool` class is
-        used to retrive the master's address before establishing a new
+        used to retrieve the master's address before establishing a new
         connection.
 
         NOTE: If the master's address has changed, any cached connections to
@@ -305,7 +329,7 @@ class Sentinel:
         """
         Returns redis client instance for the ``service_name`` slave(s).
 
-        A SentinelConnectionPool class is used to retrive the slave's
+        A SentinelConnectionPool class is used to retrieve the slave's
         address before establishing a new connection.
 
         By default clients will be a :py:class:`~redis.Redis` instance.

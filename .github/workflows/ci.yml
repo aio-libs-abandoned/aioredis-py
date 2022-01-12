@@ -43,6 +43,7 @@ jobs:
       run: |
         pip install -r tests/requirements-mypy.txt
         mypy
+      continue-on-error: true
     - name: Run linter
       run: |
         make lint
@@ -60,14 +61,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        pyver: ["3.6", "3.7", "3.8", "3.9", "3.10", pypy3]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "pypy-3.7", "pypy-3.8"]
         uvloop: [uvloop, no-uvloop]
-        redis: [5.0.10, 6.2.4]
+        redis: [6.2.4]
         exclude:
-        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: pypy3, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 5.0.10 }
-        - { pyver: 3.6, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
+        - { pyver: pypy-3.7, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
+        - { pyver: pypy-3.8, uvloop: uvloop, os: ubuntu-latest, redis: 6.2.4 }
       fail-fast: false
     services:
       redis:
@@ -76,6 +75,15 @@ jobs:
         # Maps port 6379 on service container to the host
         - 6379:6379
         # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redismod:
+        image: redislabs/redismod:edge
+        ports:
+        - 36379:6379/tcp
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s

@@ -20,7 +20,7 @@ based on asyncio.
 | ACL support                  | :white_check_mark:       |
 | Streams support              | :white_check_mark:       |
 | Redis Cluster support        | :no_entry_sign:          |
-| Tested Python versions       | 3.6, 3.7, 3.8, 3.9, 3.10 |
+| Tested Python versions       | 3.7, 3.8, 3.9, 3.10      |
 | Tested for Redis servers     | 5.0, 6.0                 |
 | Support for dev Redis server | through low-level API    |
 
@@ -37,7 +37,7 @@ Recommended with hiredis for performance and stability reasons:
 
 ## Requirements
 
--   Python 3.6+
+-   Python 3.7+
 -   hiredis (Optional but recommended)
 -   async-timeout
 -   typing-extensions
