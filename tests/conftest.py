@@ -292,7 +292,7 @@ async def wait_for_command(client: aioredis.Redis, monitor: Monitor, command: st
     if StrictVersion(redis_version) >= StrictVersion("5.0.0"):
         id_str = str(await client.client_id())
     else:
-        id_str = "%08x" % random.randrange(2 ** 32)
+        id_str = "%08x" % random.randrange(2**32)
     key = "__REDIS-PY-%s__" % id_str
     await client.get(key)
     while True:
