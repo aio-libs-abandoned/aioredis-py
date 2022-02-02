@@ -270,6 +270,9 @@ class TestPubSubMessages:
     def message_handler(self, message):
         self.message = message
 
+    async def async_message_handler(self, message):
+        self.message = message
+
     async def test_published_message_to_channel(self, r):
         p = r.pubsub()
         await p.subscribe("foo")
@@ -306,6 +309,14 @@ class TestPubSubMessages:
     async def test_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(foo=self.message_handler)
+        assert await wait_for_message(p) is None
+        assert await r.publish("foo", "test message") == 1
+        assert await wait_for_message(p) is None
+        assert self.message == make_message("message", "foo", "test message")
+
+    async def test_channel_async_message_handler(self, r):
+        p = r.pubsub(ignore_subscribe_messages=True)
+        await p.subscribe(foo=self.async_message_handler)
         assert await wait_for_message(p) is None
         assert await r.publish("foo", "test message") == 1
         assert await wait_for_message(p) is None
