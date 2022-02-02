@@ -4157,7 +4157,7 @@ class PubSub:
     async def listen(self) -> AsyncIterator:
         """Listen for messages on channels this client has been subscribed to"""
         while self.subscribed:
-            response = self.handle_message(await self.parse_response(block=True))
+            response = await self.handle_message(await self.parse_response(block=True))
             if response is not None:
                 yield response
 
@@ -4173,7 +4173,7 @@ class PubSub:
         """
         response = await self.parse_response(block=False, timeout=timeout)
         if response:
-            return self.handle_message(response, ignore_subscribe_messages)
+            return await self.handle_message(response, ignore_subscribe_messages)
         return None
 
     def ping(self, message=None) -> Awaitable:
@@ -4183,7 +4183,7 @@ class PubSub:
         message = "" if message is None else message
         return self.execute_command("PING", message)
 
-    def handle_message(self, response, ignore_subscribe_messages=False):
+    async def handle_message(self, response, ignore_subscribe_messages=False):
         """
         Parses a pub/sub message. If the channel or pattern was subscribed to
         with a message handler, the handler is invoked instead of a parsed
@@ -4232,7 +4232,10 @@ class PubSub:
             else:
                 handler = self.channels.get(message["channel"], None)
             if handler:
-                handler(message)
+                if inspect.iscoroutinefunction(handler):
+                    await handler(message)
+                else:
+                    handler(message)
                 return None
         elif message_type != "pong":
             # this is a subscribe/unsubscribe message. ignore if we don't
