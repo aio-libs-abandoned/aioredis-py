@@ -63,6 +63,7 @@ Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
 Stanislau Arkhipenka
+Stephan Meier
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris
