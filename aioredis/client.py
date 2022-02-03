@@ -74,7 +74,7 @@ TimeoutSecT = Union[int, float, _StringLikeT]
 AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
 AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
 AnyChannelT = ChannelT
-PubSubHandler = Callable[[Dict[str, str]], None]
+PubSubHandler = Callable[[Dict[str, str]], Awaitable[None]]
 
 SYM_EMPTY = b""
 EMPTY_RESPONSE = "EMPTY_RESPONSE"
