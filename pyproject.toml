@@ -7,3 +7,11 @@ issue_format = "#{issue}"
 underlines = ["", ""]
 template = ".towncrier.md.jinja"
 title_format = "## {version} - ({project_date})"
+
+[tool.pytest.ini_options]
+markers = [
+    "hiredis_parser: mark a test as using hiredis parser",
+    "python_parser: mark a test as using python parser",
+    "connection_pool: mark a test as using connection_pool client",
+    "single_connection: mark a test as using single connection client",
+]

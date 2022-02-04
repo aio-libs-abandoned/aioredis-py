@@ -136,26 +136,38 @@ def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
 
 @pytest.fixture(
     params=[
-        (True, PythonParser),
-        (False, PythonParser),
+        pytest.param(
+            (True, PythonParser),
+            marks=[pytest.mark.python_parser, pytest.mark.single_connection],
+            id="single-connection-python-parser",
+        ),
+        pytest.param(
+            (False, PythonParser),
+            marks=[pytest.mark.python_parser, pytest.mark.connection_pool],
+            id="pool-python-parser",
+        ),
         pytest.param(
             (True, HiredisParser),
-            marks=pytest.mark.skipif(
-                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
-            ),
+            marks=[
+                pytest.mark.skipif(
+                    not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+                ),
+                pytest.mark.hiredis_parser,
+                pytest.mark.single_connection,
+            ],
+            id="single-connection-hiredis",
         ),
         pytest.param(
             (False, HiredisParser),
-            marks=pytest.mark.skipif(
-                not HIREDIS_AVAILABLE, reason="hiredis is not installed"
-            ),
+            marks=[
+                pytest.mark.skipif(
+                    not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+                ),
+                pytest.mark.hiredis_parser,
+                pytest.mark.connection_pool,
+            ],
+            id="pool-hiredis",
         ),
-    ],
-    ids=[
-        "single-python-parser",
-        "pool-python-parser",
-        "single-hiredis",
-        "pool-hiredis",
     ],
 )
 def create_redis(request, event_loop):
