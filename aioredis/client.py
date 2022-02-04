@@ -858,8 +858,16 @@ class Redis:
         health_check_interval: int = 0,
         client_name: Optional[str] = None,
         username: Optional[str] = None,
+        auto_close_connection_pool: bool = True,
     ):
         kwargs: Dict[str, Any]
+        # auto_close_connection_pool only has an effect if connection_pool is
+        # None. This is a similar feature to the missing __del__ to resolve #1103,
+        # but it accounts for whether a user wants to manually close the connection
+        # pool, as a similar feature to ConnectionPool's __del__.
+        self.auto_close_connection_pool = (
+            auto_close_connection_pool if connection_pool is None else False
+        )
         if not connection_pool:
             kwargs = {
                 "db": db,
@@ -1067,11 +1075,22 @@ class Redis:
             context = {"client": self, "message": self._DEL_MESSAGE}
             asyncio.get_event_loop().call_exception_handler(context)
 
-    async def close(self):
+    async def close(self, close_connection_pool: Optional[bool] = None) -> None:
+        """
+        Closes Redis client connection
+
+        :param close_connection_pool: decides whether to close the connection pool used
+        by this Redis client, overriding Redis.auto_close_connection_pool. By default,
+        let Redis.auto_close_connection_pool decide whether to close the connection pool.
+        """
         conn = self.connection
         if conn:
             self.connection = None
             await self.connection_pool.release(conn)
+        if close_connection_pool or (
+            close_connection_pool is None and self.auto_close_connection_pool
+        ):
+            await self.connection_pool.disconnect()
 
     # COMMAND EXECUTION AND PROTOCOL PARSING
     async def execute_command(self, *args, **options):

@@ -41,6 +41,7 @@ jobs:
         path: tests/requirements.txt
     - name: Run mypy
       run: |
+        pip install -U setuptools
         pip install -r tests/requirements-mypy.txt
         mypy
     - name: Run linter
