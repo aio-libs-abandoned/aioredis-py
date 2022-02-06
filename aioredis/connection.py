@@ -42,12 +42,12 @@ from .exceptions import (
     ModuleError,
     NoPermissionError,
     NoScriptError,
+    ProtocolError,
     ReadOnlyError,
     RedisError,
+    ReplyError,
     ResponseError,
     TimeoutError,
-    ProtocolError,
-    ReplyError,
 )
 from .parser import PythonReader
 from .utils import str_if_bytes
@@ -114,8 +114,8 @@ EncodableT = Union[EncodedT, DecodedT]
 class _HiredisReaderArgs(TypedDict, total=False):
     protocolError: Callable[[str], Exception]
     replyError: Callable[[str], Exception]
-    encoding: Optional[str]
-    errors: Optional[str]
+    encoding: str | None
+    errors: str | None
 
 
 class Encoder:
@@ -194,7 +194,9 @@ class RedisProtocol(asyncio.Protocol):
         self._exc: BaseException | None = None
         self._conn_waiter: asyncio.Event = asyncio.Event()
         self._socket_keepalive: bool = socket_keepalive
-        self._socket_keepalive_options: Mapping[int, int | bytes] = socket_keepalive_options or {}
+        self._socket_keepalive_options: Mapping[int, int | bytes] = (
+            socket_keepalive_options or {}
+        )
 
     def connection_made(self, transport: asyncio.Transport) -> None:
         self._transport = transport
@@ -344,7 +346,7 @@ class RedisProtocol(asyncio.Protocol):
 
 
 class ConnectCallbackProtocol(Protocol):
-    def __call__(self, connection: "Connection"):
+    def __call__(self, connection: Connection):
         ...
 
 
@@ -390,24 +392,24 @@ class Connection:
         self,
         *,
         host: str = "localhost",
-        port: Union[str, int] = 6379,
-        db: Union[str, int] = 0,
-        password: Optional[str] = None,
-        socket_timeout: Optional[float] = None,
-        socket_connect_timeout: Optional[float] = None,
+        port: str | int = 6379,
+        db: str | int = 0,
+        password: str | None = None,
+        socket_timeout: float | None = None,
+        socket_connect_timeout: float | None = None,
         socket_keepalive: bool = False,
-        socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
+        socket_keepalive_options: Mapping[int, int | bytes] | None = None,
         socket_type: int = 0,
         retry_on_timeout: bool = False,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
-        parser_class: Type[DefaultReader] | None = None,
+        parser_class: type[DefaultReader] | None = None,
         socket_read_size: int = 65536,
         health_check_interval: float = 0,
-        client_name: Optional[str] = None,
-        username: Optional[str] = None,
-        encoder_class: Type[Encoder] = Encoder,
+        client_name: str | None = None,
+        username: str | None = None,
+        encoder_class: type[Encoder] = Encoder,
     ):
         self.pid = os.getpid()
         self.host = host
@@ -424,9 +426,9 @@ class Connection:
         self.retry_on_timeout = retry_on_timeout
         self.health_check_interval = health_check_interval
         self.next_health_check: float = -1
-        self.ssl_context: Optional[RedisSSLContext] = None
+        self.ssl_context: RedisSSLContext | None = None
         self.encoder = encoder_class(encoding, encoding_errors, decode_responses)
-        self._connect_callbacks: List[ConnectCallbackT] = []
+        self._connect_callbacks: list[ConnectCallbackT] = []
         self._buffer_cutoff = 6000
         self._lock = asyncio.Lock()
         self._conn: asyncio.Transport | None = None
@@ -434,7 +436,8 @@ class Connection:
         encoding = None if decode_responses is False else encoding
         if parser_class:
             reader = parser_class(
-                ProtocolError, ReplyError, encoding=encoding, errors=encoding_errors)
+                ProtocolError, ReplyError, encoding=encoding, errors=encoding_errors
+            )
         self._protocol = RedisProtocol(
             reader=reader,
             encoding=encoding,
@@ -533,7 +536,7 @@ class Connection:
 
         # if username and/or password are set, authenticate
         if self.username or self.password:
-            auth_args: Union[Tuple[str], Tuple[str, str]]
+            auth_args: tuple[str] | tuple[str, str]
             if self.username:
                 auth_args = (self.username, self.password or "")
             else:
@@ -669,9 +672,14 @@ class Connection:
         """Pack a series of arguments into the Redis protocol"""
         buff = buff or bytearray()
         cmd = args[0]
-        if isinstance(cmd, str) and " " in cmd or isinstance(cmd, bytes) and b" " in cmd:
+        if (
+            isinstance(cmd, str)
+            and " " in cmd
+            or isinstance(cmd, bytes)
+            and b" " in cmd
+        ):
             args = (*cmd.split(), *args[1:])
-        buff.extend(b'*%d\r\n' % len(args))
+        buff.extend(b"*%d\r\n" % len(args))
 
         _convs = self._converters
         _extend = buff.extend
@@ -679,9 +687,9 @@ class Connection:
             barg = _convs[arg.__class__](arg)
             if b" " in barg:
                 for _barg in barg.split():
-                    _extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
+                    _extend(b"$%d\r\n%s\r\n" % (len(barg), barg))
                 continue
-            _extend(b'$%d\r\n%s\r\n' % (len(barg), barg))
+            _extend(b"$%d\r\n%s\r\n" % (len(barg), barg))
 
         return buff
 
@@ -690,8 +698,8 @@ class Connection:
         bytearray: lambda val: val,
         memoryview: lambda val: val,
         str: lambda val: val.encode(),
-        int: lambda val: b'%d' % val,
-        float: lambda val: b'%r' % val,
+        int: lambda val: b"%d" % val,
+        float: lambda val: b"%r" % val,
     }
 
     def pack_commands(self, commands: Iterable[Iterable[EncodableT]]) -> bytearray:
@@ -705,10 +713,10 @@ class Connection:
 class SSLConnection(Connection):
     def __init__(
         self,
-        ssl_keyfile: Optional[str] = None,
-        ssl_certfile: Optional[str] = None,
+        ssl_keyfile: str | None = None,
+        ssl_certfile: str | None = None,
         ssl_cert_reqs: str = "required",
-        ssl_ca_certs: Optional[str] = None,
+        ssl_ca_certs: str | None = None,
         ssl_check_hostname: bool = False,
         **kwargs,
     ):
@@ -754,10 +762,10 @@ class RedisSSLContext:
 
     def __init__(
         self,
-        keyfile: Optional[str] = None,
-        certfile: Optional[str] = None,
-        cert_reqs: Optional[str] = None,
-        ca_certs: Optional[str] = None,
+        keyfile: str | None = None,
+        certfile: str | None = None,
+        cert_reqs: str | None = None,
+        ca_certs: str | None = None,
         check_hostname: bool = False,
     ):
         self.keyfile = keyfile
@@ -777,7 +785,7 @@ class RedisSSLContext:
             self.cert_reqs = CERT_REQS[cert_reqs]
         self.ca_certs = ca_certs
         self.check_hostname = check_hostname
-        self.context: Optional[ssl.SSLContext] = None
+        self.context: ssl.SSLContext | None = None
 
     def get(self) -> ssl.SSLContext:
         if not self.context:
@@ -797,16 +805,16 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self,
         *,
         path: str = "",
-        db: Union[str, int] = 0,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        socket_timeout: Optional[float] = None,
-        socket_connect_timeout: Optional[float] = None,
+        db: str | int = 0,
+        username: str | None = None,
+        password: str | None = None,
+        socket_timeout: float | None = None,
+        socket_connect_timeout: float | None = None,
         encoding: str = "utf-8",
         encoding_errors: str = "strict",
         decode_responses: bool = False,
         retry_on_timeout: bool = False,
-        parser_class: Type[DefaultReader] = DefaultReader,
+        parser_class: type[DefaultReader] = DefaultReader,
         socket_read_size: int = 65536,
         health_check_interval: float = 0.0,
         client_name=None,
@@ -831,7 +839,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._buffer_cutoff = 6000
         self._lock = asyncio.Lock()
 
-    def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
+    def repr_pieces(self) -> Iterable[tuple[str, str | int]]:
         pieces = [
             ("path", self.path),
             ("db", self.db),
@@ -862,7 +870,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
 
-def to_bool(value) -> Optional[bool]:
+def to_bool(value) -> bool | None:
     if value is None or value == "":
         return None
     if isinstance(value, str) and value.upper() in FALSE_STRINGS:
@@ -887,7 +895,7 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 class ConnectKwargs(TypedDict, total=False):
     username: str
     password: str
-    connection_class: Type[Connection]
+    connection_class: type[Connection]
     host: str
     port: int
     db: int
@@ -965,7 +973,7 @@ class ConnectionPool:
     """
 
     @classmethod
-    def from_url(cls: Type[_CP], url: str, **kwargs) -> _CP:
+    def from_url(cls: type[_CP], url: str, **kwargs) -> _CP:
         """
         Return a connection pool configured from the given URL.
 
@@ -1010,11 +1018,11 @@ class ConnectionPool:
 
     def __init__(
         self,
-        connection_class: Type[Connection] = Connection,
-        max_connections: Optional[int] = None,
+        connection_class: type[Connection] = Connection,
+        max_connections: int | None = None,
         **connection_kwargs,
     ):
-        max_connections = max_connections or 2 ** 31
+        max_connections = max_connections or 2**31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
 
@@ -1032,8 +1040,8 @@ class ConnectionPool:
         # release the lock.
         self._lock = asyncio.Lock()
         self._created_connections: int
-        self._available_connections: List[Connection]
-        self._in_use_connections: Set[Connection]
+        self._available_connections: list[Connection]
+        self._in_use_connections: set[Connection]
         self.reset()  # lgtm [py/init-calls-subclass]
         self.encoder_class = self.connection_kwargs.get("encoder_class", Encoder)
 
@@ -1242,15 +1250,15 @@ class BlockingConnectionPool(ConnectionPool):
     def __init__(
         self,
         max_connections: int = 50,
-        timeout: Optional[int] = 20,
-        connection_class: Type[Connection] = Connection,
-        queue_class: Type[asyncio.Queue] = asyncio.LifoQueue,
+        timeout: int | None = 20,
+        connection_class: type[Connection] = Connection,
+        queue_class: type[asyncio.Queue] = asyncio.LifoQueue,
         **connection_kwargs,
     ):
 
         self.queue_class = queue_class
         self.timeout = timeout
-        self._connections: List[Connection]
+        self._connections: list[Connection]
         super().__init__(
             connection_class=connection_class,
             max_connections=max_connections,

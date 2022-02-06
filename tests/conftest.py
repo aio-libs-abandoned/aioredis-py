@@ -10,10 +10,7 @@ import pytest
 
 import aioredis
 from aioredis.client import Monitor
-from aioredis.connection import (
-    HIREDIS_AVAILABLE,
-    parse_url,
-)
+from aioredis.connection import HIREDIS_AVAILABLE, parse_url
 from aioredis.parser import PythonParser, PythonReader
 
 from .compat import mock

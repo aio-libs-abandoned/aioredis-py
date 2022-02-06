@@ -5,9 +5,9 @@ import asyncio
 import pytest
 
 import aioredis
-from aioredis.connection import UnixDomainSocketConnection, DefaultReader
-from aioredis.parser import PythonReader
+from aioredis.connection import DefaultReader, UnixDomainSocketConnection
 from aioredis.exceptions import InvalidResponse
+from aioredis.parser import PythonReader
 
 
 @pytest.mark.asyncio

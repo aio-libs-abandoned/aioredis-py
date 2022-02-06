@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Generator, Iterator, AnyStr, TYPE_CHECKING
+from typing import TYPE_CHECKING, AnyStr, Callable, Generator, Iterator, Optional
 
 from aioredis.exceptions import InvalidResponse, ReplyError
 
@@ -41,10 +41,10 @@ class PythonReader:
         return self._parser.parse_one()
 
     def has_data(self) -> bool:
-        """Whether the """
+        """Whether the"""
         return len(self._parser.buf) > self._parser.pos
 
-    def setmaxbuf(self, size: Optional[int]) -> None:
+    def setmaxbuf(self, size: int | None) -> None:
         """No-op."""
         pass
 
@@ -81,6 +81,7 @@ class PythonParser:
 
 
     """
+
     __slots__ = (
         "buf",
         "pos",
@@ -137,7 +138,7 @@ class PythonParser:
         self.pos += 1
         return bytes(val)
 
-    def readline(self, size: Optional[int] = None) -> bytes:
+    def readline(self, size: int | None = None) -> bytes:
         if size is not None:
             if len(self.buf) < size + 2 + self.pos:
                 yield from self.waitsome(size + 2)
@@ -266,7 +267,7 @@ class PythonParser:
         val = {}
         parse = self.parse
         for _ in range(keynum):
-            val[(yield from parse())] = (yield from parse())
+            val[(yield from parse())] = yield from parse()
         return val
 
     def _parse_set(self) -> set[EncodableT] | None:
@@ -284,8 +285,10 @@ class PythonParser:
         return self._parse_mutibulk()
 
     def _maybe_decode(self, val: bytes | None) -> str:
-        return val if val is None else val.decode(
-            self.encoding, errors=self.encoding_errors
+        return (
+            val
+            if val is None
+            else val.decode(self.encoding, errors=self.encoding_errors)
         )
 
     _PROTOCOLS: dict[bytes, Callable[[PythonParser], EncodableT]] = {
