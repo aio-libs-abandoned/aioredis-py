@@ -1100,6 +1100,7 @@ class Redis:
         command_name = args[0]
         conn = self.connection or await pool.get_connection(command_name, **options)
         try:
+
             resp = await conn.send_command(*args)
             return await self.parse_response(resp, command_name, **options)
         except ResponseError:
@@ -3979,6 +3980,7 @@ class PubSub:
         self._lock = asyncio.Lock()
 
     async def __aenter__(self):
+        await self.connection_pool
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -3999,6 +4001,7 @@ class PubSub:
             self.pending_unsubscribe_channels = set()
             self.patterns = {}
             self.pending_unsubscribe_patterns = set()
+            await self.connection_pool.reset()
 
     def close(self) -> Awaitable[NoReturn]:
         return self.reset()

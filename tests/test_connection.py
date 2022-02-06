@@ -1,26 +1,26 @@
+from __future__ import annotations
+
 import asyncio
-from typing import TYPE_CHECKING
 
 import pytest
 
-from aioredis.connection import PythonParser, UnixDomainSocketConnection
+import aioredis
+from aioredis.connection import UnixDomainSocketConnection, DefaultReader
+from aioredis.parser import PythonReader
 from aioredis.exceptions import InvalidResponse
-
-from .compat import mock
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("create_redis", [(True, PythonParser)], indirect=True)
+@pytest.mark.parametrize("create_redis", [(True, PythonReader)], indirect=True)
 async def test_invalid_response(create_redis):
-    r = await create_redis()
+    r: aioredis.Redis = await create_redis()
 
     raw = b"x"
-    readline_mock = mock.AsyncMock(return_value=raw)
 
-    parser: "PythonParser" = r.connection._parser
-    with mock.patch.object(parser._buffer, "readline", readline_mock):
-        with pytest.raises(InvalidResponse) as cm:
-            await parser.read_response()
+    reader: DefaultReader = r.connection._protocol._parser
+    reader.feed(raw)
+    with pytest.raises(InvalidResponse) as cm:
+        reader.gets()
     assert str(cm.value) == "Protocol Error: %r" % raw
 
 
@@ -28,7 +28,7 @@ async def test_invalid_response(create_redis):
 async def test_socket_param_regression(r):
     """A regression test for issue #1060"""
     conn = UnixDomainSocketConnection()
-    await conn.disconnect() == True
+    assert await conn.disconnect() == True
 
 
 @pytest.mark.asyncio

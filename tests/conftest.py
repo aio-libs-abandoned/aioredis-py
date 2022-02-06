@@ -5,16 +5,16 @@ from distutils.version import StrictVersion
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
+import hiredis
 import pytest
 
 import aioredis
 from aioredis.client import Monitor
 from aioredis.connection import (
     HIREDIS_AVAILABLE,
-    HiredisParser,
-    PythonParser,
     parse_url,
 )
+from aioredis.parser import PythonParser, PythonReader
 
 from .compat import mock
 
@@ -137,17 +137,17 @@ def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
 @pytest.fixture(
     params=[
         pytest.param(
-            (True, PythonParser),
+            (True, PythonReader),
             marks=[pytest.mark.python_parser, pytest.mark.single_connection],
             id="single-connection-python-parser",
         ),
         pytest.param(
-            (False, PythonParser),
+            (False, PythonReader),
             marks=[pytest.mark.python_parser, pytest.mark.connection_pool],
             id="pool-python-parser",
         ),
         pytest.param(
-            (True, HiredisParser),
+            (True, hiredis.Reader),
             marks=[
                 pytest.mark.skipif(
                     not HIREDIS_AVAILABLE, reason="hiredis is not installed"
@@ -158,7 +158,7 @@ def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
             id="single-connection-hiredis",
         ),
         pytest.param(
-            (False, HiredisParser),
+            (False, hiredis.Reader),
             marks=[
                 pytest.mark.skipif(
                     not HIREDIS_AVAILABLE, reason="hiredis is not installed"
@@ -172,11 +172,11 @@ def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
 )
 def create_redis(request, event_loop):
     """Wrapper around aioredis.create_redis."""
-    single_connection, parser_cls = request.param
+    single_connection, reader_cls = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
         single = kwargs.pop("single_connection_client", False) or single_connection
-        parser_class = kwargs.pop("parser_class", None) or parser_cls
+        parser_class = kwargs.pop("parser_class", None) or reader_cls
         url_options = parse_url(url)
         url_options.update(kwargs)
         pool = aioredis.ConnectionPool(parser_class=parser_class, **url_options)
@@ -223,7 +223,7 @@ async def r2(create_redis):
 
 def _gen_cluster_mock_resp(r, response):
     connection = mock.AsyncMock()
-    connection.read_response.return_value = response
+    connection.send_command.return_value = response
     r.connection = connection
     return r
 

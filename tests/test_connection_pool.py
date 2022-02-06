@@ -577,7 +577,7 @@ class TestConnection:
             await bad_connection.info()
         pool = bad_connection.connection_pool
         assert len(pool._available_connections) == 1
-        assert not pool._available_connections[0]._reader
+        assert not pool._available_connections[0].is_connected
 
     @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_disconnects_socket(self, r):
@@ -604,7 +604,7 @@ class TestConnection:
         pool = r.connection_pool
         assert not pipe.connection
         assert len(pool._available_connections) == 1
-        assert not pool._available_connections[0]._reader
+        assert not pool._available_connections[0].is_connected
 
     @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_from_pipeline(self, r):
@@ -619,7 +619,7 @@ class TestConnection:
         pool = r.connection_pool
         assert not pipe.connection
         assert len(pool._available_connections) == 1
-        assert not pool._available_connections[0]._reader
+        assert not pool._available_connections[0].is_connected
 
     @skip_if_server_version_lt("2.8.8")
     async def test_read_only_error(self, r):
