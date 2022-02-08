@@ -588,7 +588,7 @@ class TestConnection:
         with pytest.raises(aioredis.BusyLoadingError):
             await r.execute_command("DEBUG", "ERROR", "LOADING fake message")
         if r.connection:
-            assert not r.connection._reader
+            assert not r.connection.is_connected
 
     @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_from_pipeline_immediate_command(self, r):

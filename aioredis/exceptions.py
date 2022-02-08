@@ -11,10 +11,6 @@ class ProtocolError(RedisError):
     pass
 
 
-class ReplyError(RedisError):
-    pass
-
-
 class ConnectionError(RedisError):
     pass
 

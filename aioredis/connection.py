@@ -7,24 +7,11 @@ import inspect
 import os
 import socket
 import ssl
-import threading
 import warnings
-from collections import deque
 from distutils.version import StrictVersion
 from itertools import chain
 from types import MappingProxyType
-from typing import (
-    Callable,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Callable, Iterable, Mapping, Type, TypeVar, Union
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
 import async_timeout
@@ -42,10 +29,8 @@ from .exceptions import (
     ModuleError,
     NoPermissionError,
     NoScriptError,
-    ProtocolError,
     ReadOnlyError,
     RedisError,
-    ReplyError,
     ResponseError,
     TimeoutError,
 )
@@ -185,8 +170,8 @@ class RedisProtocol(asyncio.Protocol):
         self._resp_queue: asyncio.Queue = asyncio.Queue()
         self._transport: asyncio.Transport | None = None
         self._parser: DefaultReader = reader or DefaultReader(
-            ProtocolError,
-            ReplyError,
+            InvalidResponse,
+            ResponseError,
             encoding=encoding,
             errors=encoding_errors,
         )
@@ -226,7 +211,7 @@ class RedisProtocol(asyncio.Protocol):
         """Wait to access the connection until `connection_made` is complete."""
         await self._conn_waiter.wait()
 
-    def send_command(self, cmd: bytes) -> asyncio.Future:
+    def send_command(self, cmd: bytes, *, pipeline: bool = False) -> asyncio.Future:
         fut = asyncio.get_event_loop().create_future()
 
         if self._state == _State.connected:
@@ -236,7 +221,7 @@ class RedisProtocol(asyncio.Protocol):
             # expect to see here have this attribute
             if not self._transport.is_closing():
                 self._transport.write(cmd)
-            self._resp_queue.put_nowait(fut)
+            self._resp_queue.put_nowait((fut, pipeline))
 
         elif self._state == _State.not_connected:
             fut.set_exception(
@@ -259,33 +244,63 @@ class RedisProtocol(asyncio.Protocol):
 
         self._parser.feed(data)
         res = self._parser.gets()
+        _empty = self._EMPTY
+        _gets = self._parser.gets
+        _get_fut = self._get_fut
+        _set_result_pipelined = self._set_result_pipelined
+        _set_exception = self._set_exception
+        while res is not _empty:
+            item = _get_fut()
+            if item is None:
+                res = _gets()
+                continue
+            fut, pipelined = item
+            if pipelined:
+                _set_result_pipelined(fut, res)
+                res = _gets()
+                continue
 
-        while res is not False:
-            try:
-                fut = self._resp_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                # # Extra unexpected data received from connection
-                # # e.g. connected to non-redis service
-                # self._set_exception(
-                #     InvalidResponse(
-                #         "Got additional data on the stream. "
-                #         "Are you connected to a supported Redis instance?"
-                #     )
-                # )
-                pass
+            if isinstance(res, RedisError):
+                if isinstance(res, ConnectionError):
+                    # If we got a connection error, we need to shut down the Protocol
+                    _set_exception(res)
+                fut.set_exception(res)
+                res = _gets()
+                continue
 
-            else:
-                if isinstance(res, RedisError):
-                    err = self.parse_error(str(res))
-                    if isinstance(err, ConnectionError):
-                        # If we got a connection error,
-                        #   we need to shut down the Protocol
-                        self._set_exception(err)
-                    fut.set_exception(err)
-                else:
-                    fut.set_result(res)
+            fut.set_result(res)
+            res = _gets()
 
-            res = self._parser.gets()
+    _EMPTY = False
+
+    def _set_result_pipelined(self, fut: asyncio.Future, res: bytes):
+        out = []
+        _empty = self._EMPTY
+        _set_exception = self._set_exception
+        _gets = self._parser.gets
+        _append = out.append
+        while res is not _empty:
+            if isinstance(res, ConnectionError):
+                # If we got a connection error, we need to shut down the Protocol
+                _set_exception(res)
+                fut.set_exception(res)
+                return
+            _append(res)
+            res = _gets()
+        fut.set_result(out)
+
+    def _get_fut(self) -> tuple[asyncio.Future, bool]:
+        try:
+            item = self._resp_queue.get_nowait()
+            return item
+        except asyncio.QueueEmpty:
+            # Extra unexpected data received from connection
+            # e.g. connected to non-redis service
+            err = InvalidResponse(
+                "Got additional data on the stream. "
+                "Are you connected to a supported Redis instance?"
+            )
+            self._set_exception(err)
 
     def _set_exception(self, exc):
         self._exc = exc
@@ -307,42 +322,45 @@ class RedisProtocol(asyncio.Protocol):
     def can_read(self):
         return self._parser.has_data()
 
-    def parse_error(self, response: str) -> ResponseError:
-        """Parse an error response"""
-        error_code = response.split(" ")[0]
-        if error_code in self.EXCEPTION_CLASSES:
-            response = response[len(error_code) + 1 :]
-            exception_class_or_dict = self.EXCEPTION_CLASSES[error_code]
-            if isinstance(exception_class_or_dict, dict):
-                exception_class = exception_class_or_dict.get(response, ResponseError)
-            else:
-                exception_class = exception_class_or_dict
-            return exception_class(response)
-        return ResponseError(response)
 
-    EXCEPTION_CLASSES: ExceptionMappingT = {
-        "ERR": {
-            "max number of clients reached": ConnectionError,
-            "Client sent AUTH, but no password is set": AuthenticationError,
-            "invalid password": AuthenticationError,
-            # some Redis server versions report invalid command syntax
-            # in lowercase
-            "wrong number of arguments for 'auth' command": AuthenticationWrongNumberOfArgsError,
-            # some Redis server versions report invalid command syntax
-            # in uppercase
-            "wrong number of arguments for 'AUTH' command": AuthenticationWrongNumberOfArgsError,
-            MODULE_LOAD_ERROR: ModuleError,
-            MODULE_EXPORTS_DATA_TYPES_ERROR: ModuleError,
-            NO_SUCH_MODULE_ERROR: ModuleError,
-            MODULE_UNLOAD_NOT_POSSIBLE_ERROR: ModuleError,
-        },
-        "EXECABORT": ExecAbortError,
-        "LOADING": BusyLoadingError,
-        "NOSCRIPT": NoScriptError,
-        "READONLY": ReadOnlyError,
-        "NOAUTH": AuthenticationError,
-        "NOPERM": NoPermissionError,
-    }
+def parse_error(response: str | bytes) -> ResponseError:
+    """Parse an error response"""
+    response = str_if_bytes(response)
+    error_code = response.split(" ")[0]
+    if error_code in EXCEPTION_CLASSES:
+        response = response[len(error_code) + 1 :]
+        exception_class_or_dict = EXCEPTION_CLASSES[error_code]
+        if isinstance(exception_class_or_dict, dict):
+            exception_class = exception_class_or_dict.get(response, ResponseError)
+        else:
+            exception_class = exception_class_or_dict
+        return exception_class(response)
+    return ResponseError(response)
+
+
+EXCEPTION_CLASSES: ExceptionMappingT = {
+    "ERR": {
+        "max number of clients reached": ConnectionError,
+        "Client sent AUTH, but no password is set": AuthenticationError,
+        "invalid password": AuthenticationError,
+        # some Redis server versions report invalid command syntax
+        # in lowercase
+        "wrong number of arguments for 'auth' command": AuthenticationWrongNumberOfArgsError,
+        # some Redis server versions report invalid command syntax
+        # in uppercase
+        "wrong number of arguments for 'AUTH' command": AuthenticationWrongNumberOfArgsError,
+        MODULE_LOAD_ERROR: ModuleError,
+        MODULE_EXPORTS_DATA_TYPES_ERROR: ModuleError,
+        NO_SUCH_MODULE_ERROR: ModuleError,
+        MODULE_UNLOAD_NOT_POSSIBLE_ERROR: ModuleError,
+    },
+    "EXECABORT": ExecAbortError,
+    "LOADING": BusyLoadingError,
+    "NOSCRIPT": NoScriptError,
+    "READONLY": ReadOnlyError,
+    "NOAUTH": AuthenticationError,
+    "NOPERM": NoPermissionError,
+}
 
 
 class ConnectCallbackProtocol(Protocol):
@@ -436,7 +454,7 @@ class Connection:
         encoding = None if decode_responses is False else encoding
         if parser_class:
             reader = parser_class(
-                ProtocolError, ReplyError, encoding=encoding, errors=encoding_errors
+                InvalidResponse, parse_error, encoding=encoding, errors=encoding_errors
             )
         self._protocol = RedisProtocol(
             reader=reader,
@@ -601,38 +619,44 @@ class Connection:
             and asyncio.get_event_loop().time() > self.next_health_check
         ):
             try:
-                await self.send_command("PING", check_health=False)
-                if str_if_bytes(await self.read_response()) != "PONG":
+                response = await self.send_command("PING", check_health=False)
+                if str_if_bytes(response) != "PONG":
                     raise ConnectionError("Bad response from PING health check")
             except (ConnectionError, TimeoutError) as err:
                 await self.disconnect()
                 try:
-                    await self.send_command("PING", check_health=False)
-                    if str_if_bytes(await self.read_response()) != "PONG":
+                    response = await self.send_command("PING", check_health=False)
+                    if str_if_bytes(response) != "PONG":
                         raise ConnectionError(
                             "Bad response from PING health check"
                         ) from None
                 except BaseException as err2:
                     raise err2 from err
 
-    def _send_packed_command(self, command: bytearray):
-        return self._protocol.send_command(command)
+            self.next_health_check = (
+                asyncio.get_event_loop().time() + self.health_check_interval
+            )
+
+    def _send_packed_command(self, command: bytearray, *, pipeline: bool = False):
+        return self._protocol.send_command(command, pipeline=pipeline)
 
     async def send_packed_command(
         self,
         command: str | bytes | bytearray,
         check_health: bool = True,
+        *,
+        pipeline: bool = False,
     ):
         """Send an already packed command to the Redis server"""
         # guard against health check recursion
-        # if check_health:
-        #     await self.check_health()
+        if check_health:
+            await self.check_health()
         try:
             if isinstance(command, str):
                 command = command.encode()
             if isinstance(command, bytes):
                 command = bytearray(command)
-            return await self._send_packed_command(command)
+            return await self._send_packed_command(command, pipeline=pipeline)
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError("Timeout writing to socket") from None
@@ -655,7 +679,9 @@ class Connection:
         if not self.is_connected:
             await self.connect()
         return await self.send_packed_command(
-            self.pack_command(*args), check_health=kwargs.get("check_health", True)
+            self.pack_command(*args),
+            check_health=kwargs.get("check_health", True),
+            pipeline=kwargs.get("pipeline", False),
         )
 
     async def can_read(self, timeout: float = 0):
@@ -684,11 +710,13 @@ class Connection:
         _convs = self._converters
         _extend = buff.extend
         for arg in args:
+            cls = arg.__class__
+            if cls not in _convs:
+                raise DataError(
+                    f"Invalid type given: {cls.__name__!r}. "
+                    f"Convert to one of {(*(t.__name__ for t in _convs),)} first."
+                )
             barg = _convs[arg.__class__](arg)
-            if b" " in barg:
-                for _barg in barg.split():
-                    _extend(b"$%d\r\n%s\r\n" % (len(barg), barg))
-                continue
             _extend(b"$%d\r\n%s\r\n" % (len(barg), barg))
 
         return buff
@@ -706,7 +734,7 @@ class Connection:
         """Pack multiple commands into the Redis protocol"""
         output: bytearray = bytearray()
         for cmd in commands:
-            self.pack_command(*cmd, buff=output)
+            output = self.pack_command(*cmd, buff=output)
         return output
 
 

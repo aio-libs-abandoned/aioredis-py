@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, AnyStr, Callable, Generator, Iterator, Optional
+from typing import TYPE_CHECKING, AnyStr, Callable, Generator, Iterator
 
-from aioredis.exceptions import InvalidResponse, ReplyError
+from aioredis.exceptions import InvalidResponse, ResponseError
 
 if TYPE_CHECKING:
     from aioredis.connection import EncodableT
@@ -16,17 +16,17 @@ class PythonReader:
     def __init__(
         self,
         protocolError: Callable = InvalidResponse,
-        replyError: Callable = ReplyError,
+        replyError: Callable = ResponseError,
         *,
         encoding: str | None = None,
         errors: str | None = None,
     ):
         self._parser = PythonParser(protocolError, replyError, encoding, errors)
 
-    def feed(self, data, o: int = 0, l: int = -1):
+    def feed(self, data, o: int = 0, l: int = -1):  # noqa: E741
         """Feed data to parser."""
-        if l == -1:
-            l = len(data) - o
+        if l == -1:  # noqa: E741
+            l = len(data) - o  # noqa: E741
         if o < 0 or l < 0:
             raise ValueError("negative input")
         if o + l > len(data):
