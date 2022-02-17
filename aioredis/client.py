@@ -1310,7 +1310,7 @@ class Redis:
                     pieces.append(b"<%s" % password[1:])
                 else:
                     raise DataError(
-                        "Password %d must be prefixeed with a "
+                        "Password %d must be prefixed with a "
                         '"+" to add or a "-" to remove' % i
                     )
 
@@ -1326,7 +1326,7 @@ class Redis:
                     pieces.append(b"!%s" % hashed_password[1:])
                 else:
                     raise DataError(
-                        "Hashed %d password must be prefixeed "
+                        "Hashed %d password must be prefixed "
                         'with a "+" to add or a "-" to remove' % i
                     )
 
