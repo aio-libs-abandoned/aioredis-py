@@ -7,6 +7,10 @@ class RedisError(Exception):
     pass
 
 
+class ProtocolError(RedisError):
+    pass
+
+
 class ConnectionError(RedisError):
     pass
 

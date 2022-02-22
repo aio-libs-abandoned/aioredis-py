@@ -57,7 +57,6 @@ jobs:
 
   test-unix:
     name: Test Unix
-    needs: lint
     strategy:
       matrix:
         os: [ubuntu-latest]
