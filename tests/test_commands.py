@@ -1809,7 +1809,7 @@ class TestRedisCommands:
         assert await r.hget("b", "1") == b"1"
         assert await r.hget("b", "2") == b"2"
         assert await r.hget("b", "foo") == b"bar"
-        
+
     async def test_hset_with_items(self, r: aioredis.Redis):
         await r.hset("a", items=["1", 1, "2", 2, "3", 3]
         assert await r.hget("a", "1") == b"1"
