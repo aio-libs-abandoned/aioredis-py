@@ -28,6 +28,8 @@ from typing import (
     cast,
 )
 
+import async_timeout
+
 from aioredis.compat import Protocol, TypedDict
 from aioredis.connection import (
     Connection,
@@ -3956,24 +3958,25 @@ class PubSub:
         self.shard_hint = shard_hint
         self.ignore_subscribe_messages = ignore_subscribe_messages
         self.connection: Optional[Connection] = None
+        self.subscribed_event = asyncio.Event()
         # we need to know the encoding options for this connection in order
         # to lookup channel and pattern names for callback handlers.
         self.encoder = self.connection_pool.get_encoder()
+        self.health_check_response_b = self.encoder.encode(self.HEALTH_CHECK_MESSAGE)
         if self.encoder.decode_responses:
             self.health_check_response: Iterable[Union[str, bytes]] = [
                 "pong",
                 self.HEALTH_CHECK_MESSAGE,
             ]
         else:
-            self.health_check_response = [
-                b"pong",
-                self.encoder.encode(self.HEALTH_CHECK_MESSAGE),
-            ]
+            self.health_check_response = [b"pong", self.health_check_response_b]
         self.channels: Dict[ChannelT, PubSubHandler] = {}
         self.pending_unsubscribe_channels: Set[ChannelT] = set()
         self.patterns: Dict[ChannelT, PubSubHandler] = {}
         self.pending_unsubscribe_patterns: Set[ChannelT] = set()
         self._lock = asyncio.Lock()
+        self.health_check_response_counter = 0
+        self.subscribed_event.clear()
 
     async def __aenter__(self):
         return self
@@ -3993,9 +3996,11 @@ class PubSub:
                 await self.connection_pool.release(self.connection)
                 self.connection = None
             self.channels = {}
+            self.health_check_response_counter = 0
             self.pending_unsubscribe_channels = set()
             self.patterns = {}
             self.pending_unsubscribe_patterns = set()
+            self.subscribed_event.clear()
 
     def close(self) -> Awaitable[NoReturn]:
         return self.reset()
@@ -4021,7 +4026,7 @@ class PubSub:
     @property
     def subscribed(self):
         """Indicates if there are subscriptions to any channels or patterns"""
-        return bool(self.channels or self.patterns)
+        return self.subscribed_event.is_set()
 
     async def execute_command(self, *args: EncodableT):
         """Execute a publish/subscribe command"""
@@ -4039,7 +4044,29 @@ class PubSub:
             self.connection.register_connect_callback(self.on_connect)
         connection = self.connection
         kwargs = {"check_health": not self.subscribed}
+        if not self.subscribed:
+            await self.clean_health_check_responses()
         await self._execute(connection, connection.send_command, *args, **kwargs)
+
+    async def clean_health_check_responses(self):
+        """
+        If any health check responses are present, clean them
+        """
+        ttl = 10
+        conn = self.connection
+        if not conn:
+            return
+        while self.health_check_response_counter > 0 and ttl > 0:
+            if await self._execute(conn, conn.can_read, timeout=conn.socket_timeout):
+                response = await self._execute(conn, conn.read_response)
+                if self.is_health_check_response(response):
+                    self.health_check_response_counter -= 1
+                else:
+                    raise PubSubError(
+                        "A non health check response was cleaned by "
+                        "execute_command: {}".format(response)
+                    )
+            ttl -= 1
 
     async def _execute(self, connection, command, *args, **kwargs):
         try:
@@ -4071,10 +4098,24 @@ class PubSub:
             return None
         response = await self._execute(conn, conn.read_response)
 
-        if conn.health_check_interval and response == self.health_check_response:
+        # The response depends on whether there were any subscriptions
+        # active at the time the PING was issued.
+        if self.is_health_check_response(response):
             # ignore the health check message as user might not expect it
+            self.health_check_response_counter -= 1
             return None
         return response
+
+    def is_health_check_response(self, response):
+        """
+        Check if the response is a health check response.
+        If there are no subscriptions redis responds to PING command with a
+        bulk response, instead of a multi-bulk with "pong" and the response.
+        """
+        return response in [
+            self.health_check_response,  # If there was a subscription
+            self.health_check_response_b,  # If there wasn't
+        ]
 
     async def check_health(self):
         conn = self.connection
@@ -4088,6 +4129,7 @@ class PubSub:
             conn.health_check_interval
             and asyncio.get_event_loop().time() > conn.next_health_check
         ):
+            self.health_check_response_counter += 1
             await conn.send_command(
                 "PING", self.HEALTH_CHECK_MESSAGE, check_health=False
             )
@@ -4120,6 +4162,11 @@ class PubSub:
         # for the reconnection.
         new_patterns = self._normalize_keys(new_patterns)
         self.patterns.update(new_patterns)
+        if not self.subscribed:
+            # Set the subscribed_event flag to True
+            self.subscribed_event.set()
+            # Clear the health check counter
+            self.health_check_response_counter = 0
         self.pending_unsubscribe_patterns.difference_update(new_patterns)
         return ret_val
 
@@ -4156,6 +4203,11 @@ class PubSub:
         # for the reconnection.
         new_channels = self._normalize_keys(new_channels)
         self.channels.update(new_channels)
+        if not self.subscribed:
+            # Set the subscribed_event flag to True
+            self.subscribed_event.set()
+            # Clear the health check counter
+            self.health_check_response_counter = 0
         self.pending_unsubscribe_channels.difference_update(new_channels)
         return ret_val
 
@@ -4190,6 +4242,21 @@ class PubSub:
         before returning. Timeout should be specified as a floating point
         number.
         """
+        if not self.subscribed:
+            # Wait for subscription
+            start_time = asyncio.get_event_loop().time()
+
+            async with async_timeout.timeout(timeout):
+                if await self.subscribed_event.wait() is True:
+                    # The connection was subscribed during the timeout time frame.
+                    # The timeout should be adjusted based on the time spent
+                    # waiting for the subscription
+                    time_spent = asyncio.get_event_loop().time() - start_time
+                    timeout = max(0.0, timeout - time_spent)
+                else:
+                    # The connection isn't subscribed to any channels or patterns,
+                    # so no messages are available
+                    return None
         response = await self.parse_response(block=False, timeout=timeout)
         if response:
             return await self.handle_message(response, ignore_subscribe_messages)
@@ -4243,6 +4310,10 @@ class PubSub:
                 if channel in self.pending_unsubscribe_channels:
                     self.pending_unsubscribe_channels.remove(channel)
                     self.channels.pop(channel, None)
+            if not self.channels and not self.patterns:
+                # There are no subscriptions anymore, set subscribed_event flag
+                # to false
+                self.subscribed_event.clear()
 
         if message_type in self.PUBLISH_MESSAGE_TYPES:
             # if there's a message handler, invoke it
