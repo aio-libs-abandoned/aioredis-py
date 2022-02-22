@@ -3497,16 +3497,19 @@ class Redis:
         key: Optional[FieldT] = None,
         value: Optional[EncodableT] = None,
         mapping: Optional[Mapping[AnyFieldT, EncodableT]] = None,
+        items: Optional[List[Union[FieldT, Optional[EncodableT]]]] = None,
     ) -> Awaitable:
         """
         Set ``key`` to ``value`` within hash ``name``,
-        ``mapping`` accepts a dict of key/value pairs that that will be
+        ``mapping`` accepts a dict of key/value pairs that will be
+        added to hash ``name``.
+        ``items`` accepts a list of key/value pairs that will be
         added to hash ``name``.
         Returns the number of fields that were added.
         """
-        if key is None and not mapping:
+        if key is None and not mapping and not items:
             raise DataError("'hset' with no key value pairs")
-        items: List[Union[FieldT, Optional[EncodableT]]] = []
+        items: List[Union[FieldT, Optional[EncodableT]]] = items or []
         if key is not None:
             items.extend((key, value))
         if mapping:
