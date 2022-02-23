@@ -42,6 +42,7 @@ Kyrylo Dehtyarenko
 Leonid Shvechikov
 Maksim Novikov
 Manuel Miranda
+Marek Czaplicki
 Marek Szapiel
 Marijn Giesen
 Martin <the-panda>
