@@ -2,6 +2,87 @@
 
 # Changelog
 
+### Features
+
+- Replace PubSub.run_in_thread with a coroutine PubSub.run.
+  (see #1007)
+- Add redis-py commit bc5854217b4e94eb7a33e3da5738858a17135ca5
+  (see #1036)
+- Add redis-py commit https://github.com/andymccurdy/redis-py/commit/c7e26ae6749f63b9ebf65c023f270b2ea2b9536a
+  (see #1037)
+- Introduce issue forms
+  (see #1080)
+- Add auto_close_connection_pool for Redis-created connection pools, not manually created pools
+  (see #1256)
+- Using coroutines as callbacks is now possible.
+  (see #1284)
+- Replace `disutils.version.StrictVersion` with `packaging.version.parse` implementation
+  (see #1306)
+
+
+### Bugfixes
+
+- removed socket timeout setup
+  (see #951)
+- Fix a number of type annotations. The majority of the changes are to allow keys
+  to be specified as `bytes`, but other errors have been corrected too.
+  (see #1008)
+- Fix aioredis.lock.Lock using a sleep that blocks the event loop.
+  (see #1016)
+- include CHANGELOG.md in the sdist
+  (see #1043)
+- Skip testing with pypy and uvloop
+  (see #1045)
+- Set socket_connect_timeout in UnixDomainSocketConnection. Change `_connect` in UnixDomainSocketConnection to use socket_connect_timeout instead of socket_timeout.
+  (see #1060)
+- Rename the health check
+  (see #1065)
+- Adds a lock to ``aioredis.connection.ConnectionPool``
+  (see #1068)
+- Fix type annotations: added `typing.Optional` for values with default `None`.
+  (see #1083)
+- Restore mkdocs-autorefs to version 0.2.1 to remain compatible with mkdocstrings.
+  (see #1084)
+- Synchronized reading the responses from a connection
+  (see #1105)
+- fixed raw socket.error (or one of its subclasses) raises instead of a redis.exceptions.ConnectionError
+  (see #1129)
+- Fix type annotation of `socket_keepalive_options` arguments when creating connections and clients
+  (see #1141)
+- Fix buffer is closed error when using PythonParser class
+  (see #1212)
+- Fix typing on evalsha keys_and_args argument
+  (see #1214)
+- Fix typing on blpop (etc) timeout argument
+  (see #1224)
+- Change `__del__` in Redis to raise ResourceWarning (Fixes #1115)
+  (see #1227)
+- Instantiate lock on UnixDomainSocketConnection init.
+  (see #1249)
+
+
+### Improved Documentation
+
+- Document breaking API changes in redis 2.x.
+  (see #1109)
+- Fix errors in getting started examples; Unify style of getting started examples with other examples.
+  (see #1159)
+- Add the rest of the requirements
+  (see #1167)
+
+
+### Deprecations and Removals
+
+- Remove explicit loop arguments from connection classes.
+  Add loop argument to PubSub.run_in_thread.
+  (see #1002)
+
+
+### Misc
+
+- #930, #940, #1003, #1018, #1095, #1101, #1219, #1247, #1302
+
+
 ## 2.0.0a1 - (2021-06-18)
 
 ### Bugfixes

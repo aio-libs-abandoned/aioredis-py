@@ -1,11 +1,11 @@
 import argparse
 import asyncio
 import random
-from distutils.version import StrictVersion
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
 import pytest
+from packaging.version import parse as parse_version
 
 import aioredis
 from aioredis.client import Monitor
@@ -117,13 +117,13 @@ def pytest_sessionstart(session):
 
 def skip_if_server_version_lt(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
-    check = StrictVersion(redis_version) < StrictVersion(min_version)
+    check = parse_version(redis_version) < parse_version(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required >= {min_version}")
 
 
 def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
-    check = StrictVersion(redis_version) >= StrictVersion(min_version)
+    check = parse_version(redis_version) >= parse_version(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required < {min_version}")
 
 
@@ -301,7 +301,7 @@ async def wait_for_command(client: aioredis.Redis, monitor: Monitor, command: st
     # if we find a command with our key before the command we're waiting
     # for, something went wrong
     redis_version = REDIS_INFO["version"]
-    if StrictVersion(redis_version) >= StrictVersion("5.0.0"):
+    if parse_version(redis_version) >= parse_version("5.0.0"):
         id_str = str(await client.client_id())
     else:
         id_str = "%08x" % random.randrange(2**32)

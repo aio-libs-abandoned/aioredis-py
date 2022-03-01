@@ -36,6 +36,7 @@ Ilya Samartsev
 Ivan Antonyuck
 James Hilliard
 Jan Špaček
+Janos Molnar
 Jeff Moser
 Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
