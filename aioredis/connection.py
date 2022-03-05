@@ -816,10 +816,8 @@ class Connection:
     def force_disconnect(self):
         """Force close reader and writer"""
         if os.getpid() == self.pid:
-            if not self.is_connected:
-                return
-
             self._reader = None
+            self._parser.on_disconnect()
 
             if self._writer:
                 try:
