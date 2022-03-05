@@ -813,6 +813,20 @@ class Connection:
                 f"Timed out closing connection after {self.socket_connect_timeout}"
             ) from None
 
+    def force_disconnect(self):
+        """Force close reader and writer"""
+        if os.getpid() == self.pid:
+            if not self.is_connected:
+                return
+
+            self._reader = None
+
+            if self._writer:
+                try:
+                    self._writer.close()
+                finally:
+                    self._writer = None
+
     async def check_health(self):
         """Check the health of the connection with a PING/PONG"""
         if (
@@ -1407,6 +1421,12 @@ class ConnectionPool:
         async with self._lock:
             try:
                 connection = self._available_connections.pop()
+                if connection._reader and connection._reader.exception():
+                    try:
+                        await connection.disconnect()
+                    except asyncio.CancelledError:
+                        connection.force_disconnect()
+                        connection = self.connection_class(**self.connection_kwargs)
             except IndexError:
                 connection = self.make_connection()
             self._in_use_connections.add(connection)

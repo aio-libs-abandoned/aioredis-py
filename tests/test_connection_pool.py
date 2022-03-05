@@ -155,6 +155,38 @@ class TestConnectionPool:
         c2 = await pool.get_connection("_")
         assert c1 == c2
 
+    async def test_broken_connection_is_refreshed_if_error_set(self, master_host):
+        connection_kwargs = {"host": master_host}
+        pool = self.get_pool(connection_kwargs=connection_kwargs)
+
+        c1 = await pool.get_connection("_")
+        c1._reader.set_exception(OSError("No route to host"))
+
+        await pool.release(c1)
+
+        with mock.patch.object(c1, 'disconnect', wraps=c1.disconnect) as wrapped_foo:
+            c2 = await pool.get_connection("_")
+            wrapped_foo.assert_called_once()
+
+        assert c1 == c2
+        assert c1.is_connected
+
+    async def test_broken_connection_is_replaced_if_error_set_and_disconnect_failed(self, master_host):
+        connection_kwargs = {"host": master_host}
+        pool = self.get_pool(connection_kwargs=connection_kwargs)
+
+        c1 = await pool.get_connection("_")
+        c1._reader.set_exception(OSError("No route to host"))
+
+        await pool.release(c1)
+
+        with mock.patch.object(c1, 'disconnect', side_effect=asyncio.CancelledError()):
+            c2 = await pool.get_connection("_")
+
+        assert c1 != c2
+        assert c2.is_connected is True
+        assert c1.is_connected is False
+
     def test_repr_contains_db_info_tcp(self):
         connection_kwargs = {
             "host": "localhost",
@@ -578,6 +610,13 @@ class TestConnection:
         pool = bad_connection.connection_pool
         assert len(pool._available_connections) == 1
         assert not pool._available_connections[0]._reader
+
+    async def test_connection_can_be_force_closed(self, r):
+        c = await r.connection_pool.get_connection("_")
+        assert c.is_connected is True
+
+        c.force_disconnect()
+        assert c.is_connected is False
 
     @skip_if_server_version_lt("2.8.8")
     async def test_busy_loading_disconnects_socket(self, r):
