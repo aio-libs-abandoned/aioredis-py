@@ -164,14 +164,16 @@ class TestConnectionPool:
 
         await pool.release(c1)
 
-        with mock.patch.object(c1, 'disconnect', wraps=c1.disconnect) as wrapped_foo:
+        with mock.patch.object(c1, "disconnect", wraps=c1.disconnect) as wrapped_foo:
             c2 = await pool.get_connection("_")
             wrapped_foo.assert_called_once()
 
         assert c1 == c2
         assert c1.is_connected
 
-    async def test_broken_connection_is_replaced_if_error_set_and_disconnect_failed(self, master_host):
+    async def test_broken_connection_is_replaced_if_error_set_and_disconnect_failed(
+        self, master_host
+    ):
         connection_kwargs = {"host": master_host}
         pool = self.get_pool(connection_kwargs=connection_kwargs)
 
@@ -180,7 +182,7 @@ class TestConnectionPool:
 
         await pool.release(c1)
 
-        with mock.patch.object(c1, 'disconnect', side_effect=asyncio.CancelledError()):
+        with mock.patch.object(c1, "disconnect", side_effect=asyncio.CancelledError()):
             c2 = await pool.get_connection("_")
 
         assert c1 != c2
