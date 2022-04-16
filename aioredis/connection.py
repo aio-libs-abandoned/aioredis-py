@@ -1,4 +1,5 @@
 import asyncio
+import enum
 import errno
 import inspect
 import io
@@ -9,8 +10,10 @@ import threading
 import warnings
 from distutils.version import StrictVersion
 from itertools import chain
+from types import MappingProxyType
 from typing import (
     Any,
+    Callable,
     Iterable,
     List,
     Mapping,
@@ -20,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 from urllib.parse import ParseResult, parse_qs, unquote, urlparse
 
@@ -78,7 +82,12 @@ SYM_EMPTY = b""
 
 SERVER_CLOSED_CONNECTION_ERROR = "Connection closed by server."
 
-SENTINEL = object()
+
+class _Sentinel(enum.Enum):
+    sentinel = object()
+
+
+SENTINEL = _Sentinel.sentinel
 MODULE_LOAD_ERROR = "Error loading the extension. Please check the server logs."
 NO_SUCH_MODULE_ERROR = "Error unloading module: no such module with that name"
 MODULE_UNLOAD_NOT_POSSIBLE_ERROR = "Error unloading module: operation not possible."
@@ -91,6 +100,13 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
 EncodedT = Union[bytes, bytearray, memoryview]
 DecodedT = Union[str, int, float]
 EncodableT = Union[EncodedT, DecodedT]
+
+
+class _HiredisReaderArgs(TypedDict, total=False):
+    protocolError: Callable[[str], Exception]
+    replyError: Callable[[str], Exception]
+    encoding: Optional[str]
+    errors: Optional[str]
 
 
 class Encoder:
@@ -117,14 +133,12 @@ class Encoder:
             return repr(value).encode()
         if not isinstance(value, str):
             # a value we don't know how to deal with. throw an error
-            typename = value.__class__.__name__
+            typename = value.__class__.__name__  # type: ignore[unreachable]
             raise DataError(
                 f"Invalid input of type: {typename!r}. "
                 "Convert to a bytes, bytearray, string, int or float first."
             )
-        if isinstance(value, str):
-            return value.encode(self.encoding, self.encoding_errors)
-        return value
+        return value.encode(self.encoding, self.encoding_errors)
 
     def decode(self, value: EncodableT, force=False) -> EncodableT:
         """Return a unicode string from the bytes-like representation"""
@@ -184,9 +198,11 @@ class BaseParser:
         error_code = response.split(" ")[0]
         if error_code in self.EXCEPTION_CLASSES:
             response = response[len(error_code) + 1 :]
-            exception_class = self.EXCEPTION_CLASSES[error_code]
-            if isinstance(exception_class, dict):
-                exception_class = exception_class.get(response, ResponseError)
+            exception_class_or_dict = self.EXCEPTION_CLASSES[error_code]
+            if isinstance(exception_class_or_dict, dict):
+                exception_class = exception_class_or_dict.get(response, ResponseError)
+            else:
+                exception_class = exception_class_or_dict
             return exception_class(response)
         return ResponseError(response)
 
@@ -199,7 +215,9 @@ class BaseParser:
     async def can_read(self, timeout: float) -> bool:
         raise NotImplementedError()
 
-    async def read_response(self) -> Union[EncodableT, ResponseError, None]:
+    async def read_response(
+        self,
+    ) -> Union[EncodableT, ResponseError, None, List[EncodableT]]:
         raise NotImplementedError()
 
 
@@ -215,12 +233,12 @@ class SocketBuffer:
         self,
         stream_reader: asyncio.StreamReader,
         socket_read_size: int,
-        socket_timeout: float,
+        socket_timeout: Optional[float],
     ):
-        self._stream = stream_reader
+        self._stream: Optional[asyncio.StreamReader] = stream_reader
         self.socket_read_size = socket_read_size
         self.socket_timeout = socket_timeout
-        self._buffer = io.BytesIO()
+        self._buffer: Optional[io.BytesIO] = io.BytesIO()
         # number of bytes written to the buffer from the socket
         self.bytes_written = 0
         # number of bytes read from the buffer
@@ -233,10 +251,12 @@ class SocketBuffer:
     async def _read_from_socket(
         self,
         length: Optional[int] = None,
-        timeout: Optional[float] = SENTINEL,  # type: ignore
+        timeout: Union[float, None, _Sentinel] = SENTINEL,
         raise_on_timeout: bool = True,
     ) -> bool:
         buf = self._buffer
+        if buf is None or self._stream is None:
+            raise RedisError("Buffer is closed.")
         buf.seek(self.bytes_written)
         marker = 0
         timeout = timeout if timeout is not SENTINEL else self.socket_timeout
@@ -281,6 +301,9 @@ class SocketBuffer:
         if length > self.length:
             await self._read_from_socket(length - self.length)
 
+        if self._buffer is None:
+            raise RedisError("Buffer is closed.")
+
         self._buffer.seek(self.bytes_read)
         data = self._buffer.read(length)
         self.bytes_read += len(data)
@@ -294,6 +317,9 @@ class SocketBuffer:
 
     async def readline(self) -> bytes:
         buf = self._buffer
+        if buf is None:
+            raise RedisError("Buffer is closed.")
+
         buf.seek(self.bytes_read)
         data = buf.readline()
         while not data.endswith(SYM_CRLF):
@@ -312,6 +338,9 @@ class SocketBuffer:
         return data[:-2]
 
     def purge(self):
+        if self._buffer is None:
+            raise RedisError("Buffer is closed.")
+
         self._buffer.seek(0)
         self._buffer.truncate()
         self.bytes_written = 0
@@ -320,7 +349,7 @@ class SocketBuffer:
     def close(self):
         try:
             self.purge()
-            self._buffer.close()
+            self._buffer.close()  # type: ignore[union-attr]
         except Exception:
             # issue #633 suggests the purge/close somehow raised a
             # BadFileDescriptor error. Perhaps the client ran out of
@@ -344,6 +373,9 @@ class PythonParser(BaseParser):
     def on_connect(self, connection: "Connection"):
         """Called when the stream connects"""
         self._stream = connection._reader
+        if self._stream is None:
+            raise RedisError("Buffer is closed.")
+
         self._buffer = SocketBuffer(
             self._stream, self._read_size, connection.socket_timeout
         )
@@ -362,7 +394,7 @@ class PythonParser(BaseParser):
         return self._buffer and bool(await self._buffer.can_read(timeout))
 
     async def read_response(self) -> Union[EncodableT, ResponseError, None]:
-        if not self._buffer:
+        if not self._buffer or not self.encoder:
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
         raw = await self._buffer.readline()
         if not raw:
@@ -414,25 +446,24 @@ class HiredisParser(BaseParser):
 
     __slots__ = BaseParser.__slots__ + ("_next_response", "_reader", "_socket_timeout")
 
+    _next_response: bool
+
     def __init__(self, socket_read_size: int):
         if not HIREDIS_AVAILABLE:
             raise RedisError("Hiredis is not available.")
         super().__init__(socket_read_size=socket_read_size)
-        self._next_response = ...
         self._reader: Optional[hiredis.Reader] = None
         self._socket_timeout: Optional[float] = None
 
     def on_connect(self, connection: "Connection"):
         self._stream = connection._reader
-        kwargs = {
+        kwargs: _HiredisReaderArgs = {
             "protocolError": InvalidResponse,
             "replyError": self.parse_error,
         }
         if connection.encoder.decode_responses:
-            kwargs.update(
-                encoding=connection.encoder.encoding,
-                errors=connection.encoder.encoding_errors,
-            )
+            kwargs["encoding"] = connection.encoder.encoding
+            kwargs["errors"] = connection.encoder.encoding_errors
 
         self._reader = hiredis.Reader(**kwargs)
         self._next_response = False
@@ -454,8 +485,13 @@ class HiredisParser(BaseParser):
         return True
 
     async def read_from_socket(
-        self, timeout: Optional[float] = SENTINEL, raise_on_timeout: bool = True
+        self,
+        timeout: Union[float, None, _Sentinel] = SENTINEL,
+        raise_on_timeout: bool = True,
     ):
+        if self._stream is None or self._reader is None:
+            raise RedisError("Parser already closed.")
+
         timeout = self._socket_timeout if timeout is SENTINEL else timeout
         try:
             async with async_timeout.timeout(timeout):
@@ -482,11 +518,14 @@ class HiredisParser(BaseParser):
                 return False
             raise ConnectionError(f"Error while reading from socket: {ex.args}")
 
-    async def read_response(self) -> EncodableT:
+    async def read_response(self) -> Union[EncodableT, List[EncodableT]]:
         if not self._stream or not self._reader:
             self.on_disconnect()
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from None
 
+        response: Union[
+            EncodableT, ConnectionError, List[Union[EncodableT, ConnectionError]]
+        ]
         # _next_response might be cached from a can_read() call
         if self._next_response is not False:
             response = self._next_response
@@ -509,7 +548,8 @@ class HiredisParser(BaseParser):
             and isinstance(response[0], ConnectionError)
         ):
             raise response[0]
-        return response
+        # cast as there won't be a ConnectionError here.
+        return cast(Union[EncodableT, List[EncodableT]], response)
 
 
 DefaultParser: Type[Union[PythonParser, HiredisParser]]
@@ -573,7 +613,7 @@ class Connection:
         socket_timeout: Optional[float] = None,
         socket_connect_timeout: Optional[float] = None,
         socket_keepalive: bool = False,
-        socket_keepalive_options: Optional[dict] = None,
+        socket_keepalive_options: Optional[Mapping[int, Union[int, bytes]]] = None,
         socket_type: int = 0,
         retry_on_timeout: bool = False,
         encoding: str = "utf-8",
@@ -581,7 +621,7 @@ class Connection:
         decode_responses: bool = False,
         parser_class: Type[BaseParser] = DefaultParser,
         socket_read_size: int = 65536,
-        health_check_interval: int = 0,
+        health_check_interval: float = 0,
         client_name: Optional[str] = None,
         username: Optional[str] = None,
         encoder_class: Type[Encoder] = Encoder,
@@ -600,7 +640,7 @@ class Connection:
         self.socket_type = socket_type
         self.retry_on_timeout = retry_on_timeout
         self.health_check_interval = health_check_interval
-        self.next_health_check = -1
+        self.next_health_check: float = -1
         self.ssl_context: Optional[RedisSSLContext] = None
         self.encoder = encoder_class(encoding, encoding_errors, decode_responses)
         self._reader: Optional[asyncio.StreamReader] = None
@@ -716,10 +756,12 @@ class Connection:
 
         # if username and/or password are set, authenticate
         if self.username or self.password:
+            auth_args: Union[Tuple[str], Tuple[str, str]]
             if self.username:
                 auth_args = (self.username, self.password or "")
             else:
-                auth_args = (self.password,)
+                # Mypy bug: https://github.com/python/mypy/issues/10944
+                auth_args = (self.password or "",)
             # avoid checking health here -- PING will fail if we try
             # to check the health prior to the AUTH
             await self.send_command("AUTH", *auth_args, check_health=False)
@@ -758,10 +800,10 @@ class Connection:
                     return
                 try:
                     if os.getpid() == self.pid:
-                        self._writer.close()
+                        self._writer.close()  # type: ignore[union-attr]
                         # py3.6 doesn't have this method
                         if hasattr(self._writer, "wait_closed"):
-                            await self._writer.wait_closed()
+                            await self._writer.wait_closed()  # type: ignore[union-attr]
                 except OSError:
                     pass
                 self._reader = None
@@ -792,15 +834,16 @@ class Connection:
                 except BaseException as err2:
                     raise err2 from err
 
-    async def _send_packed_command(
-        self, command: Union[bytes, str, Iterable[Union[bytes, str]]]
-    ):
+    async def _send_packed_command(self, command: Iterable[bytes]) -> None:
+        if self._writer is None:
+            raise RedisError("Connection already closed.")
+
         self._writer.writelines(command)
         await self._writer.drain()
 
     async def send_packed_command(
         self,
-        command: Union[bytes, str, Iterable[Union[bytes, str]]],
+        command: Union[bytes, str, Iterable[bytes]],
         check_health: bool = True,
     ):
         """Send an already packed command to the Redis server"""
@@ -858,6 +901,11 @@ class Connection:
         except asyncio.TimeoutError:
             await self.disconnect()
             raise TimeoutError(f"Timeout reading from {self.host}:{self.port}")
+        except OSError as e:
+            await self.disconnect()
+            raise ConnectionError(
+                f"Error while reading from {self.host}:{self.port} : {e.args}"
+            )
         except BaseException:
             await self.disconnect()
             raise
@@ -879,6 +927,7 @@ class Connection:
         # arguments to be sent separately, so split the first argument
         # manually. These arguments should be bytestrings so that they are
         # not encoded.
+        assert not isinstance(args[0], float)
         if isinstance(args[0], str):
             args = tuple(args[0].encode().split()) + args[1:]
         elif b" " in args[0]:
@@ -959,7 +1008,7 @@ class SSLConnection(Connection):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.ssl_context = RedisSSLContext(
+        self.ssl_context: RedisSSLContext = RedisSSLContext(
             keyfile=ssl_keyfile,
             certfile=ssl_certfile,
             cert_reqs=ssl_cert_reqs,
@@ -1023,7 +1072,7 @@ class RedisSSLContext:
             self.cert_reqs = CERT_REQS[cert_reqs]
         self.ca_certs = ca_certs
         self.check_hostname = check_hostname
-        self.context = None
+        self.context: Optional[ssl.SSLContext] = None
 
     def get(self) -> ssl.SSLContext:
         if not self.context:
@@ -1075,6 +1124,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._parser = parser_class(socket_read_size=socket_read_size)
         self._connect_callbacks = []
         self._buffer_cutoff = 6000
+        self._lock = asyncio.Lock()
 
     def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
         pieces = [
@@ -1107,7 +1157,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
 FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
 
-def to_bool(value) -> bool:
+def to_bool(value) -> Optional[bool]:
     if value is None or value == "":
         return None
     if isinstance(value, str) and value.upper() in FALSE_STRINGS:
@@ -1115,16 +1165,18 @@ def to_bool(value) -> bool:
     return bool(value)
 
 
-URL_QUERY_ARGUMENT_PARSERS = {
-    "db": int,
-    "socket_timeout": float,
-    "socket_connect_timeout": float,
-    "socket_keepalive": to_bool,
-    "retry_on_timeout": to_bool,
-    "max_connections": int,
-    "health_check_interval": int,
-    "ssl_check_hostname": to_bool,
-}
+URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyType(
+    {
+        "db": int,
+        "socket_timeout": float,
+        "socket_connect_timeout": float,
+        "socket_keepalive": to_bool,
+        "retry_on_timeout": to_bool,
+        "max_connections": int,
+        "health_check_interval": int,
+        "ssl_check_hostname": to_bool,
+    }
+)
 
 
 class ConnectKwargs(TypedDict, total=False):
@@ -1134,23 +1186,25 @@ class ConnectKwargs(TypedDict, total=False):
     host: str
     port: int
     db: int
+    path: str
 
 
 def parse_url(url: str) -> ConnectKwargs:
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
 
-    for name, value in parse_qs(parsed.query).items():
-        if value and len(value) > 0:
-            value = unquote(value[0])
+    for name, value_list in parse_qs(parsed.query).items():
+        if value_list and len(value_list) > 0:
+            value = unquote(value_list[0])
             parser = URL_QUERY_ARGUMENT_PARSERS.get(name)
             if parser:
                 try:
-                    kwargs[name] = parser(value)
+                    # We can't type this.
+                    kwargs[name] = parser(value)  # type: ignore[misc]
                 except (TypeError, ValueError):
                     raise ValueError(f"Invalid value for `{name}` in connection URL.")
             else:
-                kwargs[name] = value
+                kwargs[name] = value  # type: ignore[misc]
 
     if parsed.username:
         kwargs["username"] = unquote(parsed.username)
@@ -1188,7 +1242,7 @@ def parse_url(url: str) -> ConnectKwargs:
     return kwargs
 
 
-_CP = TypeVar("_CP")
+_CP = TypeVar("_CP", bound="ConnectionPool")
 
 
 class ConnectionPool:
@@ -1255,7 +1309,7 @@ class ConnectionPool:
         max_connections: Optional[int] = None,
         **connection_kwargs,
     ):
-        max_connections = max_connections or 2 ** 31
+        max_connections = max_connections or 2**31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
 
@@ -1433,7 +1487,7 @@ class ConnectionPool:
         self._checkpid()
         async with self._lock:
             if inuse_connections:
-                connections = chain(
+                connections: Iterable[Connection] = chain(
                     self._available_connections, self._in_use_connections
                 )
             else:

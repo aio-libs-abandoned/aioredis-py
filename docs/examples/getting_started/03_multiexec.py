@@ -11,4 +11,5 @@ async def main():
     assert ok2
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

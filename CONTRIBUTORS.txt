@@ -22,6 +22,7 @@ Chao Guo <jeffguorg>
 Contributors
 Daniil Kozhanov
 David Francos
+David Testé
 Dima Kit
 Dima Kruk
 Dmitry Vasilishin <dmvass>
@@ -29,6 +30,7 @@ Evgenii Morozov <emorozov>
 Federico Jaite <fedej>
 Filip Hanes
 Hugo <hugovk>
+Ian Good
 Ihor Gorobets
 Ihor Liubymov
 Ilya Samartsev
@@ -36,14 +38,17 @@ Ivan Antonyuck
 James Hilliard
 Jan Špaček
 Jeff Moser
+Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov
+Maksim Novikov
 Manuel Miranda
 Marek Szapiel
 Marijn Giesen
 Martin <the-panda>
 Maxim Dodonchuk
 Michael Käufl
+Mikhail Solomenik
 Nickolai Novik
 Oleg Abramov
 Oleg Butuzov
@@ -59,6 +64,7 @@ Sean Stewart <seandstewart>
 Sergey Miletskiy
 SeungHyun Hwang
 Stanislau Arkhipenka
+Stephan Meier
 Taku Fukada
 Taras Voinarovskyi
 Thanos Lefteris

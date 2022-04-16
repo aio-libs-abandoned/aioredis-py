@@ -2,13 +2,19 @@ import argparse
 import asyncio
 import random
 from distutils.version import StrictVersion
+from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
 import pytest
 
 import aioredis
 from aioredis.client import Monitor
-from aioredis.connection import parse_url
+from aioredis.connection import (
+    HIREDIS_AVAILABLE,
+    HiredisParser,
+    PythonParser,
+    parse_url,
+)
 
 from .compat import mock
 
@@ -19,6 +25,9 @@ REDIS_6_VERSION = "5.9.0"
 
 REDIS_INFO = {}
 default_redis_url = "redis://localhost:6379/9"
+
+_DecoratedTest = TypeVar("_DecoratedTest", bound="Callable")
+_TestDecorator = Callable[[_DecoratedTest], _DecoratedTest]
 
 
 # Taken from python3.9
@@ -106,35 +115,71 @@ def pytest_sessionstart(session):
     REDIS_INFO["arch_bits"] = arch_bits
 
 
-def skip_if_server_version_lt(min_version):
+def skip_if_server_version_lt(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = StrictVersion(redis_version) < StrictVersion(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required >= {min_version}")
 
 
-def skip_if_server_version_gte(min_version):
+def skip_if_server_version_gte(min_version: str) -> _TestDecorator:
     redis_version = REDIS_INFO["version"]
     check = StrictVersion(redis_version) >= StrictVersion(min_version)
     return pytest.mark.skipif(check, reason=f"Redis version required < {min_version}")
 
 
-def skip_unless_arch_bits(arch_bits):
+def skip_unless_arch_bits(arch_bits: int) -> _TestDecorator:
     return pytest.mark.skipif(
         REDIS_INFO["arch_bits"] != arch_bits,
         reason=f"server is not {arch_bits}-bit",
     )
 
 
-@pytest.fixture(params=[True, False], ids=["single", "pool"])
+@pytest.fixture(
+    params=[
+        pytest.param(
+            (True, PythonParser),
+            marks=[pytest.mark.python_parser, pytest.mark.single_connection],
+            id="single-connection-python-parser",
+        ),
+        pytest.param(
+            (False, PythonParser),
+            marks=[pytest.mark.python_parser, pytest.mark.connection_pool],
+            id="pool-python-parser",
+        ),
+        pytest.param(
+            (True, HiredisParser),
+            marks=[
+                pytest.mark.skipif(
+                    not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+                ),
+                pytest.mark.hiredis_parser,
+                pytest.mark.single_connection,
+            ],
+            id="single-connection-hiredis",
+        ),
+        pytest.param(
+            (False, HiredisParser),
+            marks=[
+                pytest.mark.skipif(
+                    not HIREDIS_AVAILABLE, reason="hiredis is not installed"
+                ),
+                pytest.mark.hiredis_parser,
+                pytest.mark.connection_pool,
+            ],
+            id="pool-hiredis",
+        ),
+    ],
+)
 def create_redis(request, event_loop):
     """Wrapper around aioredis.create_redis."""
-    single_connection = request.param
+    single_connection, parser_cls = request.param
 
     async def f(url: str = request.config.getoption("--redis-url"), **kwargs):
         single = kwargs.pop("single_connection_client", False) or single_connection
+        parser_class = kwargs.pop("parser_class", None) or parser_cls
         url_options = parse_url(url)
         url_options.update(kwargs)
-        pool = aioredis.ConnectionPool(**url_options)
+        pool = aioredis.ConnectionPool(parser_class=parser_class, **url_options)
         client: aioredis.Redis = aioredis.Redis(connection_pool=pool)
         if single:
             client = client.client()
@@ -259,7 +304,7 @@ async def wait_for_command(client: aioredis.Redis, monitor: Monitor, command: st
     if StrictVersion(redis_version) >= StrictVersion("5.0.0"):
         id_str = str(await client.client_id())
     else:
-        id_str = "%08x" % random.randrange(2 ** 32)
+        id_str = "%08x" % random.randrange(2**32)
     key = "__REDIS-PY-%s__" % id_str
     await client.get(key)
     while True:
