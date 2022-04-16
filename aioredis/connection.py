@@ -97,7 +97,7 @@ MODULE_EXPORTS_DATA_TYPES_ERROR = (
     "types, can't unload"
 )
 
-EncodedT = Union[bytes, memoryview]
+EncodedT = Union[bytes, bytearray, memoryview]
 DecodedT = Union[str, int, float]
 EncodableT = Union[EncodedT, DecodedT]
 
@@ -121,13 +121,13 @@ class Encoder:
 
     def encode(self, value: EncodableT) -> EncodedT:
         """Return a bytestring or bytes-like representation of the value"""
-        if isinstance(value, (bytes, memoryview)):
+        if isinstance(value, (bytes, bytearray, memoryview)):
             return value
         if isinstance(value, bool):
             # special case bool since it is a subclass of int
             raise DataError(
                 "Invalid input of type: 'bool'. "
-                "Convert to a bytes, string, int or float first."
+                "Convert to a bytes, bytearray, string, int or float first."
             )
         if isinstance(value, (int, float)):
             return repr(value).encode()
@@ -136,7 +136,7 @@ class Encoder:
             typename = value.__class__.__name__  # type: ignore[unreachable]
             raise DataError(
                 f"Invalid input of type: {typename!r}. "
-                "Convert to a bytes, string, int or float first."
+                "Convert to a bytes, bytearray, string, int or float first."
             )
         return value.encode(self.encoding, self.encoding_errors)
 
@@ -145,7 +145,7 @@ class Encoder:
         if self.decode_responses or force:
             if isinstance(value, memoryview):
                 return value.tobytes().decode(self.encoding, self.encoding_errors)
-            if isinstance(value, bytes):
+            if isinstance(value, (bytes, bytearray)):
                 return value.decode(self.encoding, self.encoding_errors)
         return value
 
@@ -943,7 +943,7 @@ class Connection:
             if (
                 len(buff) > buffer_cutoff
                 or arg_length > buffer_cutoff
-                or isinstance(arg, memoryview)
+                or isinstance(arg, (bytearray, memoryview))
             ):
                 buff = SYM_EMPTY.join(
                     (buff, SYM_DOLLAR, str(arg_length).encode(), SYM_CRLF)
@@ -978,13 +978,15 @@ class Connection:
                 if (
                     buffer_length > buffer_cutoff
                     or chunklen > buffer_cutoff
-                    or isinstance(chunk, memoryview)
+                    or isinstance(chunk, (bytearray, memoryview))
                 ):
                     output.append(SYM_EMPTY.join(pieces))
                     buffer_length = 0
                     pieces = []
 
-                if chunklen > buffer_cutoff or isinstance(chunk, memoryview):
+                if chunklen > buffer_cutoff or isinstance(
+                    chunk, (bytearray, memoryview)
+                ):
                     output.append(chunk)
                 else:
                     pieces.append(chunk)

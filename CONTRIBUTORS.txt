@@ -28,6 +28,7 @@ Dima Kruk
 Dmitry Vasilishin <dmvass>
 Evgenii Morozov <emorozov>
 Federico Jaite <fedej>
+Filip Hanes
 Hugo <hugovk>
 Ian Good
 Ihor Gorobets

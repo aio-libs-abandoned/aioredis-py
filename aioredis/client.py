@@ -55,7 +55,7 @@ AbsExpiryT = Union[int, datetime.datetime]
 ExpiryT = Union[int, datetime.timedelta]
 ZScoreBoundT = Union[float, str]  # str allows for the [ or ( prefix
 BitfieldOffsetT = Union[int, str]  # str allows for #x syntax
-_StringLikeT = Union[bytes, str, memoryview]
+_StringLikeT = Union[bytes, bytearray, str, memoryview]
 KeyT = _StringLikeT  # Main redis key space
 PatternT = _StringLikeT  # Patterns matched against keys, fields etc
 FieldT = EncodableT  # Fields within hash tables, streams and geo commands
@@ -71,8 +71,8 @@ TimeoutSecT = Union[int, float, _StringLikeT]
 # a TypeVar instead of a Union allows mappings with any of the permitted types
 # to be passed. Care is needed if there is more than one such mapping in a
 # type signature because they will all be required to be the same key type.
-AnyKeyT = TypeVar("AnyKeyT", bytes, str, memoryview)
-AnyFieldT = TypeVar("AnyFieldT", bytes, str, memoryview)
+AnyKeyT = TypeVar("AnyKeyT", bytes, bytearray, str, memoryview)
+AnyFieldT = TypeVar("AnyFieldT", bytes, bytearray, str, memoryview)
 AnyChannelT = ChannelT
 PubSubHandler = Callable[[Dict[str, str]], Awaitable[None]]
 

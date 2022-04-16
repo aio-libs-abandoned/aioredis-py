@@ -40,6 +40,14 @@ class TestPipeline:
                 b"a1",
             ]
 
+    async def test_pipeline_bytearray(self, r):
+        async with r.pipeline() as pipe:
+            (pipe.set("a", bytearray(b"a1")).get("a"))
+            assert await pipe.execute() == [
+                True,
+                b"a1",
+            ]
+
     async def test_pipeline_length(self, r):
         async with r.pipeline() as pipe:
             # Initially empty.
