@@ -2,11 +2,11 @@
 
 ---
 
-## 📢🚨 Aioredis is now in redis-py 4.2.0rc1+ 🚨🚨
+## 📢🚨 Aioredis is now in redis-py 4.2.0+ 🚨🚨
 
-Aioredis is now in redis-py 4.2.0rc1+
+Aioredis is now in redis-py 4.2.0+
 
-To install, just do `pip install redis>=4.2.0rc1`. The code is almost the exact same. You will just need to import like so:
+To install, just do `pip install redis>=4.2.0`. The code is almost the exact same. You will just need to import like so:
 
 ```python
 from redis import asyncio as aioredis
@@ -14,7 +14,7 @@ from redis import asyncio as aioredis
 
 This way you don't have to change all your code, just the imports.
 
-https://github.com/redis/redis-py/releases/tag/v4.2.0rc1
+https://github.com/redis/redis-py/releases/tag/v4.2.0
 
 Now that aioredis is under Redis officially, I hope there will never be an unmaintained, asyncio Redis lib in the Python ecosystem again. I will be helping out maintenance at Redis-py for the foreseeable future just to get some of the asyncio stuff out of the way. There are also some bugs that didn't make it into the [PR](https://github.com/redis/redis-py/pull/1899) that I'll be slowly migrating over throughout the next few weeks -- so long as my exams don't kill me beforehand :)
 
