@@ -1,4 +1,4 @@
-import warning
+import warnings
 
 from aioredis.client import Redis, StrictRedis
 from aioredis.connection import (
