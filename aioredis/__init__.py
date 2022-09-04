@@ -1,3 +1,5 @@
+import warning
+
 from aioredis.client import Redis, StrictRedis
 from aioredis.connection import (
     BlockingConnectionPool,
@@ -33,6 +35,8 @@ def int_or_str(value):
 
 __version__ = "2.0.1"
 VERSION = tuple(map(int_or_str, __version__.split(".")))
+
+warnings.warn("aioredis is no longer maintained. Please install redis-py and rewrite imports as 'from redis import asyncio as aioredis'.", DeprecationWarning)
 
 __all__ = [
     "AuthenticationError",
