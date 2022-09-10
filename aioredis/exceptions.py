@@ -1,5 +1,4 @@
 """Core exceptions raised by the Redis client"""
-import asyncio
 import builtins
 
 
