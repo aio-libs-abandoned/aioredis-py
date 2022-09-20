@@ -121,7 +121,7 @@ jobs:
         make ci-test
         python -m coverage xml
     - name: Upload coverage
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3.1.1
       with:
         file: ./coverage.xml
         flags: unit
