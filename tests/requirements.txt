@@ -1,5 +1,5 @@
 async-timeout==4.0.2
-coverage==6.3.1
+coverage==6.5.0
 flake8==4.0.1
 hiredis==2.0.0
 mock==4.0.3
