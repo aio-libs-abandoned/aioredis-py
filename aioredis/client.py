@@ -1104,7 +1104,7 @@ class Redis:
             return await self.parse_response(conn, command_name, **options)
         except (ConnectionError, TimeoutError) as e:
             await conn.disconnect()
-            if not (conn.retry_on_timeout and isinstance(e, TimeoutError)):
+            if isinstance(e, TimeoutError) and not conn.retry_on_timeout:
                 raise
             await conn.send_command(*args)
             return await self.parse_response(conn, command_name, **options)
