@@ -11,7 +11,7 @@ class ConnectionError(RedisError):
     pass
 
 
-class TimeoutError(asyncio.TimeoutError, builtins.TimeoutError, RedisError):
+class TimeoutError(asyncio.TimeoutError, RedisError):
     pass
 
 
