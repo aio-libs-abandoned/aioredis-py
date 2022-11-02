@@ -1,0 +1,1 @@
+Remove the `builtins.TimeoutError` class from base classes of `aioredis.exceptions.TimeoutError` because it is causing an error due to its redundancy.
