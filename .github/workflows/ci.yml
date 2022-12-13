@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: Checkout
-      uses: actions/checkout@v2.4.0
+      uses: actions/checkout@v3.2.0
     - name: Setup Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -90,7 +90,7 @@ jobs:
       PYTEST_ADDOPTS: --${{ matrix.uvloop }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2.4.0
+      uses: actions/checkout@v3.2.0
     - name: Setup Python ${{ matrix.pyver }}
       uses: actions/setup-python@v2
       with:
@@ -136,7 +136,7 @@ jobs:
    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
    steps:
    - name: Checkout
-     uses: actions/checkout@v2.4.0
+     uses: actions/checkout@v3.2.0
    - name: Setup Python 3.8
      uses: actions/setup-python@v2
      with:
