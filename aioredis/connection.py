@@ -8,7 +8,7 @@ import socket
 import ssl
 import threading
 import warnings
-from distutils.version import StrictVersion
+from packaging.version import Version
 from itertools import chain
 from types import MappingProxyType
 from typing import (
@@ -65,8 +65,8 @@ except (ImportError, ModuleNotFoundError):
     HIREDIS_AVAILABLE = False
 else:
     HIREDIS_AVAILABLE = True
-    hiredis_version = StrictVersion(hiredis.__version__)
-    if hiredis_version < StrictVersion("1.0.0"):
+    hiredis_version = Version(hiredis.__version__)
+    if hiredis_version < Version("1.0.0"):
         warnings.warn(
             "aioredis supports hiredis @ 1.0.0 or higher. "
             f"You have hiredis @ {hiredis.__version__}. "
