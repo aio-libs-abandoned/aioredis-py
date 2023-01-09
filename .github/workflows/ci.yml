@@ -29,7 +29,7 @@ jobs:
       with:
         python-version: 3.8
     - name: Cache PyPI
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v3.2.3
       with:
         key: pip-lint-${{ hashFiles('**/requirements.txt') }}
         path: ~/.cache/pip
@@ -100,7 +100,7 @@ jobs:
       run: |
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Cache PyPI
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v3.2.3
       with:
         key: pip-ci-${{ runner.os }}-${{ matrix.pyver }}-${{ hashFiles('**/requirements.txt') }}
         path: ${{ steps.pip-cache.outputs.dir }}
