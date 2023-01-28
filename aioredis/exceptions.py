@@ -3,7 +3,6 @@ import asyncio
 import builtins
 
 from asyncio.exceptions import TimeoutError as AsyncIOTimeoutError
-from builtins import TimeoutError as BuiltinTimeoutError
 
 
 class RedisError(Exception):
@@ -14,7 +13,7 @@ class ConnectionError(RedisError):
     pass
 
 
-class TimeoutError(AsyncIOTimeoutError, BuiltinTimeoutError, RedisError):
+class TimeoutError(AsyncIOTimeoutError, RedisError):
     pass
 
 
