@@ -37,6 +37,7 @@ Ivan Antonyuck
 James Hilliard
 Jan Špaček
 Jeff Moser
+Jeong, YunWon <youknowone>
 Joongi Kim <achimnol>
 Kyrylo Dehtyarenko
 Leonid Shvechikov

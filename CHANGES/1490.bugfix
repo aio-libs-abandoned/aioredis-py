@@ -1,0 +1,1 @@
+aioredis.TimeoutError inherits only builtins.TimeoutError when Python asyncio.TimeoutError == builtins.TimeoutError.
