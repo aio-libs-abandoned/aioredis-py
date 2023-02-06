@@ -67,7 +67,6 @@ class SentinelTestCluster:
 
 @pytest.fixture()
 async def cluster(master_ip):
-
     cluster = SentinelTestCluster(ip=master_ip)
     saved_Redis = aioredis.sentinel.Redis
     aioredis.sentinel.Redis = cluster.client

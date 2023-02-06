@@ -1541,7 +1541,6 @@ class BlockingConnectionPool(ConnectionPool):
         queue_class: Type[asyncio.Queue] = asyncio.LifoQueue,
         **connection_kwargs,
     ):
-
         self.queue_class = queue_class
         self.timeout = timeout
         self._connections: List[Connection]
