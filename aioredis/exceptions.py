@@ -10,9 +10,12 @@ class RedisError(Exception):
 class ConnectionError(RedisError):
     pass
 
-
-class TimeoutError(asyncio.TimeoutError, builtins.TimeoutError, RedisError):
-    pass
+if asyncio.TimeoutError is builtins.TimeoutError:  # >= Python 3.11
+    class TimeoutError(builtins.TimeoutError, RedisError):
+        pass
+else:
+    class TimeoutError(asyncio.TimeoutError, builtins.TimeoutError, RedisError):
+        pass
 
 
 class AuthenticationError(ConnectionError):
